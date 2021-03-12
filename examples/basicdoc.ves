@@ -1,0 +1,63 @@
+# This is a comment
+docclass coprime (
+    item,
+    korean # Comma can be omitted.
+)
+
+#* This is another comment *#
+#*
+Importing packages has three grammars:
+First.
+import package
+
+Second.
+import package(option, option, option)
+or
+import package (option, option, option)
+
+Last.
+import {
+    package1
+    package2 (option, option, option)
+    package3(option)
+}
+*#
+import {
+    tikz
+    tcolorbox (many)
+    enumitem
+    array
+    geometry (a4paper, margin = 0.4\textwidth)
+}
+
+# Start main document.
+# I recommend to use this keyword with two line break like this.
+# But this might not cause a compile error.
+document
+Now the main document is started! The math mode can be used with $1+1<2$.
+Note that $3\leq 2$ will compile first by \$3\\leq 2\$.
+$$
+    mtxt In here, I can type text! etxt
+$$
+
+To use the latex function, type "LaTeX". If it has a parameter,
+then type \textbf{like this!}. This grammar can work in the math mode.
+
+Finally, to use an environment, there are two ways to do this:
+First is that use #!begenv!# and #!endenv!# keywords. For example,
+# Since \textwidth is a latex command, must use like "textwidth".
+begenv center
+    begenv minipage{0.7\textwidth}
+        Use like this!
+    endenv
+
+Second way is use raw latex grammar. Upper part is equivalent with
+##-
+\begin{center}
+    \begin{minipage}{0.7\textwidth}
+        Use like this!
+    \end{minipage}
+\end{center}
+-##
+
+A token \#\#- and -\#\# is actually a long line vesti code verbatim.
