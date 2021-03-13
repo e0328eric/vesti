@@ -588,7 +588,8 @@ func (p *Parser) parseFunctionArgCore(
 		if err := p.expectPeek(p.peekTokLoaction(), token.ArgSpliter); err != nil {
 			return err
 		}
-		p.eatWhitespaces(false)
+		// Multiline splitting arguments support
+		p.eatWhitespaces(true)
 
 	}
 	if err := p.expectPeek(p.peekTokLoaction(), closed); err != nil {

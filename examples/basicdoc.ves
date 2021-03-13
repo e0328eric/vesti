@@ -50,6 +50,7 @@ begenv center
     begenv minipage{0.7\textwidth}
         Use like this!
     endenv
+endenv
 
 Second way is use raw latex grammar. Upper part is equivalent with
 ##-

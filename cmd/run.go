@@ -95,7 +95,9 @@ func runVesti(_ *cobra.Command, args []string) {
 			}
 
 			// Write or make a output tex file
-			_, err = outFile.WriteString("")
+			err = outFile.Truncate(0)
+			checkIsPanic(err)
+			_, err = outFile.Seek(0, 0)
 			checkIsPanic(err)
 			_, err = outFile.WriteString(output)
 			checkIsPanic(err)
