@@ -3,8 +3,8 @@ package vestiError
 import (
 	"fmt"
 	"strings"
-	"vesti/src/location"
-	"vesti/src/token"
+	"vesti/location"
+	"vesti/token"
 )
 
 // TODO: implement "func Error() string"

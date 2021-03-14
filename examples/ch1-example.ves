@@ -1,11 +1,5 @@
 docclass article
-import {
-    amsmath
-    amsthm
-    amssymb
-    array
-    tikz
-}
+import { amsmath amsthm amssymb array tikz }
 
 \title{Test Document}
 \article{John Doe}

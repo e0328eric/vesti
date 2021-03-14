@@ -2,7 +2,7 @@ package lexer
 
 import (
 	"testing"
-	"vesti/src/token"
+	"vesti/token"
 )
 
 func testLexing(t *testing.T, input string, expectedLst []token.Token) {

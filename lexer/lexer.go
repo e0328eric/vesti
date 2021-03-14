@@ -3,9 +3,9 @@ package lexer
 import (
 	"bytes"
 	"unicode"
-	"vesti/src/location"
-	"vesti/src/newlineHandler"
-	"vesti/src/token"
+	"vesti/location"
+	"vesti/newlineHandler"
+	"vesti/token"
 )
 
 type LexToken struct {

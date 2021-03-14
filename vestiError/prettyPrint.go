@@ -105,6 +105,7 @@ func PrintErr(source string, filename *string, err VestiErr) string {
 			out.WriteByte('\n')
 		}
 	}
+	out.WriteString(ResetColor)
 
 	return out.String()
 }

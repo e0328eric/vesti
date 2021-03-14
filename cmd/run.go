@@ -12,9 +12,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"vesti/src/lexer"
-	"vesti/src/parser"
-	verror "vesti/src/vestiError"
+	"vesti/lexer"
+	"vesti/parser"
+	verror "vesti/vestiError"
 
 	"github.com/spf13/cobra"
 )

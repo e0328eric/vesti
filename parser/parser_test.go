@@ -2,7 +2,8 @@ package parser
 
 import (
 	"testing"
-	"vesti/src/lexer"
+	"vesti/lexer"
+	"vesti/vestiError"
 )
 
 type testInput struct {
@@ -19,7 +20,7 @@ func testParser(t *testing.T, tests []testInput) {
 		evaluated, err := p.parseLatex()
 
 		if err != nil {
-			t.Fatalf("%s\t%v\n%s", err.ErrString(), err.Location(), evaluated)
+			t.Fatal(vestiError.PrintErr(tt.input, nil, err))
 		}
 
 		if evaluated.String() != tt.expected {
@@ -129,6 +130,19 @@ func TestParsingUsepackage(t *testing.T) {
 	)
 	geometry (a4paper, margin = 0.4in)
 }`,
+			`\usepackage{kotex}
+\usepackage[many]{tcolorbox}
+\usepackage[bar1,bar2,bar3]{foo}
+\usepackage[a4paper,margin=0.4in]{geometry}
+`,
+		},
+		{
+			`import { kotex tcolorbox (many) foo (
+		bar1,
+		bar2,
+		bar3,
+	)
+	geometry (a4paper, margin = 0.4in) }`,
 			`\usepackage{kotex}
 \usepackage[many]{tcolorbox}
 \usepackage[bar1,bar2,bar3]{foo}

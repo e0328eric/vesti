@@ -3,11 +3,11 @@ package parser
 import (
 	"bytes"
 	"strconv"
-	"vesti/src/ast"
-	"vesti/src/lexer"
-	"vesti/src/location"
-	"vesti/src/token"
-	verror "vesti/src/vestiError"
+	"vesti/ast"
+	"vesti/lexer"
+	"vesti/location"
+	"vesti/token"
+	verror "vesti/vestiError"
 )
 
 type VError verror.VestiErr
@@ -54,18 +54,23 @@ func (p *Parser) expectPeek(
 	span *location.Span,
 	tokType ...token.TokenType,
 ) VError {
+	expectMatched := false
 	gotTok := p.nextTok()
 	for _, tok := range tokType {
-		if gotTok.Token.Type != tok {
-			return &verror.TypeMismatch{
-				Expected: tokType,
-				Got:      gotTok.Token.Type,
-				Loc:      span,
-			}
+		if gotTok.Token.Type == tok {
+			expectMatched = true
 		}
 	}
 
-	return nil
+	if expectMatched {
+		return nil
+	}
+
+	return &verror.TypeMismatch{
+		Expected: tokType,
+		Got:      gotTok.Token.Type,
+		Loc:      span,
+	}
 }
 
 func (p *Parser) takeName() (string, VError) {
@@ -341,11 +346,17 @@ func (p *Parser) parseMultiUsePackages() (*ast.MultiUsePackages, VError) {
 			return nil, err
 		}
 
-		err = p.expectPeek(p.peekTokLoaction(), token.Newline)
-		if err == nil {
+		if p.peekTok() == token.Newline {
 			p.eatWhitespaces(true)
-		} else {
-			return nil, err
+		} else if p.peekTok() == token.Rbrace {
+			pkgs = append(pkgs, &ast.UsePackage{Name: name, Options: options})
+			break
+		} else if p.peekTok() != token.MainString {
+			return nil, &verror.TypeMismatch{
+				Expected: []token.TokenType{token.Newline, token.MainString, token.Rbrace},
+				Got:      p.peekTok(),
+				Loc:      p.peekTokLoaction(),
+			}
 		}
 
 		pkgs = append(pkgs, &ast.UsePackage{Name: name, Options: options})
