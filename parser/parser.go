@@ -77,17 +77,19 @@ func (p *Parser) takeName() (string, VError) {
 	var tmp bytes.Buffer
 
 	for {
-		tokType := p.nextTok()
-		switch tokType.Token.Type {
+		nameToken := p.nextTok()
+		switch nameToken.Token.Type {
 		case token.MainString:
-			tmp.WriteString(tokType.Token.Literal)
+			tmp.WriteString(nameToken.Token.Literal)
 		case token.Minus:
-			tmp.WriteString(tokType.Token.Literal)
+			tmp.WriteString(nameToken.Token.Literal)
+		case token.RawLatex:
+			tmp.WriteString(nameToken.Token.Literal)
 		default:
 			return "", &verror.TypeMismatch{
 				Expected: []token.TokenType{token.MainString},
-				Got:      tokType.Token.Type,
-				Loc:      &tokType.Span,
+				Got:      nameToken.Token.Type,
+				Loc:      &nameToken.Span,
 			}
 		}
 		if !token.CanPkgName(p.peekTok()) {
@@ -351,11 +353,16 @@ func (p *Parser) parseMultiUsePackages() (*ast.MultiUsePackages, VError) {
 		} else if p.peekTok() == token.Rbrace {
 			pkgs = append(pkgs, &ast.UsePackage{Name: name, Options: options})
 			break
-		} else if p.peekTok() != token.MainString {
+		} else if p.peekTok() != token.MainString && p.peekTok() != token.RawLatex {
 			return nil, &verror.TypeMismatch{
-				Expected: []token.TokenType{token.Newline, token.MainString, token.Rbrace},
-				Got:      p.peekTok(),
-				Loc:      p.peekTokLoaction(),
+				Expected: []token.TokenType{
+					token.Newline,
+					token.Rbrace,
+					token.MainString,
+					token.RawLatex,
+				},
+				Got: p.peekTok(),
+				Loc: p.peekTokLoaction(),
 			}
 		}
 
