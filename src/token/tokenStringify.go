@@ -23,7 +23,7 @@ func ToString(tt TokenType) string {
 	case MainString:
 		return "<mainString>"
 	case LatexFunction:
-		return "<latexFunction>"
+		return "<ltxFunction>"
 	case RawLatex:
 		return "<rawLatex>"
 	case Docclass:
@@ -72,6 +72,8 @@ func ToString(tt TokenType) string {
 		return "@"
 	case Percent:
 		return "%"
+	case LatexComment:
+		return "<ltxComment>"
 	case Superscript:
 		return "^"
 	case Subscript:
@@ -79,6 +81,8 @@ func ToString(tt TokenType) string {
 	case Ampersand:
 		return "&"
 	case BackSlash:
+		return "\\\\"
+	case SingleBackSlash:
 		return "\\"
 	case Vert:
 		return "|"
@@ -122,10 +126,6 @@ func ToString(tt TokenType) string {
 		return "<inlineMathStart>"
 	case InlineMathEnd:
 		return "<inlineMathEnd>"
-	case ObeyNewlineBeforeDocStart:
-		return "##+"
-	case ObeyNewlineBeforeDocEnd:
-		return "+##"
 	case ArgSpliter:
 		return "\\;"
 	case EOF:

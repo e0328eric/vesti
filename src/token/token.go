@@ -37,59 +37,63 @@ const (
 	Endenv
 	Mtxt
 	Etxt
+	DocumentStartMode
 )
 
 // Symbols
 // Bit flag : 0000 1000 .... ....
 const (
-	Plus        TokenType = (1 << 11) + iota // +
-	Minus                                    // -
-	Star                                     // *
-	Slash                                    // /
-	Equal                                    // =
-	Less                                     // <
-	Great                                    // >
-	LessEq                                   // <=
-	GreatEq                                  // >=
-	Bang                                     // !
-	Question                                 // ?
-	Dollar                                   // $
-	Sharp                                    // \#
-	FntParam                                 // #
-	At                                       // @
-	Percent                                  // %
-	Superscript                              // ^
-	Subscript                                // _
-	Ampersand                                // &
-	BackSlash                                // \
-	Vert                                     // |
-	Period                                   // .
-	Comma                                    //
-	Colon                                    // :
-	Semicolon                                // ;
-	Tilde                                    // ~
-	Quote                                    // '
-	Quote2                                   // `
-	Doublequote                              // "
+	Plus            TokenType = (1 << 11) + iota // +
+	Minus                                        // -
+	Star                                         // *
+	Slash                                        // /
+	Equal                                        // =
+	Less                                         // <
+	Great                                        // >
+	LessEq                                       // <=
+	GreatEq                                      // >=
+	Bang                                         // !
+	Question                                     // ?
+	Dollar                                       // $
+	Dollar2                                      // $
+	Sharp                                        // \#
+	FntParam                                     // #
+	At                                           // @
+	Percent                                      // %
+	LatexComment                                 // \%
+	Superscript                                  // ^
+	Subscript                                    // _
+	Ampersand                                    // &
+	BackSlash                                    // \
+	SingleBackSlash                              // \
+	Vert                                         // |
+	Period                                       // .
+	Comma                                        //
+	Colon                                        // :
+	Semicolon                                    // ;
+	Tilde                                        // ~
+	Quote                                        // '
+	Quote2                                       // `
+	Doublequote                                  // "
 )
 
 // Delimiters
 // Bit flag : 0001 0000 .... ....
 const (
-	Lparen                    TokenType = (1 << 12) + iota // (
-	Rparen                                                 // )
-	Lbrace                                                 // {
-	Rbrace                                                 // }
-	Lsqbrace                                               // [
-	Rsqbrace                                               // ]
-	MathLbrace                                             // \{
-	MathRbrace                                             // \}
-	TextMathStart                                          // $ or \(
-	TextMathEnd                                            // $ or \)
-	InlineMathStart                                        // $$ or \[
-	InlineMathEnd                                          // $$ or \]
-	ObeyNewlineBeforeDocStart                              // ##+
-	ObeyNewlineBeforeDocEnd                                // +##
+	Lparen          TokenType = (1 << 12) + iota // (
+	Rparen                                       // )
+	Lbrace                                       // {
+	Rbrace                                       // }
+	Lsqbrace                                     // [
+	Rsqbrace                                     // ]
+	MathLbrace                                   // \{
+	MathRbrace                                   // \}
+	OptionalLbrace                               // #[
+	OptionalRbrace                               // ]#
+	TextMathStart                                // $ or \(
+	TextMathEnd                                  // $ or \)
+	InlineMathStart                              // $$ or \[
+	InlineMathEnd                                // $$ or \]
 )
 
 const (
@@ -114,13 +118,14 @@ func New(tok TokenType, literal string) Token {
 }
 
 var keywords = map[string]TokenType{
-	"docclass": Docclass,
-	"import":   Import,
-	"document": Document,
-	"begenv":   Begenv,
-	"endenv":   Endenv,
-	"mtxt":     Mtxt,
-	"etxt":     Etxt,
+	"docclass":     Docclass,
+	"import":       Import,
+	"document":     Document,
+	"begenv":       Begenv,
+	"endenv":       Endenv,
+	"mtxt":         Mtxt,
+	"etxt":         Etxt,
+	"docstartmode": DocumentStartMode,
 }
 
 func Lookup(ident string) TokenType {
@@ -139,12 +144,6 @@ func ShouldNotUseBeforeDoc(tokType TokenType) bool {
 	return tokType == Space2 ||
 		tokType == Begenv ||
 		tokType == Endenv ||
-		tokType == Mtxt ||
-		tokType == Etxt ||
-		tokType == MathSmallSpace ||
-		tokType == MathLargeSpace ||
-		tokType == MathLbrace ||
-		tokType == MathRbrace ||
 		tokType == TextMathStart ||
 		tokType == TextMathEnd ||
 		tokType == InlineMathStart ||

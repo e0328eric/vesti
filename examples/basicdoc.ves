@@ -44,7 +44,7 @@ To use the latex function, type "LaTeX". If it has a parameter,
 then type \textbf{like this!}. This grammar can work in the math mode.
 
 Finally, to use an environment, there are two ways to do this:
-First is that use #!begenv!# and #!endenv!# keywords. For example,
+First is that use #-begenv-# and #-endenv-# keywords. For example,#@
 # Since \textwidth is a latex command, must use like "textwidth".
 begenv center
     begenv minipage{0.7\textwidth}

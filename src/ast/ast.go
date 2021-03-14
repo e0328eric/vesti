@@ -121,7 +121,7 @@ func (mup *MultiUsePackages) String() string {
 // DocumentStart Statement
 type DocumentStart struct{}
 
-func (ds *DocumentStart) String() string { return "\n\\begin{document}\n" }
+func (ds *DocumentStart) String() string { return "\\begin{document}\n" }
 
 // DocumentEnd Statement
 type DocumentEnd struct{}

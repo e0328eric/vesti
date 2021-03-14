@@ -78,7 +78,6 @@ The difference is that multiple commenting is possible.
 *#+`
 	expected := []token.Token{
 		token.New(token.Newline, "\n"),
-		token.New(token.Newline, "\n"),
 		token.New(token.Minus, "-"),
 		token.New(token.Minus, "-"),
 		token.New(token.Minus, "-"),
@@ -91,7 +90,7 @@ The difference is that multiple commenting is possible.
 }
 
 func TestLexingTextRawLatex(t *testing.T) {
-	input := "#!\\TeX and \\LaTeX!##!foo 3.14!#"
+	input := "#-\\TeX and \\LaTeX-##-foo 3.14-#"
 	expected := []token.Token{
 		token.New(token.RawLatex, "\\TeX and \\LaTeX"),
 		token.New(token.RawLatex, "foo 3.14"),
@@ -146,7 +145,7 @@ func TestLexingUnicodeString(t *testing.T) {
 }
 
 func TestLexingNumber(t *testing.T) {
-	input := "1 32 -8432 3.2 0.3 .2 67. 32.00 -2. -.2"
+	input := "1 32 -8432 3.2 0.3 32.00"
 	expected := []token.Token{
 		token.New(token.Integer, "1"),
 		token.New(token.Space, " "),
@@ -158,15 +157,7 @@ func TestLexingNumber(t *testing.T) {
 		token.New(token.Space, " "),
 		token.New(token.Float, "0.3"),
 		token.New(token.Space, " "),
-		token.New(token.Float, ".2"),
-		token.New(token.Space, " "),
-		token.New(token.Float, "67."),
-		token.New(token.Space, " "),
 		token.New(token.Float, "32.00"),
-		token.New(token.Space, " "),
-		token.New(token.Float, "-2."),
-		token.New(token.Space, " "),
-		token.New(token.Float, "-.2"),
 	}
 
 	testLexing(t, input, expected)
@@ -242,9 +233,6 @@ import {
     amsmath,
 }
 
-##+
-+##
-
 document
 
 This is a \LaTeX!
@@ -297,11 +285,6 @@ endenv`
 		token.New(token.Comma, ","),
 		token.New(token.Newline, "\n"),
 		token.New(token.Rbrace, "}"),
-		token.New(token.Newline, "\n"),
-		token.New(token.Newline, "\n"),
-		token.New(token.ObeyNewlineBeforeDocStart, ""),
-		token.New(token.Newline, "\n"),
-		token.New(token.ObeyNewlineBeforeDocEnd, ""),
 		token.New(token.Newline, "\n"),
 		token.New(token.Newline, "\n"),
 		token.New(token.Document, "document"),

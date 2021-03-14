@@ -144,16 +144,14 @@ func TestParseMainString(t *testing.T) {
 	tests := []testInput{
 		{
 			"document This is vesti;",
-			`
-\begin{document}
+			`\begin{document}
 This is vesti;
 \end{document}
 `,
 		},
 		{
 			"document docclass",
-			`
-\begin{document}
+			`\begin{document}
 docclass
 \end{document}
 `,
@@ -223,7 +221,7 @@ endenv`,
 		},
 		{
 			`
-document begenv foo (bar1)[bar2] (bar3)(bar4) [bar5]
+document begenv foo (bar1)[bar2](bar3)(bar4)[bar5]
 	The Document
 endenv`,
 			`
@@ -272,56 +270,68 @@ func TestParsingLatexFunctions(t *testing.T) {
 	tests := []testInput{
 		{
 			"document \\foo",
-			`
-\begin{document}
+			`\begin{document}
 \foo
 \end{document}
 `,
 		},
 		{
 			"document \\foo{bar1}",
-			`
-\begin{document}
+			`\begin{document}
 \foo{bar1}
 \end{document}
 `,
 		},
 		{
 			"document \\foo[bar1]",
-			`
-\begin{document}
+			`\begin{document}
 \foo[bar1]
 \end{document}
 `,
 		},
 		{
-			"document \\foo{bar1}[bar2]",
-			`
-\begin{document}
+			"document \\foo{bar1}#[bar2]#",
+			`\begin{document}
 \foo{bar1}[bar2]
 \end{document}
 `,
 		},
 		{
-			"document \\foo{bar3\\; bar2\\; bar1}*[bar5\\; bar4]",
-			`
-\begin{document}
+			"document \\foo{bar3\\; bar2\\; bar1}*#[bar5\\; bar4]#",
+			`\begin{document}
 \foo{bar3}{bar2}{bar1}*[bar5][bar4]
 \end{document}
 `,
 		},
 		{
-			"\\foo{bar3\\; bar2\\; bar1}*[bar5\\; bar4]",
+			"\\foo{bar3\\; bar2\\; bar1}*#[bar5\\; bar4]#",
 			`\foo{bar3}{bar2}{bar1}*[bar5][bar4]`,
 		},
 		{
 			`document \textbf{
-	Hallo!\TeX and \foo{bar1\; bar2{a}{}}; today}`,
-			`
-\begin{document}
+	Hallo!\TeX and \foo{bar1\; bar2{a}{}}; today
+}`,
+			`\begin{document}
 \textbf{
-	Hallo!\TeX and \foo{bar1}{bar2{a}{}}; today}
+	Hallo!\TeX and \foo{bar1}{bar2{a}{}}; today
+}
 \end{document}
+`,
+		},
+		{
+			`\def\I{\setbox0=\hbox{$!1$!}
+\tikz[line width=0.6pt]{
+    \draw (0,0) -- (0.87\wd0,0);
+    \draw (0.29\wd0,0) -- ++(0,0.55\ht0);
+    \draw (0.58\wd0,0) -- ++(0,\ht0) -- ++(-0.1,-0.1);
+}}
+`,
+			`\def\I{\setbox0=\hbox{$1$}
+\tikz[line width=0.6pt]{
+    \draw (0,0) -- (0.87\wd0,0);
+    \draw (0.29\wd0,0) -- ++(0,0.55\ht0);
+    \draw (0.58\wd0,0) -- ++(0,\ht0) -- ++(-0.1,-0.1);
+}}
 `,
 		},
 	}
@@ -333,32 +343,28 @@ func TestParseMathStmt(t *testing.T) {
 	tests := []testInput{
 		{
 			"document $\\sum_1^\\infty f(x)$",
-			`
-\begin{document}
+			`\begin{document}
 $\sum_1^\infty f(x)$
 \end{document}
 `,
 		},
 		{
 			"document \\(\\sum_1^\\infty f(x)\\)",
-			`
-\begin{document}
+			`\begin{document}
 $\sum_1^\infty f(x)$
 \end{document}
 `,
 		},
 		{
 			"document $$\\sum_1^\\infty f(x)$$",
-			`
-\begin{document}
+			`\begin{document}
 \[\sum_1^\infty f(x)\]
 \end{document}
 `,
 		},
 		{
 			"document \\[\\sum_1^\\infty f(x)\\]",
-			`
-\begin{document}
+			`\begin{document}
 \[\sum_1^\infty f(x)\]
 \end{document}
 `,

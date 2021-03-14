@@ -19,7 +19,7 @@ type Lexer struct {
 	chr1            rune
 	chr2            rune
 	currentLocation *location.Location
-	mathStarted     bool
+	MathStarted     bool
 }
 
 func New(input string) *Lexer {
@@ -27,7 +27,7 @@ func New(input string) *Lexer {
 		source: newlineHandler.New(input),
 		chr0:   0, chr1: 0, chr2: 0,
 		currentLocation: location.New(),
-		mathStarted:     false,
+		MathStarted:     false,
 	}
 
 	lex.nextChar()
@@ -69,15 +69,9 @@ func (l *Lexer) TakeTok() *LexToken {
 	case '\n':
 		l.tokenize(&output, token.Newline, "\n")
 	case '+':
-		if l.chr1 == '#' && l.chr2 == '#' {
-			l.nextChar()
-			l.nextChar()
-			l.tokenize(&output, token.ObeyNewlineBeforeDocEnd, "")
-		} else {
-			l.tokenize(&output, token.Plus, "+")
-		}
+		l.tokenize(&output, token.Plus, "+")
 	case '-':
-		if unicode.IsDigit(l.chr1) || l.chr1 == '.' {
+		if unicode.IsDigit(l.chr1) {
 			l.lexNumber(&output)
 		} else {
 			l.tokenize(&output, token.Minus, "-")
@@ -109,7 +103,7 @@ func (l *Lexer) TakeTok() *LexToken {
 	case '@':
 		l.tokenize(&output, token.At, "@")
 	case '%':
-		l.tokenize(&output, token.Percent, "%")
+		l.tokenize(&output, token.Percent, "\\%")
 	case '^':
 		l.tokenize(&output, token.Superscript, "^")
 	case '_':
@@ -129,11 +123,7 @@ func (l *Lexer) TakeTok() *LexToken {
 	case '|':
 		l.tokenize(&output, token.Vert, "|")
 	case '.':
-		if unicode.IsDigit(l.chr1) {
-			l.lexNumber(&output)
-		} else {
-			l.tokenize(&output, token.Period, ".")
-		}
+		l.tokenize(&output, token.Period, ".")
 	case ',':
 		l.tokenize(&output, token.Comma, ",")
 	case '~':
@@ -149,9 +139,14 @@ func (l *Lexer) TakeTok() *LexToken {
 	case '[':
 		l.tokenize(&output, token.Lsqbrace, "[")
 	case ']':
-		l.tokenize(&output, token.Rsqbrace, "]")
+		if l.chr1 == '#' {
+			l.nextChar()
+			l.tokenize(&output, token.OptionalRbrace, "]")
+		} else {
+			l.tokenize(&output, token.Rsqbrace, "]")
+		}
 	case '$':
-		l.lexMathToken(&output)
+		l.lexDollar(&output)
 	case '#':
 		l.lexSharp(&output)
 	case '\\':
@@ -195,14 +190,12 @@ func (l *Lexer) lexNumber(tok *LexToken) {
 		l.nextChar()
 	}
 
-	if l.chr0 != '.' {
-		for unicode.IsDigit(l.chr0) {
-			literal.WriteRune(l.chr0)
-			l.nextChar()
-		}
+	for unicode.IsDigit(l.chr0) {
+		literal.WriteRune(l.chr0)
+		l.nextChar()
 	}
 
-	if l.chr0 == '.' {
+	if l.chr0 == '.' && unicode.IsDigit(l.chr1) {
 		literal.WriteRune('.')
 		l.nextChar()
 		tokType = token.Float
@@ -219,22 +212,27 @@ func (l *Lexer) lexNumber(tok *LexToken) {
 	tok.Span.End = *l.currentLocation
 }
 
-func (l *Lexer) lexMathToken(tok *LexToken) {
-	if l.mathStarted {
-		l.mathStarted = false
-		if l.chr1 == '$' {
-			l.nextChar()
-			l.tokenize(tok, token.InlineMathEnd, "\\]")
-		} else {
-			l.tokenize(tok, token.TextMathEnd, "$")
-		}
+func (l *Lexer) lexDollar(tok *LexToken) {
+	if l.chr1 == '!' {
+		l.nextChar()
+		l.tokenize(tok, token.Dollar2, "$")
 	} else {
-		l.mathStarted = true
-		if l.chr1 == '$' {
-			l.nextChar()
-			l.tokenize(tok, token.InlineMathStart, "\\[")
+		if l.MathStarted {
+			l.MathStarted = false
+			if l.chr1 == '$' {
+				l.nextChar()
+				l.tokenize(tok, token.InlineMathEnd, "\\]")
+			} else {
+				l.tokenize(tok, token.TextMathEnd, "$")
+			}
 		} else {
-			l.tokenize(tok, token.TextMathStart, "$")
+			l.MathStarted = true
+			if l.chr1 == '$' {
+				l.nextChar()
+				l.tokenize(tok, token.InlineMathStart, "\\[")
+			} else {
+				l.tokenize(tok, token.TextMathStart, "$")
+			}
 		}
 	}
 }
@@ -252,15 +250,18 @@ func (l *Lexer) lexSharp(tok *LexToken) {
 		}
 		l.nextChar()
 		l.nextChar()
+		if l.chr0 == '\n' {
+			l.nextChar()
+		}
 		start := tok.Span.Start
 		*tok = *l.TakeTok()
 		tok.Span.Start = start
-	case '!':
+	case '-':
 		var literal bytes.Buffer
 
 		l.nextChar()
 		l.nextChar()
-		for l.chr0 != '!' || l.chr1 != '#' {
+		for l.chr0 != '-' || l.chr1 != '#' {
 			if l.chr0 == 0 {
 				break
 			}
@@ -274,9 +275,14 @@ func (l *Lexer) lexSharp(tok *LexToken) {
 	case '@':
 		l.nextChar()
 		l.tokenize(tok, token.Newline2, "\n")
+	case '!':
+		l.nextChar()
+		l.tokenize(tok, token.FntParam, "#")
+	case '[':
+		l.nextChar()
+		l.tokenize(tok, token.OptionalLbrace, "[")
 	default:
-		switch {
-		case l.chr1 == '#' && l.chr2 == '-':
+		if l.chr1 == '#' && l.chr2 == '-' {
 			var literal bytes.Buffer
 
 			l.nextChar()
@@ -294,17 +300,14 @@ func (l *Lexer) lexSharp(tok *LexToken) {
 			l.nextChar()
 			tok.Token = token.New(token.RawLatex, literal.String())
 			tok.Span.End = *l.currentLocation
-		case l.chr1 == '#' && l.chr2 == '+':
-			l.nextChar()
-			l.nextChar()
-			l.tokenize(tok, token.ObeyNewlineBeforeDocStart, "")
-		default:
+		} else {
 			for l.chr0 != '\n' {
 				if l.chr0 == 0 {
 					break
 				}
 				l.nextChar()
 			}
+			l.nextChar()
 			start := tok.Span.Start
 			*tok = *l.TakeTok()
 			tok.Span.Start = start
@@ -314,19 +317,18 @@ func (l *Lexer) lexSharp(tok *LexToken) {
 
 func (l *Lexer) lexBackslash(tok *LexToken) {
 	switch l.chr1 {
-	// TODO: I can't find much more elegant token to represent latex define function parameter
-	case '?':
-		l.nextChar()
-		l.tokenize(tok, token.FntParam, "#")
 	case '#':
 		l.nextChar()
 		l.tokenize(tok, token.Sharp, "\\#")
 	case '$':
 		l.nextChar()
 		l.tokenize(tok, token.Dollar, "\\$")
+	case '%':
+		l.nextChar()
+		l.tokenize(tok, token.LatexComment, "%")
 	case ',':
 		l.nextChar()
-		if l.mathStarted {
+		if l.MathStarted {
 			l.tokenize(tok, token.MathSmallSpace, "\\,")
 		} else {
 			l.tokenize(tok, token.Comma, ",")
@@ -354,7 +356,7 @@ func (l *Lexer) lexBackslash(tok *LexToken) {
 		l.tokenize(tok, token.InlineMathEnd, "\\]")
 	case ' ':
 		l.nextChar()
-		if l.mathStarted {
+		if l.MathStarted {
 			l.tokenize(tok, token.MathLargeSpace, "\\;")
 		} else {
 			l.tokenize(tok, token.Space2, "\\ ")
@@ -378,7 +380,7 @@ func (l *Lexer) lexBackslash(tok *LexToken) {
 			tok.Token = token.New(token.LatexFunction, literal.String())
 			tok.Span.End = *l.currentLocation
 		} else {
-			l.tokenize(tok, token.ILLEGAL, "")
+			l.tokenize(tok, token.SingleBackSlash, "\\")
 		}
 	}
 }

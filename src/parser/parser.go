@@ -12,19 +12,23 @@ import (
 
 type VError verror.VestiErr
 
+// documentState is a bitflag.
+// 0000 0 0 0
+// |/// | | \- check whether document is started
+// |//  | \--- check whether document is ended
+// |/   \----- if this is 1, then document mode is on, but \end{document} is not made
+// \------- Dummy Flags
 type Parser struct {
-	source      *lexer.Lexer
-	peekToken   *lexer.LexToken
-	isDocStart  bool
-	obeyNewline bool
+	source        *lexer.Lexer
+	peekToken     *lexer.LexToken
+	documentState uint8
 }
 
 func New(source *lexer.Lexer) *Parser {
 	output := &Parser{
-		source:      source,
-		peekToken:   nil,
-		isDocStart:  false,
-		obeyNewline: false,
+		source:        source,
+		peekToken:     nil,
+		documentState: 0,
 	}
 	output.nextTok()
 
@@ -116,7 +120,7 @@ func (p *Parser) parseLatex() (ast.Latex, VError) {
 		}
 		latex.Stmts = append(latex.Stmts, stmt)
 	}
-	if p.isDocStart {
+	if p.documentState == 0b001 {
 		latex.Stmts = append(latex.Stmts, &ast.DocumentEnd{})
 	}
 
@@ -126,20 +130,20 @@ func (p *Parser) parseLatex() (ast.Latex, VError) {
 func (p *Parser) parseStatement() (ast.Statement, VError) {
 	switch p.peekTok() {
 	case token.Docclass:
-		if !p.isDocStart {
+		if p.documentState&0b001 == 0 {
 			return p.parseDocClass()
 		} else {
 			return p.parseMainString()
 		}
 	case token.Import:
-		if !p.isDocStart {
+		if p.documentState&0b001 == 0 {
 			return p.parseUsePackage()
 		} else {
 			return p.parseMainString()
 		}
 	case token.Document:
-		if !p.isDocStart {
-			p.isDocStart = true
+		if p.documentState&0b001 == 0 {
+			p.documentState |= 0b001
 			p.nextTok()
 			p.eatWhitespaces(true)
 			return &ast.DocumentStart{}, nil
@@ -154,10 +158,19 @@ func (p *Parser) parseStatement() (ast.Statement, VError) {
 		return p.parseTextInMath()
 	case token.Etxt:
 		return nil, &verror.InvalidTokToParse{Got: token.Etxt, Loc: p.peekTokLoaction()}
+	case token.DocumentStartMode:
+		p.documentState |= 0b101
+		loc := &p.nextTok().Span
+		p.expectPeek(loc, token.Newline, token.Newline2)
+		return p.parseStatement()
 	case token.LatexFunction:
 		return p.parseLatexFunction()
 	case token.RawLatex:
-		return &ast.RawLatex{Value: p.nextTok().Token.Literal}, nil
+		output := p.nextTok()
+		if p.peekTok() == token.Newline {
+			p.nextTok()
+		}
+		return &ast.RawLatex{Value: output.Token.Literal}, nil
 	case token.Integer:
 		return p.parseInteger()
 	case token.Float:
@@ -170,23 +183,11 @@ func (p *Parser) parseStatement() (ast.Statement, VError) {
 		return nil, &verror.InvalidTokToParse{Got: token.TextMathEnd, Loc: p.peekTokLoaction()}
 	case token.InlineMathEnd:
 		return nil, &verror.InvalidTokToParse{Got: token.InlineMathEnd, Loc: p.peekTokLoaction()}
-	case token.Newline:
-		if !p.isDocStart && !p.obeyNewline {
-			p.nextTok()
-			return p.parseStatement()
-		} else {
-			return p.parseMainString()
-		}
-	case token.ObeyNewlineBeforeDocStart:
-		p.obeyNewline = true
-		p.nextTok()
-		return p.parseStatement()
-	case token.ObeyNewlineBeforeDocEnd:
-		p.obeyNewline = false
-		p.nextTok()
-		return p.parseStatement()
+	case token.EOF:
+		p.documentState |= 0b010
+		return &ast.DocumentEnd{}, nil
 	default:
-		if token.ShouldNotUseBeforeDoc(p.peekTok()) && !p.isDocStart {
+		if token.ShouldNotUseBeforeDoc(p.peekTok()) && p.documentState&0b001 == 0 {
 			return nil, &verror.BeforeDocumentErr{Got: p.peekTok(), Loc: p.peekTokLoaction()}
 		}
 		return p.parseMainString()
@@ -408,6 +409,11 @@ func (p *Parser) parseEnvironment() (*ast.Environment, VError) {
 		return nil, &verror.EOFErr{Loc: beginLocation}
 	}
 
+	// If name is either equation or align, then math mode will be turned on
+	if name == "equation" || name == "align" {
+		p.source.MathStarted = true
+	}
+
 	if p.peekTok() == token.Star {
 		if err := p.expectPeek(p.peekTokLoaction(), token.Star); err != nil {
 			return nil, err
@@ -416,7 +422,7 @@ func (p *Parser) parseEnvironment() (*ast.Environment, VError) {
 	}
 	p.eatWhitespaces(false)
 
-	args, err := p.parseFunctionArg(token.Lparen, token.Rparen)
+	args, err := p.parseFunctionArg(token.Lparen, token.Rparen, token.Lsqbrace, token.Rsqbrace)
 	if err != nil {
 		return nil, err
 	}
@@ -435,6 +441,14 @@ func (p *Parser) parseEnvironment() (*ast.Environment, VError) {
 	if err := p.expectPeek(p.peekTokLoaction(), token.Endenv); err != nil {
 		return nil, err
 	}
+	if p.peekTok() == token.Newline {
+		p.nextTok()
+	}
+
+	// If name is either equation or align, then math mode will be turned off
+	if name == "equation" || name == "align" {
+		p.source.MathStarted = false
+	}
 
 	return &ast.Environment{Name: name, Args: args, Text: text}, nil
 }
@@ -452,7 +466,7 @@ func (p *Parser) parseLatexFunction() (*ast.LatexFunction, VError) {
 		p.eatWhitespaces(false)
 	}
 
-	args, err := p.parseFunctionArg(token.Lbrace, token.Rbrace)
+	args, err := p.parseFunctionArg(token.Lbrace, token.Rbrace, token.OptionalLbrace, token.OptionalRbrace)
 	if err != nil {
 		return nil, err
 	}
@@ -518,18 +532,18 @@ func (p *Parser) parseCommaArg(options *[]ast.Latex) VError {
 	return nil
 }
 
-func (p *Parser) parseFunctionArg(open, closed token.TokenType) ([]ast.Argument, VError) {
+func (p *Parser) parseFunctionArg(open, closed, optOpen, optClose token.TokenType) ([]ast.Argument, VError) {
 	var args []ast.Argument
 
-	for p.peekTok() == open || p.peekTok() == token.Lsqbrace || p.peekTok() == token.Star {
+	for p.peekTok() == open || p.peekTok() == optOpen || p.peekTok() == token.Star {
 		switch {
 		case p.peekTok() == open:
 			err := p.parseFunctionArgCore(&args, open, closed, ast.MainArg)
 			if err != nil {
 				return nil, err
 			}
-		case p.peekTok() == token.Lsqbrace:
-			err := p.parseFunctionArgCore(&args, token.Lsqbrace, token.Rsqbrace, ast.Optional)
+		case p.peekTok() == optOpen:
+			err := p.parseFunctionArgCore(&args, optOpen, optClose, ast.Optional)
 			if err != nil {
 				return nil, err
 			}
@@ -542,7 +556,6 @@ func (p *Parser) parseFunctionArg(open, closed token.TokenType) ([]ast.Argument,
 			break
 		}
 
-		p.eatWhitespaces(false)
 		if p.peekTok() == token.Newline || p.peekTok() == token.EOF {
 			break
 		}
