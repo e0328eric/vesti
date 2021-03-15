@@ -18,4 +18,3 @@ begenv center
         This is a plain \LaTeX\ document.
     endenv
 endenv
-\foo{{}}

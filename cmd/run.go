@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"vesti/lexer"
@@ -51,19 +52,9 @@ func checkIsPanic(err error) {
 
 func runVesti(_ *cobra.Command, args []string) {
 	// Define essential new variables
+	var wg sync.WaitGroup
+	var outFileList []*os.File
 	sigs := make(chan os.Signal, 1)
-	outputFileName := strings.TrimSuffix(args[0], filepath.Ext(args[0])) + ".tex"
-	initCompile := true
-
-	// Make a file if it is not exist
-	outFile, err := os.Create(outputFileName)
-	checkIsPanic(err)
-
-	// Take a modification time
-	initData, err := os.Stat(args[0])
-	checkIsPanic(err)
-	initTime := initData.ModTime()
-	nowTime := initTime
 
 	// Exit properly if these signal is appear, respectively.
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
@@ -71,18 +62,50 @@ func runVesti(_ *cobra.Command, args []string) {
 	if vestiContinuousCompile {
 		go func() {
 			<-sigs
-			err = outFile.Close()
-			checkIsPanic(err)
-			fmt.Println("bye!")
+			for _, file := range outFileList {
+				err := file.Close()
+				checkIsPanic(err)
+			}
 			os.Exit(0)
 		}()
 	}
 
 	// This for loop is mimicked of do-while loop in C relative language
+	for _, source := range args {
+		outputFileName := strings.TrimSuffix(source, filepath.Ext(args[0])) + ".tex"
+
+		// Make a file if it is not exist
+		outFile, err := os.Create(outputFileName)
+		checkIsPanic(err)
+		outFileList = append(outFileList, outFile)
+
+		wg.Add(1)
+		go compileVesti(outFile, source, &wg)
+	}
+
+	fmt.Print("Press Ctrl+C to quit vesti\n")
+	wg.Wait()
+	fmt.Println("bye!")
+}
+
+func compileVesti(
+	outFile *os.File,
+	source string,
+	wg *sync.WaitGroup,
+) {
+	// Take a modification time
+	initData, err := os.Stat(source)
+	checkIsPanic(err)
+	initTime := initData.ModTime()
+	nowTime := initTime
+
+	// Switch init compile state
+	initCompile := true
+
 	for {
 		if initCompile || initTime != nowTime {
 			// Read a file
-			input, err := ioutil.ReadFile(args[0])
+			input, err := ioutil.ReadFile(source)
 			checkIsPanic(err)
 
 			// Critical part: compiling vesti
@@ -90,7 +113,7 @@ func runVesti(_ *cobra.Command, args []string) {
 			p := parser.New(l)
 			output, vError := p.MakeLatexFormat()
 			if vError != nil {
-				fmt.Println(verror.PrintErr(string(input), &args[0], vError))
+				fmt.Println(verror.PrintErr(string(input), &source, vError))
 				os.Exit(1)
 			}
 
@@ -102,22 +125,25 @@ func runVesti(_ *cobra.Command, args []string) {
 			_, err = outFile.WriteString(output)
 			checkIsPanic(err)
 
+			if !initCompile {
+				fmt.Print("Press Ctrl+C to quit vesti\n")
+			}
 			initCompile = false
 			initTime = nowTime
-			fmt.Print("Press Ctrl+C to quit vesti\n")
 		}
 
 		if !vestiContinuousCompile {
-			err = outFile.Close()
+			err := outFile.Close()
 			checkIsPanic(err)
-			fmt.Println("bye!")
 			break
 		}
 
 		// Keep tracking modification input time so that determine whether vesti is run
-		nowData, err := os.Stat(args[0])
+		nowData, err := os.Stat(source)
 		checkIsPanic(err)
 		nowTime = nowData.ModTime()
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	wg.Done()
 }
