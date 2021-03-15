@@ -12,6 +12,13 @@ import (
 
 type VError verror.VestiErr
 
+var envMathIdent = map[string]bool{
+	"equation": true,
+	"align":    true,
+	"array":    true,
+	"eqnarray": true,
+}
+
 // documentState is a bitflag.
 // 0000 0 0 0
 // |/// | | \- check whether document is started
@@ -427,8 +434,8 @@ func (p *Parser) parseEnvironment() (*ast.Environment, VError) {
 		return nil, &verror.EOFErr{Loc: beginLocation}
 	}
 
-	// If name is either equation or align, then math mode will be turned on
-	if name == "equation" || name == "align" {
+	// If name is math related one, then math mode will be turn on
+	if _, ok := envMathIdent[name]; ok {
 		p.source.MathStarted = true
 	}
 
@@ -463,8 +470,8 @@ func (p *Parser) parseEnvironment() (*ast.Environment, VError) {
 		p.nextTok()
 	}
 
-	// If name is either equation or align, then math mode will be turned off
-	if name == "equation" || name == "align" {
+	// If name is math related one, then math mode will be turn off
+	if _, ok := envMathIdent[name]; ok {
 		p.source.MathStarted = false
 	}
 
