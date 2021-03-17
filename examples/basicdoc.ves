@@ -17,8 +17,8 @@ import package (option, option, option)
 
 Last.
 import {
-    package1
-    package2 (option, option, option)
+    package1,
+    package2 (option, option, option),
     package3(option)
 }
 *#
@@ -37,14 +37,14 @@ document
 Now the main document is started! The math mode can be used with $1+1<2$.
 Note that $3\leq 2$ will compile first by \$3\\leq 2\$.
 $$
-    mtxt In here, I can type text! etxt
+    mtxt In here, I can type text etxt
 $$
 
 To use the latex function, type "LaTeX". If it has a parameter,
 then type \textbf{like this!}. This grammar can work in the math mode.
 
 Finally, to use an environment, there are two ways to do this:
-First is that use #-begenv-# and #-endenv-# keywords. For example,#@
+First is that use #-begenv-# and #-endenv-# keywords. For example,
 # Since \textwidth is a latex command, must use like "textwidth".
 begenv center
     begenv minipage{0.7\textwidth}
@@ -62,3 +62,4 @@ Second way is use raw latex grammar. Upper part is equivalent with
 -##
 
 A token \#\#- and -\#\# is actually a long line vesti code verbatim.
+foo

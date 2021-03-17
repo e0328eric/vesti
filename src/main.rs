@@ -1,0 +1,53 @@
+mod commands;
+mod error;
+mod lexer;
+mod location;
+mod parser;
+
+use crate::commands::compile_vesti;
+use signal_hook::consts::signal::{SIGINT, SIGKILL, SIGTERM};
+use signal_hook::flag as signal_flag;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+use structopt::StructOpt;
+
+fn main() {
+    let args = commands::VestiOpt::from_args();
+    let is_continuous = args.is_continuous_compile();
+
+    let trap = Arc::new(AtomicUsize::new(0));
+    #[cfg(not(target_os = "windows"))]
+    for signal in [SIGINT, SIGTERM].iter() {
+        signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
+            .expect("Undefined behavior happend!");
+    }
+    #[cfg(target_os = "windows")]
+    for signal in [SIGTERM, SIGKILL].iter() {
+        signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
+            .expect("Undefined behavior happend!");
+    }
+
+    let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
+    for file_name in args.take_file_name() {
+        handle_vesti.push(thread::spawn(move || {
+            compile_vesti(file_name, is_continuous)
+        }));
+    }
+
+    if !is_continuous {
+        let _: Vec<()> = handle_vesti
+            .into_iter()
+            .map(|vesti| vesti.join().unwrap())
+            .collect();
+    } else {
+        println!("Press Ctrl+C to finish the program.");
+        while ![SIGINT, SIGTERM, SIGKILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
+            thread::sleep(Duration::from_millis(500));
+        }
+    }
+
+    println!("bye!");
+    std::process::exit(0);
+}

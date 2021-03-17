@@ -1,6 +1,12 @@
 docclass article
 import { amsmath amsthm amssymb array tikz }
 
+# #@ is equivalent with '\n' in other variant programming language
+# Since every latex functions start with a backslash,
+# \n like newline token cannot work properly. So I made a new token
+# However, such grammar is ugly and slight work is needed.
+# There is another token that obeys newline.
+
 \title{Test Document}
 \article{John Doe}
 \date{\today}
