@@ -156,42 +156,48 @@ endenv"#;
     The Document.
 endenv"#;
 
-    let expected1 = r#"
-\begin{document}
+    let expected1 = r#"\begin{document}
 \begin{center}
     The Document.
 \end{center}
-\end{document}"#;
-    let expected2 = r#"
-\begin{document}
+
+\end{document}
+"#;
+    let expected2 = r#"\begin{document}
 \begin{minipage}{0.7\pagewidth}
     The Document.
 \end{minipage}
-\end{document}"#;
-    let expected3 = r#"
-\begin{document}
+
+\end{document}
+"#;
+    let expected3 = r#"\begin{document}
 \begin{figure}[ht]
     The Document.
 \end{figure}
-\end{document}"#;
-    let expected4 = r#"
-\begin{document}
+
+\end{document}
+"#;
+    let expected4 = r#"\begin{document}
 \begin{foo}{bar1}[bar2]{bar3}{bar4}[bar5]
     The Document.
 \end{foo}
-\end{document}"#;
-    let expected5 = r#"
-\begin{document}
+
+\end{document}
+"#;
+    let expected5 = r#"\begin{document}
 \begin{foo*}{bar1}{bar2}
     The Document.
 \end{foo*}
-\end{document}"#;
-    let expected6 = r#"
-\begin{document}
+
+\end{document}
+"#;
+    let expected6 = r#"\begin{document}
 \begin{foo}*{bar1}{bar2}
     The Document.
 \end{foo}
-\end{document}"#;
+
+\end{document}
+"#;
 
     let mut parser1 = Parser::new(Lexer::new(source1));
     let mut parser2 = Parser::new(Lexer::new(source2));
@@ -225,43 +231,43 @@ fn parse_latex_functions() {
     let source10 = r#"document \textbf{
     Hallo!\TeX and \foo{bar1\; bar2{a}{}}; today}"#;
 
-    let expected1 = r#"
-\begin{document}
+    let expected1 = r#"\begin{document}
 \foo
-\end{document}"#;
-    let expected2 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected2 = r#"\begin{document}
 \foo{bar1}
-\end{document}"#;
-    let expected3 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected3 = r#"\begin{document}
 \foo[bar1]
-\end{document}"#;
-    let expected4 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected4 = r#"\begin{document}
 \foo{bar1}[bar2]
-\end{document}"#;
-    let expected5 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected5 = r#"\begin{document}
 \foo*[bar1]{bar2}{bar3}
-\end{document}"#;
-    let expected6 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected6 = r#"\begin{document}
 \foo*{bar1}{bar2}
-\end{document}"#;
-    let expected7 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected7 = r#"\begin{document}
 \foo[bar3][bar2][bar1]{bar4}{bar5}{bar6}{bar7}
-\end{document}"#;
-    let expected8 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected8 = r#"\begin{document}
 \foo*[bar1]{bar2}**{bar3}
-\end{document}"#;
-    let expected9 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected9 = r#"\begin{document}
 \textbf{
     Hallo!\TeX and \foo{bar1}{bar2{a}{}}; today}
-\end{document}"#;
+\end{document}
+"#;
 
     let mut parser1 = Parser::new(Lexer::new(source1));
     let mut parser2 = Parser::new(Lexer::new(source2));
@@ -290,14 +296,14 @@ fn test_parse_math_stmt() {
     let source1 = "document $\\sum_1^\\infty f(x)$";
     let source2 = "document $$\\sum_1^\\infty f(x)$$";
 
-    let expected1 = r#"
-\begin{document}
+    let expected1 = r#"\begin{document}
 $\sum_1^\infty f(x)$
-\end{document}"#;
-    let expected2 = r#"
-\begin{document}
+\end{document}
+"#;
+    let expected2 = r#"\begin{document}
 \[\sum_1^\infty f(x)\]
-\end{document}"#;
+\end{document}
+"#;
 
     let mut parser1 = Parser::new(Lexer::new(source1));
     let mut parser2 = Parser::new(Lexer::new(source2));
