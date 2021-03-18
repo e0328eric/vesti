@@ -152,9 +152,7 @@ impl<'a> Parser<'a> {
             )),
 
             Some(TokenType::ILLEGAL) => Err(VestiErr::make_parse_err(
-                VestiParseErr::InvalidTokToParse {
-                    got: self.peek_tok().unwrap(),
-                },
+                VestiParseErr::IllegalCharacterFoundErr,
                 self.peek_tok_location(),
             )),
 

@@ -22,6 +22,7 @@ impl VestiErrKind {
 #[derive(Debug, PartialEq)]
 pub enum VestiParseErr {
     EOFErr, // EOF found although parsing is not completed
+    IllegalCharacterFoundErr,
     TypeMismatch {
         expected: Vec<TokenType>,
         got: TokenType,

@@ -64,22 +64,24 @@ impl VError for VestiErrKind {
 impl VError for VestiParseErr {
     fn err_code(&self) -> u16 {
         match self {
-            Self::EOFErr => 0x01FF,
-            Self::TypeMismatch { .. } => 0x0101,
-            Self::BeforeDocumentErr { .. } => 0x0102,
-            Self::ParseIntErr => 0x0103,
-            Self::ParseFloatErr => 0x0104,
-            Self::InvalidTokToParse { .. } => 0x0105,
-            Self::BracketMismatchErr { .. } => 0x0106,
-            Self::BracketNumberMatchedErr => 0x0107,
-            Self::BegenvIsNotClosedErr => 0x0108,
-            Self::EndenvIsUsedWithoutBegenvPairErr => 0x0108,
-            Self::BegenvNameMissErr => 0x0109,
+            Self::EOFErr => 0x0E0F,
+            Self::IllegalCharacterFoundErr => 0x0101,
+            Self::TypeMismatch { .. } => 0x0102,
+            Self::BeforeDocumentErr { .. } => 0x0103,
+            Self::ParseIntErr => 0x0104,
+            Self::ParseFloatErr => 0x0105,
+            Self::InvalidTokToParse { .. } => 0x0106,
+            Self::BracketMismatchErr { .. } => 0x0107,
+            Self::BracketNumberMatchedErr => 0x0108,
+            Self::BegenvIsNotClosedErr => 0x0109,
+            Self::EndenvIsUsedWithoutBegenvPairErr => 0x0109,
+            Self::BegenvNameMissErr => 0x0110,
         }
     }
     fn err_str(&self) -> String {
         match self {
             Self::EOFErr => String::from("EOF found unexpectively"),
+            Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
             Self::BeforeDocumentErr { got } => {
                 format!("Type `{:?}` must be placed after `document`", got)
@@ -100,7 +102,7 @@ impl VError for VestiParseErr {
     }
     fn err_detail_str(&self) -> Vec<String> {
         match self {
-            Self::EOFErr => vec![],
+            Self::EOFErr | Self::IllegalCharacterFoundErr => vec![],
             Self::TypeMismatch { expected, got } => {
                 vec![format!("expected `{:?}`, got `{:?}`", expected, got)]
             }

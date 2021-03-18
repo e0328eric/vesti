@@ -26,7 +26,7 @@ pub fn pretty_print(
     // Make error code and error title format
     output = output + BOLD_TEXT + ERR_COLOR;
     output += &format!(
-        "error[E{0:04X}]{color:}: {1}",
+        " error[E{0:04X}]{color:}: {1}",
         err_code,
         err_str,
         color = ERR_TITLE_COLOR
@@ -39,7 +39,7 @@ pub fn pretty_print(
         // If the filepath of the given input one is found, print it with error location
         if let Some(m_filepath) = filepath {
             output = output
-                + &" ".repeat(start_row_num.len().saturating_sub(1))
+                + &" ".repeat(start_row_num.len())
                 + BOLD_TEXT
                 + BLUE_COLOR
                 + "--> "
@@ -51,8 +51,8 @@ pub fn pretty_print(
         output = output
             + BOLD_TEXT
             + BLUE_COLOR
-            + &" ".repeat(start_row_num.len())
-            + "|\n"
+            + &" ".repeat(start_row_num.len().saturating_add(1))
+            + "|\n "
             + &start_row_num
             + "|   "
             + RESET_COLOR;
@@ -66,7 +66,7 @@ pub fn pretty_print(
         output = output
             + BOLD_TEXT
             + BLUE_COLOR
-            + &" ".repeat(start_row_num.len())
+            + &" ".repeat(start_row_num.len().saturating_add(1))
             + "|   "
             + &" ".repeat(start.column().saturating_sub(1))
             + ERR_COLOR
@@ -80,7 +80,7 @@ pub fn pretty_print(
                 output = output
                     + BOLD_TEXT
                     + BLUE_COLOR
-                    + &" ".repeat(start_row_num.len())
+                    + &" ".repeat(start_row_num.len().saturating_add(1))
                     + "|   "
                     + &" ".repeat(start.column().saturating_sub(1))
                     + ERR_COLOR
