@@ -43,10 +43,14 @@ macro_rules! unwrap_err {
 pub enum VestiOpt {
     Init, // TODO: Do nothing in the alpha version
     Run {
+        /// Compile vesti continuously
         #[structopt(short, long)]
         continuous: bool,
+        /// If this flag is on, then vesti compiles all vesti files in that directory
         #[structopt(long)]
         all: bool,
+        /// Input file names or directory name.
+        /// Directory name must type once.
         #[structopt(name = "FILE", parse(from_os_str))]
         file_name: Vec<PathBuf>,
     },
