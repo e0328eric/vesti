@@ -19,8 +19,11 @@ impl Location {
         self.col
     }
 
-    pub fn move_right(&mut self) {
-        self.col += 1;
+    pub fn move_right(&mut self, current_char: Option<&char>) {
+        match current_char {
+            Some(chr) if chr.len_utf8() > 1 => self.col += 2,
+            _ => self.col += 1,
+        }
     }
 
     pub fn move_next_line(&mut self) {

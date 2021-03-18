@@ -62,7 +62,7 @@ impl<'a> Lexer<'a> {
         if self.chr0 == Some('\n') {
             self.current_loc.move_next_line();
         } else {
-            self.current_loc.move_right();
+            self.current_loc.move_right(self.chr0.as_ref());
         }
         self.chr0 = self.chr1;
         self.chr1 = self.chr2;
