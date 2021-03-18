@@ -19,7 +19,7 @@ const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 // \  / | | \- check whether document is started
 // \ /  | \--- check whether document is ended
 // \/   \----- if this is 1, then document mode is on, but \end{document} is not made
-// \------- Dummy Flags
+// \---------- Dummy Flags
 pub struct Parser<'a> {
     source: Lexer<'a>,
     peek_tok: Option<LexToken>,

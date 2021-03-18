@@ -1,4 +1,4 @@
-use super::err_kind::VError;
+use super::VError;
 use super::VestiErr;
 use crate::location::Span;
 use std::path::Path;
@@ -13,9 +13,7 @@ pub fn pretty_print(
     source: Option<&str>,
     vesti_error: VestiErr,
     filepath: Option<&Path>,
-) -> String
-where
-{
+) -> String {
     let lines = source.map(|inner| inner.lines());
     let VestiErr {
         ref err_kind,

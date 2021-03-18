@@ -5,6 +5,7 @@ mod location;
 mod parser;
 
 use crate::commands::compile_vesti;
+use crate::error::pretty_print::pretty_print;
 use signal_hook::consts::signal::{SIGINT, SIGKILL, SIGTERM};
 use signal_hook::flag as signal_flag;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,8 +30,16 @@ fn main() {
             .expect("Undefined behavior happend!");
     }
 
+    let file_lists = match args.take_file_name() {
+        Ok(inner) => inner,
+        Err(err) => {
+            println!("{}", pretty_print(None, err, None));
+            std::process::exit(1);
+        }
+    };
+
     let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
-    for file_name in args.take_file_name() {
+    for file_name in file_lists {
         handle_vesti.push(thread::spawn(move || {
             compile_vesti(file_name, is_continuous)
         }));

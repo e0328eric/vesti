@@ -9,7 +9,7 @@ use crate::location::{Location, Span};
 use newline_handler::Newlinehandler;
 use token::{Token, TokenType};
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct LexToken {
     pub token: Token,
     pub span: Span,
@@ -19,6 +19,13 @@ impl LexToken {
     pub fn new(token: Token, start: Location, end: Location) -> Self {
         Self {
             token,
+            span: Span { start, end },
+        }
+    }
+
+    fn illegal(start: Location, end: Location) -> Self {
+        Self {
+            token: Token::default(),
             span: Span { start, end },
         }
     }
@@ -125,7 +132,7 @@ impl<'a> Lexer<'a> {
             _ if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) => Some(self.lex_number()),
             _ => {
                 self.next_char();
-                Some(LexToken::default())
+                Some(LexToken::illegal(start_loc, self.current_loc))
             }
         }
     }

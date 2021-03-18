@@ -1,4 +1,6 @@
-use crate::error::{self, pretty_print::pretty_print};
+use crate::error;
+use crate::error::err_kind::{VestiCommandUtilErr, VestiErrKind};
+use crate::error::pretty_print::pretty_print;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use std::fs;
@@ -43,6 +45,8 @@ pub enum VestiOpt {
     Run {
         #[structopt(short, long)]
         continuous: bool,
+        #[structopt(long)]
+        all: bool,
         #[structopt(name = "FILE", parse(from_os_str))]
         file_name: Vec<PathBuf>,
     },
@@ -57,16 +61,54 @@ impl VestiOpt {
         }
     }
 
-    pub fn take_file_name(&self) -> Vec<PathBuf> {
+    pub fn take_file_name(&self) -> error::Result<Vec<PathBuf>> {
+        let mut output: Vec<PathBuf> = Vec::new();
+
         if let Self::Run {
             continuous: _,
+            all,
             file_name,
         } = self
         {
-            file_name.clone()
-        } else {
-            Vec::new()
+            if !all {
+                return Ok(file_name.clone());
+            }
+
+            assert_eq!(file_name.len(), 1);
+
+            let file_dir = file_name[0].ancestors().nth(1);
+            let current_dir = if file_dir == Some(Path::new("")) {
+                Path::new(".").to_path_buf()
+            } else if let Some(path) = file_dir {
+                path.to_path_buf()
+            } else {
+                return Err(error::VestiErr {
+                    err_kind: VestiErrKind::UtilErr(VestiCommandUtilErr::NoFilenameInputErr),
+                    location: None,
+                });
+            };
+
+            for path in walkdir::WalkDir::new(current_dir) {
+                match path {
+                    Ok(dir) => {
+                        if let Some(ext) = dir.path().extension() {
+                            if ext == "ves" {
+                                output.push(dir.into_path())
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        return Err(error::VestiErr {
+                            err_kind: VestiErrKind::UtilErr(VestiCommandUtilErr::TakeFilesErr),
+                            location: None,
+                        })
+                    }
+                }
+            }
+            output.sort();
         }
+
+        Ok(output)
     }
 }
 
