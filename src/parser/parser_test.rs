@@ -146,13 +146,10 @@ endenv"#;
     let source5 = r#"document begenv foo (bar1)[bar2](bar3)(bar4)[bar5]
     The Document.
 endenv"#;
-    let source6 = r#"document begenv foo (bar1) [bar2] (bar3) (bar4) [bar5]
+    let source6 = r#"document begenv foo* (bar1\; bar2)
     The Document.
 endenv"#;
-    let source7 = r#"document begenv foo* (bar1\; bar2)
-    The Document.
-endenv"#;
-    let source8 = r#"document begenv foo *(bar1\; bar2)
+    let source7 = r#"document begenv foo *(bar1\; bar2)
     The Document.
 endenv"#;
 
@@ -206,15 +203,13 @@ endenv"#;
     let mut parser5 = Parser::new(Lexer::new(source5));
     let mut parser6 = Parser::new(Lexer::new(source6));
     let mut parser7 = Parser::new(Lexer::new(source7));
-    let mut parser8 = Parser::new(Lexer::new(source8));
     assert_eq!(expected1, parser1.make_latex_format().unwrap());
     assert_eq!(expected2, parser2.make_latex_format().unwrap());
     assert_eq!(expected2, parser3.make_latex_format().unwrap());
     assert_eq!(expected3, parser4.make_latex_format().unwrap());
     assert_eq!(expected4, parser5.make_latex_format().unwrap());
-    assert_eq!(expected4, parser6.make_latex_format().unwrap());
-    assert_eq!(expected5, parser7.make_latex_format().unwrap());
-    assert_eq!(expected6, parser8.make_latex_format().unwrap());
+    assert_eq!(expected5, parser6.make_latex_format().unwrap());
+    assert_eq!(expected6, parser7.make_latex_format().unwrap());
 }
 
 #[test]

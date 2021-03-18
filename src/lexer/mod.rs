@@ -71,10 +71,7 @@ impl<'a> Lexer<'a> {
             Some('\n') => tokenize!(self | Newline, "\n"; start_loc),
             Some('+') => tokenize!(self | Plus, "+"; start_loc),
             Some('-') => {
-                if self
-                    .chr1
-                    .map_or(false, |chr| chr.is_ascii_digit() || chr == '.')
-                {
+                if self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
                     Some(self.lex_number())
                 } else {
                     tokenize!(self | Minus, "-"; start_loc)
@@ -112,13 +109,7 @@ impl<'a> Lexer<'a> {
             Some('"') => tokenize!(self | Doublequote, "\""; start_loc),
             Some('_') => tokenize!(self | Subscript, "_"; start_loc),
             Some('|') => tokenize!(self | Vert, "|"; start_loc),
-            Some('.') => {
-                if self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
-                    Some(self.lex_number())
-                } else {
-                    tokenize!(self | Period, "."; start_loc)
-                }
-            }
+            Some('.') => tokenize!(self | Period, "."; start_loc),
             Some(',') => tokenize!(self | Comma, ","; start_loc),
             Some('~') => tokenize!(self | Tilde, "~"; start_loc),
             Some('(') => tokenize!(self | Lparen, "("; start_loc),
@@ -374,10 +365,7 @@ impl<'a> Lexer<'a> {
                     self.current_loc,
                 ))
             }
-            _ => {
-                self.next_char();
-                Some(LexToken::default())
-            }
+            _ => tokenize!(self | ShortBackSlash, "\\"; start_loc),
         }
     }
 }

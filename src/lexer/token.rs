@@ -42,37 +42,38 @@ pub enum TokenType {
     DocumentStartMode,
 
     // Symbols
-    Plus,         // +
-    Minus,        // -
-    Star,         // *
-    Slash,        // /
-    Equal,        // =
-    Less,         // <
-    Great,        // >
-    LessEq,       // <=
-    GreatEq,      // >=
-    Bang,         // !
-    Question,     // ?
-    Dollar,       // $
-    Dollar2,      // $
-    Sharp,        // \#
-    FntParam,     // #
-    At,           // @
-    Percent,      // %
-    LatexComment, // \%
-    Superscript,  // ^
-    Subscript,    // _
-    Ampersand,    // &
-    BackSlash,    // \
-    Vert,         // |
-    Period,       // .
-    Comma,        // ,
-    Colon,        // :
-    Semicolon,    // ;
-    Tilde,        // ~
-    Quote,        // '
-    Quote2,       // `
-    Doublequote,  // "
+    Plus,           // +
+    Minus,          // -
+    Star,           // *
+    Slash,          // /
+    Equal,          // =
+    Less,           // <
+    Great,          // >
+    LessEq,         // <=
+    GreatEq,        // >=
+    Bang,           // !
+    Question,       // ?
+    Dollar,         // $
+    Dollar2,        // $
+    Sharp,          // \#
+    FntParam,       // #
+    At,             // @
+    Percent,        // %
+    LatexComment,   // \%
+    Superscript,    // ^
+    Subscript,      // _
+    Ampersand,      // &
+    BackSlash,      // \\
+    ShortBackSlash, // \
+    Vert,           // |
+    Period,         // .
+    Comma,          // ,
+    Colon,          // :
+    Semicolon,      // ;
+    Tilde,          // ~
+    Quote,          // '
+    Quote2,         // `
+    Doublequote,    // "
 
     // Delimiters
     Lparen,            // (
@@ -93,12 +94,12 @@ pub enum TokenType {
     ArgSpliter,
 
     // error token
-    ILLIGAL,
+    ILLEGAL,
 }
 
 impl Default for TokenType {
     fn default() -> Self {
-        Self::ILLIGAL
+        Self::ILLEGAL
     }
 }
 

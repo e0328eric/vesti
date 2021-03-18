@@ -151,6 +151,13 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             )),
 
+            Some(TokenType::ILLEGAL) => Err(VestiErr::make_parse_err(
+                VestiParseErr::InvalidTokToParse {
+                    got: self.peek_tok().unwrap(),
+                },
+                self.peek_tok_location(),
+            )),
+
             _ => self.parse_main_stmt(),
         }
     }
@@ -380,16 +387,16 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // If name is math related one, then math mode will be turn on
+        if ENV_MATH_IDENT.contains(&name.as_str()) {
+            self.source.math_started = true;
+        }
+
         while self.peek_tok() == Some(TokenType::Star) {
             expect_peek!(self | TokenType::Star; self.peek_tok_location());
             name.push('*');
         }
         self.eat_whitespaces(false);
-
-        // If name is math related one, then math mode will be turn on
-        if ENV_MATH_IDENT.contains(&name.as_str()) {
-            self.source.math_started = true;
-        }
 
         let args = self.parse_function_args(
             TokenType::Lparen,
@@ -539,7 +546,6 @@ impl<'a> Parser<'a> {
                     _ => break,
                 }
 
-                self.eat_whitespaces(false);
                 if self.peek_tok() == Some(TokenType::Newline) || self.peek_tok().is_none() {
                     break;
                 }
