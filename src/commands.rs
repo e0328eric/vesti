@@ -41,12 +41,13 @@ macro_rules! unwrap_err {
 
 #[derive(StructOpt)]
 pub enum VestiOpt {
-    Init, // TODO: Do nothing in the alpha version
+    /// TODO: In the alpha version, this does nothing at all.
+    Init,
     Run {
-        /// Compile vesti continuously
+        /// Compile vesti continuously.
         #[structopt(short, long)]
         continuous: bool,
-        /// If this flag is on, then vesti compiles all vesti files in that directory
+        /// If this flag is on, then vesti compiles all vesti files in that directory.
         #[structopt(long)]
         all: bool,
         /// Input file names or directory name.
