@@ -21,7 +21,7 @@ pub fn pretty_print(
     } = vesti_error;
     let err_code = err_kind.err_code();
     let err_str = err_kind.err_str();
-    let mut output = String::new();
+    let mut output = String::with_capacity(400);
 
     // Make error code and error title format
     output = output + BOLD_TEXT + ERR_COLOR;
@@ -92,5 +92,6 @@ pub fn pretty_print(
     }
     output += RESET_COLOR;
 
+    println!("{}", output.capacity());
     output
 }
