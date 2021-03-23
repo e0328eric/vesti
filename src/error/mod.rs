@@ -80,7 +80,7 @@ impl VError for VestiParseErr {
     }
     fn err_str(&self) -> String {
         match self {
-            Self::EOFErr => String::from("EOF found unexpectively"),
+            Self::EOFErr => String::from("EOF found unexpectedly"),
             Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
             Self::BeforeDocumentErr { got } => {
@@ -110,15 +110,19 @@ impl VError for VestiParseErr {
                 vec![format!("move `{:?}` after `document` keyword", got)]
             }
             Self::ParseIntErr => vec![
-                String::from("if this error occures, this preprocessor has an error"),
-                String::from("so let me know when this error occures"),
+                String::from("if this error occurs, this preprocessor has an error"),
+                String::from("so let me know when this error occurs"),
             ],
             Self::ParseFloatErr => vec![
-                String::from("if this error occures, this preprocessor has an error"),
-                String::from("so let me know when this error occures"),
+                String::from("if this error occurs, this preprocessor has an error"),
+                String::from("so let me know when this error occurs"),
             ],
             Self::InvalidTokToParse { got } => match got {
-                TokenType::Etxt => vec![String::from("must use `etxt` only at the math context")],
+                TokenType::Etxt => vec![
+                    String::from("must use `etxt` only at a math context"),
+                    String::from("If `etxt` is in a math mode, then this error can"),
+                    String::from("occur when `mtxt` is missing.")
+                ],
                 _ => Vec::new(),
             },
             Self::BracketMismatchErr { expected } => {
@@ -155,7 +159,7 @@ impl VError for VestiCommandUtilErr {
     }
     fn err_str(&self) -> String {
         match self {
-            Self::IOErr(err) => format!("IO error `{:?}` occures", err),
+            Self::IOErr(err) => format!("IO error `{:?}` occurs", err),
             Self::NoFilenameInputErr => String::from("No file name or path is given"),
             Self::TakeFilesErr => String::from("Error occurs while taking files"),
         }

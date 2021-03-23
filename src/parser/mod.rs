@@ -11,6 +11,7 @@ use crate::lexer::token::TokenType;
 use crate::lexer::{LexToken, Lexer};
 use crate::location::Span;
 use ast::*;
+use crate::error::err_kind::VestiParseErr::BracketMismatchErr;
 
 const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 
@@ -205,13 +206,28 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_math_stmt(&mut self) -> error::Result<Statement> {
+        let start_location = self.peek_tok_location();
         let mut text = Vec::new();
 
         match self.peek_tok() {
             Some(TokenType::TextMathStart) => {
                 expect_peek!(self | TokenType::TextMathStart; self.peek_tok_location());
                 while self.peek_tok() != Some(TokenType::TextMathEnd) {
-                    text.push(self.parse_statement()?);
+                    match self.parse_statement() {
+                        Ok(value) => text.push(value),
+                        Err(err) => {
+                            return match err.err_kind {
+                                // If EOF is found, then matching dollar symbol does not
+                                // found, so return BracketMismatchErr instead of EOFErr.
+                                VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
+                                    Err(VestiErr::make_parse_err(BracketMismatchErr {
+                                        expected: TokenType::TextMathEnd,
+                                    }, start_location))
+                                },
+                                _ => Err(err),
+                            }
+                        }
+                    }
                 }
                 expect_peek!(self | TokenType::TextMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
@@ -222,7 +238,21 @@ impl<'a> Parser<'a> {
             Some(TokenType::InlineMathStart) => {
                 expect_peek!(self | TokenType::InlineMathStart; self.peek_tok_location());
                 while self.peek_tok() != Some(TokenType::InlineMathEnd) {
-                    text.push(self.parse_statement()?);
+                    match self.parse_statement() {
+                        Ok(value) => text.push(value),
+                        Err(err) => {
+                            return match err.err_kind {
+                                // If EOF is found, then matching dollar symbol does not
+                                // found, so return BracketMismatchErr instead of EOFErr.
+                                VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
+                                    Err(VestiErr::make_parse_err(BracketMismatchErr {
+                                        expected: TokenType::InlineMathEnd,
+                                    }, start_location))
+                                },
+                                _ => Err(err),
+                            }
+                        }
+                    }
                 }
                 expect_peek!(self | TokenType::InlineMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
@@ -359,6 +389,7 @@ impl<'a> Parser<'a> {
 
     fn parse_environment(&mut self) -> error::Result<Statement> {
         let begenv_location = self.peek_tok_location();
+        let mut off_math_state = false;
 
         expect_peek!(self | TokenType::Begenv; self.peek_tok_location());
         self.eat_whitespaces(false);
@@ -388,6 +419,7 @@ impl<'a> Parser<'a> {
         // If name is math related one, then math mode will be turn on
         if ENV_MATH_IDENT.contains(&name.as_str()) {
             self.source.math_started = true;
+            off_math_state = true;
         }
 
         while self.peek_tok() == Some(TokenType::Star) {
@@ -420,7 +452,7 @@ impl<'a> Parser<'a> {
         }
 
         // If name is math related one, then math mode will be turn off
-        if ENV_MATH_IDENT.contains(&name.as_str()) {
+        if off_math_state {
             self.source.math_started = false;
         }
 
