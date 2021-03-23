@@ -16,9 +16,9 @@ const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 
 // documentState is a bitflag.
 // 0000 0 0 0
-// \  / | | \- check whether document is started
-// \ /  | \--- check whether document is ended
-// \/   \----- if this is 1, then document mode is on, but \end{document} is not made
+// |  / | | \- check whether document is started
+// | /  | \--- check whether document is ended
+// |/   \----- if this is 1, then document mode is on, but \end{document} is not made
 // \---------- Dummy Flags
 pub struct Parser<'a> {
     source: Lexer<'a>,

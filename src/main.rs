@@ -22,12 +22,12 @@ fn main() {
     #[cfg(not(target_os = "windows"))]
     for signal in [SIGINT, SIGTERM].iter() {
         signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
-            .expect("Undefined behavior happend!");
+            .expect("Undefined behavior happened!");
     }
     #[cfg(target_os = "windows")]
     for signal in [SIGTERM, SIGKILL].iter() {
         signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
-            .expect("Undefined behavior happend!");
+            .expect("Undefined behavior happened!");
     }
 
     let file_lists = match args.take_file_name() {
