@@ -5,13 +5,13 @@ pub mod maker;
 #[cfg(test)]
 mod parser_test;
 
+use crate::error::err_kind::VestiParseErr::BracketMismatchErr;
 use crate::error::err_kind::{VestiErrKind, VestiParseErr};
 use crate::error::{self, VestiErr};
 use crate::lexer::token::TokenType;
 use crate::lexer::{LexToken, Lexer};
 use crate::location::Span;
 use ast::*;
-use crate::error::err_kind::VestiParseErr::BracketMismatchErr;
 
 const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 
@@ -220,12 +220,15 @@ impl<'a> Parser<'a> {
                                 // If EOF is found, then matching dollar symbol does not
                                 // found, so return BracketMismatchErr instead of EOFErr.
                                 VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
-                                    Err(VestiErr::make_parse_err(BracketMismatchErr {
-                                        expected: TokenType::TextMathEnd,
-                                    }, start_location))
-                                },
+                                    Err(VestiErr::make_parse_err(
+                                        BracketMismatchErr {
+                                            expected: TokenType::TextMathEnd,
+                                        },
+                                        start_location,
+                                    ))
+                                }
                                 _ => Err(err),
-                            }
+                            };
                         }
                     }
                 }
@@ -245,12 +248,15 @@ impl<'a> Parser<'a> {
                                 // If EOF is found, then matching dollar symbol does not
                                 // found, so return BracketMismatchErr instead of EOFErr.
                                 VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
-                                    Err(VestiErr::make_parse_err(BracketMismatchErr {
-                                        expected: TokenType::InlineMathEnd,
-                                    }, start_location))
-                                },
+                                    Err(VestiErr::make_parse_err(
+                                        BracketMismatchErr {
+                                            expected: TokenType::InlineMathEnd,
+                                        },
+                                        start_location,
+                                    ))
+                                }
                                 _ => Err(err),
-                            }
+                            };
                         }
                     }
                 }
@@ -447,13 +453,13 @@ impl<'a> Parser<'a> {
         }
 
         expect_peek!(self | TokenType::Endenv; self.peek_tok_location());
-        if self.peek_tok() == Some(TokenType::Newline) {
-            self.next_tok();
-        }
 
         // If name is math related one, then math mode will be turn off
         if off_math_state {
             self.source.math_started = false;
+        }
+        if self.peek_tok() == Some(TokenType::Newline) {
+            self.next_tok();
         }
 
         Ok(Statement::Environment { name, args, text })

@@ -92,6 +92,5 @@ pub fn pretty_print(
     }
     output += RESET_COLOR;
 
-    println!("{}", output.capacity());
     output
 }
