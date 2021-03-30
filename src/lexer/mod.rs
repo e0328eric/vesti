@@ -172,13 +172,14 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
 
-        let toktype = if self.chr0 == Some('.') {
-            literal.push('.');
-            self.next_char();
-            TokenType::Float
-        } else {
-            TokenType::Integer
-        };
+        let toktype =
+            if self.chr0 == Some('.') && self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
+                literal.push('.');
+                self.next_char();
+                TokenType::Float
+            } else {
+                TokenType::Integer
+            };
 
         if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) {
             while let Some(chr) = self.chr0 {
@@ -318,18 +319,22 @@ impl<'a> Lexer<'a> {
                 tokenize!(self | ArgSpliter, ""; start_loc)
             }
             Some('(') => {
+                self.math_started = true;
                 self.next_char();
                 tokenize!(self | TextMathStart, "$"; start_loc)
             }
             Some(')') => {
+                self.math_started = false;
                 self.next_char();
                 tokenize!(self | TextMathEnd, "$"; start_loc)
             }
             Some('[') => {
+                self.math_started = true;
                 self.next_char();
                 tokenize!(self | InlineMathStart, "\\["; start_loc)
             }
             Some(']') => {
+                self.math_started = false;
                 self.next_char();
                 tokenize!(self | InlineMathEnd, "\\]"; start_loc)
             }
