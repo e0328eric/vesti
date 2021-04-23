@@ -106,7 +106,7 @@ impl<'a> Lexer<'a> {
             Some('!') => tokenize!(self | Bang, "!"; start_loc),
             Some('?') => tokenize!(self | Question, "?"; start_loc),
             Some('@') => tokenize!(self | At, "@"; start_loc),
-            Some('%') => tokenize!(self | Percent, "%"; start_loc),
+            Some('%') => tokenize!(self | Percent, "\\%"; start_loc),
             Some('^') => tokenize!(self | Superscript, "^"; start_loc),
             Some('&') => tokenize!(self | Ampersand, "&"; start_loc),
             Some(';') => tokenize!(self | Semicolon, ";"; start_loc),
@@ -148,6 +148,9 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
         let toktype = if let Some(toktype) = token::is_keyword(&literal) {
+            if &literal == "mnd" && self.chr0 == Some(' ') {
+                self.next_char();
+            }
             toktype
         } else {
             TokenType::MainString

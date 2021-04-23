@@ -112,6 +112,10 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
         "endenv" => Some(TokenType::Endenv),
         "mtxt" => Some(TokenType::Mtxt),
         "etxt" => Some(TokenType::Etxt),
+        "mst" => Some(TokenType::TextMathStart),
+        "mnd" => Some(TokenType::TextMathEnd),
+        "dmst" => Some(TokenType::InlineMathStart),
+        "dmnd" => Some(TokenType::InlineMathEnd),
         "docstartmode" => Some(TokenType::DocumentStartMode),
         _ => None,
     }

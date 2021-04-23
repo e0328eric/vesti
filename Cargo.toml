@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.0.6"
+version = "0.0.7"
 authors = ["Almagest <almagest0328@gmail.com>"]
 edition = "2018"
 
@@ -8,7 +8,10 @@ edition = "2018"
 opt-level = 0
 
 [profile.release]
-opt-level = 3
+codegen-units = 1
+incremental = true
+lto = true
+opt-level = 'z'
 
 [dependencies]
 structopt = "^0.3.21"
