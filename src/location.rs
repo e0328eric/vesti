@@ -21,7 +21,9 @@ impl Location {
 
     pub fn move_right(&mut self, current_char: Option<&char>) {
         match current_char {
-            Some(chr) if chr.len_utf8() > 1 => self.col += 2,
+            Some(chr) => {
+                self.col += unicode_width::UnicodeWidthChar::width(*chr).unwrap_or_default()
+            }
             _ => self.col += 1,
         }
     }

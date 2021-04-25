@@ -227,6 +227,7 @@ version = "0.0.7"
 dependencies = [
  "signal-hook",
  "structopt",
+ "unicode-width",
  "walkdir",
 ]
 
