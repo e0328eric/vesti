@@ -137,6 +137,6 @@ impl TokenType {
     }
 
     pub fn can_pkg_name(&self) -> bool {
-        *self == TokenType::MainString || *self == TokenType::Minus
+        *self == TokenType::MainString || *self == TokenType::Minus || *self == TokenType::Integer
     }
 }

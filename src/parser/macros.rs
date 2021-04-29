@@ -32,6 +32,7 @@ macro_rules! take_name {
             tmp += &match $self.peek_tok() {
                 Some(TokenType::MainString) => $self.next_tok().unwrap().token.literal,
                 Some(TokenType::Minus) => $self.next_tok().unwrap().token.literal,
+                Some(TokenType::Integer) => $self.next_tok().unwrap().token.literal,
                 Some(toktype) => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErr::TypeMismatch {
