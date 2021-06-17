@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["Almagest <almagest0328@gmail.com>"]
 edition = "2018"
 
@@ -19,3 +19,4 @@ structopt = "^0.3.21"
 signal-hook = "0.3"
 walkdir = "2.3"
 unicode-width = "0.1.8"
+bitflags = "1.2"

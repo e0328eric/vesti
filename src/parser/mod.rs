@@ -12,19 +12,29 @@ use crate::lexer::token::TokenType;
 use crate::lexer::{LexToken, Lexer};
 use crate::location::Span;
 use ast::*;
+use bitflags::bitflags;
 
 const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 
-// documentState is a bitflag.
-// 0000 0 0 0
-// |  / | | \- check whether document is started
-// | /  | \--- check whether document is ended
-// |/   \----- if this is 1, then document mode is on, but \end{document} is not made
-// \---------- Dummy Flags
+#[allow(dead_code)]
+bitflags! {
+    struct DocState: u8 {
+        const DOC_START = 0x1;
+        const DOC_END = 0x2;
+        const PREVENT_END_DOC = 0x4;
+    }
+}
+
+impl DocState {
+    fn new() -> Self {
+        Self { bits: 0 }
+    }
+}
+
 pub struct Parser<'a> {
     source: Lexer<'a>,
     peek_tok: Option<LexToken>,
-    document_state: u8,
+    document_state: DocState,
 }
 
 impl<'a> Parser<'a> {
@@ -33,7 +43,7 @@ impl<'a> Parser<'a> {
         let mut output = Box::new(Self {
             source,
             peek_tok: None,
-            document_state: 0,
+            document_state: DocState::new(),
         });
         output.next_tok();
 
@@ -84,7 +94,7 @@ impl<'a> Parser<'a> {
         while self.peek_tok().is_some() {
             latex.push(self.parse_statement()?);
         }
-        if self.document_state == 0b001 {
+        if self.document_state == DocState::DOC_START {
             latex.push(Statement::DocumentEnd);
         }
 
@@ -92,12 +102,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> error::Result<Statement> {
+        let is_doc_start = (self.document_state & DocState::DOC_START).bits();
         match self.peek_tok() {
             // Keywords
-            Some(TokenType::Docclass) if self.document_state & 0b001 == 0 => self.parse_docclass(),
-            Some(TokenType::Import) if self.document_state & 0b001 == 0 => self.parse_usepackage(),
-            Some(TokenType::Document) if self.document_state & 0b001 == 0 => {
-                self.document_state |= 0b001;
+            Some(TokenType::Docclass) if is_doc_start == 0 => self.parse_docclass(),
+            Some(TokenType::Import) if is_doc_start == 0 => self.parse_usepackage(),
+            Some(TokenType::Document) if is_doc_start == 0 => {
+                self.document_state |= DocState::DOC_START;
                 self.next_tok();
                 self.eat_whitespaces(true);
                 Ok(Statement::DocumentStart)
@@ -115,7 +126,7 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             )),
             Some(TokenType::DocumentStartMode) => {
-                self.document_state |= 0b101;
+                self.document_state |= DocState::PREVENT_END_DOC | DocState::DOC_START;
                 let loc = self.next_tok().map(|lex_tok| lex_tok.span);
                 expect_peek!(self | TokenType::Newline, TokenType::Newline2; loc);
                 self.parse_statement()
@@ -126,9 +137,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::RawLatex) => self.parse_raw_latex(),
             Some(TokenType::Integer) => self.parse_integer(),
             Some(TokenType::Float) => self.parse_float(),
-            Some(toktype)
-                if toktype.should_not_use_before_doc() && self.document_state & 0b001 == 0 =>
-            {
+            Some(toktype) if toktype.should_not_use_before_doc() && is_doc_start == 0 => {
                 Err(VestiErr::make_parse_err(
                     VestiParseErr::BeforeDocumentErr { got: toktype },
                     self.peek_tok_location(),
@@ -138,6 +147,7 @@ impl<'a> Parser<'a> {
             // Math related tokens
             Some(TokenType::TextMathStart) => self.parse_math_stmt(),
             Some(TokenType::InlineMathStart) => self.parse_math_stmt(),
+            Some(TokenType::Superscript) | Some(TokenType::Subscript) => self.parse_scripts(),
 
             Some(TokenType::TextMathEnd) => Err(VestiErr::make_parse_err(
                 VestiParseErr::InvalidTokToParse {
@@ -212,60 +222,54 @@ impl<'a> Parser<'a> {
         match self.peek_tok() {
             Some(TokenType::TextMathStart) => {
                 expect_peek!(self | TokenType::TextMathStart; self.peek_tok_location());
+
                 while self.peek_tok() != Some(TokenType::TextMathEnd) {
-                    match self.parse_statement() {
-                        Ok(value) => text.push(value),
-                        Err(err) => {
-                            return match err.err_kind {
-                                // If EOF is found, then matching dollar symbol does not
-                                // found, so return BracketMismatchErr instead of EOFErr.
-                                VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
-                                    Err(VestiErr::make_parse_err(
-                                        BracketMismatchErr {
-                                            expected: TokenType::TextMathEnd,
-                                        },
-                                        start_location,
-                                    ))
-                                }
-                                _ => Err(err),
-                            };
+                    text.push(self.parse_statement().map_err(|err| {
+                        if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
+                            VestiErr::make_parse_err(
+                                BracketMismatchErr {
+                                    expected: TokenType::TextMathEnd,
+                                },
+                                start_location,
+                            )
+                        } else {
+                            err
                         }
-                    }
+                    })?);
                 }
+
                 expect_peek!(self | TokenType::TextMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
                     state: MathState::Text,
                     text,
                 })
             }
+
             Some(TokenType::InlineMathStart) => {
                 expect_peek!(self | TokenType::InlineMathStart; self.peek_tok_location());
+
                 while self.peek_tok() != Some(TokenType::InlineMathEnd) {
-                    match self.parse_statement() {
-                        Ok(value) => text.push(value),
-                        Err(err) => {
-                            return match err.err_kind {
-                                // If EOF is found, then matching dollar symbol does not
-                                // found, so return BracketMismatchErr instead of EOFErr.
-                                VestiErrKind::ParseErr(VestiParseErr::EOFErr) => {
-                                    Err(VestiErr::make_parse_err(
-                                        BracketMismatchErr {
-                                            expected: TokenType::InlineMathEnd,
-                                        },
-                                        start_location,
-                                    ))
-                                }
-                                _ => Err(err),
-                            };
+                    text.push(self.parse_statement().map_err(|err| {
+                        if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
+                            VestiErr::make_parse_err(
+                                BracketMismatchErr {
+                                    expected: TokenType::InlineMathEnd,
+                                },
+                                start_location,
+                            )
+                        } else {
+                            err
                         }
-                    }
+                    })?);
                 }
+
                 expect_peek!(self | TokenType::InlineMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
                     state: MathState::Inline,
                     text,
                 })
             }
+
             Some(toktype) => Err(VestiErr::make_parse_err(
                 VestiParseErr::TypeMismatch {
                     expected: vec![TokenType::TextMathStart, TokenType::InlineMathStart],
@@ -273,6 +277,7 @@ impl<'a> Parser<'a> {
                 },
                 self.peek_tok_location(),
             )),
+
             None => Err(VestiErr::make_parse_err(
                 VestiParseErr::ParseFloatErr,
                 self.peek_tok_location(),
@@ -301,6 +306,53 @@ impl<'a> Parser<'a> {
         expect_peek!(self | TokenType::Etxt; self.peek_tok_location());
 
         Ok(Statement::PlainTextInMath(output))
+    }
+
+    fn parse_scripts(&mut self) -> error::Result<Statement> {
+        let start_location = self.peek_tok_location();
+        let state = MathState::Text;
+        let mut text: Latex = Vec::new();
+
+        text.push(Statement::MainText(match self.peek_tok() {
+            Some(TokenType::Superscript) => String::from("^"),
+            Some(TokenType::Subscript) => String::from("_"),
+            _ => unreachable!(),
+        }));
+        self.next_tok();
+
+        if self.peek_tok() == Some(TokenType::Lbrace) {
+            while self.peek_tok() != Some(TokenType::Rbrace) {
+                text.push(self.parse_statement().map_err(|err| {
+                    if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
+                        VestiErr::make_parse_err(
+                            BracketMismatchErr {
+                                expected: TokenType::TextMathEnd,
+                            },
+                            start_location,
+                        )
+                    } else {
+                        err
+                    }
+                })?);
+            }
+            expect_peek!(self | TokenType::Rbrace; self.peek_tok_location());
+            text.push(Statement::MainText(String::from("}")));
+        } else {
+            text.push(self.parse_statement().map_err(|err| {
+                if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
+                    VestiErr::make_parse_err(
+                        BracketMismatchErr {
+                            expected: TokenType::TextMathEnd,
+                        },
+                        start_location,
+                    )
+                } else {
+                    err
+                }
+            })?);
+        }
+
+        Ok(Statement::MathText { state, text })
     }
 
     fn parse_docclass(&mut self) -> error::Result<Statement> {
