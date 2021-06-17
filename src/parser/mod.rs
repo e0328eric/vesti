@@ -147,7 +147,11 @@ impl<'a> Parser<'a> {
             // Math related tokens
             Some(TokenType::TextMathStart) => self.parse_math_stmt(),
             Some(TokenType::InlineMathStart) => self.parse_math_stmt(),
-            Some(TokenType::Superscript) | Some(TokenType::Subscript) => self.parse_scripts(),
+            Some(TokenType::Superscript) | Some(TokenType::Subscript)
+                if !self.source.math_started =>
+            {
+                self.parse_scripts()
+            }
 
             Some(TokenType::TextMathEnd) => Err(VestiErr::make_parse_err(
                 VestiParseErr::InvalidTokToParse {
