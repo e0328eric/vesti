@@ -201,23 +201,21 @@ impl<'a> Lexer<'a> {
         if self.chr1 == Some('!') {
             self.next_char();
             tokenize!(self | Dollar2, "$"; start_loc)
-        } else {
-            if self.math_started {
-                self.math_started = false;
-                if self.chr1 == Some('$') {
-                    self.next_char();
-                    tokenize!(self | InlineMathEnd, "\\]"; start_loc)
-                } else {
-                    tokenize!(self | TextMathEnd, "$"; start_loc)
-                }
+        } else if self.math_started {
+            self.math_started = false;
+            if self.chr1 == Some('$') {
+                self.next_char();
+                tokenize!(self | InlineMathEnd, "\\]"; start_loc)
             } else {
-                self.math_started = true;
-                if self.chr1 == Some('$') {
-                    self.next_char();
-                    tokenize!(self | InlineMathStart, "\\["; start_loc)
-                } else {
-                    tokenize!(self | TextMathStart, "$"; start_loc)
-                }
+                tokenize!(self | TextMathEnd, "$"; start_loc)
+            }
+        } else {
+            self.math_started = true;
+            if self.chr1 == Some('$') {
+                self.next_char();
+                tokenize!(self | InlineMathStart, "\\["; start_loc)
+            } else {
+                tokenize!(self | TextMathStart, "$"; start_loc)
             }
         }
     }

@@ -50,7 +50,7 @@ fn usepackage_to_string(name: &str, options: &Option<Vec<Latex>>) -> String {
     }
 }
 
-fn multiusepacakge_to_string(pkgs: &Vec<Statement>) -> String {
+fn multiusepacakge_to_string(pkgs: &[Statement]) -> String {
     let mut output = String::new();
     for pkg in pkgs {
         if let Statement::Usepackage { name, options } = pkg {
@@ -60,7 +60,7 @@ fn multiusepacakge_to_string(pkgs: &Vec<Statement>) -> String {
     output
 }
 
-fn math_text_to_string(state: MathState, text: &Vec<Statement>) -> String {
+fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
     let mut output = String::new();
     match state {
         MathState::Text => {
