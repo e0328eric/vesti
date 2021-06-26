@@ -41,7 +41,7 @@ macro_rules! unwrap_err {
 
 #[derive(StructOpt)]
 pub enum VestiOpt {
-    /// TODO: In the alpha version, this does nothing at all.
+    /// TODO(#1): In the alpha version, this does nothing at all.
     Init,
     Run {
         /// Compile vesti continuously.
