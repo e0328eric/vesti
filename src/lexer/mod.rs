@@ -77,24 +77,28 @@ impl<'a> Lexer<'a> {
             Some('\t') => tokenize!(self | Tab, "\t"; start_loc),
             Some('\n') => tokenize!(self | Newline, "\n"; start_loc),
             Some('+') => tokenize!(self | Plus, "+"; start_loc),
-            Some('-') => {
-                if self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
-                    Some(self.lex_number())
-                } else {
-                    tokenize!(self | Minus, "-"; start_loc)
+            Some('-') => match self.chr1 {
+                Some('>') if self.math_started => {
+                    self.next_char();
+                    tokenize!(self | RightArrow, "\\rightarrow "; start_loc)
                 }
-            }
+                Some(chr) if chr.is_ascii_digit() => Some(self.lex_number()),
+                _ => tokenize!(self | Minus, "-"; start_loc),
+            },
             Some('*') => tokenize!(self | Star, "*"; start_loc),
             Some('/') => tokenize!(self | Slash, "/";start_loc),
             Some('=') => tokenize!(self | Equal , "="; start_loc),
-            Some('<') => {
-                if self.chr1 == Some('=') {
+            Some('<') => match self.chr1 {
+                Some('=') => {
                     self.next_char();
                     tokenize!(self | LessEq, "<="; start_loc)
-                } else {
-                    tokenize!(self | Less, "<"; start_loc)
                 }
-            }
+                Some('-') if self.math_started => {
+                    self.next_char();
+                    tokenize!(self | LeftArrow, "\\leftarrow "; start_loc)
+                }
+                _ => tokenize!(self | Less, "<"; start_loc),
+            },
             Some('>') => {
                 if self.chr1 == Some('=') {
                     self.next_char();
@@ -197,6 +201,7 @@ impl<'a> Lexer<'a> {
                 self.next_char();
             }
         }
+
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
     }
 

@@ -51,6 +51,8 @@ pub enum TokenType {
     Great,          // >
     LessEq,         // <=
     GreatEq,        // >=
+    LeftArrow,      // <-
+    RightArrow,     // ->
     Bang,           // !
     Question,       // ?
     Dollar,         // $
