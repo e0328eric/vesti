@@ -123,11 +123,13 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
     }
 }
 
+#[inline]
 pub fn is_latex_function_ident(chr: char) -> bool {
     chr == '@' || chr.is_alphabetic()
 }
 
 impl TokenType {
+    #[inline]
     pub fn should_not_use_before_doc(self) -> bool {
         self == TokenType::Space2
             || self == TokenType::Begenv
@@ -138,6 +140,7 @@ impl TokenType {
             || self == TokenType::InlineMathEnd
     }
 
+    #[inline]
     pub fn can_pkg_name(&self) -> bool {
         *self == TokenType::MainString || *self == TokenType::Minus || *self == TokenType::Integer
     }

@@ -17,3 +17,4 @@ begenv center
     begenv minipage {0.4\textwidth}
         This is a plain \LaTeX\ document.
     endenv
+endenv

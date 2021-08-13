@@ -30,6 +30,11 @@ import {
     geometry (a4paper, margin = 0.4\textwidth)
 }
 
+# defun keyword examples
+defun foo (@lala, @dark)
+
+endfun
+
 # Start main document.
 # I recommend to use this keyword with two line break like this.
 # But this might not cause a compile error.

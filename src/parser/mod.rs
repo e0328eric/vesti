@@ -147,7 +147,9 @@ impl<'a> Parser<'a> {
             // Math related tokens
             Some(TokenType::TextMathStart) => self.parse_math_stmt(),
             Some(TokenType::InlineMathStart) => self.parse_math_stmt(),
-            Some(TokenType::Superscript | TokenType::Subscript) if !self.source.math_started => {
+            Some(TokenType::Superscript | TokenType::Subscript)
+                if !self.source.math_started && is_doc_start != 0 =>
+            {
                 self.parse_scripts()
             }
 

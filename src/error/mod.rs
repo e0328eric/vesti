@@ -121,7 +121,7 @@ impl VError for VestiParseErr {
                 TokenType::Etxt => vec![
                     String::from("must use `etxt` only at a math context"),
                     String::from("If `etxt` is in a math mode, then this error can"),
-                    String::from("occur when `mtxt` is missing.")
+                    String::from("occur when `mtxt` is missing."),
                 ],
                 _ => Vec::new(),
             },
