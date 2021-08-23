@@ -16,12 +16,10 @@ use bitflags::bitflags;
 
 const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
 
-#[allow(dead_code)]
 bitflags! {
     struct DocState: u8 {
         const DOC_START = 0x1;
-        const DOC_END = 0x2;
-        const PREVENT_END_DOC = 0x4;
+        const PREVENT_END_DOC = 0x2;
     }
 }
 

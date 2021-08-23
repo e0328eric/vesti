@@ -87,10 +87,10 @@ pub enum TokenType {
     OptionalOpenBrace, // #[
     MathLbrace,        // \{
     MathRbrace,        // \}
-    TextMathStart,     // $ or \(
-    TextMathEnd,       // $ or \)
-    InlineMathStart,   // $$ or \[
-    InlineMathEnd,     // $$ or \]
+    TextMathStart,     // \(
+    TextMathEnd,       // \)
+    InlineMathStart,   // \[
+    InlineMathEnd,     // \]
 
     // etc
     ArgSpliter,

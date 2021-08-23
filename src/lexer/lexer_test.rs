@@ -237,47 +237,6 @@ fn lexing_keywords() {
 }
 
 #[test]
-fn test_lexing_math_delimiter() {
-    let source = "$ $ $$ $$ $ $$ $ \\) \\[ \\] \\( $";
-    let expected_toktype = vec![
-        TokenType::TextMathStart,
-        TokenType::Space,
-        TokenType::TextMathEnd,
-        TokenType::Space,
-        TokenType::InlineMathStart,
-        TokenType::Space,
-        TokenType::InlineMathEnd,
-        TokenType::Space,
-        TokenType::TextMathStart,
-        TokenType::Space,
-        TokenType::InlineMathEnd,
-        TokenType::Space,
-        TokenType::TextMathStart,
-        TokenType::Space,
-        TokenType::TextMathEnd,
-        TokenType::Space,
-        TokenType::InlineMathStart,
-        TokenType::Space,
-        TokenType::InlineMathEnd,
-        TokenType::Space,
-        TokenType::TextMathStart,
-        TokenType::Space,
-        TokenType::TextMathEnd,
-    ];
-    let lex = Lexer::new(source);
-    let lexed_token = lex
-        .clone()
-        .map(|lextok| lextok.token.toktype)
-        .collect::<Vec<TokenType>>();
-    let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
-        .collect::<Vec<String>>()
-        .concat();
-    assert_eq!(lexed_token, expected_toktype);
-    assert_eq!(lexed_literal, "$ $ \\[ \\] $ \\] $ $ \\[ \\] $ $");
-}
-
-#[test]
 fn lexing_latex_functions() {
     let source = "\\foo \\bar@hand";
     let expected_toktype = vec![
@@ -309,9 +268,9 @@ import {
 document
 
 This is a \LaTeX!
-$$
+\[
     1 + 1 = \sum_{j=1}^\infty f(x),\qquad mtxt foobar etxt
-$$
+\]
 begenv center
     The TeX
 endenv"#;

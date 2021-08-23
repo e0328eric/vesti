@@ -129,7 +129,13 @@ impl<'a> Lexer<'a> {
             Some('}') => tokenize!(self | Rbrace, "}"; start_loc),
             Some('[') => tokenize!(self | Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self | Rsqbrace, "]"; start_loc),
-            Some('$') => self.lex_dollar(),
+            Some('$') => match self.chr1 {
+				Some('!') => {
+					self.next_char();
+					tokenize!(self | Dollar, "$"; start_loc)
+				}
+				_ => tokenize!(self | Dollar2, "\\$"; start_loc)
+			}
             Some('#') => self.lex_sharp_char(),
             Some('\\') => self.lex_backslash(),
             _ if self.chr0.map_or(false, |chr| chr.is_alphabetic()) => Some(self.lex_main_string()),
@@ -203,30 +209,6 @@ impl<'a> Lexer<'a> {
         }
 
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
-    }
-
-    fn lex_dollar(&mut self) -> Option<LexToken> {
-        let start_loc = self.current_loc;
-        if self.chr1 == Some('!') {
-            self.next_char();
-            tokenize!(self | Dollar2, "$"; start_loc)
-        } else if self.math_started {
-            self.math_started = false;
-            if self.chr1 == Some('$') {
-                self.next_char();
-                tokenize!(self | InlineMathEnd, "\\]"; start_loc)
-            } else {
-                tokenize!(self | TextMathEnd, "$"; start_loc)
-            }
-        } else {
-            self.math_started = true;
-            if self.chr1 == Some('$') {
-                self.next_char();
-                tokenize!(self | InlineMathStart, "\\["; start_loc)
-            } else {
-                tokenize!(self | TextMathStart, "$"; start_loc)
-            }
-        }
     }
 
     fn lex_sharp_char(&mut self) -> Option<LexToken> {
@@ -331,12 +313,12 @@ impl<'a> Lexer<'a> {
             Some('(') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self | TextMathStart, "$"; start_loc)
+                tokenize!(self | TextMathStart, "\\("; start_loc)
             }
             Some(')') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self | TextMathEnd, "$"; start_loc)
+                tokenize!(self | TextMathEnd, "\\)"; start_loc)
             }
             Some('[') => {
                 self.math_started = true;

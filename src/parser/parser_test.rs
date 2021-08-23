@@ -288,11 +288,11 @@ fn parse_latex_functions() {
 
 #[test]
 fn test_parse_math_stmt() {
-    let source1 = "document $\\sum_1^\\infty f(x)$";
-    let source2 = "document $$\\sum_1^\\infty f(x)$$";
+    let source1 = "document \\(\\sum_1^\\infty f(x)\\)";
+    let source2 = "document \\[\\sum_1^\\infty f(x)\\]";
 
     let expected1 = r#"\begin{document}
-$\sum_1^\infty f(x)$
+\(\sum_1^\infty f(x)\)
 \end{document}
 "#;
     let expected2 = r#"\begin{document}
