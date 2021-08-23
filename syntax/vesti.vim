@@ -16,7 +16,6 @@ syn keyword vestiKeyword       docclass begenv nextgroup=vestiEnv skipwhite
 syn keyword vestiKeyword       import document endenv mst mnd docstartmode
 syn keyword vestiMathKeyword   mtxt etxt
 
-" TODO(#3): $ and $! syntax has some issue
 syn match   vestiFunction        "\v\\([a-zA-Z\@]+|\$|\\|#)"
 syn match   vestiEnv             "[a-zA-Z_][a-zA-Z0-9_]*" contained
 syn region  vestiComment         start="#" end="$" contains=vestiTodo
