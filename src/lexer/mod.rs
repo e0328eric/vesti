@@ -178,10 +178,6 @@ impl<'a> Lexer<'a> {
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
     }
 
-    // TODO(#2): vesti yet not distinguish beween the *real* integer and the literals
-    // For example, one might write 000000 meaning that the number 0.
-    // On the other hand, one might write 000000 meaning that the string 000000.
-    // However, vesti understand both as 0, the number.
     fn lex_number(&mut self) -> LexToken {
         let start_loc = self.current_loc;
         let mut literal = String::new();
