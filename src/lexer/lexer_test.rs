@@ -2,14 +2,13 @@ use super::*;
 
 #[test]
 fn test_lexing_symbols() {
-    let source = "+-/*!@&^;:.`|'~";
+    let source = "+-/*!&^;:.`|'~";
     let expected_toktype = vec![
         TokenType::Plus,
         TokenType::Minus,
         TokenType::Slash,
         TokenType::Star,
         TokenType::Bang,
-        TokenType::At,
         TokenType::Ampersand,
         TokenType::Superscript,
         TokenType::Semicolon,
@@ -104,11 +103,11 @@ fn test_text_raw_latex() {
 
 #[test]
 fn test_inline_raw_latex() {
-    let source = r#"##-
+    let source = r#"#-
 \begin{center}
   the \TeX
 \end{center}
--##"#;
+-#"#;
     let expected_toktype = vec![TokenType::RawLatex];
     let expected_literal = r#"
 \begin{center}
@@ -132,13 +131,13 @@ fn test_inline_raw_latex() {
 fn test_lexing_ascii_string() {
     let source = "This is a string!";
     let expected_toktype = vec![
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Bang,
     ];
     let lex = Lexer::new(source);
@@ -158,9 +157,9 @@ fn test_lexing_ascii_string() {
 fn test_lexing_unicode_string() {
     let source = "이것은 무엇인가?";
     let expected_toktype = vec![
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Question,
     ];
     let lex = Lexer::new(source);
@@ -207,13 +206,13 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv document mtxt import etxt endenv";
+    let source = "docclass begenv startdoc mtxt import etxt endenv";
     let expected_toktype = vec![
         TokenType::Docclass,
         TokenType::Space,
         TokenType::Begenv,
         TokenType::Space,
-        TokenType::Document,
+        TokenType::StartDoc,
         TokenType::Space,
         TokenType::Mtxt,
         TokenType::Space,
@@ -237,12 +236,32 @@ fn lexing_keywords() {
 }
 
 #[test]
+fn lexing_backslash() {
+    let source = "\\#\\$\\)";
+    let expected_toktype = vec![TokenType::Sharp, TokenType::Dollar, TokenType::TextMathEnd];
+    let lex = Lexer::new(source);
+    let lexed_token = lex
+        .clone()
+        .map(|lextok| lextok.token.toktype)
+        .collect::<Vec<TokenType>>();
+    assert_eq!(lexed_token, expected_toktype);
+}
+
+#[test]
 fn lexing_latex_functions() {
-    let source = "\\foo \\bar@hand";
+    let source = "\\foo \\bar@hand \\frac{a @ b}";
     let expected_toktype = vec![
         TokenType::LatexFunction,
         TokenType::Space,
         TokenType::LatexFunction,
+        TokenType::Space,
+        TokenType::LatexFunction,
+        TokenType::Lbrace,
+        TokenType::Text,
+        TokenType::ArgSpliter,
+        TokenType::Space,
+        TokenType::Text,
+        TokenType::Rbrace,
     ];
     let lex = Lexer::new(source);
     let lexed_token = lex
@@ -254,7 +273,7 @@ fn lexing_latex_functions() {
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
-    assert_eq!(lexed_literal, "foo bar@hand");
+    assert_eq!(lexed_literal, "foo bar@hand frac{a b}");
 }
 
 #[test]
@@ -265,7 +284,7 @@ import {
     amsmath,
 }
 
-document
+startdoc
 
 This is a \LaTeX!
 \[
@@ -280,7 +299,7 @@ import {
     amsmath,
 }
 
-document
+startdoc
 
 This is a LaTeX!
 \[
@@ -292,13 +311,13 @@ endenv"#;
     let expected_toktype = vec![
         TokenType::Docclass,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
         TokenType::Lparen,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Comma,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Rparen,
         TokenType::Newline,
         TokenType::Import,
@@ -309,18 +328,18 @@ endenv"#;
         TokenType::Space,
         TokenType::Space,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
         TokenType::Lparen,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Comma,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
         TokenType::Equal,
         TokenType::Space,
         TokenType::Float,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Rparen,
         TokenType::Comma,
         TokenType::Newline,
@@ -328,20 +347,20 @@ endenv"#;
         TokenType::Space,
         TokenType::Space,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Comma,
         TokenType::Newline,
         TokenType::Rbrace,
         TokenType::Newline,
         TokenType::Newline,
-        TokenType::Document,
+        TokenType::StartDoc,
         TokenType::Newline,
         TokenType::Newline,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
         TokenType::LatexFunction,
         TokenType::Bang,
@@ -363,23 +382,23 @@ endenv"#;
         TokenType::LatexFunction,
         TokenType::Subscript,
         TokenType::Lbrace,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Equal,
         TokenType::Integer,
         TokenType::Rbrace,
         TokenType::Superscript,
         TokenType::LatexFunction,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Lparen,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Rparen,
         TokenType::Comma,
         TokenType::LatexFunction,
         TokenType::Space,
         TokenType::Mtxt,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
         TokenType::Etxt,
         TokenType::Newline,
@@ -387,15 +406,15 @@ endenv"#;
         TokenType::Newline,
         TokenType::Begenv,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Newline,
         TokenType::Space,
         TokenType::Space,
         TokenType::Space,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Space,
-        TokenType::MainString,
+        TokenType::Text,
         TokenType::Newline,
         TokenType::Endenv,
     ];

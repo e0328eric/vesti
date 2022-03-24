@@ -30,13 +30,13 @@ macro_rules! take_name {
             .map_or(false, |toktype| toktype.can_pkg_name())
         {
             tmp += &match $self.peek_tok() {
-                Some(TokenType::MainString) => $self.next_tok().unwrap().token.literal,
+                Some(TokenType::Text) => $self.next_tok().unwrap().token.literal,
                 Some(TokenType::Minus) => $self.next_tok().unwrap().token.literal,
                 Some(TokenType::Integer) => $self.next_tok().unwrap().token.literal,
                 Some(toktype) => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErr::TypeMismatch {
-                            expected: vec![TokenType::MainString],
+                            expected: vec![TokenType::Text],
                             got: toktype,
                         },
                         $self.peek_tok_location(),
@@ -53,7 +53,7 @@ macro_rules! take_name {
         let $name = tmp;
     };
     ($self: ident | define $name: ident as mut; $location: expr) => {
-        let mut $name = if $self.peek_tok() == Some(TokenType::MainString) {
+        let mut $name = if $self.peek_tok() == Some(TokenType::Text) {
             $self.next_tok().unwrap().token.literal
         } else if let Some(_) = $self.peek_tok() {
             return Err(VestiErr::make_parse_err(

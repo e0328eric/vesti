@@ -13,7 +13,7 @@ endif
 syn region vestiBrackets       contained extend keepend matchgroup=Bold start=+\(\\\)\@<!\[+ end=+]\|$+ skip=+\\\s*$\|\(\\\)\@<!\\]+ contains=@tclCommandCluster
 
 syn keyword vestiKeyword       docclass begenv nextgroup=vestiEnv skipwhite
-syn keyword vestiKeyword       import document endenv mst mnd docstartmode
+syn keyword vestiKeyword       import startdoc endenv mst mnd docstartmode
 syn keyword vestiMathKeyword   mtxt etxt
 
 syn match   vestiFunction        "\v\\([a-zA-Z@]+)|\\\$|\\\\|\\\#"
@@ -21,10 +21,12 @@ syn match   vestiEnv             "[a-zA-Z_][a-zA-Z0-9_]*" contained
 syn region  vestiComment         start="#" end="$" contains=vestiTodo
 syn region  vestiComment         start="#\*" end="\*#" contains=vestiTodo,@Spell
 syn region  vestiVerbatim        start="#-" end="-#"
-syn region  vestiVerbatimInline  start="##-" end="-##"
+syn region  vestiTextMath        start="\$" end="\$" contains=vestiMathKeyword,vestiFunction
 syn region  vestiTextMath        start="\\(" end="\\)" contains=vestiMathKeyword,vestiFunction
 syn region  vestiInlineMath      start="\\\[" end="\\\]" contains=vestiMathKeyword,vestiFunction
+syn match   vestiArgSplitter     "@"
 syn match   vestiSharp           "#!"
+syn match   vestiAt              "@!"
 syn match   vestiDollar          "$!"
 syn keyword vestiTodo            TODO FIXME XXX contained
 
@@ -56,11 +58,13 @@ HiLink vestiComment Comment
 HiLink vestiTodo Todo
 HiLink vestiNumber Number
 HiLink vestiVerbatim PreProc 
-HiLink vestiVerbatimInline PreProc 
-hi vestiSharp ctermfg=LightBlue guifg=LightBlue
-hi vestiDollar ctermfg=LightBlue guifg=LightBlue
-hi vestiTextMath ctermfg=LightMagenta guifg=LightMagenta
-hi vestiInlineMath ctermfg=LightMagenta guifg=LightMagenta
+hi vestiArgSplitter      ctermfg=37   guifg=#00afaf
+hi vestiSharp            ctermfg=180  guifg=#d7af87
+hi vestiSharp            ctermfg=180  guifg=#d7af87
+hi vestiAt               ctermfg=180  guifg=#d7af87
+hi vestiDollar           ctermfg=180    guifg=#d7af87
+hi vestiTextMath         ctermfg=159  guifg=#afffff
+hi vestiInlineMath       ctermfg=159  guifg=#afffff
 
 delcommand HiLink
 

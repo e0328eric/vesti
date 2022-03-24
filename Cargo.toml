@@ -1,8 +1,8 @@
 [package]
 name = "vesti"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Almagest <almagest0328@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [profile.dev]
 opt-level = 0
@@ -11,11 +11,11 @@ opt-level = 0
 codegen-units = 1
 incremental = true
 lto = true
-opt-level = 'z'
+opt-level = 3
 panic = 'abort'
 
 [dependencies]
-structopt = "^0.3.21"
+clap = { version = "3", features = ["derive"] }
 signal-hook = "0.3"
 walkdir = "2.3"
 unicode-width = "0.1.8"

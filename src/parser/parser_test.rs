@@ -105,8 +105,8 @@ fn test_parse_usepackage() {
 
 #[test]
 fn parse_main_string() {
-    let source1 = "document This is vesti";
-    let source2 = "document docclass";
+    let source1 = "startdoc This is vesti";
+    let source2 = "startdoc docclass";
 
     let expected_ast1 = vec![
         Statement::DocumentStart,
@@ -131,25 +131,25 @@ fn parse_main_string() {
 
 #[test]
 fn parse_environment() {
-    let source1 = r#"document begenv center
+    let source1 = r#"startdoc begenv center
     The Document.
 endenv"#;
-    let source2 = r#"document begenv minipage (0.7\pagewidth)
+    let source2 = r#"startdoc begenv minipage (0.7\pagewidth)
     The Document.
 endenv"#;
-    let source3 = r#"document begenv minipage(0.7\pagewidth)
+    let source3 = r#"startdoc begenv minipage(0.7\pagewidth)
     The Document.
 endenv"#;
-    let source4 = r#"document begenv figure [ht]
+    let source4 = r#"startdoc begenv figure [ht]
     The Document.
 endenv"#;
-    let source5 = r#"document begenv foo (bar1)[bar2](bar3)(bar4)[bar5]
+    let source5 = r#"startdoc begenv foo (bar1)[bar2](bar3)(bar4)[bar5]
     The Document.
 endenv"#;
-    let source6 = r#"document begenv foo* (bar1\; bar2)
+    let source6 = r#"startdoc begenv foo* (bar1 @ bar2)
     The Document.
 endenv"#;
-    let source7 = r#"document begenv foo *(bar1\; bar2)
+    let source7 = r#"startdoc begenv foo *(bar1 @ bar2)
     The Document.
 endenv"#;
 
@@ -214,17 +214,17 @@ endenv"#;
 
 #[test]
 fn parse_latex_functions() {
-    let source1 = "document \\foo";
-    let source2 = "document \\foo{bar1}";
-    let source3 = "document \\foo#[bar1]";
-    let source4 = "document \\foo {bar1}#[bar2]";
-    let source5 = "document \\foo{bar1}#[bar2]";
-    let source6 = "document \\foo*#[bar1]{bar2}{bar3}";
-    let source7 = "document \\foo*{bar1\\; bar2}";
-    let source8 = "document \\foo#[bar3\\; bar2\\; bar1]{bar4\\; bar5\\; bar6\\; bar7}";
-    let source9 = "document \\foo*#[bar1]{bar2}**{bar3}";
-    let source10 = r#"document \textbf{
-    Hallo!\TeX and \foo{bar1\; bar2{a}{}}; today}"#;
+    let source1 = "startdoc \\foo";
+    let source2 = "startdoc \\foo{bar1}";
+    let source3 = "startdoc \\foo#[bar1]";
+    let source4 = "startdoc \\foo {bar1}#[bar2]";
+    let source5 = "startdoc \\foo{bar1}#[bar2]";
+    let source6 = "startdoc \\foo*#[bar1]{bar2}{bar3}";
+    let source7 = "startdoc \\foo*{bar1 @ bar2}";
+    let source8 = "startdoc \\foo#[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
+    let source9 = "startdoc \\foo*#[bar1]{bar2}**{bar3}";
+    let source10 = r#"startdoc \textbf{
+    Hallo!\TeX and \foo{bar1 @ bar2{a}{}}; today}"#;
 
     let expected1 = r#"\begin{document}
 \foo
@@ -288,8 +288,8 @@ fn parse_latex_functions() {
 
 #[test]
 fn test_parse_math_stmt() {
-    let source1 = "document \\(\\sum_1^\\infty f(x)\\)";
-    let source2 = "document \\[\\sum_1^\\infty f(x)\\]";
+    let source1 = "startdoc \\(\\sum_1^\\infty f(x)\\)";
+    let source2 = "startdoc \\[\\sum_1^\\infty f(x)\\]";
 
     let expected1 = r#"\begin{document}
 \(\sum_1^\infty f(x)\)

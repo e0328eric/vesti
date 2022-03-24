@@ -1,7 +1,9 @@
-#[macro_use]
-mod macros;
 #[cfg(test)]
 mod lexer_test;
+
+#[macro_use]
+mod macros;
+
 mod newline_handler;
 pub mod token;
 
@@ -73,7 +75,14 @@ impl<'a> Lexer<'a> {
         let start_loc = self.current_loc;
         match self.chr0 {
             Some('\0') | None => None,
-            Some(' ') => tokenize!(self | Space, " "; start_loc),
+            Some(' ') => {
+                if self.chr1 == Some('@') && self.chr2 != Some('!') {
+                    self.next_char();
+                    tokenize!(self | ArgSpliter, ""; start_loc)
+                } else {
+                    tokenize!(self | Space, " "; start_loc)
+                }
+            }
             Some('\t') => tokenize!(self | Tab, "\t"; start_loc),
             Some('\n') => tokenize!(self | Newline, "\n"; start_loc),
             Some('+') => tokenize!(self | Plus, "+"; start_loc),
@@ -109,7 +118,14 @@ impl<'a> Lexer<'a> {
             }
             Some('!') => tokenize!(self | Bang, "!"; start_loc),
             Some('?') => tokenize!(self | Question, "?"; start_loc),
-            Some('@') => tokenize!(self | At, "@"; start_loc),
+            Some('@') => {
+                if self.chr1 == Some('!') {
+                    self.next_char();
+                    tokenize!(self | At, "@"; start_loc)
+                } else {
+                    tokenize!(self | ArgSpliter, ""; start_loc)
+                }
+            }
             Some('%') => tokenize!(self | Percent, "\\%"; start_loc),
             Some('^') => tokenize!(self | Superscript, "^"; start_loc),
             Some('&') => tokenize!(self | Ampersand, "&"; start_loc),
@@ -129,13 +145,7 @@ impl<'a> Lexer<'a> {
             Some('}') => tokenize!(self | Rbrace, "}"; start_loc),
             Some('[') => tokenize!(self | Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self | Rsqbrace, "]"; start_loc),
-            Some('$') => match self.chr1 {
-				Some('!') => {
-					self.next_char();
-					tokenize!(self | Dollar, "$"; start_loc)
-				}
-				_ => tokenize!(self | Dollar2, "\\$"; start_loc)
-			}
+            Some('$') => self.lex_dollar_char(),
             Some('#') => self.lex_sharp_char(),
             Some('\\') => self.lex_backslash(),
             _ if self.chr0.map_or(false, |chr| chr.is_alphabetic()) => Some(self.lex_main_string()),
@@ -163,7 +173,7 @@ impl<'a> Lexer<'a> {
             }
             toktype
         } else {
-            TokenType::MainString
+            TokenType::Text
         };
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
     }
@@ -181,30 +191,42 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
 
-        while let Some(chr) = self.chr0 {
-            if !chr.is_ascii_digit() {
-                break;
-            }
-            literal.push(chr);
-            self.next_char();
-        }
-
-        let toktype =
-            if self.chr0 == Some('.') && self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
-                literal.push('.');
-                self.next_char();
-                TokenType::Float
-            } else {
-                TokenType::Integer
-            };
-
-        if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) {
+        let toktype;
+        if self.chr0 == Some('0') && self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
+            toktype = TokenType::Text;
             while let Some(chr) = self.chr0 {
                 if !chr.is_ascii_digit() {
                     break;
                 }
                 literal.push(chr);
                 self.next_char();
+            }
+        } else {
+            while let Some(chr) = self.chr0 {
+                if !chr.is_ascii_digit() {
+                    break;
+                }
+                literal.push(chr);
+                self.next_char();
+            }
+
+            toktype =
+                if self.chr0 == Some('.') && self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
+                    literal.push('.');
+                    self.next_char();
+                    TokenType::Float
+                } else {
+                    TokenType::Integer
+                };
+
+            if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) {
+                while let Some(chr) = self.chr0 {
+                    if !chr.is_ascii_digit() {
+                        break;
+                    }
+                    literal.push(chr);
+                    self.next_char();
+                }
             }
         }
 
@@ -217,10 +239,6 @@ impl<'a> Lexer<'a> {
             Some('!') => {
                 self.next_char();
                 tokenize!(self | FntParam, "#"; start_loc)
-            }
-            Some('@') => {
-                self.next_char();
-                tokenize!(self | Newline2, "\n"; start_loc)
             }
             Some('[') => {
                 self.next_char();
@@ -255,30 +273,31 @@ impl<'a> Lexer<'a> {
                     self.current_loc,
                 ))
             }
-            Some('#') if self.chr2 == Some('-') => {
-                let mut literal = String::new();
-                self.next_char();
-                self.next_char();
-                self.next_char();
-                while self.chr0 != Some('-') || self.chr1 != Some('#') || self.chr2 != Some('#') {
-                    literal.push(self.chr0?);
-                    self.next_char();
-                }
-                self.next_char();
-                self.next_char();
-                self.next_char();
-                Some(LexToken::new(
-                    Token::new(TokenType::RawLatex, literal),
-                    start_loc,
-                    self.current_loc,
-                ))
-            }
             _ => {
                 while self.chr0? != '\n' {
                     self.next_char();
                 }
                 self.next_char();
                 self.take_tok()
+            }
+        }
+    }
+
+    fn lex_dollar_char(&mut self) -> Option<LexToken> {
+        let start_loc = self.current_loc;
+        match self.chr1 {
+            Some('!') => {
+                self.next_char();
+                tokenize!(self | Dollar, "$"; start_loc)
+            }
+            _ => {
+                if !self.math_started {
+                    self.math_started = true;
+                    tokenize!(self | TextMathStart, "\\("; start_loc)
+                } else {
+                    self.math_started = false;
+                    tokenize!(self | TextMathEnd, "\\)"; start_loc)
+                }
             }
         }
     }
@@ -305,10 +324,6 @@ impl<'a> Lexer<'a> {
                 } else {
                     tokenize!(self | Comma, ","; start_loc)
                 }
-            }
-            Some(';') => {
-                self.next_char();
-                tokenize!(self | ArgSpliter, ""; start_loc)
             }
             Some('(') => {
                 self.math_started = true;
@@ -357,11 +372,8 @@ impl<'a> Lexer<'a> {
                     if !token::is_latex_function_ident(chr) {
                         break;
                     }
-                    let tok = self.take_tok();
-                    if tok.is_none() {
-                        break;
-                    }
-                    literal.push_str(&tok.unwrap().token.literal);
+                    literal.push(chr);
+                    self.next_char();
                 }
                 Some(LexToken::new(
                     Token::new(TokenType::LatexFunction, literal),

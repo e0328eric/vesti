@@ -1,13 +1,15 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, SystemTime};
+
+use clap::Parser as ClapParser;
+
 use crate::error;
 use crate::error::err_kind::{VestiCommandUtilErr, VestiErrKind};
 use crate::error::pretty_print::pretty_print;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::thread;
-use std::time::{Duration, SystemTime};
-use structopt::StructOpt;
 
 macro_rules! unwrap_err {
     ($name: ident := $to_unwrap: expr, $source: expr, $file_name: expr) => {
@@ -39,20 +41,20 @@ macro_rules! unwrap_err {
     };
 }
 
-#[derive(StructOpt)]
+#[derive(ClapParser)]
 pub enum VestiOpt {
     /// TODO(#1): In the alpha version, this does nothing at all.
     Init,
     Run {
         /// Compile vesti continuously.
-        #[structopt(short, long)]
+        #[clap(short, long)]
         continuous: bool,
         /// If this flag is on, then vesti compiles all vesti files in that directory.
-        #[structopt(long)]
+        #[clap(long)]
         all: bool,
         /// Input file names or directory name.
         /// Directory name must type once.
-        #[structopt(name = "FILE", parse(from_os_str))]
+        #[clap(name = "FILE", parse(from_os_str))]
         file_name: Vec<PathBuf>,
     },
 }

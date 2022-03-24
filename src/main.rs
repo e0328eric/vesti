@@ -4,18 +4,21 @@ mod lexer;
 mod location;
 mod parser;
 
-use crate::commands::compile_vesti;
-use crate::error::pretty_print::pretty_print;
-use signal_hook::consts::signal::{SIGINT, SIGKILL, SIGTERM};
-use signal_hook::flag as signal_flag;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use structopt::StructOpt;
+
+use clap::Parser;
+
+use signal_hook::consts::signal::{SIGINT, SIGKILL, SIGTERM};
+use signal_hook::flag as signal_flag;
+
+use crate::commands::compile_vesti;
+use crate::error::pretty_print::pretty_print;
 
 fn main() {
-    let args = commands::VestiOpt::from_args();
+    let args = commands::VestiOpt::parse();
     let is_continuous = args.is_continuous_compile();
 
     let trap = Arc::new(AtomicUsize::new(0));

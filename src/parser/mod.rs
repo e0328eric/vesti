@@ -1,9 +1,10 @@
+#[cfg(test)]
+mod parser_test;
+
 #[macro_use]
 mod macros;
 pub mod ast;
 pub mod maker;
-#[cfg(test)]
-mod parser_test;
 
 use crate::error::err_kind::VestiParseErr::BracketMismatchErr;
 use crate::error::err_kind::{VestiErrKind, VestiParseErr};
@@ -105,7 +106,7 @@ impl<'a> Parser<'a> {
             // Keywords
             Some(TokenType::Docclass) if is_doc_start == 0 => self.parse_docclass(),
             Some(TokenType::Import) if is_doc_start == 0 => self.parse_usepackage(),
-            Some(TokenType::Document) if is_doc_start == 0 => {
+            Some(TokenType::StartDoc) if is_doc_start == 0 => {
                 self.document_state |= DocState::DOC_START;
                 self.next_tok();
                 self.eat_whitespaces(true);
@@ -126,7 +127,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::DocumentStartMode) => {
                 self.document_state |= DocState::PREVENT_END_DOC | DocState::DOC_START;
                 let loc = self.next_tok().map(|lex_tok| lex_tok.span);
-                expect_peek!(self | TokenType::Newline, TokenType::Newline2; loc);
+                expect_peek!(self | TokenType::Newline; loc);
                 self.parse_statement()
             }
 
@@ -406,7 +407,7 @@ impl<'a> Parser<'a> {
 
             match self.peek_tok() {
                 Some(TokenType::Newline) => self.eat_whitespaces(true),
-                Some(TokenType::MainString) => {}
+                Some(TokenType::Text) => {}
                 Some(TokenType::RawLatex) => {}
                 Some(TokenType::Rbrace) => {
                     pkgs.push(Statement::Usepackage { name, options });
@@ -418,7 +419,7 @@ impl<'a> Parser<'a> {
                             expected: vec![
                                 TokenType::Newline,
                                 TokenType::Rbrace,
-                                TokenType::MainString,
+                                TokenType::Text,
                                 TokenType::RawLatex,
                             ],
                             got: tok_type,
@@ -461,7 +462,7 @@ impl<'a> Parser<'a> {
             });
         }
         let mut name = match self.peek_tok() {
-            Some(TokenType::MainString) => self.next_tok().unwrap().token.literal,
+            Some(TokenType::Text) => self.next_tok().unwrap().token.literal,
             Some(_) => {
                 return Err(VestiErr::make_parse_err(
                     VestiParseErr::BegenvNameMissErr,

@@ -20,21 +20,20 @@ pub enum TokenType {
     Space2, // /_ where _ is a space
     Tab,
     Newline,
-    Newline2,       // #@
     MathSmallSpace, // \,
     MathLargeSpace, // \;
 
     // Identifiers
     Integer,
     Float,
-    MainString,
+    Text,
     LatexFunction,
     RawLatex,
 
     // Keywords
     Docclass,
     Import,
-    Document,
+    StartDoc,
     Begenv,
     Endenv,
     Mtxt,
@@ -55,8 +54,7 @@ pub enum TokenType {
     RightArrow,     // ->
     Bang,           // !
     Question,       // ?
-    Dollar,         // $
-    Dollar2,        // $
+    Dollar,         // \$
     Sharp,          // \#
     FntParam,       // #
     At,             // @
@@ -109,7 +107,7 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
     match string {
         "docclass" => Some(TokenType::Docclass),
         "import" => Some(TokenType::Import),
-        "document" => Some(TokenType::Document),
+        "startdoc" => Some(TokenType::StartDoc),
         "begenv" => Some(TokenType::Begenv),
         "endenv" => Some(TokenType::Endenv),
         "mtxt" => Some(TokenType::Mtxt),
@@ -142,6 +140,6 @@ impl TokenType {
 
     #[inline]
     pub fn can_pkg_name(&self) -> bool {
-        *self == TokenType::MainString || *self == TokenType::Minus || *self == TokenType::Integer
+        *self == TokenType::Text || *self == TokenType::Minus || *self == TokenType::Integer
     }
 }
