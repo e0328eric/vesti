@@ -43,7 +43,7 @@ macro_rules! unwrap_err {
 
 #[derive(ClapParser)]
 pub enum VestiOpt {
-    /// TODO(#1): In the alpha version, this does nothing at all.
+    /// Just make an empty vesti file
     Init,
     Run {
         /// Compile vesti continuously.

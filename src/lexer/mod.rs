@@ -178,6 +178,7 @@ impl<'a> Lexer<'a> {
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
     }
 
+    // TODO: lexing failed for large integers
     fn lex_number(&mut self) -> LexToken {
         let start_loc = self.current_loc;
         let mut literal = String::new();
