@@ -103,6 +103,7 @@ impl Default for TokenType {
     }
 }
 
+// TODO: Deprecate 'docstartmode'
 pub fn is_keyword(string: &str) -> Option<TokenType> {
     match string {
         "docclass" => Some(TokenType::Docclass),
@@ -117,6 +118,7 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
         "dmst" => Some(TokenType::InlineMathStart),
         "dmnd" => Some(TokenType::InlineMathEnd),
         "docstartmode" => Some(TokenType::DocumentStartMode),
+        "nondocclass" => Some(TokenType::DocumentStartMode),
         _ => None,
     }
 }
