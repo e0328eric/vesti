@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::DocumentStartMode) => {
                 self.document_state |= DocState::PREVENT_END_DOC | DocState::DOC_START;
                 let loc = self.next_tok().map(|lex_tok| lex_tok.span);
-                expect_peek!(self | TokenType::Newline; loc);
+                expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
             }
 
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
 
         match self.peek_tok() {
             Some(TokenType::TextMathStart) => {
-                expect_peek!(self | TokenType::TextMathStart; self.peek_tok_location());
+                expect_peek!(self: TokenType::TextMathStart; self.peek_tok_location());
 
                 while self.peek_tok() != Some(TokenType::TextMathEnd) {
                     text.push(self.parse_statement().map_err(|err| {
@@ -241,7 +241,7 @@ impl<'a> Parser<'a> {
                     })?);
                 }
 
-                expect_peek!(self | TokenType::TextMathEnd; self.peek_tok_location());
+                expect_peek!(self: TokenType::TextMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
                     state: MathState::Text,
                     text,
@@ -249,7 +249,7 @@ impl<'a> Parser<'a> {
             }
 
             Some(TokenType::InlineMathStart) => {
-                expect_peek!(self | TokenType::InlineMathStart; self.peek_tok_location());
+                expect_peek!(self: TokenType::InlineMathStart; self.peek_tok_location());
 
                 while self.peek_tok() != Some(TokenType::InlineMathEnd) {
                     text.push(self.parse_statement().map_err(|err| {
@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
                     })?);
                 }
 
-                expect_peek!(self | TokenType::InlineMathEnd; self.peek_tok_location());
+                expect_peek!(self: TokenType::InlineMathEnd; self.peek_tok_location());
                 Ok(Statement::MathText {
                     state: MathState::Inline,
                     text,
@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
     fn parse_text_in_math(&mut self) -> error::Result<Statement> {
         let mut output: Latex = Vec::new();
 
-        expect_peek!(self | TokenType::Mtxt; self.peek_tok_location());
+        expect_peek!(self: TokenType::Mtxt; self.peek_tok_location());
         self.eat_whitespaces(false);
 
         while self.peek_tok() != Some(TokenType::Etxt) {
@@ -306,7 +306,7 @@ impl<'a> Parser<'a> {
             output.push(self.parse_statement()?);
         }
 
-        expect_peek!(self | TokenType::Etxt; self.peek_tok_location());
+        expect_peek!(self: TokenType::Etxt; self.peek_tok_location());
 
         Ok(Statement::PlainTextInMath(output))
     }
@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
                     }
                 })?);
             }
-            expect_peek!(self | TokenType::Rbrace; self.peek_tok_location());
+            expect_peek!(self: TokenType::Rbrace; self.peek_tok_location());
             text.push(Statement::MainText(String::from("}")));
         } else {
             text.push(self.parse_statement().map_err(|err| {
@@ -361,10 +361,10 @@ impl<'a> Parser<'a> {
     fn parse_docclass(&mut self) -> error::Result<Statement> {
         let mut options: Option<Vec<Latex>> = None;
 
-        expect_peek!(self | TokenType::Docclass; self.peek_tok_location());
+        expect_peek!(self: TokenType::Docclass; self.peek_tok_location());
         self.eat_whitespaces(false);
 
-        take_name!(self | define name);
+        take_name!(let name: String <- self);
 
         self.parse_comma_args(&mut options)?;
         if self.peek_tok() == Some(TokenType::Newline) {
@@ -375,7 +375,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_usepackage(&mut self) -> error::Result<Statement> {
-        expect_peek!(self | TokenType::Import; self.peek_tok_location());
+        expect_peek!(self: TokenType::Import; self.peek_tok_location());
         self.eat_whitespaces(false);
 
         if self.peek_tok() == Some(TokenType::Lbrace) {
@@ -383,7 +383,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut options: Option<Vec<Latex>> = None;
-        take_name!(self | define name);
+        take_name!(let name: String <- self);
 
         self.parse_comma_args(&mut options)?;
         if self.peek_tok() == Some(TokenType::Newline) {
@@ -396,12 +396,12 @@ impl<'a> Parser<'a> {
     fn parse_multiple_usepackages(&mut self) -> error::Result<Statement> {
         let mut pkgs: Vec<Statement> = Vec::new();
 
-        expect_peek!(self | TokenType::Lbrace; self.peek_tok_location());
+        expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
         self.eat_whitespaces(true);
 
         while self.peek_tok() != Some(TokenType::Rbrace) {
             let mut options: Option<Vec<Latex>> = None;
-            take_name!(self | define name);
+            take_name!(let name: String <- self);
 
             self.parse_comma_args(&mut options)?;
 
@@ -438,7 +438,7 @@ impl<'a> Parser<'a> {
             pkgs.push(Statement::Usepackage { name, options });
         }
 
-        expect_peek!(self | TokenType::Rbrace; self.peek_tok_location());
+        expect_peek!(self: TokenType::Rbrace; self.peek_tok_location());
 
         self.eat_whitespaces(false);
         if self.peek_tok() == Some(TokenType::Newline) {
@@ -452,7 +452,7 @@ impl<'a> Parser<'a> {
         let begenv_location = self.peek_tok_location();
         let mut off_math_state = false;
 
-        expect_peek!(self | TokenType::Begenv; self.peek_tok_location());
+        expect_peek!(self: TokenType::Begenv; self.peek_tok_location());
         self.eat_whitespaces(false);
 
         if self.peek_tok().is_none() {
@@ -484,7 +484,7 @@ impl<'a> Parser<'a> {
         }
 
         while self.peek_tok() == Some(TokenType::Star) {
-            expect_peek!(self | TokenType::Star; self.peek_tok_location());
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
             name.push('*');
         }
         self.eat_whitespaces(false);
@@ -507,7 +507,7 @@ impl<'a> Parser<'a> {
             text.push(self.parse_statement()?);
         }
 
-        expect_peek!(self | TokenType::Endenv; self.peek_tok_location());
+        expect_peek!(self: TokenType::Endenv; self.peek_tok_location());
 
         // If name is math related one, then math mode will be turn off
         if off_math_state {
@@ -591,11 +591,11 @@ impl<'a> Parser<'a> {
                     break;
                 }
 
-                expect_peek!(self | TokenType::Comma; self.peek_tok_location());
+                expect_peek!(self: TokenType::Comma; self.peek_tok_location());
                 self.eat_whitespaces(true);
             }
 
-            expect_peek!(self | TokenType::Rparen; self.peek_tok_location());
+            expect_peek!(self: TokenType::Rparen; self.peek_tok_location());
             self.eat_whitespaces(false);
             *options = Some(options_vec);
         }
@@ -630,7 +630,7 @@ impl<'a> Parser<'a> {
                     )?,
 
                     Some(TokenType::Star) => {
-                        expect_peek!(self | TokenType::Star; self.peek_tok_location());
+                        expect_peek!(self: TokenType::Star; self.peek_tok_location());
                         args.push((ArgNeed::StarArg, Vec::new()));
                     }
 
@@ -655,7 +655,7 @@ impl<'a> Parser<'a> {
     ) -> error::Result<()> {
         let open_brace_location = self.peek_tok_location();
         let mut nested = 0;
-        expect_peek!(self | open; open_brace_location);
+        expect_peek!(self: open; open_brace_location);
 
         loop {
             let mut tmp_vec: Vec<Statement> = Vec::new();
@@ -682,12 +682,12 @@ impl<'a> Parser<'a> {
             if self.peek_tok() != Some(TokenType::ArgSpliter) {
                 break;
             }
-            expect_peek!(self | TokenType::ArgSpliter; self.peek_tok_location());
+            expect_peek!(self: TokenType::ArgSpliter; self.peek_tok_location());
 
             // Multiline splitting argument support
             self.eat_whitespaces(true);
         }
-        expect_peek!(self | closed; self.peek_tok_location());
+        expect_peek!(self: closed; self.peek_tok_location());
 
         Ok(())
     }

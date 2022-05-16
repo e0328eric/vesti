@@ -23,7 +23,9 @@ syn region  vestiComment         start="#\*" end="\*#" contains=vestiTodo,@Spell
 syn region  vestiVerbatim        start="#-" end="-#"
 syn region  vestiTextMath        start="\$" end="\$" contains=vestiMathKeyword,vestiFunction
 syn region  vestiTextMath        start="\\(" end="\\)" contains=vestiMathKeyword,vestiFunction
+syn region  vestiTextMath        start="mst" end="mnd" contains=vestiMathKeyword,vestiFunction
 syn region  vestiInlineMath      start="\\\[" end="\\\]" contains=vestiMathKeyword,vestiFunction
+syn region  vestiInlineMath      start="dmst" end="dmnd" contains=vestiMathKeyword,vestiFunction
 syn match   vestiArgSplitter     "@"
 syn match   vestiSharp           "#!"
 syn match   vestiAt              "@!"

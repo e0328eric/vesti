@@ -78,73 +78,73 @@ impl<'a> Lexer<'a> {
             Some(' ') => {
                 if self.chr1 == Some('@') && self.chr2 != Some('!') {
                     self.next_char();
-                    tokenize!(self | ArgSpliter, ""; start_loc)
+                    tokenize!(self:ArgSpliter, ""; start_loc)
                 } else {
-                    tokenize!(self | Space, " "; start_loc)
+                    tokenize!(self:Space, " "; start_loc)
                 }
             }
-            Some('\t') => tokenize!(self | Tab, "\t"; start_loc),
-            Some('\n') => tokenize!(self | Newline, "\n"; start_loc),
-            Some('+') => tokenize!(self | Plus, "+"; start_loc),
+            Some('\t') => tokenize!(self:Tab, "\t"; start_loc),
+            Some('\n') => tokenize!(self:Newline, "\n"; start_loc),
+            Some('+') => tokenize!(self: Plus, "+"; start_loc),
             Some('-') => match self.chr1 {
                 Some('>') if self.math_started => {
                     self.next_char();
-                    tokenize!(self | RightArrow, "\\rightarrow "; start_loc)
+                    tokenize!(self: RightArrow, "\\rightarrow "; start_loc)
                 }
                 Some(chr) if chr.is_ascii_digit() => Some(self.lex_number()),
-                _ => tokenize!(self | Minus, "-"; start_loc),
+                _ => tokenize!(self: Minus, "-"; start_loc),
             },
-            Some('*') => tokenize!(self | Star, "*"; start_loc),
-            Some('/') => tokenize!(self | Slash, "/";start_loc),
-            Some('=') => tokenize!(self | Equal , "="; start_loc),
+            Some('*') => tokenize!(self: Star, "*"; start_loc),
+            Some('/') => tokenize!(self: Slash, "/";start_loc),
+            Some('=') => tokenize!(self: Equal , "="; start_loc),
             Some('<') => match self.chr1 {
                 Some('=') => {
                     self.next_char();
-                    tokenize!(self | LessEq, "<="; start_loc)
+                    tokenize!(self: LessEq, "<="; start_loc)
                 }
                 Some('-') if self.math_started => {
                     self.next_char();
-                    tokenize!(self | LeftArrow, "\\leftarrow "; start_loc)
+                    tokenize!(self: LeftArrow, "\\leftarrow "; start_loc)
                 }
-                _ => tokenize!(self | Less, "<"; start_loc),
+                _ => tokenize!(self: Less, "<"; start_loc),
             },
             Some('>') => {
                 if self.chr1 == Some('=') {
                     self.next_char();
-                    tokenize!(self | GreatEq, ">="; start_loc)
+                    tokenize!(self: GreatEq, ">="; start_loc)
                 } else {
-                    tokenize!(self | Great, ">"; start_loc)
+                    tokenize!(self: Great, ">"; start_loc)
                 }
             }
-            Some('!') => tokenize!(self | Bang, "!"; start_loc),
-            Some('?') => tokenize!(self | Question, "?"; start_loc),
+            Some('!') => tokenize!(self: Bang, "!"; start_loc),
+            Some('?') => tokenize!(self: Question, "?"; start_loc),
             Some('@') => {
                 if self.chr1 == Some('!') {
                     self.next_char();
-                    tokenize!(self | At, "@"; start_loc)
+                    tokenize!(self: At, "@"; start_loc)
                 } else {
-                    tokenize!(self | ArgSpliter, ""; start_loc)
+                    tokenize!(self: ArgSpliter, ""; start_loc)
                 }
             }
-            Some('%') => tokenize!(self | Percent, "\\%"; start_loc),
-            Some('^') => tokenize!(self | Superscript, "^"; start_loc),
-            Some('&') => tokenize!(self | Ampersand, "&"; start_loc),
-            Some(';') => tokenize!(self | Semicolon, ";"; start_loc),
-            Some(':') => tokenize!(self | Colon, ":"; start_loc),
-            Some('\'') => tokenize!(self | Quote, "'"; start_loc),
-            Some('`') => tokenize!(self | Quote2, "`"; start_loc),
-            Some('"') => tokenize!(self | Doublequote, "\""; start_loc),
-            Some('_') => tokenize!(self | Subscript, "_"; start_loc),
-            Some('|') => tokenize!(self | Vert, "|"; start_loc),
-            Some('.') => tokenize!(self | Period, "."; start_loc),
-            Some(',') => tokenize!(self | Comma, ","; start_loc),
-            Some('~') => tokenize!(self | Tilde, "~"; start_loc),
-            Some('(') => tokenize!(self | Lparen, "("; start_loc),
-            Some(')') => tokenize!(self | Rparen, ")"; start_loc),
-            Some('{') => tokenize!(self | Lbrace, "{"; start_loc),
-            Some('}') => tokenize!(self | Rbrace, "}"; start_loc),
-            Some('[') => tokenize!(self | Lsqbrace, "["; start_loc),
-            Some(']') => tokenize!(self | Rsqbrace, "]"; start_loc),
+            Some('%') => tokenize!(self: Percent, "\\%"; start_loc),
+            Some('^') => tokenize!(self: Superscript, "^"; start_loc),
+            Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
+            Some(';') => tokenize!(self: Semicolon, ";"; start_loc),
+            Some(':') => tokenize!(self: Colon, ":"; start_loc),
+            Some('\'') => tokenize!(self: Quote, "'"; start_loc),
+            Some('`') => tokenize!(self: Quote2, "`"; start_loc),
+            Some('"') => tokenize!(self: Doublequote, "\""; start_loc),
+            Some('_') => tokenize!(self: Subscript, "_"; start_loc),
+            Some('|') => tokenize!(self: Vert, "|"; start_loc),
+            Some('.') => tokenize!(self: Period, "."; start_loc),
+            Some(',') => tokenize!(self: Comma, ","; start_loc),
+            Some('~') => tokenize!(self: Tilde, "~"; start_loc),
+            Some('(') => tokenize!(self: Lparen, "("; start_loc),
+            Some(')') => tokenize!(self: Rparen, ")"; start_loc),
+            Some('{') => tokenize!(self: Lbrace, "{"; start_loc),
+            Some('}') => tokenize!(self: Rbrace, "}"; start_loc),
+            Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
+            Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('$') => self.lex_dollar_char(),
             Some('#') => self.lex_sharp_char(),
             Some('\\') => self.lex_backslash(),
@@ -235,11 +235,11 @@ impl<'a> Lexer<'a> {
         match self.chr1 {
             Some('!') => {
                 self.next_char();
-                tokenize!(self | FntParam, "#"; start_loc)
+                tokenize!(self: FntParam, "#"; start_loc)
             }
             Some('[') => {
                 self.next_char();
-                tokenize!(self | OptionalOpenBrace, "["; start_loc)
+                tokenize!(self: OptionalOpenBrace, "["; start_loc)
             }
             Some('*') => {
                 self.next_char();
@@ -285,15 +285,15 @@ impl<'a> Lexer<'a> {
         match self.chr1 {
             Some('!') => {
                 self.next_char();
-                tokenize!(self | Dollar, "$"; start_loc)
+                tokenize!(self: Dollar, "$"; start_loc)
             }
             _ => {
                 if !self.math_started {
                     self.math_started = true;
-                    tokenize!(self | TextMathStart, "\\("; start_loc)
+                    tokenize!(self: TextMathStart, "\\("; start_loc)
                 } else {
                     self.math_started = false;
-                    tokenize!(self | TextMathEnd, "\\)"; start_loc)
+                    tokenize!(self: TextMathEnd, "\\)"; start_loc)
                 }
             }
         }
@@ -304,63 +304,63 @@ impl<'a> Lexer<'a> {
         match self.chr1 {
             Some('#') => {
                 self.next_char();
-                tokenize!(self | Sharp, "\\#"; start_loc)
+                tokenize!(self: Sharp, "\\#"; start_loc)
             }
             Some('$') => {
                 self.next_char();
-                tokenize!(self | Dollar, "\\$"; start_loc)
+                tokenize!(self: Dollar, "\\$"; start_loc)
             }
             Some('%') => {
                 self.next_char();
-                tokenize!(self | LatexComment, "%"; start_loc)
+                tokenize!(self: LatexComment, "%"; start_loc)
             }
             Some(',') => {
                 self.next_char();
                 if self.math_started {
-                    tokenize!(self | MathSmallSpace, "\\,"; start_loc)
+                    tokenize!(self: MathSmallSpace, "\\,"; start_loc)
                 } else {
-                    tokenize!(self | Comma, ","; start_loc)
+                    tokenize!(self: Comma, ","; start_loc)
                 }
             }
             Some('(') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self | TextMathStart, "\\("; start_loc)
+                tokenize!(self: TextMathStart, "\\("; start_loc)
             }
             Some(')') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self | TextMathEnd, "\\)"; start_loc)
+                tokenize!(self: TextMathEnd, "\\)"; start_loc)
             }
             Some('[') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self | InlineMathStart, "\\["; start_loc)
+                tokenize!(self: InlineMathStart, "\\["; start_loc)
             }
             Some(']') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self | InlineMathEnd, "\\]"; start_loc)
+                tokenize!(self: InlineMathEnd, "\\]"; start_loc)
             }
             Some('{') => {
                 self.next_char();
-                tokenize!(self | MathLbrace, "\\{"; start_loc)
+                tokenize!(self: MathLbrace, "\\{"; start_loc)
             }
             Some('}') => {
                 self.next_char();
-                tokenize!(self | MathRbrace, "\\}"; start_loc)
+                tokenize!(self: MathRbrace, "\\}"; start_loc)
             }
             Some(' ') => {
                 self.next_char();
                 if self.math_started {
-                    tokenize!(self | MathLargeSpace, "\\;"; start_loc)
+                    tokenize!(self: MathLargeSpace, "\\;"; start_loc)
                 } else {
-                    tokenize!(self | Space2, "\\ "; start_loc)
+                    tokenize!(self: Space2, "\\ "; start_loc)
                 }
             }
             Some('\\') => {
                 self.next_char();
-                tokenize!(self | BackSlash, "\\\\"; start_loc)
+                tokenize!(self: BackSlash, "\\\\"; start_loc)
             }
             _ if self.chr1.map_or(false, token::is_latex_function_ident) => {
                 self.next_char();
@@ -378,7 +378,7 @@ impl<'a> Lexer<'a> {
                     self.current_loc,
                 ))
             }
-            _ => tokenize!(self | ShortBackSlash, "\\"; start_loc),
+            _ => tokenize!(self: ShortBackSlash, "\\"; start_loc),
         }
     }
 }

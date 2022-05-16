@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! tokenize {
-    ($self: ident | $toktype: ident, $literal: expr; $start: expr) => {{
+    ($self: ident: $toktype: ident, $literal: expr; $start: expr) => {{
         $self.next_char();
         Some(LexToken {
             token: Token {

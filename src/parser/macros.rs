@@ -1,5 +1,5 @@
 macro_rules! expect_peek {
-    ($self:ident | $($expect: expr),+; $span: expr) => {
+    ($self:ident: $($expect: expr),+; $span: expr) => {
         let tok_tmp = if let Some(tok) = $self.next_tok() {
             tok
         } else {
@@ -23,7 +23,7 @@ macro_rules! expect_peek {
 }
 
 macro_rules! take_name {
-    ($self: ident | define $name: ident) => {
+    (let $name: ident: String <- $self: ident) => {
         let mut tmp = String::new();
         while $self
             .peek_tok()
@@ -51,17 +51,5 @@ macro_rules! take_name {
             };
         }
         let $name = tmp;
-    };
-    ($self: ident | define $name: ident as mut; $location: expr) => {
-        let mut $name = if $self.peek_tok() == Some(TokenType::Text) {
-            $self.next_tok().unwrap().token.literal
-        } else if let Some(_) = $self.peek_tok() {
-            return Err(VestiErr::make_parse_err(
-                VestiParseErr::BegenvNameMissErr,
-                $location,
-            ));
-        } else {
-            return Err(VestiErr::make_parse_err(VestiParseErr::EOFErr, $location));
-        };
     };
 }
