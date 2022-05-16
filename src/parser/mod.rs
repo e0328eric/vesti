@@ -221,24 +221,29 @@ impl<'a> Parser<'a> {
     fn parse_math_stmt(&mut self) -> error::Result<Statement> {
         let start_location = self.peek_tok_location();
         let mut text = Vec::new();
+        let mut stmt;
 
         match self.peek_tok() {
             Some(TokenType::TextMathStart) => {
                 expect_peek!(self: TokenType::TextMathStart; self.peek_tok_location());
 
                 while self.peek_tok() != Some(TokenType::TextMathEnd) {
-                    text.push(self.parse_statement().map_err(|err| {
-                        if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
-                            VestiErr::make_parse_err(
+                    stmt = match self.parse_statement() {
+                        Ok(stmt) => stmt,
+                        Err(VestiErr {
+                            err_kind: VestiErrKind::ParseErr(VestiParseErr::EOFErr),
+                            ..
+                        }) => {
+                            return Err(VestiErr::make_parse_err(
                                 BracketMismatchErr {
                                     expected: TokenType::TextMathEnd,
                                 },
                                 start_location,
-                            )
-                        } else {
-                            err
+                            ));
                         }
-                    })?);
+                        Err(err) => return Err(err),
+                    };
+                    text.push(stmt);
                 }
 
                 expect_peek!(self: TokenType::TextMathEnd; self.peek_tok_location());
@@ -252,18 +257,22 @@ impl<'a> Parser<'a> {
                 expect_peek!(self: TokenType::InlineMathStart; self.peek_tok_location());
 
                 while self.peek_tok() != Some(TokenType::InlineMathEnd) {
-                    text.push(self.parse_statement().map_err(|err| {
-                        if let VestiErrKind::ParseErr(VestiParseErr::EOFErr) = err.err_kind {
-                            VestiErr::make_parse_err(
+                    stmt = match self.parse_statement() {
+                        Ok(stmt) => stmt,
+                        Err(VestiErr {
+                            err_kind: VestiErrKind::ParseErr(VestiParseErr::EOFErr),
+                            ..
+                        }) => {
+                            return Err(VestiErr::make_parse_err(
                                 BracketMismatchErr {
-                                    expected: TokenType::InlineMathEnd,
+                                    expected: TokenType::TextMathEnd,
                                 },
                                 start_location,
-                            )
-                        } else {
-                            err
+                            ));
                         }
-                    })?);
+                        Err(err) => return Err(err),
+                    };
+                    text.push(stmt);
                 }
 
                 expect_peek!(self: TokenType::InlineMathEnd; self.peek_tok_location());
