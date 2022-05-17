@@ -42,6 +42,9 @@ pub enum VestiParseErr {
     BegenvIsNotClosedErr,
     EndenvIsUsedWithoutBegenvPairErr,
     BegenvNameMissErr,
+    UseOnlyInMathErr {
+        got: TokenType,
+    },
 }
 
 #[derive(Debug, PartialEq)]

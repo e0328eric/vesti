@@ -76,6 +76,7 @@ impl VError for VestiParseErr {
             Self::BegenvIsNotClosedErr => 0x0109,
             Self::EndenvIsUsedWithoutBegenvPairErr => 0x0109,
             Self::BegenvNameMissErr => 0x0110,
+            Self::UseOnlyInMathErr { .. } => 0x0111,
         }
     }
     fn err_str(&self) -> String {
@@ -98,6 +99,9 @@ impl VError for VestiParseErr {
                 String::from("`endenv` is used without `begenv` pair")
             }
             Self::BegenvNameMissErr => String::from("Missing environment name"),
+            Self::UseOnlyInMathErr { got } => {
+                format!("Type `{:?}` cannot use out of the math block", got)
+            }
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
@@ -145,6 +149,13 @@ impl VError for VestiParseErr {
                 String::from("find its name part. type its name."),
                 String::from("example: begenv foo"),
             ],
+            Self::UseOnlyInMathErr { .. } => {
+                vec![
+                    String::from("wrap the whole expression that uses this"),
+                    String::from("symbol using math related warppers like"),
+                    String::from("`$`, `\\(`, `\\)`, `\\[`, `\\]`"),
+                ]
+            }
         }
     }
 }
