@@ -1,4 +1,4 @@
-use super::VError;
+use super::Error;
 use super::VestiErr;
 use crate::location::Span;
 use std::path::Path;

@@ -1,4 +1,4 @@
-use super::VError;
+use super::Error;
 use crate::lexer::token::TokenType;
 
 #[derive(Debug, PartialEq)]
@@ -10,7 +10,7 @@ pub enum VestiErrKind {
 impl VestiErrKind {
     pub(super) fn map<F, R>(&self, f: F) -> R
     where
-        F: Fn(&dyn VError) -> R,
+        F: Fn(&dyn Error) -> R,
     {
         match self {
             Self::ParseErr(errkind) => f(errkind),
@@ -32,7 +32,7 @@ pub enum VestiParseErr {
     },
     ParseIntErr,
     ParseFloatErr,
-    InvalidTokToParse {
+    InvalidTokToConvert {
         got: TokenType,
     },
     BracketMismatchErr {

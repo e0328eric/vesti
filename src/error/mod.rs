@@ -42,14 +42,14 @@ pub type Result<T> = std::result::Result<T, VestiErr>;
 // Implementation of Displaying Errors
 // by implementing new trait
 //////////////////////////////////////
-pub trait VError {
+pub trait Error {
     // Error code should display with hex decimal
     fn err_code(&self) -> u16;
     fn err_str(&self) -> String;
     fn err_detail_str(&self) -> Vec<String>;
 }
 
-impl VError for VestiErrKind {
+impl Error for VestiErrKind {
     fn err_code(&self) -> u16 {
         self.map(|errkind| errkind.err_code())
     }
@@ -61,7 +61,7 @@ impl VError for VestiErrKind {
     }
 }
 
-impl VError for VestiParseErr {
+impl Error for VestiParseErr {
     fn err_code(&self) -> u16 {
         match self {
             Self::EOFErr => 0x0E0F,
@@ -70,7 +70,7 @@ impl VError for VestiParseErr {
             Self::BeforeDocumentErr { .. } => 0x0103,
             Self::ParseIntErr => 0x0104,
             Self::ParseFloatErr => 0x0105,
-            Self::InvalidTokToParse { .. } => 0x0106,
+            Self::InvalidTokToConvert { .. } => 0x0106,
             Self::BracketMismatchErr { .. } => 0x0107,
             Self::BracketNumberMatchedErr => 0x0108,
             Self::BegenvIsNotClosedErr => 0x0109,
@@ -89,7 +89,9 @@ impl VError for VestiParseErr {
             }
             Self::ParseIntErr => String::from("Parsing integer error occurs"),
             Self::ParseFloatErr => String::from("Parsing float error occurs"),
-            Self::InvalidTokToParse { got } => format!("Type `{:?}` is not parsable", got),
+            Self::InvalidTokToConvert { got } => {
+                format!("Type `{:?}` is not convertible into latex", got)
+            }
             Self::BracketMismatchErr { expected } => {
                 format!("Cannot find `{:?}` delimiter", expected)
             }
@@ -121,7 +123,7 @@ impl VError for VestiParseErr {
                 String::from("if this error occurs, this preprocessor has an error"),
                 String::from("so let me know when this error occurs"),
             ],
-            Self::InvalidTokToParse { got } => match got {
+            Self::InvalidTokToConvert { got } => match got {
                 TokenType::Etxt => vec![
                     String::from("must use `etxt` only at a math context"),
                     String::from("If `etxt` is in a math mode, then this error can"),
@@ -160,7 +162,7 @@ impl VError for VestiParseErr {
     }
 }
 
-impl VError for VestiCommandUtilErr {
+impl Error for VestiCommandUtilErr {
     fn err_code(&self) -> u16 {
         match self {
             Self::IOErr(_) => 0x0001,

@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
             )),
             Some(TokenType::Mtxt) => self.parse_text_in_math(),
             Some(TokenType::Etxt) => Err(VestiErr::make_parse_err(
-                VestiParseErr::InvalidTokToParse {
+                VestiParseErr::InvalidTokToConvert {
                     got: TokenType::Etxt,
                 },
                 self.peek_tok_location(),
@@ -156,13 +156,13 @@ impl<'a> Parser<'a> {
             }
 
             Some(TokenType::TextMathEnd) => Err(VestiErr::make_parse_err(
-                VestiParseErr::InvalidTokToParse {
+                VestiParseErr::InvalidTokToConvert {
                     got: TokenType::TextMathEnd,
                 },
                 self.peek_tok_location(),
             )),
             Some(TokenType::InlineMathEnd) => Err(VestiErr::make_parse_err(
-                VestiParseErr::InvalidTokToParse {
+                VestiParseErr::InvalidTokToConvert {
                     got: TokenType::InlineMathEnd,
                 },
                 self.peek_tok_location(),
