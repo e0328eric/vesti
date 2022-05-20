@@ -1,5 +1,6 @@
 use std::process::{self, Termination};
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExitCode {
     Success,
