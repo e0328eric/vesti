@@ -94,12 +94,12 @@ pub enum TokenType {
     ArgSpliter,
 
     // error token
-    ILLEGAL,
+    Illegal,
 }
 
 impl Default for TokenType {
     fn default() -> Self {
-        Self::ILLEGAL
+        Self::Illegal
     }
 }
 

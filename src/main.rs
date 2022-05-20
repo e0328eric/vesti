@@ -1,5 +1,9 @@
+#![allow(clippy::enum_variant_names)]
+#![deny(bindings_with_variant_name)]
+
 mod commands;
 mod error;
+mod exit_status;
 mod lexer;
 mod location;
 mod parser;
@@ -17,8 +21,9 @@ use signal_hook::flag as signal_flag;
 
 use crate::commands::{compile_vesti, VestiOpt};
 use crate::error::pretty_print::pretty_print;
+use crate::exit_status::ExitCode;
 
-fn main() {
+fn main() -> ExitCode {
     let args = commands::VestiOpt::parse();
 
     if let VestiOpt::Init = args {
@@ -32,8 +37,9 @@ fn main() {
             signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
                 .expect("Undefined behavior happened!");
         }
+        // TODO: I do not test this code in windows actually :)
         #[cfg(target_os = "windows")]
-        for signal in [SIGTERM, SIGKILL].iter() {
+        for signal in [SIGINT, SIGTERM, SIGKILL].iter() {
             signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
                 .expect("Undefined behavior happened!");
         }
@@ -46,7 +52,7 @@ fn main() {
             }
         };
 
-        let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
+        let mut handle_vesti: Vec<JoinHandle<ExitCode>> = Vec::new();
         for file_name in file_lists {
             handle_vesti.push(thread::spawn(move || {
                 compile_vesti(file_name, is_continuous)
@@ -54,10 +60,13 @@ fn main() {
         }
 
         if !is_continuous {
-            let _: Vec<()> = handle_vesti
+            let has_issue = handle_vesti
                 .into_iter()
                 .map(|vesti| vesti.join().unwrap())
-                .collect();
+                .any(|exit_code| exit_code != ExitCode::Success);
+            if has_issue {
+                return ExitCode::Failure;
+            }
         } else {
             println!("Press Ctrl+C to finish the program.");
             while ![SIGINT, SIGTERM, SIGKILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
@@ -67,4 +76,6 @@ fn main() {
 
         println!("bye!");
     }
+
+    ExitCode::Success
 }

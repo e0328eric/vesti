@@ -8,6 +8,7 @@ use clap::Parser as ClapParser;
 use crate::error;
 use crate::error::err_kind::{VestiCommandUtilErr, VestiErrKind};
 use crate::error::pretty_print::pretty_print;
+use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
@@ -17,7 +18,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                return ExitCode::Failure;
             }
         };
     };
@@ -26,7 +27,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                return ExitCode::Failure;
             }
         };
     };
@@ -35,7 +36,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                return ExitCode::Failure;
             }
         };
     };
@@ -128,7 +129,7 @@ fn take_time(file_name: &Path) -> error::Result<SystemTime> {
     Ok(path.metadata()?.modified()?)
 }
 
-pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) {
+pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) -> ExitCode {
     let mut init_compile = true;
     let output = output_file_name(&file_name);
     unwrap_err!(mut init_time := take_time(&file_name), None, None);
@@ -156,4 +157,6 @@ pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) {
         unwrap_err!(now_time = take_time(&file_name), None, None);
         thread::sleep(Duration::from_millis(500));
     }
+
+    ExitCode::Success
 }
