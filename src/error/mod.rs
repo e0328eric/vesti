@@ -85,7 +85,7 @@ impl Error for VestiParseErr {
             Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
             Self::BeforeDocumentErr { got } => {
-                format!("Type `{:?}` must be placed after `document`", got)
+                format!("Type `{:?}` must be placed after `startdoc`", got)
             }
             Self::ParseIntErr => String::from("Parsing integer error occurs"),
             Self::ParseFloatErr => String::from("Parsing float error occurs"),
@@ -113,7 +113,7 @@ impl Error for VestiParseErr {
                 vec![format!("expected `{:?}`, got `{:?}`", expected, got)]
             }
             Self::BeforeDocumentErr { got } => {
-                vec![format!("move `{:?}` after `document` keyword", got)]
+                vec![format!("move `{:?}` after `startdoc` keyword", got)]
             }
             Self::ParseIntErr => vec![
                 String::from("if this error occurs, this preprocessor has an error"),
