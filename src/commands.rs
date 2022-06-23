@@ -18,7 +18,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                return ExitCode::Failure;
+                std::process::exit(1);
             }
         };
     };
@@ -27,7 +27,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                return ExitCode::Failure;
+                std::process::exit(1);
             }
         };
     };
@@ -36,7 +36,7 @@ macro_rules! unwrap_err {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                return ExitCode::Failure;
+                std::process::exit(1);
             }
         };
     };

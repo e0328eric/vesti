@@ -48,24 +48,20 @@ fn main() -> ExitCode {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print(None, err, None));
-                std::process::exit(1);
+                return ExitCode::Failure;
             }
         };
 
-        let mut handle_vesti: Vec<JoinHandle<ExitCode>> = Vec::new();
+        let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
         for file_name in file_lists {
             handle_vesti.push(thread::spawn(move || {
-                compile_vesti(file_name, is_continuous)
+                compile_vesti(file_name, is_continuous);
             }));
         }
 
         if !is_continuous {
-            let has_issue = handle_vesti
-                .into_iter()
-                .map(|vesti| vesti.join().unwrap())
-                .any(|exit_code| exit_code != ExitCode::Success);
-            if has_issue {
-                return ExitCode::Failure;
+            for vesti in handle_vesti.into_iter() {
+                vesti.join().unwrap();
             }
         } else {
             println!("Press Ctrl+C to finish the program.");
