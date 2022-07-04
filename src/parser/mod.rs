@@ -607,7 +607,7 @@ impl<'a> Parser<'a> {
                     _ => break,
                 }
 
-                if self.peek_tok() == Some(TokenType::Newline) || self.peek_tok().is_none() {
+                if let None | Some(TokenType::Newline) = self.peek_tok() {
                     break;
                 }
             }

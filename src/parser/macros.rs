@@ -1,5 +1,5 @@
 macro_rules! expect_peek {
-    ($self:ident: $($expect: expr),+; $span: expr) => {
+    ($self:ident: $expect: expr; $span: expr) => {
         let tok_tmp = if let Some(tok) = $self.next_tok() {
             tok
         } else {
@@ -9,11 +9,13 @@ macro_rules! expect_peek {
             });
         };
         let mut expected = false;
-        $( if tok_tmp.token.toktype == $expect { expected = true; })+
+        if tok_tmp.token.toktype == $expect {
+            expected = true;
+        }
         if !expected {
             return Err(VestiErr {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::TypeMismatch {
-                    expected: vec![$($expect),+],
+                    expected: vec![$expect],
                     got: tok_tmp.token.toktype,
                 }),
                 location: $span,

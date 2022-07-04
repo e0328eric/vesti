@@ -64,11 +64,11 @@ fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
     let mut output = String::new();
     match state {
         MathState::Text => {
-            output += "\\(";
+            output += "$";
             for t in text {
                 output += &t.to_string();
             }
-            output += "\\)";
+            output += "$";
         }
         MathState::Inline => {
             output += "\\[";
