@@ -76,19 +76,19 @@ pub enum TokenType {
     Doublequote,    // "
 
     // Delimiters
-    Lparen,            // (
-    Rparen,            // )
-    Lbrace,            // {
-    Rbrace,            // }
-    Lsqbrace,          // [
-    Rsqbrace,          // ]
-    OptionalOpenBrace, // #[
-    MathLbrace,        // \{
-    MathRbrace,        // \}
-    TextMathStart,     // \(
-    TextMathEnd,       // \)
-    InlineMathStart,   // \[
-    InlineMathEnd,     // \]
+    Lparen,   // (
+    Rparen,   // )
+    Lbrace,   // {
+    Rbrace,   // }
+    Lsqbrace, // [
+    Rsqbrace, // ]
+    // XXX: deprecate OptionalOpenBrace, // #[
+    MathLbrace,      // \{
+    MathRbrace,      // \}
+    TextMathStart,   // \(
+    TextMathEnd,     // \)
+    InlineMathStart, // \[
+    InlineMathEnd,   // \]
 
     // etc
     ArgSpliter,

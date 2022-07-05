@@ -27,12 +27,12 @@ fn test_parse_docclass() {
     let mut parser4 = Parser::new(Lexer::new(source4));
     let mut parser5 = Parser::new(Lexer::new(source5));
     let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected1, parser1.make_latex_format().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format().unwrap());
-    assert_eq!(expected3, parser5.make_latex_format().unwrap());
-    assert_eq!(expected3, parser6.make_latex_format().unwrap());
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser5.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser6.make_latex_format::<true>().unwrap());
 }
 
 #[test]
@@ -92,15 +92,15 @@ fn test_parse_usepackage() {
     let mut parser7 = Parser::new(Lexer::new(source7));
     let mut parser8 = Parser::new(Lexer::new(source8));
     let mut parser9 = Parser::new(Lexer::new(source9));
-    assert_eq!(expected1, parser1.make_latex_format().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format().unwrap());
-    assert_eq!(expected5, parser7.make_latex_format().unwrap());
-    assert_eq!(expected5, parser8.make_latex_format().unwrap());
-    assert_eq!(expected5, parser9.make_latex_format().unwrap());
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
+    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser7.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser8.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser9.make_latex_format::<true>().unwrap());
 }
 
 #[test]
@@ -203,26 +203,26 @@ endenv"#;
     let mut parser5 = Parser::new(Lexer::new(source5));
     let mut parser6 = Parser::new(Lexer::new(source6));
     let mut parser7 = Parser::new(Lexer::new(source7));
-    assert_eq!(expected1, parser1.make_latex_format().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format().unwrap());
-    assert_eq!(expected6, parser7.make_latex_format().unwrap());
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
+    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
+    assert_eq!(expected6, parser7.make_latex_format::<true>().unwrap());
 }
 
 #[test]
 fn parse_latex_functions() {
     let source1 = "startdoc \\foo";
     let source2 = "startdoc \\foo{bar1}";
-    let source3 = "startdoc \\foo#[bar1]";
-    let source4 = "startdoc \\foo {bar1}#[bar2]";
-    let source5 = "startdoc \\foo{bar1}#[bar2]";
-    let source6 = "startdoc \\foo*#[bar1]{bar2}{bar3}";
+    let source3 = "startdoc \\foo[bar1]";
+    let source4 = "startdoc \\foo {bar1}[bar2]";
+    let source5 = "startdoc \\foo{bar1}[bar2]";
+    let source6 = "startdoc \\foo*[bar1]{bar2}{bar3}";
     let source7 = "startdoc \\foo*{bar1 @ bar2}";
-    let source8 = "startdoc \\foo#[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
-    let source9 = "startdoc \\foo*#[bar1]{bar2}**{bar3}";
+    let source8 = "startdoc \\foo[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
+    let source9 = "startdoc \\foo*[bar1]{bar2}**{bar3}";
     let source10 = r#"startdoc \textbf{
     Hallo!\TeX and \foo{bar1 @ bar2{a}{}}; today}"#;
 
@@ -274,16 +274,16 @@ fn parse_latex_functions() {
     let mut parser8 = Parser::new(Lexer::new(source8));
     let mut parser9 = Parser::new(Lexer::new(source9));
     let mut parser10 = Parser::new(Lexer::new(source10));
-    assert_eq!(expected1, parser1.make_latex_format().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format().unwrap());
-    assert_eq!(expected3, parser3.make_latex_format().unwrap());
-    assert_eq!(expected4, parser4.make_latex_format().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format().unwrap());
-    assert_eq!(expected6, parser7.make_latex_format().unwrap());
-    assert_eq!(expected7, parser8.make_latex_format().unwrap());
-    assert_eq!(expected8, parser9.make_latex_format().unwrap());
-    assert_eq!(expected9, parser10.make_latex_format().unwrap());
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser3.make_latex_format::<true>().unwrap());
+    assert_eq!(expected4, parser4.make_latex_format::<true>().unwrap());
+    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
+    assert_eq!(expected6, parser7.make_latex_format::<true>().unwrap());
+    assert_eq!(expected7, parser8.make_latex_format::<true>().unwrap());
+    assert_eq!(expected8, parser9.make_latex_format::<true>().unwrap());
+    assert_eq!(expected9, parser10.make_latex_format::<true>().unwrap());
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn test_parse_math_stmt() {
     let source2 = "startdoc \\[\\sum_1^\\infty f(x)\\]";
 
     let expected1 = r#"\begin{document}
-\(\sum_1^\infty f(x)\)
+$\sum_1^\infty f(x)$
 \end{document}
 "#;
     let expected2 = r#"\begin{document}
@@ -302,6 +302,6 @@ fn test_parse_math_stmt() {
 
     let mut parser1 = Parser::new(Lexer::new(source1));
     let mut parser2 = Parser::new(Lexer::new(source2));
-    assert_eq!(expected1, parser1.make_latex_format().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format().unwrap());
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
 }

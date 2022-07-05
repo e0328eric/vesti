@@ -237,10 +237,10 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: FntParam, "#"; start_loc)
             }
-            Some('[') => {
-                self.next_char();
-                tokenize!(self: OptionalOpenBrace, "["; start_loc)
-            }
+            // Some('[') => {
+            // self.next_char();
+            // tokenize!(self: OptionalOpenBrace, "["; start_loc)
+            // }
             Some('*') => {
                 self.next_char();
                 self.next_char();

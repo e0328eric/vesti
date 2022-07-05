@@ -290,7 +290,7 @@ This is a \LaTeX!
 \[
     1 + 1 = \sum_{j=1}^\infty f(x),\qquad mtxt foobar etxt
 \]
-begenv center
+begenv center #[adadasdawd]
     The TeX
 endenv"#;
     let expected_literal = r#"docclass coprime (tikz, korean)
@@ -305,8 +305,7 @@ This is a LaTeX!
 \[
     1 + 1 = sum_{j=1}^infty f(x),qquad mtxt foobar etxt
 \]
-begenv center
-    The TeX
+begenv center     The TeX
 endenv"#;
     let expected_toktype = vec![
         TokenType::Docclass,
@@ -407,7 +406,7 @@ endenv"#;
         TokenType::Begenv,
         TokenType::Space,
         TokenType::Text,
-        TokenType::Newline,
+        TokenType::Space,
         TokenType::Space,
         TokenType::Space,
         TokenType::Space,
