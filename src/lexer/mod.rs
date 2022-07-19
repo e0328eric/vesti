@@ -126,14 +126,14 @@ impl<'a> Lexer<'a> {
                     tokenize!(self: ArgSpliter, ""; start_loc)
                 }
             }
-            Some('%') => tokenize!(self: Percent, "\\%"; start_loc),
+            Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
             Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
             Some(';') => tokenize!(self: Semicolon, ";"; start_loc),
             Some(':') => tokenize!(self: Colon, ":"; start_loc),
-            Some('\'') => tokenize!(self: Quote, "'"; start_loc),
-            Some('`') => tokenize!(self: Quote2, "`"; start_loc),
-            Some('"') => tokenize!(self: Doublequote, "\""; start_loc),
+            Some('\'') => tokenize!(self: RightQuote, "'"; start_loc),
+            Some('`') => tokenize!(self: LeftQuote, "`"; start_loc),
+            Some('"') => tokenize!(self: DoubleQuote, "\""; start_loc),
             Some('_') => tokenize!(self: Subscript, "_"; start_loc),
             Some('|') => tokenize!(self: Vert, "|"; start_loc),
             Some('.') => tokenize!(self: Period, "."; start_loc),
@@ -146,7 +146,7 @@ impl<'a> Lexer<'a> {
             Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('$') => self.lex_dollar_char(),
-            Some('#') => self.lex_sharp_char(),
+            Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
             _ if self.chr0.map_or(false, |chr| chr.is_alphabetic()) => Some(self.lex_main_string()),
             _ if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) => Some(self.lex_number()),
@@ -230,21 +230,17 @@ impl<'a> Lexer<'a> {
         LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
     }
 
-    fn lex_sharp_char(&mut self) -> Option<LexToken> {
+    fn lex_percent_char(&mut self) -> Option<LexToken> {
         let start_loc = self.current_loc;
         match self.chr1 {
             Some('!') => {
                 self.next_char();
-                tokenize!(self: FntParam, "#"; start_loc)
+                tokenize!(self: LatexComment, "%"; start_loc)
             }
-            // Some('[') => {
-            // self.next_char();
-            // tokenize!(self: OptionalOpenBrace, "["; start_loc)
-            // }
             Some('*') => {
                 self.next_char();
                 self.next_char();
-                while self.chr0? != '*' || self.chr1 != Some('#') {
+                while self.chr0? != '*' || self.chr1 != Some('%') {
                     self.next_char();
                 }
                 self.next_char();
@@ -258,7 +254,7 @@ impl<'a> Lexer<'a> {
                 let mut literal = String::new();
                 self.next_char();
                 self.next_char();
-                while self.chr0 != Some('-') || self.chr1 != Some('#') {
+                while self.chr0 != Some('-') || self.chr1 != Some('%') {
                     literal.push(self.chr0?);
                     self.next_char();
                 }
@@ -290,10 +286,10 @@ impl<'a> Lexer<'a> {
             _ => {
                 if !self.math_started {
                     self.math_started = true;
-                    tokenize!(self: TextMathStart, "\\("; start_loc)
+                    tokenize!(self: TextMathStart, "$"; start_loc)
                 } else {
                     self.math_started = false;
-                    tokenize!(self: TextMathEnd, "\\)"; start_loc)
+                    tokenize!(self: TextMathEnd, "$"; start_loc)
                 }
             }
         }
@@ -312,7 +308,7 @@ impl<'a> Lexer<'a> {
             }
             Some('%') => {
                 self.next_char();
-                tokenize!(self: LatexComment, "%"; start_loc)
+                tokenize!(self: Percent, "\\%"; start_loc)
             }
             Some(',') => {
                 self.next_char();
@@ -325,12 +321,12 @@ impl<'a> Lexer<'a> {
             Some('(') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self: TextMathStart, "\\("; start_loc)
+                tokenize!(self: TextMathStart, "$"; start_loc)
             }
             Some(')') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self: TextMathEnd, "\\)"; start_loc)
+                tokenize!(self: TextMathEnd, "$"; start_loc)
             }
             Some('[') => {
                 self.math_started = true;

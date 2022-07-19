@@ -33,6 +33,11 @@ pub enum Statement {
         args: Vec<(ArgNeed, Vec<Statement>)>,
         text: Latex,
     },
+    FunctionDefinition {
+        name: String,
+        args: Vec<(ArgNeed, Vec<Statement>)>,
+        body: Latex,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
