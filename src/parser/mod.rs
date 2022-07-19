@@ -15,7 +15,7 @@ use crate::location::Span;
 use ast::*;
 use bitflags::bitflags;
 
-const ENV_MATH_IDENT: [&str; 4] = ["equation", "align", "array", "eqnarray"];
+const ENV_MATH_IDENT: [&str; 5] = ["equation", "align", "array", "eqnarray", "gather"];
 
 bitflags! {
     struct DocState: u8 {

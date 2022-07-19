@@ -39,8 +39,6 @@ pub enum TokenType {
     Mtxt,
     Etxt,
     DocumentStartMode,
-    DefineFunction,
-    EndDefineFunction,
 
     // Symbols
     Plus,           // +
@@ -121,8 +119,6 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
         "dmnd" => Some(TokenType::InlineMathEnd),
         "docstartmode" => Some(TokenType::DocumentStartMode),
         "nondocclass" => Some(TokenType::DocumentStartMode),
-        "defun" => Some(TokenType::DefineFunction),
-        "enddefun" => Some(TokenType::EndDefineFunction),
         _ => None,
     }
 }

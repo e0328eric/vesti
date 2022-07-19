@@ -18,7 +18,6 @@ impl ToString for Statement {
             Statement::MathText { state, text } => math_text_to_string(*state, text),
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
-            _ => unimplemented!(),
         }
     }
 }

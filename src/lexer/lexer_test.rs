@@ -243,11 +243,9 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass enddefun begenv startdoc mtxt import etxt endenv defun";
+    let source = "docclass begenv startdoc mtxt import etxt endenv";
     let expected_toktype = vec![
         TokenType::Docclass,
-        TokenType::Space,
-        TokenType::EndDefineFunction,
         TokenType::Space,
         TokenType::Begenv,
         TokenType::Space,
@@ -260,8 +258,6 @@ fn lexing_keywords() {
         TokenType::Etxt,
         TokenType::Space,
         TokenType::Endenv,
-        TokenType::Space,
-        TokenType::DefineFunction,
     ];
     let lex = Lexer::new(source);
     let lexed_token = lex
