@@ -4,11 +4,12 @@
 mod commands;
 mod error;
 mod exit_status;
+mod initialization;
 mod lexer;
 mod location;
 mod parser;
 
-use std::fs::File;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
@@ -22,12 +23,26 @@ use signal_hook::flag as signal_flag;
 use crate::commands::{compile_vesti, VestiOpt};
 use crate::error::pretty_print::pretty_print;
 use crate::exit_status::ExitCode;
+use crate::initialization::generate_vesti_file;
 
 fn main() -> ExitCode {
     let args = commands::VestiOpt::parse();
 
-    if let VestiOpt::Init = args {
-        File::create("source.ves").expect("ERROR: cannot create a file");
+    if let VestiOpt::Init { project_name } = args {
+        let project_name = if let Some(project_name) = project_name {
+            PathBuf::from(project_name)
+        } else {
+            const ERR_MESSAGE: &str = "cannot get the current directory";
+            let tmp = std::env::current_dir().expect(ERR_MESSAGE);
+            PathBuf::from(tmp.file_name().expect(ERR_MESSAGE))
+        };
+        return match generate_vesti_file(project_name) {
+            Ok(()) => ExitCode::Success,
+            Err(err) => {
+                println!("{}", pretty_print(None, err, None));
+                ExitCode::Failure
+            }
+        };
     } else {
         let is_continuous = args.is_continuous_compile();
 

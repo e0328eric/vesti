@@ -44,8 +44,11 @@ macro_rules! unwrap_err {
 
 #[derive(ClapParser)]
 pub enum VestiOpt {
-    /// Just make an empty vesti file
-    Init,
+    /// Initialize the vesti project
+    Init {
+        #[clap(name = "PROJECT_NAME")]
+        project_name: Option<String>,
+    },
     Run {
         /// Compile vesti continuously.
         #[clap(short, long)]

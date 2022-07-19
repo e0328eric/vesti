@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.0.11"
+version = "0.1.0"
 authors = ["Almagest <almagest0328@gmail.com>"]
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 opt-level = 0
 
 [profile.release]
-codegen-units = 1
+codegen-units = 4
 incremental = true
 lto = true
 opt-level = 3
