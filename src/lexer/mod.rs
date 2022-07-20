@@ -123,7 +123,7 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: At, "@"; start_loc)
                 } else {
-                    tokenize!(self: ArgSpliter, ""; start_loc)
+                    tokenize!(self: ArgSpliter, "@"; start_loc)
                 }
             }
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
@@ -167,7 +167,7 @@ impl<'a> Lexer<'a> {
             literal.push(chr);
             self.next_char();
         }
-        let toktype = if let Some(toktype) = token::is_keyword(&literal) {
+        let toktype = if let Some(toktype) = token::is_keyword_str(&literal) {
             if &literal == "mnd" && self.chr0 == Some(' ') {
                 self.next_char();
             }

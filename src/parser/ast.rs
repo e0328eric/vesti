@@ -33,6 +33,12 @@ pub enum Statement {
         args: Vec<(ArgNeed, Vec<Statement>)>,
         text: Latex,
     },
+    FunctionDefine {
+        name: String,
+        args: String,
+        trim: TrimWhitespace,
+        body: Latex,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -46,4 +52,10 @@ pub enum ArgNeed {
 pub enum MathState {
     Text,
     Inline,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct TrimWhitespace {
+    pub start: bool,
+    pub end: bool,
 }

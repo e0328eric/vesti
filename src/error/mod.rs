@@ -73,10 +73,10 @@ impl Error for VestiParseErr {
             Self::InvalidTokToConvert { .. } => 0x0106,
             Self::BracketMismatchErr { .. } => 0x0107,
             Self::BracketNumberMatchedErr => 0x0108,
-            Self::BegenvIsNotClosedErr => 0x0109,
-            Self::EndenvIsUsedWithoutBegenvPairErr => 0x0109,
-            Self::BegenvNameMissErr => 0x0110,
-            Self::UseOnlyInMathErr { .. } => 0x0111,
+            Self::IsNotClosedErr { .. } => 0x0109,
+            Self::IsNotOpenedErr { .. } => 0x0110,
+            Self::NameMissErr { .. } => 0x0111,
+            Self::UseOnlyInMathErr { .. } => 0x0112,
         }
     }
     fn err_str(&self) -> String {
@@ -85,24 +85,24 @@ impl Error for VestiParseErr {
             Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
             Self::BeforeDocumentErr { got } => {
-                format!("Type `{:?}` must be placed after `startdoc`", got)
+                format!("Type `{got:?}` must be placed after `startdoc`")
             }
             Self::ParseIntErr => String::from("Parsing integer error occurs"),
             Self::ParseFloatErr => String::from("Parsing float error occurs"),
             Self::InvalidTokToConvert { got } => {
-                format!("Type `{:?}` is not convertible into latex", got)
+                format!("Type `{got:?}` is not convertible into latex")
             }
             Self::BracketMismatchErr { expected } => {
-                format!("Cannot find `{:?}` delimiter", expected)
+                format!("Cannot find `{expected:?}` delimiter")
             }
             Self::BracketNumberMatchedErr => String::from("Delimiter pair does not matched"),
-            Self::BegenvIsNotClosedErr => String::from("`begenv` is not closed"),
-            Self::EndenvIsUsedWithoutBegenvPairErr => {
-                String::from("`endenv` is used without `begenv` pair")
+            Self::IsNotClosedErr { open, .. } => format!("Type `{open:?}` is not closed"),
+            Self::IsNotOpenedErr { close, .. } => {
+                format!("Type `{close:?}` is used without `begenv` pair")
             }
-            Self::BegenvNameMissErr => String::from("Missing environment name"),
+            Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::UseOnlyInMathErr { got } => {
-                format!("Type `{:?}` cannot use out of the math block", got)
+                format!("Type `{got:?}` cannot use out of the math block")
             }
         }
     }
@@ -110,10 +110,10 @@ impl Error for VestiParseErr {
         match self {
             Self::EOFErr | Self::IllegalCharacterFoundErr => vec![],
             Self::TypeMismatch { expected, got } => {
-                vec![format!("expected `{:?}`, got `{:?}`", expected, got)]
+                vec![format!("expected `{expected:?}`, got `{got:?}`")]
             }
             Self::BeforeDocumentErr { got } => {
-                vec![format!("move `{:?}` after `startdoc` keyword", got)]
+                vec![format!("move `{got:?}` after `startdoc` keyword")]
             }
             Self::ParseIntErr => vec![
                 String::from("if this error occurs, this preprocessor has an error"),
@@ -138,18 +138,24 @@ impl Error for VestiParseErr {
                 String::from("cannot find a bracket that matches with that one"),
                 String::from("help: close a bracket with an appropriate one"),
             ],
-            Self::BegenvIsNotClosedErr => vec![
-                String::from("cannot find `endenv` to close this environment"),
-                String::from("check that `endenv` is properly located"),
+            Self::IsNotClosedErr { close, .. } => vec![
+                format!("cannot find type `{close:?}` to close this environment"),
+                format!("check that type `{close:?}` is properly located"),
             ],
-            Self::EndenvIsUsedWithoutBegenvPairErr => vec![
-                String::from("`endenv` is used, but there is no `begenv` to be pair with it"),
-                String::from("help: add `begenv` before this `endenv` keyword"),
+            Self::IsNotOpenedErr { open, close } => vec![
+                format!(
+                    "type `{close:?}` is used, but there is no type `{open:?}` to be pair with it",
+                ),
+                format!("help: add type `{open:?}` before this `{close:?}` type"),
             ],
-            Self::BegenvNameMissErr => vec![
-                String::from("`begenv` is used in here, but vesti cannot"),
-                String::from("find its name part. type its name."),
-                String::from("example: begenv foo"),
+            Self::NameMissErr { r#type } => vec![
+                format!("type `{:?}` is used in here, but vesti cannot", r#type),
+                String::from("find its name part."),
+                match r#type {
+                    TokenType::Begenv => String::from("example: begenv foo"),
+                    TokenType::FunctionDef => String::from("example: defun foo"),
+                    _ => unreachable!(),
+                },
             ],
             Self::UseOnlyInMathErr { .. } => {
                 vec![

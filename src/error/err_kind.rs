@@ -39,9 +39,17 @@ pub enum VestiParseErr {
         expected: TokenType,
     },
     BracketNumberMatchedErr,
-    BegenvIsNotClosedErr,
-    EndenvIsUsedWithoutBegenvPairErr,
-    BegenvNameMissErr,
+    IsNotClosedErr {
+        open: TokenType,
+        close: TokenType,
+    },
+    IsNotOpenedErr {
+        open: TokenType,
+        close: TokenType,
+    },
+    NameMissErr {
+        r#type: TokenType,
+    },
     UseOnlyInMathErr {
         got: TokenType,
     },

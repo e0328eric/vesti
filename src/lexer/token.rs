@@ -39,6 +39,8 @@ pub enum TokenType {
     Mtxt,
     Etxt,
     DocumentStartMode,
+    FunctionDef,
+    EndFunctionDef,
 
     // Symbols
     Plus,           // +
@@ -97,6 +99,13 @@ pub enum TokenType {
     Illegal,
 }
 
+impl TokenType {
+    #[inline]
+    pub fn is_keyword(&self) -> bool {
+        Self::Docclass <= *self && *self <= Self::EndFunctionDef
+    }
+}
+
 impl Default for TokenType {
     fn default() -> Self {
         Self::Illegal
@@ -104,7 +113,7 @@ impl Default for TokenType {
 }
 
 // TODO: Deprecate 'docstartmode'
-pub fn is_keyword(string: &str) -> Option<TokenType> {
+pub fn is_keyword_str(string: &str) -> Option<TokenType> {
     match string {
         "docclass" => Some(TokenType::Docclass),
         "import" => Some(TokenType::Import),
@@ -119,6 +128,8 @@ pub fn is_keyword(string: &str) -> Option<TokenType> {
         "dmnd" => Some(TokenType::InlineMathEnd),
         "docstartmode" => Some(TokenType::DocumentStartMode),
         "nondocclass" => Some(TokenType::DocumentStartMode),
+        "defun" => Some(TokenType::FunctionDef),
+        "endfun" => Some(TokenType::EndFunctionDef),
         _ => None,
     }
 }

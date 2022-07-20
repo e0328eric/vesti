@@ -18,6 +18,12 @@ impl ToString for Statement {
             Statement::MathText { state, text } => math_text_to_string(*state, text),
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
+            Statement::FunctionDefine {
+                name,
+                args,
+                trim,
+                body,
+            } => function_def_to_string(name, args, trim, body),
         }
     }
 }
@@ -30,9 +36,9 @@ fn docclass_to_string(name: &str, options: &Option<Vec<Latex>>) -> String {
         }
         options_str.pop();
 
-        format!("\\documentclass[{0}]{{{1}}}\n", options_str, name)
+        format!("\\documentclass[{options_str}]{{{name}}}\n")
     } else {
-        format!("\\documentclass{{{}}}\n", name)
+        format!("\\documentclass{{{name}}}\n")
     }
 }
 
@@ -44,9 +50,9 @@ fn usepackage_to_string(name: &str, options: &Option<Vec<Latex>>) -> String {
         }
         options_str.pop();
 
-        format!("\\usepackage[{0}]{{{1}}}\n", options_str, name)
+        format!("\\usepackage[{options_str}]{{{name}}}\n")
     } else {
-        format!("\\usepackage{{{}}}\n", name)
+        format!("\\usepackage{{{name}}}\n")
     }
 }
 
@@ -111,7 +117,7 @@ fn environment_to_string(
     args: &Vec<(ArgNeed, Vec<Statement>)>,
     text: &Latex,
 ) -> String {
-    let mut output = format!("\\begin{{{}}}", name);
+    let mut output = format!("\\begin{{{name}}}");
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
@@ -135,5 +141,24 @@ fn latex_to_string(latex: &Latex) -> String {
     for l in latex {
         output += &l.to_string();
     }
+    output
+}
+
+fn function_def_to_string(name: &str, args: &str, trim: &TrimWhitespace, body: &Latex) -> String {
+    let mut output = format!("\\def\\{name}{args}{{");
+
+    let mut tmp = String::new();
+    for b in body {
+        tmp += &b.to_string();
+    }
+
+    output += match (trim.start, trim.end) {
+        (false, false) => tmp.as_str(),
+        (true, false) => tmp.trim_start(),
+        (false, true) => tmp.trim_end(),
+        (true, true) => tmp.trim(),
+    };
+    output.push_str("}\n");
+
     output
 }
