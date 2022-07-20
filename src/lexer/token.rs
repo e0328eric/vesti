@@ -39,7 +39,9 @@ pub enum TokenType {
     Mtxt,
     Etxt,
     DocumentStartMode,
+    // TODO: add \edef, \gdef, \xdef, \long\_def, \outer\_def series
     FunctionDef,
+    OuterFunctionDef,
     EndFunctionDef,
 
     // Symbols
@@ -129,6 +131,7 @@ pub fn is_keyword_str(string: &str) -> Option<TokenType> {
         "docstartmode" => Some(TokenType::DocumentStartMode),
         "nondocclass" => Some(TokenType::DocumentStartMode),
         "defun" => Some(TokenType::FunctionDef),
+        "outerdefun" => Some(TokenType::OuterFunctionDef),
         "endfun" => Some(TokenType::EndFunctionDef),
         _ => None,
     }

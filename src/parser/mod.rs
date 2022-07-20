@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::Begenv) => self.parse_environment(),
             Some(TokenType::Endenv) => Err(VestiErr::make_parse_err(
                 VestiParseErr::IsNotOpenedErr {
-                    open: TokenType::Begenv,
+                    open: vec![TokenType::Begenv],
                     close: TokenType::Endenv,
                 },
                 self.peek_tok_location(),
@@ -143,10 +143,12 @@ impl<'a> Parser<'a> {
                 expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
             }
-            Some(TokenType::FunctionDef) => self.parse_function_definition(),
+            Some(TokenType::FunctionDef | TokenType::OuterFunctionDef) => {
+                self.parse_function_definition()
+            }
             Some(TokenType::EndFunctionDef) => Err(VestiErr::make_parse_err(
                 VestiParseErr::IsNotOpenedErr {
-                    open: TokenType::FunctionDef,
+                    open: vec![TokenType::FunctionDef, TokenType::OuterFunctionDef],
                     close: TokenType::EndFunctionDef,
                 },
                 self.peek_tok_location(),
@@ -170,9 +172,8 @@ impl<'a> Parser<'a> {
             Some(TokenType::Superscript | TokenType::Subscript)
                 if !self.source.math_started && is_function_def_state == 0 =>
             {
-                dbg!(self.document_state);
                 Err(VestiErr::make_parse_err(
-                    VestiParseErr::UseOnlyInMathErr {
+                    VestiParseErr::IllegalUseErr {
                         got: self.peek_tok().unwrap(),
                     },
                     self.peek_tok_location(),
@@ -519,14 +520,23 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_definition(&mut self) -> error::Result<Statement> {
-        self.document_state |= DocState::PARSING_FUNCTION_DEF;
         let begenv_location = self.peek_tok_location();
         let mut trim = TrimWhitespace {
             start: true,
             end: true,
         };
 
-        expect_peek!(self: TokenType::FunctionDef; self.peek_tok_location());
+        let is_outer = match self.peek_tok() {
+            Some(TokenType::FunctionDef) => {
+                expect_peek!(self: TokenType::FunctionDef; self.peek_tok_location());
+                false
+            }
+            Some(TokenType::OuterFunctionDef) => {
+                expect_peek!(self: TokenType::OuterFunctionDef; self.peek_tok_location());
+                true
+            }
+            _ => unreachable!(),
+        };
         if self.peek_tok() == Some(TokenType::Star) {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             trim.start = false;
@@ -534,7 +544,6 @@ impl<'a> Parser<'a> {
         self.eat_whitespaces(false);
 
         if self.peek_tok().is_none() {
-            self.document_state &= !DocState::PARSING_FUNCTION_DEF;
             return Err(VestiErr {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::IsNotClosedErr {
                     open: TokenType::FunctionDef,
@@ -555,7 +564,6 @@ impl<'a> Parser<'a> {
                         TokenType::Space | TokenType::Tab | TokenType::Newline | TokenType::Lparen,
                     ) => break,
                     Some(_) => {
-                        self.document_state &= !DocState::PARSING_FUNCTION_DEF;
                         return Err(VestiErr::make_parse_err(
                             VestiParseErr::NameMissErr {
                                 r#type: TokenType::FunctionDef,
@@ -564,7 +572,6 @@ impl<'a> Parser<'a> {
                         ));
                     }
                     None => {
-                        self.document_state &= !DocState::PARSING_FUNCTION_DEF;
                         return Err(VestiErr::make_parse_err(
                             VestiParseErr::EOFErr,
                             begenv_location,
@@ -579,18 +586,30 @@ impl<'a> Parser<'a> {
         let args = self.parse_function_definition_argument()?;
 
         let mut body: Latex = Vec::new();
-        while self.peek_tok() != Some(TokenType::EndFunctionDef) {
-            if self.peek_tok().is_none() {
-                self.document_state &= !DocState::PARSING_FUNCTION_DEF;
-                return Err(VestiErr::make_parse_err(
-                    VestiParseErr::IsNotClosedErr {
-                        open: TokenType::FunctionDef,
-                        close: TokenType::EndFunctionDef,
-                    },
-                    begenv_location,
-                ));
+        let mut defun_level = 0;
+        while self.peek_tok() != Some(TokenType::EndFunctionDef) && defun_level >= 0 {
+            match self.peek_tok() {
+                Some(TokenType::FunctionDef | TokenType::OuterFunctionDef) => defun_level += 1,
+                Some(TokenType::EndFunctionDef) => {
+                    defun_level -= 1;
+                    if defun_level < 0 {
+                        break;
+                    }
+                }
+                None => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErr::IsNotClosedErr {
+                            open: TokenType::FunctionDef,
+                            close: TokenType::EndFunctionDef,
+                        },
+                        begenv_location,
+                    ));
+                }
+                _ => {}
             }
+            self.document_state |= DocState::PARSING_FUNCTION_DEF;
             body.push(self.parse_statement()?);
+            self.document_state &= !DocState::PARSING_FUNCTION_DEF;
         }
 
         expect_peek!(self: TokenType::EndFunctionDef; self.peek_tok_location());
@@ -602,8 +621,8 @@ impl<'a> Parser<'a> {
         if self.peek_tok() == Some(TokenType::Newline) {
             self.next_tok();
         }
-        self.document_state &= !DocState::PARSING_FUNCTION_DEF;
         Ok(Statement::FunctionDefine {
+            is_outer,
             name,
             args,
             trim,
@@ -627,11 +646,9 @@ impl<'a> Parser<'a> {
             self.eat_whitespaces(false);
         }
 
-        // TODO: check that we can #[ character into [
         let args = self.parse_function_args(
             TokenType::Lbrace,
             TokenType::Rbrace,
-            //TokenType::OptionalOpenBrace,
             TokenType::Lsqbrace,
             TokenType::Rsqbrace,
         )?;
@@ -672,9 +689,9 @@ impl<'a> Parser<'a> {
                     toktype == TokenType::Text || toktype.is_keyword()
                 })
             {
-                is_first_token = false;
                 output.push(' ');
             }
+            is_first_token = false;
 
             output.push_str(self.next_tok().unwrap().token.literal.as_str());
         }

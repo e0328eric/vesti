@@ -19,11 +19,12 @@ impl ToString for Statement {
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
             Statement::FunctionDefine {
+                is_outer,
                 name,
                 args,
                 trim,
                 body,
-            } => function_def_to_string(name, args, trim, body),
+            } => function_def_to_string(*is_outer, name, args, trim, body),
         }
     }
 }
@@ -144,8 +145,18 @@ fn latex_to_string(latex: &Latex) -> String {
     output
 }
 
-fn function_def_to_string(name: &str, args: &str, trim: &TrimWhitespace, body: &Latex) -> String {
-    let mut output = format!("\\def\\{name}{args}{{");
+fn function_def_to_string(
+    is_outer: bool,
+    name: &str,
+    args: &str,
+    trim: &TrimWhitespace,
+    body: &Latex,
+) -> String {
+    let mut output = if is_outer {
+        format!("\\outer\\def\\{name}{args}{{")
+    } else {
+        format!("\\def\\{name}{args}{{")
+    };
 
     let mut tmp = String::new();
     for b in body {

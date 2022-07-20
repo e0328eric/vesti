@@ -34,6 +34,7 @@ pub enum Statement {
         text: Latex,
     },
     FunctionDefine {
+        is_outer: bool,
         name: String,
         args: String,
         trim: TrimWhitespace,

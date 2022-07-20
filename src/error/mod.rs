@@ -76,7 +76,7 @@ impl Error for VestiParseErr {
             Self::IsNotClosedErr { .. } => 0x0109,
             Self::IsNotOpenedErr { .. } => 0x0110,
             Self::NameMissErr { .. } => 0x0111,
-            Self::UseOnlyInMathErr { .. } => 0x0112,
+            Self::IllegalUseErr { .. } => 0x0112,
         }
     }
     fn err_str(&self) -> String {
@@ -101,7 +101,7 @@ impl Error for VestiParseErr {
                 format!("Type `{close:?}` is used without `begenv` pair")
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
-            Self::UseOnlyInMathErr { got } => {
+            Self::IllegalUseErr { got } => {
                 format!("Type `{got:?}` cannot use out of the math block")
             }
         }
@@ -157,7 +157,7 @@ impl Error for VestiParseErr {
                     _ => unreachable!(),
                 },
             ],
-            Self::UseOnlyInMathErr { .. } => {
+            Self::IllegalUseErr { .. } => {
                 vec![
                     String::from("wrap the whole expression that uses this"),
                     String::from("symbol using math related warppers like"),

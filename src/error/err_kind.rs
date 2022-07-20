@@ -44,13 +44,13 @@ pub enum VestiParseErr {
         close: TokenType,
     },
     IsNotOpenedErr {
-        open: TokenType,
+        open: Vec<TokenType>,
         close: TokenType,
     },
     NameMissErr {
         r#type: TokenType,
     },
-    UseOnlyInMathErr {
+    IllegalUseErr {
         got: TokenType,
     },
 }
