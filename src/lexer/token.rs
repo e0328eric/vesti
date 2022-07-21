@@ -39,9 +39,22 @@ pub enum TokenType {
     Mtxt,
     Etxt,
     DocumentStartMode,
-    // TODO: add \edef, \gdef, \xdef, \long\_def, \outer\_def series
     FunctionDef,
+    LongFunctionDef,
     OuterFunctionDef,
+    LongOuterFunctionDef,
+    EFunctionDef,
+    LongEFunctionDef,
+    OuterEFunctionDef,
+    LongOuterEFunctionDef,
+    GFunctionDef,
+    LongGFunctionDef,
+    OuterGFunctionDef,
+    LongOuterGFunctionDef,
+    XFunctionDef,
+    LongXFunctionDef,
+    OuterXFunctionDef,
+    LongOuterXFunctionDef,
     EndFunctionDef,
 
     // Symbols
@@ -101,61 +114,103 @@ pub enum TokenType {
     Illegal,
 }
 
-impl TokenType {
-    #[inline]
-    pub fn is_keyword(&self) -> bool {
-        Self::Docclass <= *self && *self <= Self::EndFunctionDef
-    }
-}
-
 impl Default for TokenType {
     fn default() -> Self {
         Self::Illegal
     }
 }
 
-// TODO: Deprecate 'docstartmode'
-pub fn is_keyword_str(string: &str) -> Option<TokenType> {
-    match string {
-        "docclass" => Some(TokenType::Docclass),
-        "import" => Some(TokenType::Import),
-        "startdoc" => Some(TokenType::StartDoc),
-        "begenv" => Some(TokenType::Begenv),
-        "endenv" => Some(TokenType::Endenv),
-        "mtxt" => Some(TokenType::Mtxt),
-        "etxt" => Some(TokenType::Etxt),
-        "mst" => Some(TokenType::TextMathStart),
-        "mnd" => Some(TokenType::TextMathEnd),
-        "dmst" => Some(TokenType::InlineMathStart),
-        "dmnd" => Some(TokenType::InlineMathEnd),
-        "docstartmode" => Some(TokenType::DocumentStartMode),
-        "nondocclass" => Some(TokenType::DocumentStartMode),
-        "defun" => Some(TokenType::FunctionDef),
-        "outerdefun" => Some(TokenType::OuterFunctionDef),
-        "endfun" => Some(TokenType::EndFunctionDef),
-        _ => None,
-    }
-}
-
-#[inline]
-pub fn is_latex_function_ident(chr: char) -> bool {
-    chr == '@' || chr.is_alphabetic()
-}
-
 impl TokenType {
     #[inline]
+    pub fn is_keyword(&self) -> bool {
+        Self::Docclass <= *self && *self <= Self::EndFunctionDef
+    }
+
+    // TODO: Deprecate 'docstartmode'
+    pub fn is_keyword_str(string: &str) -> Option<TokenType> {
+        match string {
+            "docclass" => Some(Self::Docclass),
+            "import" => Some(Self::Import),
+            "startdoc" => Some(Self::StartDoc),
+            "begenv" => Some(Self::Begenv),
+            "endenv" => Some(Self::Endenv),
+            "mtxt" => Some(Self::Mtxt),
+            "etxt" => Some(Self::Etxt),
+            "mst" => Some(Self::TextMathStart),
+            "mnd" => Some(Self::TextMathEnd),
+            "dmst" => Some(Self::InlineMathStart),
+            "dmnd" => Some(Self::InlineMathEnd),
+            "docstartmode" => Some(Self::DocumentStartMode),
+            "nondocclass" => Some(Self::DocumentStartMode),
+            "defun" => Some(Self::FunctionDef),
+            "ldefun" => Some(Self::LongFunctionDef),
+            "odefun" => Some(Self::OuterFunctionDef),
+            "lodefun" => Some(Self::LongOuterFunctionDef),
+            "edefun" => Some(Self::EFunctionDef),
+            "ledefun" => Some(Self::LongEFunctionDef),
+            "oedefun" => Some(Self::OuterEFunctionDef),
+            "loedefun" => Some(Self::LongOuterEFunctionDef),
+            "gdefun" => Some(Self::GFunctionDef),
+            "lgdefun" => Some(Self::LongGFunctionDef),
+            "ogdefun" => Some(Self::OuterGFunctionDef),
+            "logdefun" => Some(Self::LongOuterGFunctionDef),
+            "xdefun" => Some(Self::XFunctionDef),
+            "lxdefun" => Some(Self::LongXFunctionDef),
+            "oxdefun" => Some(Self::OuterXFunctionDef),
+            "loxdefun" => Some(Self::LongOuterXFunctionDef),
+            "endfun" => Some(Self::EndFunctionDef),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn get_function_definition_start_list() -> Vec<Self> {
+        vec![
+            Self::FunctionDef,
+            Self::LongFunctionDef,
+            Self::OuterFunctionDef,
+            Self::LongOuterFunctionDef,
+            Self::EFunctionDef,
+            Self::LongEFunctionDef,
+            Self::OuterEFunctionDef,
+            Self::LongOuterEFunctionDef,
+            Self::GFunctionDef,
+            Self::LongGFunctionDef,
+            Self::OuterGFunctionDef,
+            Self::LongOuterGFunctionDef,
+            Self::XFunctionDef,
+            Self::LongXFunctionDef,
+            Self::OuterXFunctionDef,
+            Self::LongOuterXFunctionDef,
+        ]
+    }
+
+    #[inline]
+    pub fn is_function_definition_start(&self) -> bool {
+        Self::FunctionDef <= *self && *self <= Self::LongOuterXFunctionDef
+    }
+
+    #[inline]
     pub fn should_not_use_before_doc(self) -> bool {
-        self == TokenType::Space2
-            || self == TokenType::Begenv
-            || self == TokenType::Endenv
-            || self == TokenType::TextMathStart
-            || self == TokenType::TextMathEnd
-            || self == TokenType::InlineMathStart
-            || self == TokenType::InlineMathEnd
+        matches!(
+            self,
+            Self::Space2
+                | Self::Begenv
+                | Self::Endenv
+                | Self::TextMathStart
+                | Self::TextMathEnd
+                | Self::InlineMathStart
+                | Self::InlineMathEnd
+        )
     }
 
     #[inline]
     pub fn can_pkg_name(&self) -> bool {
         *self == TokenType::Text || *self == TokenType::Minus || *self == TokenType::Integer
     }
+}
+
+#[inline]
+pub fn is_latex_function_ident(chr: char) -> bool {
+    chr == '@' || chr.is_alphabetic()
 }

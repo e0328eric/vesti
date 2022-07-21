@@ -102,7 +102,7 @@ impl Error for VestiParseErr {
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::IllegalUseErr { got } => {
-                format!("Type `{got:?}` cannot use out of the math block")
+                format!("Type `{got:?}` cannot use out of the math block or function definition")
             }
         }
     }
@@ -161,7 +161,7 @@ impl Error for VestiParseErr {
                 vec![
                     String::from("wrap the whole expression that uses this"),
                     String::from("symbol using math related warppers like"),
-                    String::from("`$`, `\\(`, `\\)`, `\\[`, `\\]`"),
+                    String::from("`$`, `\\(`, `\\)`, `\\[`, `\\]` or `defun` like blocks"),
                 ]
             }
         }

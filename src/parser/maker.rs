@@ -19,12 +19,12 @@ impl ToString for Statement {
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
             Statement::FunctionDefine {
-                is_outer,
+                style,
                 name,
                 args,
                 trim,
                 body,
-            } => function_def_to_string(*is_outer, name, args, trim, body),
+            } => function_def_to_string(style, name, args, trim, body),
         }
     }
 }
@@ -98,7 +98,7 @@ fn plaintext_in_math_to_string(latex: &Latex) -> String {
 }
 
 fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {
-    let mut output = format!("\\{}", name);
+    let mut output = format!("{}", name);
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
@@ -146,16 +146,29 @@ fn latex_to_string(latex: &Latex) -> String {
 }
 
 fn function_def_to_string(
-    is_outer: bool,
+    style: &FunctionStyle,
     name: &str,
     args: &str,
     trim: &TrimWhitespace,
     body: &Latex,
 ) -> String {
-    let mut output = if is_outer {
-        format!("\\outer\\def\\{name}{args}{{")
-    } else {
-        format!("\\def\\{name}{args}{{")
+    let mut output = match style {
+        FunctionStyle::Plain => format!("\\def\\{name}{args}{{"),
+        FunctionStyle::LongPlain => format!("\\long\\def\\{name}{args}{{"),
+        FunctionStyle::OuterPlain => format!("\\outer\\def\\{name}{args}{{"),
+        FunctionStyle::LongOuterPlain => format!("\\long\\outer\\def\\{name}{args}{{"),
+        FunctionStyle::Expand => format!("\\edef\\{name}{args}{{"),
+        FunctionStyle::LongExpand => format!("\\long\\edef\\{name}{args}{{"),
+        FunctionStyle::OuterExpand => format!("\\outer\\edef\\{name}{args}{{"),
+        FunctionStyle::LongOuterExpand => format!("\\long\\outer\\edef\\{name}{args}{{"),
+        FunctionStyle::Global => format!("\\gdef\\{name}{args}{{"),
+        FunctionStyle::LongGlobal => format!("\\long\\gdef\\{name}{args}{{"),
+        FunctionStyle::OuterGlobal => format!("\\outer\\gdef\\{name}{args}{{"),
+        FunctionStyle::LongOuterGlobal => format!("\\long\\outer\\gdef\\{name}{args}{{"),
+        FunctionStyle::ExpandGlobal => format!("\\xdef\\{name}{args}{{"),
+        FunctionStyle::LongExpandGlobal => format!("\\long\\xdef\\{name}{args}{{"),
+        FunctionStyle::OuterExpandGlobal => format!("\\outer\\xdef\\{name}{args}{{"),
+        FunctionStyle::LongOuterExpandGlobal => format!("\\long\\outer\\xdef\\{name}{args}{{"),
     };
 
     let mut tmp = String::new();

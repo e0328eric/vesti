@@ -143,12 +143,12 @@ impl<'a> Parser<'a> {
                 expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
             }
-            Some(TokenType::FunctionDef | TokenType::OuterFunctionDef) => {
+            Some(toktype) if toktype.is_function_definition_start() => {
                 self.parse_function_definition()
             }
             Some(TokenType::EndFunctionDef) => Err(VestiErr::make_parse_err(
                 VestiParseErr::IsNotOpenedErr {
-                    open: vec![TokenType::FunctionDef, TokenType::OuterFunctionDef],
+                    open: TokenType::get_function_definition_start_list(),
                     close: TokenType::EndFunctionDef,
                 },
                 self.peek_tok_location(),
@@ -520,23 +520,34 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_definition(&mut self) -> error::Result<Statement> {
-        let begenv_location = self.peek_tok_location();
+        let begfntdef_location = self.peek_tok_location();
         let mut trim = TrimWhitespace {
             start: true,
             end: true,
         };
 
-        let is_outer = match self.peek_tok() {
-            Some(TokenType::FunctionDef) => {
-                expect_peek!(self: TokenType::FunctionDef; self.peek_tok_location());
-                false
+        let (style, beg_toktype) = match self.peek_tok() {
+            None => {
+                return Err(VestiErr {
+                    err_kind: VestiErrKind::ParseErr(VestiParseErr::EOFErr),
+                    location: begfntdef_location,
+                })
             }
-            Some(TokenType::OuterFunctionDef) => {
-                expect_peek!(self: TokenType::OuterFunctionDef; self.peek_tok_location());
-                true
-            }
-            _ => unreachable!(),
+            Some(toktype) => match toktype.try_into().map(|style| (style, toktype)) {
+                Ok(tup) => tup,
+                Err(got) => {
+                    return Err(VestiErr {
+                        err_kind: VestiErrKind::ParseErr(VestiParseErr::TypeMismatch {
+                            expected: TokenType::get_function_definition_start_list(),
+                            got,
+                        }),
+                        location: begfntdef_location,
+                    })
+                }
+            },
         };
+        expect_peek!(self: beg_toktype; self.peek_tok_location());
+
         if self.peek_tok() == Some(TokenType::Star) {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             trim.start = false;
@@ -546,10 +557,10 @@ impl<'a> Parser<'a> {
         if self.peek_tok().is_none() {
             return Err(VestiErr {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::IsNotClosedErr {
-                    open: TokenType::FunctionDef,
+                    open: beg_toktype,
                     close: TokenType::EndFunctionDef,
                 }),
-                location: begenv_location,
+                location: begfntdef_location,
             });
         }
 
@@ -568,13 +579,13 @@ impl<'a> Parser<'a> {
                             VestiParseErr::NameMissErr {
                                 r#type: TokenType::FunctionDef,
                             },
-                            begenv_location,
+                            begfntdef_location,
                         ));
                     }
                     None => {
                         return Err(VestiErr::make_parse_err(
                             VestiParseErr::EOFErr,
-                            begenv_location,
+                            begfntdef_location,
                         ));
                     }
                 }
@@ -589,7 +600,7 @@ impl<'a> Parser<'a> {
         let mut defun_level = 0;
         while self.peek_tok() != Some(TokenType::EndFunctionDef) && defun_level >= 0 {
             match self.peek_tok() {
-                Some(TokenType::FunctionDef | TokenType::OuterFunctionDef) => defun_level += 1,
+                Some(toktype) if toktype.is_function_definition_start() => defun_level += 1,
                 Some(TokenType::EndFunctionDef) => {
                     defun_level -= 1;
                     if defun_level < 0 {
@@ -599,10 +610,10 @@ impl<'a> Parser<'a> {
                 None => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErr::IsNotClosedErr {
-                            open: TokenType::FunctionDef,
+                            open: beg_toktype,
                             close: TokenType::EndFunctionDef,
                         },
-                        begenv_location,
+                        begfntdef_location,
                     ));
                 }
                 _ => {}
@@ -622,7 +633,7 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
         Ok(Statement::FunctionDefine {
-            is_outer,
+            style,
             name,
             args,
             trim,

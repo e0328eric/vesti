@@ -167,7 +167,7 @@ impl<'a> Lexer<'a> {
             literal.push(chr);
             self.next_char();
         }
-        let toktype = if let Some(toktype) = token::is_keyword_str(&literal) {
+        let toktype = if let Some(toktype) = TokenType::is_keyword_str(&literal) {
             if &literal == "mnd" && self.chr0 == Some(' ') {
                 self.next_char();
             }
@@ -360,7 +360,7 @@ impl<'a> Lexer<'a> {
             }
             _ if self.chr1.map_or(false, token::is_latex_function_ident) => {
                 self.next_char();
-                let mut literal = String::new();
+                let mut literal = String::from("\\");
                 while let Some(chr) = self.chr0 {
                     if !token::is_latex_function_ident(chr) {
                         break;

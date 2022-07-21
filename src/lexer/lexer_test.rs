@@ -315,7 +315,7 @@ fn lexing_latex_functions() {
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
-    assert_eq!(lexed_literal, "foo bar@hand frac{a b}");
+    assert_eq!(lexed_literal, "\\foo \\bar@hand \\frac{a b}");
 }
 
 #[test]
@@ -343,9 +343,9 @@ import {
 
 startdoc
 
-This is a LaTeX!
+This is a \LaTeX!
 \[
-    1 + 1 = sum_{j=1}^infty f(x),qquad mtxt foobar etxt
+    1 + 1 = \sum_{j=1}^\infty f(x),\qquad mtxt foobar etxt
 \]
 begenv center     The TeX
 endenv"#;

@@ -394,6 +394,36 @@ endfun"#;
 }
 
 #[test]
+fn test_parse_function_definition_kind() {
+    let source1 = "defun foo(#1\\over#2) bar endfun";
+    let source2 = "edefun foo(#1\\over#2) bar endfun";
+    let source3 = "odefun foo(#1\\over#2) bar endfun";
+    let source4 = "loxdefun foo(#1\\over#2) bar endfun";
+    let source5 = "lgdefun foo(#1\\over#2) bar endfun";
+    let source6 = "lodefun foo(#1\\over#2) bar endfun";
+
+    let expected1 = "\\def\\foo#1\\over#2{bar}\n";
+    let expected2 = "\\edef\\foo#1\\over#2{bar}\n";
+    let expected3 = "\\outer\\def\\foo#1\\over#2{bar}\n";
+    let expected4 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}\n";
+    let expected5 = "\\long\\gdef\\foo#1\\over#2{bar}\n";
+    let expected6 = "\\long\\outer\\def\\foo#1\\over#2{bar}\n";
+
+    let mut parser1 = Parser::new(Lexer::new(source1));
+    let mut parser2 = Parser::new(Lexer::new(source2));
+    let mut parser3 = Parser::new(Lexer::new(source3));
+    let mut parser4 = Parser::new(Lexer::new(source4));
+    let mut parser5 = Parser::new(Lexer::new(source5));
+    let mut parser6 = Parser::new(Lexer::new(source6));
+    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
+    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    assert_eq!(expected3, parser3.make_latex_format::<true>().unwrap());
+    assert_eq!(expected4, parser4.make_latex_format::<true>().unwrap());
+    assert_eq!(expected5, parser5.make_latex_format::<true>().unwrap());
+    assert_eq!(expected6, parser6.make_latex_format::<true>().unwrap());
+}
+
+#[test]
 fn test_parse_function_definition_trim() {
     let source1_trim_both = "defun foo (#1) \\overline{#1} endfun";
     let source2_trim_both = "defun foo (#1)\\overline{#1} endfun";
