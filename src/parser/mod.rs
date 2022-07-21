@@ -109,14 +109,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> error::Result<Statement> {
-        let is_doc_start = (self.document_state & DocState::DOC_START).bits();
+        let is_premiere =
+            (self.document_state & (DocState::DOC_START | DocState::PARSING_FUNCTION_DEF)).bits();
         let is_function_def_state = (self.document_state & DocState::PARSING_FUNCTION_DEF).bits();
 
         match self.peek_tok() {
             // Keywords
-            Some(TokenType::Docclass) if is_doc_start == 0 => self.parse_docclass(),
-            Some(TokenType::Import) if is_doc_start == 0 => self.parse_usepackage(),
-            Some(TokenType::StartDoc) if is_doc_start == 0 => {
+            Some(TokenType::Docclass) if is_premiere == 0 => self.parse_docclass(),
+            Some(TokenType::Import) if is_premiere == 0 => self.parse_usepackage(),
+            Some(TokenType::StartDoc) if is_premiere == 0 => {
                 self.document_state |= DocState::DOC_START;
                 self.next_tok();
                 self.eat_whitespaces(true);
@@ -159,7 +160,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::RawLatex) => self.parse_raw_latex(),
             Some(TokenType::Integer) => self.parse_integer(),
             Some(TokenType::Float) => self.parse_float(),
-            Some(toktype) if toktype.should_not_use_before_doc() && is_doc_start == 0 => {
+            Some(toktype) if toktype.should_not_use_before_doc() && is_premiere == 0 => {
                 Err(VestiErr::make_parse_err(
                     VestiParseErr::BeforeDocumentErr { got: toktype },
                     self.peek_tok_location(),
