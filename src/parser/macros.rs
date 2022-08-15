@@ -8,11 +8,7 @@ macro_rules! expect_peek {
                 location: $span,
             });
         };
-        let mut expected = false;
-        if tok_tmp.token.toktype == $expect {
-            expected = true;
-        }
-        if !expected {
+        if tok_tmp.token.toktype != $expect {
             return Err(VestiErr {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::TypeMismatch {
                     expected: vec![$expect],
@@ -38,7 +34,7 @@ macro_rules! take_name {
                 Some(toktype) => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErr::TypeMismatch {
-                            expected: vec![TokenType::Text],
+                            expected: vec![TokenType::Text, TokenType::Minus, TokenType::Integer],
                             got: toktype,
                         },
                         $self.peek_tok_location(),
@@ -46,7 +42,7 @@ macro_rules! take_name {
                 }
                 None => {
                     return Err(VestiErr::make_parse_err(
-                        VestiParseErr::ParseFloatErr,
+                        VestiParseErr::EOFErr,
                         $self.peek_tok_location(),
                     ));
                 }

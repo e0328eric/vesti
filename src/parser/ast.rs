@@ -42,6 +42,15 @@ pub enum Statement {
         trim: TrimWhitespace,
         body: Latex,
     },
+    // TODO: Does not support mandatory argument
+    EnvironmentDefine {
+        is_redefine: bool,
+        name: String,
+        args_num: u8,
+        trim: TrimWhitespace,
+        begin_part: Latex,
+        end_part: Latex,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -106,5 +115,6 @@ impl TryFrom<TokenType> for FunctionStyle {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TrimWhitespace {
     pub start: bool,
+    pub mid: Option<bool>,
     pub end: bool,
 }

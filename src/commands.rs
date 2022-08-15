@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 
 use clap::Parser as ClapParser;
 
+use crate::codegen::make_latex_format;
 use crate::error;
 use crate::error::err_kind::{VestiCommandUtilErr, VestiErrKind};
 use crate::error::pretty_print::pretty_print;
@@ -142,7 +143,7 @@ pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) -> ExitCode {
         if init_compile || init_time != now_time {
             let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
             let mut parser = Parser::new(Lexer::new(&source));
-            unwrap_err!(contents := parser.make_latex_format::<false>(), Some(source.as_ref()), Some(&file_name));
+            unwrap_err!(contents := make_latex_format::<false>(&mut parser), Some(source.as_ref()), Some(&file_name));
             drop(parser);
 
             fs::write(&output, contents).expect("File write failed.");

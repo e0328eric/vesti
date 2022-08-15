@@ -1,4 +1,12 @@
 use super::*;
+use crate::codegen::make_latex_format;
+
+macro_rules! expected {
+    ($source: ident should be $expected: ident) => {{
+        let mut parser = Parser::new(Lexer::new($source));
+        assert_eq!($expected, make_latex_format::<true>(&mut parser).unwrap());
+    }};
+}
 
 #[test]
 fn test_parse_docclass() {
@@ -21,18 +29,12 @@ fn test_parse_docclass() {
     let expected2 = "\\documentclass[tikz]{standalone}\n";
     let expected3 = "\\documentclass[korean,tikz,tcolorbox]{coprime}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser6.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected2);
+    expected!(source4 should be expected3);
+    expected!(source5 should be expected3);
+    expected!(source6 should be expected3);
 }
 
 #[test]
@@ -83,24 +85,15 @@ fn test_parse_usepackage() {
 \usepackage[a4paper,margin=0.4in]{geometry}
 "#;
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    let mut parser7 = Parser::new(Lexer::new(source7));
-    let mut parser8 = Parser::new(Lexer::new(source8));
-    let mut parser9 = Parser::new(Lexer::new(source9));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser7.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser8.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser9.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected2);
+    expected!(source4 should be expected3);
+    expected!(source5 should be expected4);
+    expected!(source6 should be expected5);
+    expected!(source7 should be expected5);
+    expected!(source8 should be expected5);
+    expected!(source9 should be expected5);
 }
 
 #[test]
@@ -108,25 +101,11 @@ fn parse_main_string() {
     let source1 = "startdoc This is vesti";
     let source2 = "startdoc docclass";
 
-    let expected_ast1 = vec![
-        Statement::DocumentStart,
-        Statement::MainText(String::from("This")),
-        Statement::MainText(String::from(" ")),
-        Statement::MainText(String::from("is")),
-        Statement::MainText(String::from(" ")),
-        Statement::MainText(String::from("vesti")),
-        Statement::DocumentEnd,
-    ];
-    let expected_ast2 = vec![
-        Statement::DocumentStart,
-        Statement::MainText(String::from("docclass")),
-        Statement::DocumentEnd,
-    ];
+    let expected1 = "\\begin{document}\nThis is vesti\n\\end{document}\n";
+    let expected2 = "\\begin{document}\ndocclass\n\\end{document}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    assert_eq!(expected_ast1, parser1.parse_latex().unwrap());
-    assert_eq!(expected_ast2, parser2.parse_latex().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
 }
 
 #[test]
@@ -196,20 +175,13 @@ endenv"#;
 \end{document}
 "#;
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    let mut parser7 = Parser::new(Lexer::new(source7));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
-    assert_eq!(expected6, parser7.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected2);
+    expected!(source4 should be expected3);
+    expected!(source5 should be expected4);
+    expected!(source6 should be expected5);
+    expected!(source7 should be expected6);
 }
 
 #[test]
@@ -264,26 +236,16 @@ fn parse_latex_functions() {
 \end{document}
 "#;
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    let mut parser7 = Parser::new(Lexer::new(source7));
-    let mut parser8 = Parser::new(Lexer::new(source8));
-    let mut parser9 = Parser::new(Lexer::new(source9));
-    let mut parser10 = Parser::new(Lexer::new(source10));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected4, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected4, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser6.make_latex_format::<true>().unwrap());
-    assert_eq!(expected6, parser7.make_latex_format::<true>().unwrap());
-    assert_eq!(expected7, parser8.make_latex_format::<true>().unwrap());
-    assert_eq!(expected8, parser9.make_latex_format::<true>().unwrap());
-    assert_eq!(expected9, parser10.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected3);
+    expected!(source4 should be expected4);
+    expected!(source5 should be expected4);
+    expected!(source6 should be expected5);
+    expected!(source7 should be expected6);
+    expected!(source8 should be expected7);
+    expected!(source9 should be expected8);
+    expected!(source10 should be expected9);
 }
 
 #[test]
@@ -300,10 +262,8 @@ $\sum_1^\infty f(x)$
 \end{document}
 "#;
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
 }
 
 #[test]
@@ -321,18 +281,12 @@ endfun"#;
 
     let expected = "\\def\\foo#1{\\overline{#1}}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser6.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected);
+    expected!(source2 should be expected);
+    expected!(source3 should be expected);
+    expected!(source4 should be expected);
+    expected!(source5 should be expected);
+    expected!(source6 should be expected);
 }
 
 #[test]
@@ -350,18 +304,12 @@ endfun"#;
 
     let expected = "\\def\\bar@foo#1#2{\\overline{#1} and #2}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser6.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected);
+    expected!(source2 should be expected);
+    expected!(source3 should be expected);
+    expected!(source4 should be expected);
+    expected!(source5 should be expected);
+    expected!(source6 should be expected);
 }
 
 #[test]
@@ -379,18 +327,12 @@ endfun"#;
 
     let expected = "\\def\\barfoo import #1 and #2{\\overline{#1} and #2}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected, parser6.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected);
+    expected!(source2 should be expected);
+    expected!(source3 should be expected);
+    expected!(source4 should be expected);
+    expected!(source5 should be expected);
+    expected!(source6 should be expected);
 }
 
 #[test]
@@ -409,18 +351,12 @@ fn test_parse_function_definition_kind() {
     let expected5 = "\\long\\gdef\\foo#1\\over#2{bar}\n";
     let expected6 = "\\long\\outer\\def\\foo#1\\over#2{bar}\n";
 
-    let mut parser1 = Parser::new(Lexer::new(source1));
-    let mut parser2 = Parser::new(Lexer::new(source2));
-    let mut parser3 = Parser::new(Lexer::new(source3));
-    let mut parser4 = Parser::new(Lexer::new(source4));
-    let mut parser5 = Parser::new(Lexer::new(source5));
-    let mut parser6 = Parser::new(Lexer::new(source6));
-    assert_eq!(expected1, parser1.make_latex_format::<true>().unwrap());
-    assert_eq!(expected2, parser2.make_latex_format::<true>().unwrap());
-    assert_eq!(expected3, parser3.make_latex_format::<true>().unwrap());
-    assert_eq!(expected4, parser4.make_latex_format::<true>().unwrap());
-    assert_eq!(expected5, parser5.make_latex_format::<true>().unwrap());
-    assert_eq!(expected6, parser6.make_latex_format::<true>().unwrap());
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected3);
+    expected!(source4 should be expected4);
+    expected!(source5 should be expected5);
+    expected!(source6 should be expected6);
 }
 
 #[test]
@@ -450,95 +386,38 @@ fn test_parse_function_definition_trim() {
     let expected_trim_right = "\\def\\foo#1{ \\overline{#1}}\n";
     let expected_no_trim = "\\def\\foo#1{ \\overline{#1} }\n";
 
-    let mut parser1_trim_both = Parser::new(Lexer::new(source1_trim_both));
-    let mut parser2_trim_both = Parser::new(Lexer::new(source2_trim_both));
-    let mut parser3_trim_both = Parser::new(Lexer::new(source3_trim_both));
-    let mut parser4_trim_both = Parser::new(Lexer::new(source4_trim_both));
-
-    let mut parser1_trim_left = Parser::new(Lexer::new(source1_trim_left));
-    let mut parser2_trim_left = Parser::new(Lexer::new(source2_trim_left));
-    let mut parser3_trim_left = Parser::new(Lexer::new(source3_trim_left));
-    let mut parser4_trim_left = Parser::new(Lexer::new(source4_trim_left));
-
-    let mut parser1_trim_right = Parser::new(Lexer::new(source1_trim_right));
-    let mut parser2_trim_right = Parser::new(Lexer::new(source2_trim_right));
-    let mut parser3_trim_right = Parser::new(Lexer::new(source3_trim_right));
-    let mut parser4_trim_right = Parser::new(Lexer::new(source4_trim_right));
-
-    let mut parser1_no_trim = Parser::new(Lexer::new(source1_no_trim));
-    let mut parser2_no_trim = Parser::new(Lexer::new(source2_no_trim));
-    let mut parser3_no_trim = Parser::new(Lexer::new(source3_no_trim));
-    let mut parser4_no_trim = Parser::new(Lexer::new(source4_no_trim));
-
     // Check trim_both
-    assert_eq!(
-        expected_trim_both,
-        parser1_trim_both.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser2_trim_both.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser3_trim_both.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser4_trim_both.make_latex_format::<true>().unwrap()
-    );
+    expected!(source1_trim_both should be expected_trim_both);
+    expected!(source2_trim_both should be expected_trim_both);
+    expected!(source3_trim_both should be expected_trim_both);
+    expected!(source4_trim_both should be expected_trim_both);
 
     // Check trim_left
-    assert_eq!(
-        expected_trim_left,
-        parser1_trim_left.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_left,
-        parser2_trim_left.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser3_trim_left.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser4_trim_left.make_latex_format::<true>().unwrap()
-    );
+    expected!(source1_trim_left should be expected_trim_left);
+    expected!(source2_trim_left should be expected_trim_left);
+    expected!(source3_trim_left should be expected_trim_both);
+    expected!(source4_trim_left should be expected_trim_both);
 
     // Check trim_right
-    assert_eq!(
-        expected_trim_right,
-        parser1_trim_right.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser2_trim_right.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_right,
-        parser3_trim_right.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser4_trim_right.make_latex_format::<true>().unwrap()
-    );
+    expected!(source1_trim_right should be expected_trim_right);
+    expected!(source2_trim_right should be expected_trim_both);
+    expected!(source3_trim_right should be expected_trim_right);
+    expected!(source4_trim_right should be expected_trim_both);
 
     // Check no_trim
-    assert_eq!(
-        expected_no_trim,
-        parser1_no_trim.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_left,
-        parser2_no_trim.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_right,
-        parser3_no_trim.make_latex_format::<true>().unwrap()
-    );
-    assert_eq!(
-        expected_trim_both,
-        parser4_no_trim.make_latex_format::<true>().unwrap()
-    );
+    expected!(source1_no_trim should be expected_no_trim);
+    expected!(source2_no_trim should be expected_trim_left);
+    expected!(source3_no_trim should be expected_trim_right);
+    expected!(source4_no_trim should be expected_trim_both);
+}
+
+#[test]
+fn test_parse_define_environment_with_argument() {
+    let source = r#"devenv foo (1)
+\vskip 1pc\noindent #1
+endswith
+\vskip 1pc
+endenv
+"#;
+    let expected = "\\newenvironment[1]{foo}{\\vskip 1pc\\noindent #1}{\\vskip 1pc}";
 }

@@ -98,7 +98,7 @@ impl Error for VestiParseErr {
             Self::BracketNumberMatchedErr => String::from("Delimiter pair does not matched"),
             Self::IsNotClosedErr { open, .. } => format!("Type `{open:?}` is not closed"),
             Self::IsNotOpenedErr { close, .. } => {
-                format!("Type `{close:?}` is used without `begenv` pair")
+                format!("Type `{close:?}` is used without the opening part")
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::IllegalUseErr { got } => {
@@ -143,9 +143,9 @@ impl Error for VestiParseErr {
                 format!("check that type `{close:?}` is properly located"),
             ],
             Self::IsNotOpenedErr { open, close } => vec![
-                format!(
-                    "type `{close:?}` is used, but there is no type `{open:?}` to be pair with it",
-                ),
+                format!("type `{close:?}` is used, but there is no type"),
+                format!("     `{open:?}`"),
+                format!("to be pair with it.",),
                 format!("help: add type `{open:?}` before this `{close:?}` type"),
             ],
             Self::NameMissErr { r#type } => vec![

@@ -34,6 +34,9 @@ pub enum TokenType {
     Docclass,
     Import,
     StartDoc,
+    Defenv,
+    Redefenv,
+    EndsWith,
     Begenv,
     Endenv,
     Mtxt,
@@ -93,13 +96,12 @@ pub enum TokenType {
     DoubleQuote,    // "
 
     // Delimiters
-    Lparen,   // (
-    Rparen,   // )
-    Lbrace,   // {
-    Rbrace,   // }
-    Lsqbrace, // [
-    Rsqbrace, // ]
-    // XXX: deprecate OptionalOpenBrace, // #[
+    Lparen,          // (
+    Rparen,          // )
+    Lbrace,          // {
+    Rbrace,          // }
+    Lsqbrace,        // [
+    Rsqbrace,        // ]
     MathLbrace,      // \{
     MathRbrace,      // \}
     TextMathStart,   // \(
@@ -126,12 +128,14 @@ impl TokenType {
         Self::Docclass <= *self && *self <= Self::EndFunctionDef
     }
 
-    // TODO: Deprecate 'docstartmode'
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
         match string {
             "docclass" => Some(Self::Docclass),
             "import" => Some(Self::Import),
             "startdoc" => Some(Self::StartDoc),
+            "defenv" => Some(Self::Defenv),
+            "redefenv" => Some(Self::Redefenv),
+            "endswith" => Some(Self::EndsWith),
             "begenv" => Some(Self::Begenv),
             "endenv" => Some(Self::Endenv),
             "mtxt" => Some(Self::Mtxt),
@@ -140,7 +144,7 @@ impl TokenType {
             "mnd" => Some(Self::TextMathEnd),
             "dmst" => Some(Self::InlineMathStart),
             "dmnd" => Some(Self::InlineMathEnd),
-            "docstartmode" => Some(Self::DocumentStartMode),
+            "nodocclass" => Some(Self::DocumentStartMode),
             "nondocclass" => Some(Self::DocumentStartMode),
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),

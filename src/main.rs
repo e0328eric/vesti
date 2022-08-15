@@ -1,6 +1,7 @@
 #![allow(clippy::enum_variant_names)]
 #![deny(bindings_with_variant_name)]
 
+mod codegen;
 mod commands;
 mod error;
 mod exit_status;
