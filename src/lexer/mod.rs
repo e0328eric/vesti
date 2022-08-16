@@ -11,32 +11,10 @@ use crate::location::{Location, Span};
 use newline_handler::Newlinehandler;
 use token::{Token, TokenType};
 
-#[derive(Clone, Debug)]
-pub struct LexToken {
-    pub token: Token,
-    pub span: Span,
-}
-
-impl LexToken {
-    pub fn new(token: Token, start: Location, end: Location) -> Self {
-        Self {
-            token,
-            span: Span { start, end },
-        }
-    }
-
-    fn illegal(start: Location, end: Location) -> Self {
-        Self {
-            token: Token::default(),
-            span: Span { start, end },
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Lexer<'a> {
     source: Newlinehandler<'a>,
-    chr0: Option<char>,
+    pub(crate) chr0: Option<char>,
     chr1: Option<char>,
     chr2: Option<char>,
     current_loc: Location,
@@ -71,10 +49,10 @@ impl<'a> Lexer<'a> {
         self.chr2 = self.source.next();
     }
 
-    fn take_tok(&mut self) -> Option<LexToken> {
+    pub fn next(&mut self) -> Token {
         let start_loc = self.current_loc;
         match self.chr0 {
-            Some('\0') | None => None,
+            Some('\0') | None => Token::eof(start_loc, self.current_loc),
             Some(' ') => {
                 if self.chr1 == Some('@') && self.chr2 != Some('!') {
                     self.next_char();
@@ -91,7 +69,7 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: RightArrow, "\\rightarrow "; start_loc)
                 }
-                Some(chr) if chr.is_ascii_digit() => Some(self.lex_number()),
+                Some(chr) if chr.is_ascii_digit() => self.lex_number(),
                 _ => tokenize!(self: Minus, "-"; start_loc),
             },
             Some('*') => tokenize!(self: Star, "*"; start_loc),
@@ -148,16 +126,16 @@ impl<'a> Lexer<'a> {
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
-            _ if self.chr0.map_or(false, |chr| chr.is_alphabetic()) => Some(self.lex_main_string()),
-            _ if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) => Some(self.lex_number()),
+            _ if self.chr0.map_or(false, |chr| chr.is_alphabetic()) => self.lex_main_string(),
+            _ if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) => self.lex_number(),
             _ => {
                 self.next_char();
-                Some(LexToken::illegal(start_loc, self.current_loc))
+                Token::illegal(start_loc, self.current_loc)
             }
         }
     }
 
-    fn lex_main_string(&mut self) -> LexToken {
+    fn lex_main_string(&mut self) -> Token {
         let start_loc = self.current_loc;
         let mut literal = String::new();
         while let Some(chr) = self.chr0 {
@@ -175,11 +153,11 @@ impl<'a> Lexer<'a> {
         } else {
             TokenType::Text
         };
-        LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
+        Token::new(toktype, literal, start_loc, self.current_loc)
     }
 
     // TODO: lexing failed for large integers
-    fn lex_number(&mut self) -> LexToken {
+    fn lex_number(&mut self) -> Token {
         let start_loc = self.current_loc;
         let mut literal = String::new();
 
@@ -227,10 +205,10 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        LexToken::new(Token::new(toktype, literal), start_loc, self.current_loc)
+        Token::new(toktype, literal, start_loc, self.current_loc)
     }
 
-    fn lex_percent_char(&mut self) -> Option<LexToken> {
+    fn lex_percent_char(&mut self) -> Token {
         let start_loc = self.current_loc;
         match self.chr1 {
             Some('!') => {
@@ -240,7 +218,7 @@ impl<'a> Lexer<'a> {
             Some('*') => {
                 self.next_char();
                 self.next_char();
-                while self.chr0? != '*' || self.chr1 != Some('%') {
+                while unwrap!(self: chr0, start_loc) != '*' || self.chr1 != Some('%') {
                     self.next_char();
                 }
                 self.next_char();
@@ -248,40 +226,36 @@ impl<'a> Lexer<'a> {
                 if self.chr0 == Some('\n') {
                     self.next_char();
                 }
-                self.take_tok()
+                self.next()
             }
             Some('-') => {
                 let mut literal = String::new();
                 self.next_char();
                 self.next_char();
                 while self.chr0 != Some('-') || self.chr1 != Some('%') {
-                    literal.push(self.chr0?);
+                    literal.push(unwrap!(self: chr0, start_loc));
                     self.next_char();
                 }
                 self.next_char();
                 self.next_char();
-                Some(LexToken::new(
-                    Token::new(TokenType::RawLatex, literal),
-                    start_loc,
-                    self.current_loc,
-                ))
+                Token::new(TokenType::RawLatex, literal, start_loc, self.current_loc)
             }
             _ => {
-                while self.chr0? != '\n' {
+                while unwrap!(self: chr0, start_loc) != '\n' {
                     self.next_char();
                 }
                 self.next_char();
-                self.take_tok()
+                self.next()
             }
         }
     }
 
-    fn lex_dollar_char(&mut self) -> Option<LexToken> {
+    fn lex_dollar_char(&mut self) -> Token {
         let start_loc = self.current_loc;
         match self.chr1 {
             Some('!') => {
                 self.next_char();
-                tokenize!(self: Dollar, "$"; start_loc)
+                tokenize!(self: RawDollar, "$"; start_loc)
             }
             _ => {
                 if !self.math_started {
@@ -295,7 +269,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn lex_backslash(&mut self) -> Option<LexToken> {
+    fn lex_backslash(&mut self) -> Token {
         let start_loc = self.current_loc;
         match self.chr1 {
             Some('#') => {
@@ -368,20 +342,14 @@ impl<'a> Lexer<'a> {
                     literal.push(chr);
                     self.next_char();
                 }
-                Some(LexToken::new(
-                    Token::new(TokenType::LatexFunction, literal),
+                Token::new(
+                    TokenType::LatexFunction,
+                    literal,
                     start_loc,
                     self.current_loc,
-                ))
+                )
             }
             _ => tokenize!(self: ShortBackSlash, "\\"; start_loc),
         }
-    }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = LexToken;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.take_tok()
     }
 }

@@ -1,37 +1,72 @@
-pub mod err_kind;
 pub mod pretty_print;
 
 use crate::lexer::token::TokenType;
 use crate::location::Span;
-use err_kind::{VestiCommandUtilErr, VestiErrKind, VestiParseErr};
 
-#[derive(Debug)]
-pub struct VestiErr {
-    pub err_kind: VestiErrKind,
-    pub location: Option<Span>,
+#[derive(Debug, PartialEq)]
+pub enum VestiParseErrKind {
+    EOFErr, // EOF found although parsing is not completed
+    IllegalCharacterFoundErr,
+    TypeMismatch {
+        expected: Vec<TokenType>,
+        got: TokenType,
+    },
+    BeforeDocumentErr {
+        got: TokenType,
+    },
+    ParseIntErr,
+    ParseFloatErr,
+    InvalidTokToConvert {
+        got: TokenType,
+    },
+    BracketMismatchErr {
+        expected: TokenType,
+    },
+    BracketNumberMatchedErr,
+    IsNotClosedErr {
+        open: TokenType,
+        close: TokenType,
+    },
+    IsNotOpenedErr {
+        open: Vec<TokenType>,
+        close: TokenType,
+    },
+    NameMissErr {
+        r#type: TokenType,
+    },
+    IllegalUseErr {
+        got: TokenType,
+    },
 }
 
-// compare two error type are equal if errkinds are same
-impl PartialEq for VestiErr {
-    fn eq(&self, other: &Self) -> bool {
-        self.err_kind == other.err_kind
-    }
+#[derive(Debug, PartialEq)]
+pub enum VestiCommandUtilErrKind {
+    IOErr(std::io::ErrorKind),
+    NoFilenameInputErr,
+    TakeFilesErr,
+}
+
+#[derive(Debug)]
+pub enum VestiErr {
+    ParseErr {
+        err_kind: VestiParseErrKind,
+        location: Span,
+    },
+    UtilErr {
+        err_kind: VestiCommandUtilErrKind,
+    },
 }
 
 impl VestiErr {
-    pub fn make_parse_err(parse_err: VestiParseErr, location: Option<Span>) -> Self {
-        Self {
-            err_kind: VestiErrKind::ParseErr(parse_err),
-            location,
-        }
+    pub fn make_parse_err(err_kind: VestiParseErrKind, location: Span) -> Self {
+        Self::ParseErr { err_kind, location }
     }
 }
 
 impl From<std::io::Error> for VestiErr {
     fn from(err: std::io::Error) -> Self {
-        Self {
-            err_kind: VestiErrKind::UtilErr(VestiCommandUtilErr::IOErr(err.kind())),
-            location: None,
+        Self::UtilErr {
+            err_kind: VestiCommandUtilErrKind::IOErr(err.kind()),
         }
     }
 }
@@ -49,19 +84,28 @@ pub trait Error {
     fn err_detail_str(&self) -> Vec<String>;
 }
 
-impl Error for VestiErrKind {
+impl Error for VestiErr {
     fn err_code(&self) -> u16 {
-        self.map(|errkind| errkind.err_code())
+        match self {
+            err @ Self::ParseErr { .. } => err.err_code(),
+            err @ Self::UtilErr { .. } => err.err_code(),
+        }
     }
     fn err_str(&self) -> String {
-        self.map(|errkind| errkind.err_str())
+        match self {
+            err @ Self::ParseErr { .. } => err.err_str(),
+            err @ Self::UtilErr { .. } => err.err_str(),
+        }
     }
     fn err_detail_str(&self) -> Vec<String> {
-        self.map(|errkind| errkind.err_detail_str())
+        match self {
+            err @ Self::ParseErr { .. } => err.err_detail_str(),
+            err @ Self::UtilErr { .. } => err.err_detail_str(),
+        }
     }
 }
 
-impl Error for VestiParseErr {
+impl Error for VestiParseErrKind {
     fn err_code(&self) -> u16 {
         match self {
             Self::EOFErr => 0x0E0F,
@@ -168,7 +212,7 @@ impl Error for VestiParseErr {
     }
 }
 
-impl Error for VestiCommandUtilErr {
+impl Error for VestiCommandUtilErrKind {
     fn err_code(&self) -> u16 {
         match self {
             Self::IOErr(_) => 0x0001,

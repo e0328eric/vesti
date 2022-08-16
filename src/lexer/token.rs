@@ -1,20 +1,47 @@
+use crate::location::{Location, Span};
+
 #[derive(Default, Clone, Debug)]
 pub struct Token {
     pub toktype: TokenType,
     pub literal: String,
+    pub span: Span,
 }
 
 impl Token {
-    pub fn new(toktype: TokenType, literal: impl ToString) -> Self {
+    #[inline]
+    pub fn new(toktype: TokenType, literal: impl ToString, start: Location, end: Location) -> Self {
         Self {
             toktype,
             literal: literal.to_string(),
+            span: Span { start, end },
+        }
+    }
+
+    #[inline]
+    pub fn eof(start: Location, end: Location) -> Self {
+        Self {
+            toktype: TokenType::Eof,
+            literal: String::new(),
+            span: Span { start, end },
+        }
+    }
+
+    #[inline]
+    pub fn illegal(start: Location, end: Location) -> Self {
+        Self {
+            toktype: TokenType::Illegal,
+            literal: String::new(),
+            span: Span { start, end },
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 pub enum TokenType {
+    // default token
+    #[default]
+    Eof,
+
     // Whitespace
     Space,
     Space2, // /_ where _ is a space
@@ -74,6 +101,7 @@ pub enum TokenType {
     RightArrow,     // ->
     Bang,           // !
     Question,       // ?
+    RawDollar,      // $!
     Dollar,         // \$
     Sharp,          // \#
     FntParam,       // #
@@ -114,12 +142,6 @@ pub enum TokenType {
 
     // error token
     Illegal,
-}
-
-impl Default for TokenType {
-    fn default() -> Self {
-        Self::Illegal
-    }
 }
 
 impl TokenType {
@@ -187,11 +209,6 @@ impl TokenType {
             Self::OuterXFunctionDef,
             Self::LongOuterXFunctionDef,
         ]
-    }
-
-    #[inline]
-    pub fn is_function_definition_start(&self) -> bool {
-        Self::FunctionDef <= *self && *self <= Self::LongOuterXFunctionDef
     }
 
     #[inline]

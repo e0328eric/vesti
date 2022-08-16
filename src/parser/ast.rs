@@ -47,6 +47,7 @@ pub enum Statement {
         is_redefine: bool,
         name: String,
         args_num: u8,
+        optional_arg: Option<Latex>,
         trim: TrimWhitespace,
         begin_part: Latex,
         end_part: Latex,

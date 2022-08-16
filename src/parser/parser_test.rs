@@ -412,12 +412,56 @@ fn test_parse_function_definition_trim() {
 }
 
 #[test]
+fn test_parse_define_environment() {
+    let source = r#"defenv foo
+\vskip 1pc\noindent
+endswith
+\vskip 1pc
+endenv
+"#;
+    let expected = "\\newenvironment{foo}{\\vskip 1pc\\noindent}{\\vskip 1pc}\n";
+
+    expected!(source should be expected);
+}
+
+#[test]
 fn test_parse_define_environment_with_argument() {
-    let source = r#"devenv foo (1)
+    let source = r#"defenv foo [1]
 \vskip 1pc\noindent #1
 endswith
 \vskip 1pc
 endenv
 "#;
-    let expected = "\\newenvironment[1]{foo}{\\vskip 1pc\\noindent #1}{\\vskip 1pc}";
+    let expected = "\\newenvironment{foo}[1]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
+
+    expected!(source should be expected);
+}
+
+#[test]
+fn test_parse_define_environment_with_optional_argument() {
+    let source1 = r#"defenv foo [1,basd]
+\vskip 1pc\noindent #1
+endswith
+\vskip 1pc
+endenv
+"#;
+    let source2 = r#"defenv foo [1, basd]
+\vskip 1pc\noindent #1
+endswith
+\vskip 1pc
+endenv
+"#;
+    let source3 = r#"defenv foo [1,  basd]
+\vskip 1pc\noindent #1
+endswith
+\vskip 1pc
+endenv
+"#;
+
+    let expected1 = "\\newenvironment{foo}[1][basd]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
+    let expected2 = "\\newenvironment{foo}[1][ basd]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
+
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected1);
+    expected!(source3 should be expected2);
 }
