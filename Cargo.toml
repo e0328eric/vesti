@@ -1,7 +1,9 @@
 [package]
 name = "vesti"
 version = "0.2.0"
-authors = ["Almagest <almagest0328@gmail.com>"]
+authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
+description = "A preprocessor that compiles into LaTeX"
+license = "MIT"
 edition = "2021"
 
 [profile.dev]
