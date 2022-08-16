@@ -6,9 +6,8 @@ use std::time::{Duration, SystemTime};
 use clap::Parser as ClapParser;
 
 use crate::codegen::make_latex_format;
-use crate::error;
-use crate::error::err_kind::{VestiCommandUtilErr, VestiErrKind};
 use crate::error::pretty_print::pretty_print;
+use crate::error::{self, VestiCommandUtilErrKind};
 use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -94,9 +93,8 @@ impl VestiOpt {
             } else if let Some(path) = file_dir {
                 path.to_path_buf()
             } else {
-                return Err(error::VestiErr {
-                    err_kind: VestiErrKind::UtilErr(VestiCommandUtilErr::NoFilenameInputErr),
-                    location: None,
+                return Err(error::VestiErr::UtilErr {
+                    err_kind: VestiCommandUtilErrKind::NoFilenameInputErr,
                 });
             };
 
@@ -110,9 +108,8 @@ impl VestiOpt {
                         }
                     }
                     Err(_) => {
-                        return Err(error::VestiErr {
-                            err_kind: VestiErrKind::UtilErr(VestiCommandUtilErr::TakeFilesErr),
-                            location: None,
+                        return Err(error::VestiErr::UtilErr {
+                            err_kind: VestiCommandUtilErrKind::TakeFilesErr,
                         })
                     }
                 }

@@ -1,5 +1,4 @@
-use super::Error;
-use super::VestiErr;
+use super::{Error, VestiErr};
 use crate::location::Span;
 use std::path::Path;
 
@@ -15,12 +14,8 @@ pub fn pretty_print(
     filepath: Option<&Path>,
 ) -> String {
     let lines = source.map(|inner| inner.lines());
-    let VestiErr {
-        ref err_kind,
-        ref location,
-    } = vesti_error;
-    let err_code = err_kind.err_code();
-    let err_str = err_kind.err_str();
+    let err_code = vesti_error.err_code();
+    let err_str = vesti_error.err_str();
     let mut output = String::with_capacity(400);
 
     // Make error code and error title format
@@ -33,7 +28,11 @@ pub fn pretty_print(
     );
     output = output + RESET_COLOR + "\n";
 
-    if let Some(Span { start, end }) = location {
+    if let VestiErr::ParseErr {
+        location: Span { start, end },
+        ..
+    } = &vesti_error
+    {
         let start_row_num = format!("{} ", start.row());
 
         // If the filepath of the given input one is found, print it with error location
@@ -73,7 +72,7 @@ pub fn pretty_print(
             + &"^".repeat(end.column().saturating_sub(start.column()))
             + " ";
 
-        for (i, msg) in err_kind.err_detail_str().iter().enumerate() {
+        for (i, msg) in vesti_error.err_detail_str().iter().enumerate() {
             if i == 0 {
                 output = output + msg + "\n";
             } else {

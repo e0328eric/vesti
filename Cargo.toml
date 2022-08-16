@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Almagest <almagest0328@gmail.com>"]
 edition = "2021"
 
