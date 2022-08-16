@@ -24,10 +24,10 @@ fn test_lexing_single_symbols() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -59,10 +59,10 @@ fn test_lexing_double_symbols() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -86,10 +86,10 @@ fn test_lexing_whitespaces() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -114,9 +114,7 @@ The difference is that multiple commenting is possible.
         TokenType::Plus,
     ];
     let lex = Lexer::new(source);
-    let lexed_token = lex
-        .map(|lextok| lextok.token.toktype)
-        .collect::<Vec<TokenType>>();
+    let lexed_token = lex.map(|lextok| lextok.toktype).collect::<Vec<TokenType>>();
     assert_eq!(lexed_token, expected_toktype);
 }
 
@@ -128,10 +126,10 @@ fn test_text_raw_latex() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -154,10 +152,10 @@ fn test_inline_raw_latex() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -180,10 +178,10 @@ fn test_lexing_ascii_string() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -202,10 +200,10 @@ fn test_lexing_unicode_string() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -231,10 +229,10 @@ fn test_lex_number() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -262,10 +260,10 @@ fn lexing_keywords() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -284,7 +282,7 @@ fn lexing_backslash() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     assert_eq!(lexed_token, expected_toktype);
 }
@@ -308,10 +306,10 @@ fn lexing_latex_functions() {
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);
@@ -462,10 +460,10 @@ endenv"#;
     let lex = Lexer::new(source);
     let lexed_token = lex
         .clone()
-        .map(|lextok| lextok.token.toktype)
+        .map(|lextok| lextok.toktype)
         .collect::<Vec<TokenType>>();
     let lexed_literal = lex
-        .map(|lextok| lextok.token.literal)
+        .map(|lextok| lextok.literal)
         .collect::<Vec<String>>()
         .concat();
     assert_eq!(lexed_token, expected_toktype);

@@ -49,12 +49,19 @@ impl ToString for Statement {
                 is_redefine,
                 name,
                 args_num,
+                optional_arg,
                 trim,
                 begin_part,
                 end_part,
-            } => {
-                environment_def_to_string(*is_redefine, name, *args_num, trim, begin_part, end_part)
-            }
+            } => environment_def_to_string(
+                *is_redefine,
+                name,
+                *args_num,
+                optional_arg.as_ref(),
+                trim,
+                begin_part,
+                end_part,
+            ),
         }
     }
 }
@@ -221,6 +228,7 @@ fn environment_def_to_string(
     is_redefine: bool,
     name: &str,
     args_num: u8,
+    optional_arg: Option<&Latex>,
     trim: &TrimWhitespace,
     begin_part: &Latex,
     end_part: &Latex,
@@ -232,7 +240,16 @@ fn environment_def_to_string(
     };
 
     if args_num > 0 {
-        output += &format!("[{args_num}]{{");
+        output += &format!("[{args_num}]");
+        if let Some(inner) = optional_arg {
+            output.push('[');
+            for stmt in inner {
+                output += &stmt.to_string();
+            }
+            output.push_str("]{");
+        } else {
+            output.push('{');
+        }
     } else {
         output.push('{');
     }

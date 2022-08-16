@@ -8,11 +8,11 @@ macro_rules! expect_peek {
                 location: $span,
             });
         };
-        if tok_tmp.token.toktype != $expect {
+        if tok_tmp.toktype != $expect {
             return Err(VestiErr {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::TypeMismatch {
                     expected: vec![$expect],
-                    got: tok_tmp.token.toktype,
+                    got: tok_tmp.toktype,
                 }),
                 location: $span,
             });
@@ -28,9 +28,9 @@ macro_rules! take_name {
             .map_or(false, |toktype| toktype.can_pkg_name())
         {
             tmp += &match $self.peek_tok() {
-                Some(TokenType::Text) => $self.next_tok().unwrap().token.literal,
-                Some(TokenType::Minus) => $self.next_tok().unwrap().token.literal,
-                Some(TokenType::Integer) => $self.next_tok().unwrap().token.literal,
+                Some(TokenType::Text) => $self.next_tok().unwrap().literal,
+                Some(TokenType::Minus) => $self.next_tok().unwrap().literal,
+                Some(TokenType::Integer) => $self.next_tok().unwrap().literal,
                 Some(toktype) => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErr::TypeMismatch {

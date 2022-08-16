@@ -1,14 +1,26 @@
+use crate::location::{Location, Span};
+
 #[derive(Default, Clone, Debug)]
 pub struct Token {
     pub toktype: TokenType,
     pub literal: String,
+    pub span: Span,
 }
 
 impl Token {
-    pub fn new(toktype: TokenType, literal: impl ToString) -> Self {
+    pub fn new(toktype: TokenType, literal: impl ToString, start: Location, end: Location) -> Self {
         Self {
             toktype,
             literal: literal.to_string(),
+            span: Span { start, end },
+        }
+    }
+
+    pub fn illegal(start: Location, end: Location) -> Self {
+        Self {
+            toktype: TokenType::Illegal,
+            literal: String::new(),
+            span: Span { start, end },
         }
     }
 }

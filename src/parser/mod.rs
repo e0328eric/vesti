@@ -10,8 +10,9 @@ use bitflags::bitflags;
 use crate::error::err_kind::VestiParseErr::BracketMismatchErr;
 use crate::error::err_kind::{VestiErrKind, VestiParseErr};
 use crate::error::{self, VestiErr};
+use crate::lexer::token::Token;
 use crate::lexer::token::TokenType;
-use crate::lexer::{LexToken, Lexer};
+use crate::lexer::Lexer;
 use crate::location::Span;
 use ast::*;
 
@@ -33,7 +34,7 @@ impl DocState {
 
 pub struct Parser<'a> {
     source: Lexer<'a>,
-    peek_tok: Option<LexToken>,
+    peek_tok: Option<Token>,
     document_state: DocState,
 }
 
@@ -50,7 +51,7 @@ impl<'a> Parser<'a> {
         output
     }
 
-    fn next_tok(&mut self) -> Option<LexToken> {
+    fn next_tok(&mut self) -> Option<Token> {
         let curr_tok = self.peek_tok.take();
         self.peek_tok = self.source.next();
 
@@ -60,7 +61,7 @@ impl<'a> Parser<'a> {
     fn peek_tok(&mut self) -> Option<TokenType> {
         self.peek_tok
             .as_ref()
-            .map(|tok| tok.token.toktype)
+            .map(|tok| tok.toktype)
             .as_ref()
             .copied()
     }
@@ -146,7 +147,7 @@ impl<'a> Parser<'a> {
             Some(TokenType::EndsWith) => Err(VestiErr::make_parse_err(
                 VestiParseErr::IsNotOpenedErr {
                     open: vec![TokenType::Defenv, TokenType::Redefenv],
-                    close: TokenType::EndFunctionDef,
+                    close: TokenType::EndsWith,
                 },
                 self.peek_tok_location(),
             )),
@@ -200,7 +201,7 @@ impl<'a> Parser<'a> {
 
     fn parse_integer(&mut self) -> error::Result<Statement> {
         let curr_tok = self.next_tok().unwrap();
-        let output = if let Ok(int) = curr_tok.token.literal.parse() {
+        let output = if let Ok(int) = curr_tok.literal.parse() {
             int
         } else {
             return Err(VestiErr::make_parse_err(
@@ -214,7 +215,7 @@ impl<'a> Parser<'a> {
 
     fn parse_float(&mut self) -> error::Result<Statement> {
         let curr_tok = self.next_tok().unwrap();
-        let output = if let Ok(float) = curr_tok.token.literal.parse() {
+        let output = if let Ok(float) = curr_tok.literal.parse() {
             float
         } else {
             return Err(VestiErr::make_parse_err(
@@ -227,7 +228,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_raw_latex(&mut self) -> error::Result<Statement> {
-        Ok(Statement::RawLatex(self.next_tok().unwrap().token.literal))
+        Ok(Statement::RawLatex(self.next_tok().unwrap().literal))
     }
 
     fn parse_main_stmt(&mut self) -> error::Result<Statement> {
@@ -237,7 +238,7 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             ));
         }
-        let text = self.next_tok().unwrap().token.literal;
+        let text = self.next_tok().unwrap().literal;
 
         Ok(Statement::MainText(text))
     }
@@ -451,7 +452,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut name = match self.peek_tok() {
-            Some(TokenType::Text) => self.next_tok().unwrap().token.literal,
+            Some(TokenType::Text) => self.next_tok().unwrap().literal,
             Some(_) => {
                 return Err(VestiErr::make_parse_err(
                     VestiParseErr::NameMissErr {
@@ -565,7 +566,7 @@ impl<'a> Parser<'a> {
             name.push_str(
                 match self.peek_tok() {
                     Some(TokenType::Text | TokenType::ArgSpliter) => {
-                        self.next_tok().unwrap().token.literal
+                        self.next_tok().unwrap().literal
                     }
                     Some(
                         TokenType::Space | TokenType::Tab | TokenType::Newline | TokenType::Lparen,
@@ -665,10 +666,13 @@ impl<'a> Parser<'a> {
             name.push_str(
                 match self.peek_tok() {
                     Some(TokenType::Text | TokenType::ArgSpliter) => {
-                        self.next_tok().unwrap().token.literal
+                        self.next_tok().unwrap().literal
                     }
                     Some(
-                        TokenType::Space | TokenType::Tab | TokenType::Newline | TokenType::Lparen,
+                        TokenType::Space
+                        | TokenType::Tab
+                        | TokenType::Newline
+                        | TokenType::Lsqbrace,
                     ) => break,
                     Some(_) => {
                         return Err(VestiErr::make_parse_err(
@@ -690,12 +694,12 @@ impl<'a> Parser<'a> {
         }
         self.eat_whitespaces(false);
 
-        let args_num = if let Some(TokenType::Lsqbrace) = self.peek_tok() {
+        let (args_num, optional_arg) = if let Some(TokenType::Lsqbrace) = self.peek_tok() {
             expect_peek!(self: TokenType::Lsqbrace; self.peek_tok_location());
-            let tmp = match self.peek_tok() {
+            let tmp_argnum = match self.peek_tok() {
                 Some(TokenType::Integer) => {
                     let lex_token = self.next_tok().unwrap();
-                    if let Ok(num) = lex_token.token.literal.parse::<u8>() {
+                    if let Ok(num) = lex_token.literal.parse::<u8>() {
                         num
                     } else {
                         return Err(VestiErr::make_parse_err(
@@ -720,11 +724,49 @@ impl<'a> Parser<'a> {
                     ));
                 }
             };
-            expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
 
-            tmp
+            match self.peek_tok() {
+                Some(TokenType::Comma) => {
+                    expect_peek!(self: TokenType::Comma; self.peek_tok_location());
+                    if let Some(TokenType::Space) = self.peek_tok() {
+                        self.next_tok();
+                    }
+                    let mut tmp_inner: Latex = Vec::new();
+                    while self.peek_tok() != Some(TokenType::Rsqbrace) {
+                        if self.peek_tok().is_none() {
+                            return Err(VestiErr::make_parse_err(
+                                VestiParseErr::EOFErr,
+                                begenvdef_location,
+                            ));
+                        }
+                        tmp_inner.push(self.parse_statement()?);
+                    }
+                    expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
+
+                    (tmp_argnum, Some(tmp_inner))
+                }
+                Some(TokenType::Rsqbrace) => {
+                    expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
+                    (tmp_argnum, None)
+                }
+                Some(got) => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErr::TypeMismatch {
+                            expected: vec![TokenType::Rsqbrace, TokenType::Comma],
+                            got,
+                        },
+                        self.peek_tok_location(),
+                    ))
+                }
+                None => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErr::EOFErr,
+                        begenvdef_location,
+                    ));
+                }
+            }
         } else {
-            0
+            (0, None)
         };
 
         let begin_part =
@@ -752,6 +794,7 @@ impl<'a> Parser<'a> {
             is_redefine,
             name,
             args_num,
+            optional_arg,
             trim,
             begin_part,
             end_part,
@@ -765,7 +808,6 @@ impl<'a> Parser<'a> {
                 err_kind: VestiErrKind::ParseErr(VestiParseErr::EOFErr),
                 location: self.peek_tok_location(),
             })?
-            .token
             .literal;
 
         let mut is_no_arg_but_space = false;
@@ -821,7 +863,7 @@ impl<'a> Parser<'a> {
             }
             is_first_token = false;
 
-            output.push_str(self.next_tok().unwrap().token.literal.as_str());
+            output.push_str(self.next_tok().unwrap().literal.as_str());
         }
         expect_peek!(self: TokenType::Rparen; open_brace_location);
 
@@ -836,7 +878,7 @@ impl<'a> Parser<'a> {
     ) -> error::Result<Latex> {
         let mut body: Latex = Vec::new();
         let mut def_level = 0;
-        while self.peek_tok() != Some(TokenType::EndFunctionDef) && def_level >= 0 {
+        while self.peek_tok() != Some(end_toktype) && def_level >= 0 {
             match self.peek_tok() {
                 Some(toktype) if toktype.is_function_definition_start() => def_level += 1,
                 Some(toktype) if toktype == end_toktype => {
