@@ -18,7 +18,10 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use signal_hook::consts::signal::{SIGINT, SIGKILL, SIGTERM};
+#[cfg(target_os = "windows")]
+use signal_hook::consts::signal::{SIGILL, SIGINT, SIGTERM};
+#[cfg(not(target_os = "windows"))]
+use signal_hook::consts::signal::{SIGINT, SIGTERM};
 use signal_hook::flag as signal_flag;
 
 use crate::commands::{compile_vesti, VestiOpt};
@@ -55,7 +58,7 @@ fn main() -> ExitCode {
         }
         // TODO: I do not test this code in windows actually :)
         #[cfg(target_os = "windows")]
-        for signal in [SIGINT, SIGTERM, SIGKILL].iter() {
+        for signal in [SIGINT, SIGTERM, SIGILL].iter() {
             signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
                 .expect("Undefined behavior happened!");
         }
@@ -81,7 +84,12 @@ fn main() -> ExitCode {
             }
         } else {
             println!("Press Ctrl+C to finish the program.");
-            while ![SIGINT, SIGTERM, SIGKILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
+            #[cfg(not(target_os = "windows"))]
+            while ![SIGINT, SIGTERM].contains(&(trap.load(Ordering::Relaxed) as i32)) {
+                thread::sleep(Duration::from_millis(500));
+            }
+            #[cfg(target_os = "windows")]
+            while ![SIGINT, SIGTERM, SIGILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
                 thread::sleep(Duration::from_millis(500));
             }
         }
