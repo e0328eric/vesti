@@ -51,14 +51,14 @@ fn main() -> ExitCode {
         let is_continuous = args.is_continuous_compile();
 
         let trap = Arc::new(AtomicUsize::new(0));
-        #[cfg(not(target_os = "windows"))]
-        for signal in [SIGINT, SIGTERM].iter() {
-            signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
-                .expect("Undefined behavior happened!");
-        }
         // TODO: I do not test this code in windows actually :)
         #[cfg(target_os = "windows")]
         for signal in [SIGINT, SIGTERM, SIGILL].iter() {
+            signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
+                .expect("Undefined behavior happened!");
+        }
+        #[cfg(not(target_os = "windows"))]
+        for signal in [SIGINT, SIGTERM].iter() {
             signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
                 .expect("Undefined behavior happened!");
         }
@@ -84,12 +84,12 @@ fn main() -> ExitCode {
             }
         } else {
             println!("Press Ctrl+C to finish the program.");
-            #[cfg(not(target_os = "windows"))]
-            while ![SIGINT, SIGTERM].contains(&(trap.load(Ordering::Relaxed) as i32)) {
-                thread::sleep(Duration::from_millis(500));
-            }
             #[cfg(target_os = "windows")]
             while ![SIGINT, SIGTERM, SIGILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
+                thread::sleep(Duration::from_millis(500));
+            }
+            #[cfg(not(target_os = "windows"))]
+            while ![SIGINT, SIGTERM].contains(&(trap.load(Ordering::Relaxed) as i32)) {
                 thread::sleep(Duration::from_millis(500));
             }
         }

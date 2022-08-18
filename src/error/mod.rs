@@ -87,20 +87,20 @@ pub trait Error {
 impl Error for VestiErr {
     fn err_code(&self) -> u16 {
         match self {
-            err @ Self::ParseErr { .. } => err.err_code(),
-            err @ Self::UtilErr { .. } => err.err_code(),
+            Self::ParseErr { err_kind, .. } => err_kind.err_code(),
+            Self::UtilErr { err_kind } => err_kind.err_code(),
         }
     }
     fn err_str(&self) -> String {
         match self {
-            err @ Self::ParseErr { .. } => err.err_str(),
-            err @ Self::UtilErr { .. } => err.err_str(),
+            Self::ParseErr { err_kind, .. } => err_kind.err_str(),
+            Self::UtilErr { err_kind } => err_kind.err_str(),
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
         match self {
-            err @ Self::ParseErr { .. } => err.err_detail_str(),
-            err @ Self::UtilErr { .. } => err.err_detail_str(),
+            Self::ParseErr { err_kind, .. } => err_kind.err_detail_str(),
+            Self::UtilErr { err_kind } => err_kind.err_detail_str(),
         }
     }
 }
