@@ -24,7 +24,7 @@ pub enum VestiParseErrKind {
     },
     BracketNumberMatchedErr,
     IsNotClosedErr {
-        open: TokenType,
+        open: Vec<TokenType>,
         close: TokenType,
     },
     IsNotOpenedErr {

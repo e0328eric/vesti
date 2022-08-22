@@ -5,8 +5,6 @@ mod parser_test;
 mod macros;
 pub mod ast;
 
-use bitflags::bitflags;
-
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::Token;
 use crate::lexer::token::TokenType;
@@ -16,24 +14,18 @@ use ast::*;
 
 const ENV_MATH_IDENT: [&str; 5] = ["equation", "align", "array", "eqnarray", "gather"];
 
-bitflags! {
-    struct DocState: u8 {
-        const DOC_START = 1 << 0;
-        const PREVENT_END_DOC = 1 << 1;
-        const PARSING_FUNCTION_DEF = 1 << 2;
-    }
-}
-
-impl DocState {
-    fn new() -> Self {
-        Self { bits: 0 }
-    }
+#[repr(packed)]
+#[derive(Default)]
+struct DocState {
+    doc_start: bool,
+    prevent_end_doc: bool,
+    parsing_define: bool,
 }
 
 pub struct Parser<'a> {
     source: Lexer<'a>,
     peek_tok: Token,
-    document_state: DocState,
+    doc_state: DocState,
 }
 
 impl<'a> Parser<'a> {
@@ -42,7 +34,7 @@ impl<'a> Parser<'a> {
         let mut output = Box::new(Self {
             source,
             peek_tok: Token::default(),
-            document_state: DocState::new(),
+            doc_state: DocState::default(),
         });
         output.next_tok();
 
@@ -71,6 +63,11 @@ impl<'a> Parser<'a> {
         self.peek_tok.toktype == TokenType::Eof
     }
 
+    #[inline]
+    fn is_premiere(&self) -> bool {
+        !self.doc_state.doc_start && !self.doc_state.parsing_define
+    }
+
     fn eat_whitespaces(&mut self, newline_handle: bool) {
         while self.peek_tok() == TokenType::Space
             || self.peek_tok() == TokenType::Tab
@@ -85,7 +82,7 @@ impl<'a> Parser<'a> {
         while !self.is_eof() {
             latex.push(self.parse_statement()?);
         }
-        if self.document_state == DocState::DOC_START {
+        if !self.is_premiere() {
             latex.push(Statement::DocumentEnd);
         }
 
@@ -93,16 +90,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> error::Result<Statement> {
-        let is_premiere =
-            (self.document_state & (DocState::DOC_START | DocState::PARSING_FUNCTION_DEF)).bits();
-        let is_function_def_state = (self.document_state & DocState::PARSING_FUNCTION_DEF).bits();
-
         match self.peek_tok() {
             // Keywords
-            TokenType::Docclass if is_premiere == 0 => self.parse_docclass(),
-            TokenType::Import if is_premiere == 0 => self.parse_usepackage(),
-            TokenType::StartDoc if is_premiere == 0 => {
-                self.document_state |= DocState::DOC_START;
+            TokenType::Docclass if self.is_premiere() => self.parse_docclass(),
+            TokenType::Import if self.is_premiere() => self.parse_usepackage(),
+            TokenType::StartDoc if self.is_premiere() => {
+                self.doc_state.doc_start = true;
                 self.next_tok();
                 self.eat_whitespaces(true);
                 Ok(Statement::DocumentStart)
@@ -129,7 +122,8 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             )),
             TokenType::DocumentStartMode => {
-                self.document_state |= DocState::PREVENT_END_DOC | DocState::DOC_START;
+                self.doc_state.prevent_end_doc = true;
+                self.doc_state.doc_start = true;
                 let loc = self.next_tok().span;
                 expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
@@ -171,7 +165,7 @@ impl<'a> Parser<'a> {
             TokenType::RawLatex => self.parse_raw_latex(),
             TokenType::Integer => self.parse_integer(),
             TokenType::Float => self.parse_float(),
-            toktype if toktype.should_not_use_before_doc() && is_premiere == 0 => {
+            toktype if toktype.should_not_use_before_doc() && self.is_premiere() => {
                 Err(VestiErr::make_parse_err(
                     VestiParseErrKind::BeforeDocumentErr { got: toktype },
                     self.peek_tok_location(),
@@ -181,7 +175,7 @@ impl<'a> Parser<'a> {
             // Math related tokens
             TokenType::TextMathStart | TokenType::InlineMathStart => self.parse_math_stmt(),
             TokenType::Superscript | TokenType::Subscript
-                if !self.source.math_started && is_function_def_state == 0 =>
+                if !self.source.math_started && !self.doc_state.parsing_define =>
             {
                 Err(VestiErr::make_parse_err(
                     VestiParseErrKind::IllegalUseErr {
@@ -458,7 +452,7 @@ impl<'a> Parser<'a> {
         if self.is_eof() {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::IsNotClosedErr {
-                    open: TokenType::Begenv,
+                    open: vec![TokenType::Begenv],
                     close: TokenType::Endenv,
                 },
                 location: begenv_location,
@@ -507,7 +501,7 @@ impl<'a> Parser<'a> {
             if self.is_eof() {
                 return Err(VestiErr::make_parse_err(
                     VestiParseErrKind::IsNotClosedErr {
-                        open: TokenType::Begenv,
+                        open: vec![TokenType::Begenv],
                         close: TokenType::Endenv,
                     },
                     begenv_location,
@@ -568,7 +562,7 @@ impl<'a> Parser<'a> {
         if self.is_eof() {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::IsNotClosedErr {
-                    open: beg_toktype,
+                    open: vec![beg_toktype],
                     close: TokenType::EndFunctionDef,
                 },
                 location: begfntdef_location,
@@ -605,8 +599,7 @@ impl<'a> Parser<'a> {
 
         let args = self.parse_function_definition_argument()?;
 
-        let body =
-            self.parse_define_body(beg_toktype, TokenType::EndFunctionDef, begfntdef_location)?;
+        let body = self.parse_function_definebody(begfntdef_location)?;
         expect_peek!(self: TokenType::EndFunctionDef; self.peek_tok_location());
 
         if self.peek_tok() == TokenType::Star {
@@ -646,7 +639,7 @@ impl<'a> Parser<'a> {
             got => {
                 return Err(VestiErr::ParseErr {
                     err_kind: VestiParseErrKind::TypeMismatch {
-                        expected: TokenType::get_function_definition_start_list(),
+                        expected: vec![TokenType::Defenv, TokenType::Redefenv],
                         got,
                     },
                     location: begenvdef_location,
@@ -664,7 +657,7 @@ impl<'a> Parser<'a> {
         if self.is_eof() {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::IsNotClosedErr {
-                    open: beg_toktype,
+                    open: vec![beg_toktype],
                     close: TokenType::EndsWith,
                 },
                 location: begenvdef_location,
@@ -775,19 +768,60 @@ impl<'a> Parser<'a> {
             (0, None)
         };
 
-        let begin_part =
-            self.parse_define_body(beg_toktype, TokenType::EndsWith, begenvdef_location)?;
+        let mut begin_part = Vec::new();
+        loop {
+            match self.peek_tok() {
+                TokenType::Defenv | TokenType::Redefenv => {
+                    begin_part.push(self.parse_environment_definition()?)
+                }
+                TokenType::EndsWith => break,
+                TokenType::Endenv | TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::Defenv, TokenType::Redefenv],
+                            close: TokenType::EndsWith,
+                        },
+                        begenvdef_location,
+                    ));
+                }
+                _ => {
+                    self.doc_state.parsing_define = true;
+                    begin_part.push(self.parse_statement()?);
+                    self.doc_state.parsing_define = false;
+                }
+            }
+        }
         let midenvdef_location = self.peek_tok_location();
+
         expect_peek!(self: TokenType::EndsWith; self.peek_tok_location());
-        // TODO: implement triming mid_left and mid_right separately.
-        // In the present, there are only two states about triming in the middle.
         if self.peek_tok() == TokenType::Star {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             trim.mid = Some(false);
         }
 
-        let end_part =
-            self.parse_define_body(TokenType::EndsWith, TokenType::Endenv, midenvdef_location)?;
+        let mut end_part = Vec::new();
+        loop {
+            match self.peek_tok() {
+                TokenType::Defenv | TokenType::Redefenv => {
+                    end_part.push(self.parse_environment_definition()?)
+                }
+                TokenType::Endenv => break,
+                TokenType::EndsWith | TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::EndsWith],
+                            close: TokenType::Endenv,
+                        },
+                        midenvdef_location,
+                    ));
+                }
+                _ => {
+                    self.doc_state.parsing_define = true;
+                    end_part.push(self.parse_statement()?);
+                    self.doc_state.parsing_define = false;
+                }
+            }
+        }
         expect_peek!(self: TokenType::Endenv; self.peek_tok_location());
         if self.peek_tok() == TokenType::Star {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
@@ -874,21 +908,33 @@ impl<'a> Parser<'a> {
         Ok(output)
     }
 
-    fn parse_define_body(
-        &mut self,
-        beg_toktype: TokenType,
-        end_toktype: TokenType,
-        begdef_location: Span,
-    ) -> error::Result<Latex> {
+    fn parse_function_definebody(&mut self, begdef_location: Span) -> error::Result<Latex> {
         let mut body: Latex = Vec::new();
         let mut def_level = 0;
-        while self.peek_tok() != end_toktype && def_level >= 0 {
+        while self.peek_tok() != TokenType::EndFunctionDef && def_level >= 0 {
             match self.peek_tok() {
                 TokenType::Eof => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErrKind::IsNotClosedErr {
-                            open: beg_toktype,
-                            close: end_toktype,
+                            open: vec![
+                                TokenType::FunctionDef,
+                                TokenType::LongFunctionDef,
+                                TokenType::OuterFunctionDef,
+                                TokenType::LongOuterFunctionDef,
+                                TokenType::EFunctionDef,
+                                TokenType::LongEFunctionDef,
+                                TokenType::OuterEFunctionDef,
+                                TokenType::LongOuterEFunctionDef,
+                                TokenType::GFunctionDef,
+                                TokenType::LongGFunctionDef,
+                                TokenType::OuterGFunctionDef,
+                                TokenType::LongOuterGFunctionDef,
+                                TokenType::XFunctionDef,
+                                TokenType::LongXFunctionDef,
+                                TokenType::OuterXFunctionDef,
+                                TokenType::LongOuterXFunctionDef,
+                            ],
+                            close: TokenType::EndFunctionDef,
                         },
                         begdef_location,
                     ));
@@ -909,7 +955,7 @@ impl<'a> Parser<'a> {
                 | TokenType::LongXFunctionDef
                 | TokenType::OuterXFunctionDef
                 | TokenType::LongOuterXFunctionDef => def_level += 1,
-                toktype if toktype == end_toktype => {
+                toktype if toktype == TokenType::EndFunctionDef => {
                     def_level -= 1;
                     if def_level < 0 {
                         break;
@@ -917,9 +963,9 @@ impl<'a> Parser<'a> {
                 }
                 _ => {}
             }
-            self.document_state |= DocState::PARSING_FUNCTION_DEF;
+            self.doc_state.parsing_define = true;
             body.push(self.parse_statement()?);
-            self.document_state &= !DocState::PARSING_FUNCTION_DEF;
+            self.doc_state.parsing_define = false;
         }
 
         Ok(body)

@@ -465,3 +465,29 @@ endenv
     expected!(source2 should be expected1);
     expected!(source3 should be expected2);
 }
+
+#[test]
+fn parse_nested_define_environment() {
+    let source = r#"defenv* foo [1,basd]
+  defenv bar
+      give a number
+  endswith
+      and foo
+  endenv
+begenv bar
+  \noindent #1
+endenv
+endswith*
+\vskip 1pc
+endenv"#;
+
+    let expected = r#"\newenvironment{foo}[1][basd]{
+  \newenvironment{bar}{give a number}{and foo}
+\begin{bar}
+  \noindent #1
+\end{bar}
+}{
+\vskip 1pc}
+"#;
+    expected!(source should be expected);
+}
