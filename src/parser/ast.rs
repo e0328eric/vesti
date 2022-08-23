@@ -35,6 +35,13 @@ pub enum Statement {
         args: Vec<(ArgNeed, Vec<Statement>)>,
         text: Latex,
     },
+    BeginPhantomEnvironment {
+        name: String,
+        args: Vec<(ArgNeed, Vec<Statement>)>,
+    },
+    EndPhantomEnvironment {
+        name: String,
+    },
     FunctionDefine {
         style: FunctionStyle,
         name: String,

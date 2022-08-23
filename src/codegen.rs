@@ -38,6 +38,10 @@ impl ToString for Statement {
             Statement::MathText { state, text } => math_text_to_string(*state, text),
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
+            Statement::BeginPhantomEnvironment { name, args } => {
+                begin_phantom_environment_to_string(name, args)
+            }
+            Statement::EndPhantomEnvironment { name } => format!("\\end{{{name}}}"),
             Statement::FunctionDefine {
                 style,
                 name,
@@ -136,6 +140,25 @@ fn plaintext_in_math_to_string(latex: &Latex) -> String {
 
 fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {
     let mut output = format!("{}", name);
+    for arg in args {
+        let mut tmp = String::new();
+        for t in &arg.1 {
+            tmp += &t.to_string();
+        }
+        match arg.0 {
+            ArgNeed::MainArg => output += &format!("{{{tmp}}}"),
+            ArgNeed::Optional => output += &format!("[{tmp}]"),
+            ArgNeed::StarArg => output.push('*'),
+        }
+    }
+    output
+}
+
+fn begin_phantom_environment_to_string(
+    name: &str,
+    args: &Vec<(ArgNeed, Vec<Statement>)>,
+) -> String {
+    let mut output = format!("\\begin{{{name}}}");
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {

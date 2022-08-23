@@ -31,13 +31,25 @@ macro_rules! token {
 
 fn check_same(toks1: Vec<Token>, toks2: Vec<Token>) -> bool {
     if toks1.len() != toks2.len() {
+        println!("length expected {:?}, got {:?}", toks1.len(), toks2.len());
         return false;
     }
 
-    toks1
-        .into_iter()
-        .zip(toks2)
-        .all(|(tok1, tok2)| tok1.toktype == tok2.toktype && tok1.literal == tok2.literal)
+    for (tok1, tok2) in toks1.into_iter().zip(toks2) {
+        if tok1.toktype != tok2.toktype {
+            println!("token expected {:?}, got {:?}", tok1.toktype, tok2.toktype);
+            return false;
+        }
+        if tok1.literal != tok2.literal {
+            println!(
+                "literal expected {:?}, got {:?}",
+                tok1.literal, tok2.literal
+            );
+            return false;
+        }
+    }
+
+    true
 }
 
 #[test]
@@ -238,7 +250,7 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc mtxt import etxt endenv";
+    let source = "docclass begenv startdoc mtxt import etxt endenv @begenv @endenv";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
@@ -253,6 +265,10 @@ fn lexing_keywords() {
         token!(TokenType::Etxt, "etxt"),
         token!(TokenType::Space, " "),
         token!(TokenType::Endenv, "endenv"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::PhantomBegenv, "@begenv"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::PhantomEndenv, "@endenv"),
     ];
 
     let mut lex = Lexer::new(source);

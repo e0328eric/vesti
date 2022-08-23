@@ -5,6 +5,8 @@ mod parser_test;
 mod macros;
 pub mod ast;
 
+use std::mem::MaybeUninit;
+
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::Token;
 use crate::lexer::token::TokenType;
@@ -100,7 +102,7 @@ impl<'a> Parser<'a> {
                 self.eat_whitespaces(true);
                 Ok(Statement::DocumentStart)
             }
-            TokenType::Begenv => self.parse_environment(),
+            TokenType::Begenv => self.parse_environment::<true>(),
             TokenType::Endenv => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {
                     open: vec![
@@ -113,6 +115,8 @@ impl<'a> Parser<'a> {
                 },
                 self.peek_tok_location(),
             )),
+            TokenType::PhantomBegenv => self.parse_environment::<false>(),
+            TokenType::PhantomEndenv => self.parse_end_phantom_environment(),
             TokenType::Mtxt => self.parse_text_in_math(),
             TokenType::Etxt => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {
@@ -442,38 +446,70 @@ impl<'a> Parser<'a> {
         Ok(Statement::MultiUsepackages { pkgs })
     }
 
-    fn parse_environment(&mut self) -> error::Result<Statement> {
-        let begenv_location = self.peek_tok_location();
-        let mut off_math_state = false;
-
-        expect_peek!(self: TokenType::Begenv; self.peek_tok_location());
+    fn parse_end_phantom_environment(&mut self) -> error::Result<Statement> {
+        let endenv_location = self.peek_tok_location();
+        expect_peek!(self: TokenType::PhantomEndenv; self.peek_tok_location());
         self.eat_whitespaces(false);
-
-        if self.is_eof() {
-            return Err(VestiErr::ParseErr {
-                err_kind: VestiParseErrKind::IsNotClosedErr {
-                    open: vec![TokenType::Begenv],
-                    close: TokenType::Endenv,
-                },
-                location: begenv_location,
-            });
-        }
 
         let mut name = match self.peek_tok() {
             TokenType::Text => self.next_tok().literal,
             TokenType::Eof => {
-                return Err(VestiErr::make_parse_err(
-                    VestiParseErrKind::EOFErr,
-                    begenv_location,
-                ))
+                return Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::EOFErr,
+                    location: endenv_location,
+                });
             }
             _ => {
                 return Err(VestiErr::make_parse_err(
                     VestiParseErrKind::NameMissErr {
-                        r#type: TokenType::Begenv,
+                        r#type: TokenType::PhantomEndenv,
+                    },
+                    endenv_location,
+                ));
+            }
+        };
+        while self.peek_tok() == TokenType::Star {
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
+            name.push('*');
+        }
+        self.eat_whitespaces(false);
+
+        Ok(Statement::EndPhantomEnvironment { name })
+    }
+
+    fn parse_environment<const IS_REAL: bool>(&mut self) -> error::Result<Statement> {
+        let begenv_location = self.peek_tok_location();
+        let mut off_math_state = false;
+
+        expect_peek!(self: if IS_REAL { TokenType::Begenv } else { TokenType::PhantomBegenv }; self.peek_tok_location());
+        self.eat_whitespaces(false);
+
+        let mut name = match self.peek_tok() {
+            TokenType::Text => self.next_tok().literal,
+            TokenType::Eof => {
+                return Err(VestiErr::ParseErr {
+                    err_kind: if IS_REAL {
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::Begenv],
+                            close: TokenType::Endenv,
+                        }
+                    } else {
+                        VestiParseErrKind::EOFErr
+                    },
+                    location: begenv_location,
+                })
+            }
+            _ => {
+                return Err(VestiErr::make_parse_err(
+                    VestiParseErrKind::NameMissErr {
+                        r#type: if IS_REAL {
+                            TokenType::Begenv
+                        } else {
+                            TokenType::PhantomBegenv
+                        },
                     },
                     begenv_location,
-                ))
+                ));
             }
         };
 
@@ -495,22 +531,25 @@ impl<'a> Parser<'a> {
             TokenType::Lsqbrace,
             TokenType::Rsqbrace,
         )?;
-        let mut text: Latex = Vec::new();
 
-        while self.peek_tok() != TokenType::Endenv {
-            if self.is_eof() {
-                return Err(VestiErr::make_parse_err(
-                    VestiParseErrKind::IsNotClosedErr {
-                        open: vec![TokenType::Begenv],
-                        close: TokenType::Endenv,
-                    },
-                    begenv_location,
-                ));
+        let mut text = MaybeUninit::<Latex>::uninit();
+        if IS_REAL {
+            let text_ref = text.write(Vec::new());
+            while self.peek_tok() != TokenType::Endenv {
+                if self.is_eof() {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::Begenv],
+                            close: TokenType::Endenv,
+                        },
+                        begenv_location,
+                    ));
+                }
+                text_ref.push(self.parse_statement()?);
             }
-            text.push(self.parse_statement()?);
-        }
 
-        expect_peek!(self: TokenType::Endenv; self.peek_tok_location());
+            expect_peek!(self: TokenType::Endenv; self.peek_tok_location());
+        }
 
         // If name is math related one, then math mode will be turn off
         if off_math_state {
@@ -520,7 +559,17 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
 
-        Ok(Statement::Environment { name, args, text })
+        if IS_REAL {
+            // SAFETY: We know that text is initialized at the same if branch, and IS_REAL can be
+            // determined at the compile time
+            Ok(Statement::Environment {
+                name,
+                args,
+                text: unsafe { text.assume_init() },
+            })
+        } else {
+            Ok(Statement::BeginPhantomEnvironment { name, args })
+        }
     }
 
     fn parse_function_definition(&mut self) -> error::Result<Statement> {

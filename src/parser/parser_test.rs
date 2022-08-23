@@ -491,3 +491,16 @@ endenv"#;
 "#;
     expected!(source should be expected);
 }
+
+#[test]
+fn parse_phantom_environment() {
+    let source = r#"defenv newminipage [1]
+    @begenv minipage (0.4\textwidth)
+endswith
+    @endenv minipage
+endenv"#;
+
+    let expected =
+        "\\newenvironment{newminipage}[1]{\\begin{minipage}{0.4\\textwidth}}{\\end{minipage}}\n";
+    expected!(source should be expected);
+}
