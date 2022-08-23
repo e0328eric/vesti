@@ -54,17 +54,9 @@ impl<'a> Lexer<'a> {
         match self.chr0 {
             Some('\0') | None => Token::eof(start_loc, self.current_loc),
             Some(' ') => {
-                if self.chr1 == Some('@') {
-                    match self.chr2 {
-                        Some('!') => tokenize!(self:Space, " "; start_loc),
-                        Some(chr @ _) if chr.is_alphabetic() => {
-                            tokenize!(self:Space, " "; start_loc)
-                        }
-                        _ => {
-                            self.next_char();
-                            tokenize!(self:ArgSpliter, ""; start_loc)
-                        }
-                    }
+                if self.chr1 == Some('@') && self.chr2 != Some('!') {
+                    self.next_char();
+                    tokenize!(self:ArgSpliter, ""; start_loc)
                 } else {
                     tokenize!(self:Space, " "; start_loc)
                 }
@@ -104,14 +96,14 @@ impl<'a> Lexer<'a> {
             }
             Some('!') => tokenize!(self: Bang, "!"; start_loc),
             Some('?') => tokenize!(self: Question, "?"; start_loc),
-            Some('@') => match self.chr1 {
-                Some('!') => {
+            Some('@') => {
+                if let Some('!') = self.chr1 {
                     self.next_char();
                     tokenize!(self: At, "@"; start_loc)
+                } else {
+                    tokenize!(self: ArgSpliter, "@"; start_loc)
                 }
-                Some(chr @ _) if chr.is_alphabetic() => self.lex_main_string(),
-                _ => tokenize!(self: ArgSpliter, "@"; start_loc),
-            },
+            }
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
             Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
@@ -147,14 +139,14 @@ impl<'a> Lexer<'a> {
         let start_loc = self.current_loc;
         let mut literal = String::new();
         while let Some(chr) = self.chr0 {
-            if !chr.is_alphanumeric() && chr != '@' {
+            if !chr.is_alphanumeric() {
                 break;
             }
             literal.push(chr);
             self.next_char();
         }
         let toktype = if let Some(toktype) = TokenType::is_keyword_str(&literal) {
-            if (&literal == "mnd" || &literal == "dmnd") && self.chr0 == Some(' ') {
+            if &literal == "mnd" && self.chr0 == Some(' ') {
                 self.next_char();
             }
             toktype

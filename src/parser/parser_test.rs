@@ -495,9 +495,9 @@ endenv"#;
 #[test]
 fn parse_phantom_environment() {
     let source = r#"defenv newminipage [1]
-    @begenv minipage (0.4\textwidth)
+    pbegenv minipage (0.4\textwidth)
 endswith
-    @endenv minipage
+    pendenv minipage
 endenv"#;
 
     let expected =

@@ -250,7 +250,7 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc mtxt import etxt endenv @begenv @endenv";
+    let source = "docclass begenv startdoc mtxt import etxt endenv pbegenv pendenv";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
@@ -266,9 +266,9 @@ fn lexing_keywords() {
         token!(TokenType::Space, " "),
         token!(TokenType::Endenv, "endenv"),
         token!(TokenType::Space, " "),
-        token!(TokenType::PhantomBegenv, "@begenv"),
+        token!(TokenType::PhantomBegenv, "pbegenv"),
         token!(TokenType::Space, " "),
-        token!(TokenType::PhantomEndenv, "@endenv"),
+        token!(TokenType::PhantomEndenv, "pendenv"),
     ];
 
     let mut lex = Lexer::new(source);
