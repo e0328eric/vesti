@@ -1,0 +1,146 @@
+% A latex class (not the vesti's one) written by myself
+docclass coprime (item, tikz)
+
+\settitle{Complex Analysis Rudin Note-taking}{Subgbae Jeong}
+
+defun arg() \mathop{\rm{arg}} endfun
+defun Arg() \mathop{\rm{Arg}} endfun
+defun Log() \mathop{\rm{Log}} endfun
+
+startdoc
+
+\fancyon
+\section{Basic Theories of Holomorphic Functions}
+
+begenv defin [Some short definitions]
+begenv itemize
+\item $-\pi<\Arg z<=\pi$
+\item $\Log z$ is a principle logarithm
+endenv
+endenv
+
+begenv defin [Branch of the Logarithm]
+Let $G$ be a connected open set such that $0\notin G$. If there is a continuous function
+$g:G->\C$ such that $exp(g(z))=z$ for every $z\in G$, we call the function $g$ as a
+\bf{branch of the logarithm}.
+endenv
+
+We do not know the existence yet. However, if it exists, the branch of the logarithm is unique
+under the modulo $2\pi i$ in the sense that the following theorem:
+
+begenv thm
+Let $G$ be an open connected subset of $\C$ and if $f$, $g$ are two branches of the logarithm
+on $G$, then $f-g=2k\pi i$ for some $k\in\Z$.
+\proof
+Note that $\exp(f(z))=\exp(g(z))=z$ for all $z\in G$, thus
+\[
+    e^{f(z)-g(z)} = \frac{e^{f(z)} @ e^{g(z)}} = \frac{z @ z} = 1
+\]
+holds for all $z\in G$.
+This means that if we let $h:=f-g$, then $h[G]\subset 2\pi i\Z$.
+Since $h$ is continuous and $G$ is connected, $h[G]$ is also connected.
+This guarantees a fixed integer $k$ such that $h(z)=2k\pi i$. \proved
+endenv
+
+begenv prop \label{prop1}
+Let $G$ and $\Omega$ are open subsets of $\C$.
+Suppose that $f:G->\C$ and $g:\Omega->\C$ are continuous such that $f[G]\subset \Omega$ and
+$g(f(z))=z$ for all $z\in G$.
+If $g$ is holomorphic and $g'/=0$ on $\Omega$, then $f$ is also holomorphic, and
+\[
+    f'(z) = \frac{1 @ g'(f(z))}.
+\]
+\proof
+Fix $a\in G$ and $h\in\C$ such that $h/=0$ and $a+h\in G$.
+Since
+\[
+1 = \frac{g(f(a+h))-g(f(a)) @ h} = \frac{g(f(a+h))-g(f(a)) @ f(a+h)-f(a)}\frac{f(a+h)-f(a) @ h}
+\]
+Here, as $g\circ f$ is identity, $f(a+h)$ cannot be equal to $f(a)$ since $h/=0$.
+Taking $h->0$, the continuity of $f$ and differentiability of $g$ gives the result. \proved
+endenv
+
+begenv coro
+A branch of the logarithm is analytic and its derivative is $1/z$.
+\proof If $f:G->\C$ is a branch of the logarithm on some connected open set $G$,
+as $\exp$ is holomorphic with nonzero derivative, appling \cref{prop1} gives the proof. \proved
+endenv
+
+begenv defin
+Let $f$ be a branch of the logarithm on an open connected set $G$, $b\in\C$ is fixed.
+Define $g:G->\C$ by $g(z)=\exp(bf(z))$.
+If $n\in\Z$, then $g(z)=z^n$. In this manner, we define a branch of $z^b$ where $b\in\C$
+for an open conencted set $G$ on which there is a branch of the logarithm,
+and define $z^b:=\exp(bf(z))$.
+
+If we write $z^b$ as a function, we will always understand that $z^b=\exp(b\Log z)$.
+endenv
+
+begenv thm
+Suppose $\mu$ is a complex measure on a measurable space $X$, $\phi:X->\C$ is a measurable function,
+$\Omega\subset\C$ is open such that $\Omega\cap\phi[X]=\emptyset$.
+
+Define
+\[
+    f(z) := \int_X\frac{\mu(dx) @ \phi(x) - z}.
+\]
+Then $f$ is representable by a power series in $\Omega$.
+\proof
+Fix $a\in\Omega$ and $r>0$ such that $D(a;r)\subset\Omega$.
+Since $\Omega$ and $\phi[X]$ are disjoint, $|\phi(x)-a|>=r$.
+This gives that
+\[
+    \frac{|z-a| @ |\phi(x) - a|} <= \frac{ |z-a| @ r} < 1
+\]
+for all $z\in D(a;r)$.
+Thus, for all $z\in D(a;r)$, we get
+begenv align*
+\frac{1 @ \phi(x) - z} &= \frac{1 @ \phi(x) - a + a - z}\\
+&= \frac{1 @ (\phi(x)-a)\left(1+\frac{a-z @ \phi(x)-a}\right)}\\
+&= \frac{1 @ \phi(x)-a}\sum_{n=0}^\infty\frac{(z-a)^n @ (\phi(x)-a)^n},
+endenv
+which the right side of the summation converges uniformly for all $x\in X$ for fixed $z$.
+Hence,
+begenv align*
+f(z) &= \int_X\frac{\mu(dx) @ \phi(x) - z}\\
+&= \sum_{n=0}^\infty\int_X\frac{(z-a)^n @ (\phi(x)-a)^{n+1}}\mu(dx)\\
+&= \sum_{n=0}^\infty\left(\int_X\frac{\mu(dx) @ (\phi(x)-a)^{n+1}}\right)(z-a)^n
+endenv
+so the proof is finished. \proved
+endenv
+
+\subsection{Integration over Paths}
+
+begenv defin [A curve]
+Let $X$ be a topological space. A \bf{curve} in $X$ is a continuous function $\gamma:[a,b]->X$ where
+$[a,b]\subset\R$ with $a<b$.
+The interval $[a,b]$ is called a \bf{parameter interval} of $\gamma$.
+$\gamma^*$ is an image of $\gamma$, that is, $\gamma^*=\gamma[[a,b]]$.
+$\gamma$ is called \bf{closed} if $\gamma(a)=\gamma(b)$.
+endenv
+
+begenv defin [A path]
+A \bf{path} is a picewise continuously differentiable curve in $\C$.
+That means that there is a partition $P=\{a=t_0<t_1<\cdots<t_n=b\}$ for a parameter interval
+$[a,b]$ of $\gamma$ such that $\gamma'$ exisis and continuous for all $(t_i,t_{i+1})$ and
+$\gamma'(t_i+)$ and $\gamma'(t_i-)$ are exists and \it{finite}.
+endenv
+
+begenv defin [Integration by Path]
+Let $\gamma:[a,b]->\C$ be a path and $f$ is a continuous on $\gamma^*$. Then we define
+\[
+    \int_\gamma f(z)dz := \int_a^b f(\gamma(x))\gamma'(x)dx
+\]
+endenv
+
+If $\phi:[a',b']->[a,b]$ is a $C^1$ bijective function with $\phi(a')=a$ and $\phi(b')=b$,
+Then we can think the new path $\gamma'=\gamma\circ\phi$. Note that $\gamma'^*=\gamma^*$.
+As
+\[
+    begenv aligned
+    \int_{\gamma'}f(z)dz = \int_{a'}^{b'}f(\gamma_1(t))\gamma_1'(t)dt
+    &= \int_{a'}^{b'}f(\gamma(\phi(t)))\gamma'(\phi(t))\phi'(t)dt \\
+    &= \int_{a}^{b}f(\gamma(t))\gamma'(t)dt = \int_\gamma f(z)dz,
+    endenv
+\]
+the definition of the integration by path is well-defined.
