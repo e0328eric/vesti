@@ -1,6 +1,8 @@
+use std::fmt::Write;
+use std::path::Path;
+
 use super::{Error, VestiErr};
 use crate::location::Span;
-use std::path::Path;
 
 const BOLD_TEXT: &str = "\x1b[1m";
 const ERR_COLOR: &str = "\x1b[38;5;9m";
@@ -20,12 +22,14 @@ pub fn pretty_print(
 
     // Make error code and error title format
     output = output + BOLD_TEXT + ERR_COLOR;
-    output += &format!(
+    write!(
+        output,
         " error[E{0:04X}]{color:}: {1}",
         err_code,
         err_str,
         color = ERR_TITLE_COLOR
-    );
+    )
+    .expect("INTERNAL ERROR: write failed but it shouldn't be. If this happends, let me know");
     output = output + RESET_COLOR + "\n";
 
     if let VestiErr::ParseErr {

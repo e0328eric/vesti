@@ -31,7 +31,7 @@ impl ToString for Statement {
             Statement::DocumentStart => String::from("\\begin{document}\n"),
             Statement::DocumentEnd => String::from("\n\\end{document}\n"),
             Statement::MainText(s) => s.clone(),
-            Statement::PlainTextInMath(latex) => plaintext_in_math_to_string(latex),
+            Statement::PlainTextInMath { trim, text } => plaintext_in_math_to_string(trim, text),
             Statement::Integer(i) => i.to_string(),
             Statement::Float(f) => f.to_string(),
             Statement::RawLatex(s) => s.clone(),
@@ -129,13 +129,18 @@ fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
     output
 }
 
-fn plaintext_in_math_to_string(latex: &Latex) -> String {
-    let mut output = latex_to_string(latex);
+fn plaintext_in_math_to_string(trim: &TrimWhitespace, text: &Latex) -> String {
+    let mut output = latex_to_string(text);
     if output.as_bytes()[output.len() - 1] == b' ' {
         output.pop();
     }
 
-    format!("\\text{{{}}}", output)
+    match (trim.start, trim.end) {
+        (true, true) => format!("\\text{{ {} }}", output),
+        (true, false) => format!("\\text{{ {}}}", output),
+        (false, true) => format!("\\text{{{} }}", output),
+        (false, false) => format!("\\text{{{}}}", output),
+    }
 }
 
 fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {

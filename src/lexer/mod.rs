@@ -73,12 +73,18 @@ impl<'a> Lexer<'a> {
                 _ => tokenize!(self: Minus, "-"; start_loc),
             },
             Some('*') => tokenize!(self: Star, "*"; start_loc),
-            Some('/') => tokenize!(self: Slash, "/";start_loc),
+            Some('/') => match self.chr1 {
+                Some('=') => {
+                    self.next_char();
+                    tokenize!(self: NotEqual, "\\neq "; start_loc)
+                }
+                _ => tokenize!(self: Slash, "/"; start_loc),
+            },
             Some('=') => tokenize!(self: Equal , "="; start_loc),
             Some('<') => match self.chr1 {
                 Some('=') => {
                     self.next_char();
-                    tokenize!(self: LessEq, "<="; start_loc)
+                    tokenize!(self: LessEq, "\\leq "; start_loc)
                 }
                 Some('-') if self.math_started => {
                     self.next_char();
@@ -86,15 +92,20 @@ impl<'a> Lexer<'a> {
                 }
                 _ => tokenize!(self: Less, "<"; start_loc),
             },
-            Some('>') => {
-                if self.chr1 == Some('=') {
+            Some('>') => match self.chr1 {
+                Some('=') => {
                     self.next_char();
-                    tokenize!(self: GreatEq, ">="; start_loc)
-                } else {
-                    tokenize!(self: Great, ">"; start_loc)
+                    tokenize!(self: GreatEq, "\\geq "; start_loc)
                 }
-            }
-            Some('!') => tokenize!(self: Bang, "!"; start_loc),
+                _ => tokenize!(self: Great, ">"; start_loc),
+            },
+            Some('!') => match self.chr1 {
+                Some('=') => {
+                    self.next_char();
+                    tokenize!(self: NotEqual, "\\neq "; start_loc)
+                }
+                _ => tokenize!(self: Bang, "!"; start_loc),
+            },
             Some('?') => tokenize!(self: Question, "?"; start_loc),
             Some('@') => {
                 if let Some('!') = self.chr1 {
@@ -126,8 +137,8 @@ impl<'a> Lexer<'a> {
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
-            Some(chr @ _) if chr.is_alphabetic() => self.lex_main_string(),
-            Some(chr @ _) if chr.is_ascii_digit() => self.lex_number(),
+            Some(chr) if chr.is_alphabetic() => self.lex_main_string(),
+            Some(chr) if chr.is_ascii_digit() => self.lex_number(),
             _ => {
                 self.next_char();
                 Token::illegal(start_loc, self.current_loc)
@@ -256,6 +267,15 @@ impl<'a> Lexer<'a> {
             Some('!') => {
                 self.next_char();
                 tokenize!(self: RawDollar, "$"; start_loc)
+            }
+            Some('$') => {
+                if !self.math_started {
+                    self.math_started = true;
+                    tokenize!(self: InlineMathStart, "$"; start_loc)
+                } else {
+                    self.math_started = false;
+                    tokenize!(self: InlineMathEnd, "$"; start_loc)
+                }
             }
             _ => {
                 if !self.math_started {

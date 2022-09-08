@@ -95,6 +95,7 @@ pub enum TokenType {
     Star,           // *
     Slash,          // /
     Equal,          // =
+    NotEqual,       // /= or !=
     Less,           // <
     Great,          // >
     LessEq,         // <=

@@ -1,4 +1,5 @@
 #![allow(clippy::enum_variant_names)]
+#![allow(clippy::derive_partial_eq_without_eq)]
 #![deny(bindings_with_variant_name)]
 
 mod codegen;

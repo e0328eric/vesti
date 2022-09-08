@@ -96,8 +96,8 @@ fn test_lexing_double_symbols() {
         token!(TokenType::TextMathStart, "$"),
         token!(TokenType::LeftArrow, "\\leftarrow "),
         token!(TokenType::TextMathEnd, "$"),
-        token!(TokenType::GreatEq, ">="),
-        token!(TokenType::LessEq, "<="),
+        token!(TokenType::GreatEq, "\\geq "),
+        token!(TokenType::LessEq, "\\leq "),
         token!(TokenType::At, "@"),
         token!(TokenType::LatexComment, "%"),
     ];

@@ -25,7 +25,10 @@ pub enum Statement {
         state: MathState,
         text: Vec<Statement>,
     },
-    PlainTextInMath(Latex),
+    PlainTextInMath {
+        trim: TrimWhitespace,
+        text: Latex,
+    },
     LatexFunction {
         name: String,
         args: Vec<(ArgNeed, Vec<Statement>)>,
