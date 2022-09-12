@@ -13,7 +13,7 @@ mod parser;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -32,6 +32,7 @@ use crate::initialization::generate_vesti_file;
 
 fn main() -> ExitCode {
     let args = commands::VestiOpt::parse();
+    let is_loop_end = Arc::new(RwLock::new(false));
 
     if let VestiOpt::Init { project_name } = args {
         let project_name = if let Some(project_name) = project_name {
@@ -74,8 +75,9 @@ fn main() -> ExitCode {
 
         let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
         for file_name in file_lists {
+            let cloned_bool = Arc::clone(&is_loop_end);
             handle_vesti.push(thread::spawn(move || {
-                compile_vesti(file_name, is_continuous);
+                compile_vesti(file_name, is_continuous, cloned_bool);
             }));
         }
 

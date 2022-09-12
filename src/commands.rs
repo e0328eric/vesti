@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
@@ -13,30 +14,36 @@ use crate::lexer::Lexer;
 use crate::parser::Parser;
 
 macro_rules! unwrap_err {
-    ($name: ident := $to_unwrap: expr, $source: expr, $file_name: expr) => {
+    ($name: ident := $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
         let $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                let mut writer = $is_loop_end.write().unwrap();
+                *writer = true;
+                return ExitCode::Failure;
             }
         };
     };
-    (mut $name: ident := $to_unwrap: expr, $source: expr, $file_name: expr) => {
+    (mut $name: ident := $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
         let mut $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                let mut writer = $is_loop_end.write().unwrap();
+                *writer = true;
+                return ExitCode::Failure;
             }
         };
     };
-    ($name: ident = $to_unwrap: expr, $source: expr, $file_name: expr) => {
+    ($name: ident = $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
         $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
                 println!("{}", pretty_print($source, err, $file_name));
-                std::process::exit(1);
+                let mut writer = $is_loop_end.write().unwrap();
+                *writer = true;
+                return ExitCode::Failure;
             }
         };
     };
@@ -130,17 +137,27 @@ fn take_time(file_name: &Path) -> error::Result<SystemTime> {
     Ok(path.metadata()?.modified()?)
 }
 
-pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) -> ExitCode {
+pub fn compile_vesti(
+    file_name: PathBuf,
+    is_continuous: bool,
+    is_loop_end: Arc<RwLock<bool>>,
+) -> ExitCode {
     let mut init_compile = true;
     let output = output_file_name(&file_name);
-    unwrap_err!(mut init_time := take_time(&file_name), None, None);
+    unwrap_err!(mut init_time := take_time(&file_name), None, None, is_loop_end);
     let mut now_time = init_time;
 
     loop {
+        if {
+            let reader = is_loop_end.read().unwrap();
+            *reader
+        } {
+            return ExitCode::Failure;
+        }
         if init_compile || init_time != now_time {
             let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
             let mut parser = Parser::new(Lexer::new(&source));
-            unwrap_err!(contents := make_latex_format::<false>(&mut parser), Some(source.as_ref()), Some(&file_name));
+            unwrap_err!(contents := make_latex_format::<false>(&mut parser), Some(source.as_ref()), Some(&file_name), is_loop_end);
             drop(parser);
 
             fs::write(&output, contents).expect("File write failed.");
@@ -155,7 +172,7 @@ pub fn compile_vesti(file_name: PathBuf, is_continuous: bool) -> ExitCode {
             init_compile = false;
             init_time = now_time;
         }
-        unwrap_err!(now_time = take_time(&file_name), None, None);
+        unwrap_err!(now_time = take_time(&file_name), None, None, is_loop_end);
         thread::sleep(Duration::from_millis(500));
     }
 
