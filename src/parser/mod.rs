@@ -169,12 +169,6 @@ impl<'a> Parser<'a> {
             TokenType::RawLatex => self.parse_raw_latex(),
             TokenType::Integer => self.parse_integer(),
             TokenType::Float => self.parse_float(),
-            toktype if toktype.should_not_use_before_doc() && self.is_premiere() => {
-                Err(VestiErr::make_parse_err(
-                    VestiParseErrKind::BeforeDocumentErr { got: toktype },
-                    self.peek_tok_location(),
-                ))
-            }
 
             // Math related tokens
             TokenType::TextMathStart | TokenType::InlineMathStart => self.parse_math_stmt(),

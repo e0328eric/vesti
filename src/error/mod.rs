@@ -11,9 +11,6 @@ pub enum VestiParseErrKind {
         expected: Vec<TokenType>,
         got: TokenType,
     },
-    BeforeDocumentErr {
-        got: TokenType,
-    },
     ParseIntErr,
     ParseFloatErr,
     InvalidTokToConvert {
@@ -111,16 +108,15 @@ impl Error for VestiParseErrKind {
             Self::EOFErr => 0x0E0F,
             Self::IllegalCharacterFoundErr => 0x0101,
             Self::TypeMismatch { .. } => 0x0102,
-            Self::BeforeDocumentErr { .. } => 0x0103,
-            Self::ParseIntErr => 0x0104,
-            Self::ParseFloatErr => 0x0105,
-            Self::InvalidTokToConvert { .. } => 0x0106,
-            Self::BracketMismatchErr { .. } => 0x0107,
-            Self::BracketNumberMatchedErr => 0x0108,
-            Self::IsNotClosedErr { .. } => 0x0109,
-            Self::IsNotOpenedErr { .. } => 0x0110,
-            Self::NameMissErr { .. } => 0x0111,
-            Self::IllegalUseErr { .. } => 0x0112,
+            Self::ParseIntErr => 0x0103,
+            Self::ParseFloatErr => 0x0104,
+            Self::InvalidTokToConvert { .. } => 0x0105,
+            Self::BracketMismatchErr { .. } => 0x0106,
+            Self::BracketNumberMatchedErr => 0x0107,
+            Self::IsNotClosedErr { .. } => 0x0108,
+            Self::IsNotOpenedErr { .. } => 0x0109,
+            Self::NameMissErr { .. } => 0x0110,
+            Self::IllegalUseErr { .. } => 0x0111,
         }
     }
     fn err_str(&self) -> String {
@@ -128,9 +124,6 @@ impl Error for VestiParseErrKind {
             Self::EOFErr => String::from("EOF found unexpectedly"),
             Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
-            Self::BeforeDocumentErr { got } => {
-                format!("Type `{got:?}` must be placed after `startdoc`")
-            }
             Self::ParseIntErr => String::from("Parsing integer error occurs"),
             Self::ParseFloatErr => String::from("Parsing float error occurs"),
             Self::InvalidTokToConvert { got } => {
@@ -155,9 +148,6 @@ impl Error for VestiParseErrKind {
             Self::EOFErr | Self::IllegalCharacterFoundErr => vec![],
             Self::TypeMismatch { expected, got } => {
                 vec![format!("expected `{expected:?}`, got `{got:?}`")]
-            }
-            Self::BeforeDocumentErr { got } => {
-                vec![format!("move `{got:?}` after `startdoc` keyword")]
             }
             Self::ParseIntErr => vec![
                 String::from("if this error occurs, this preprocessor has an error"),

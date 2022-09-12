@@ -70,7 +70,7 @@ pub enum TokenType {
     PhantomEndenv,
     Mtxt,
     Etxt,
-    DocumentStartMode,
+    DocumentStartMode, // TODO: deprecated
     FunctionDef,
     LongFunctionDef,
     OuterFunctionDef,
@@ -171,8 +171,8 @@ impl TokenType {
             "mnd" => Some(Self::TextMathEnd),
             "dmst" => Some(Self::InlineMathStart),
             "dmnd" => Some(Self::InlineMathEnd),
-            "nodocclass" => Some(Self::DocumentStartMode),
-            "nondocclass" => Some(Self::DocumentStartMode),
+            "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
+            "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),
             "odefun" => Some(Self::OuterFunctionDef),
@@ -214,20 +214,6 @@ impl TokenType {
             Self::OuterXFunctionDef,
             Self::LongOuterXFunctionDef,
         ]
-    }
-
-    #[inline]
-    pub fn should_not_use_before_doc(self) -> bool {
-        matches!(
-            self,
-            Self::Space2
-                | Self::Begenv
-                | Self::Endenv
-                | Self::TextMathStart
-                | Self::TextMathEnd
-                | Self::InlineMathStart
-                | Self::InlineMathEnd
-        )
     }
 
     #[inline]
