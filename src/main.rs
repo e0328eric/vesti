@@ -12,10 +12,9 @@ mod location;
 mod parser;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
 use clap::Parser;
 
@@ -73,27 +72,22 @@ fn main() -> ExitCode {
             }
         };
 
-        let mut handle_vesti: Vec<JoinHandle<()>> = Vec::new();
+        let mut handle_vesti: Vec<JoinHandle<_>> = Vec::new();
         for file_name in file_lists {
+            let cloned_trap = Arc::clone(&trap);
             let cloned_bool = Arc::clone(&is_loop_end);
             handle_vesti.push(thread::spawn(move || {
-                compile_vesti(file_name, is_continuous, cloned_bool);
+                return compile_vesti(cloned_trap, file_name, is_continuous, cloned_bool);
             }));
         }
 
-        if !is_continuous {
-            for vesti in handle_vesti.into_iter() {
-                vesti.join().unwrap();
-            }
-        } else {
+        if is_continuous {
             println!("Press Ctrl+C to finish the program.");
-            #[cfg(target_os = "windows")]
-            while ![SIGINT, SIGTERM, SIGILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
-                thread::sleep(Duration::from_millis(500));
-            }
-            #[cfg(not(target_os = "windows"))]
-            while ![SIGINT, SIGTERM].contains(&(trap.load(Ordering::Relaxed) as i32)) {
-                thread::sleep(Duration::from_millis(500));
+        }
+
+        for vesti in handle_vesti.into_iter() {
+            if vesti.join().unwrap() == ExitCode::Failure {
+                return ExitCode::Failure;
             }
         }
 
