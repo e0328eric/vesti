@@ -167,10 +167,6 @@ impl TokenType {
             "pendenv" => Some(Self::PhantomEndenv),
             "mtxt" => Some(Self::Mtxt),
             "etxt" => Some(Self::Etxt),
-            "mst" => Some(Self::TextMathStart),
-            "mnd" => Some(Self::TextMathEnd),
-            "dmst" => Some(Self::InlineMathStart),
-            "dmnd" => Some(Self::InlineMathEnd),
             "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
