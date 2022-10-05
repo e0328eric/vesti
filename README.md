@@ -5,8 +5,3 @@ This program is in alpha, so do not use this program in real projects, yet.
 
 This does not supported LaTeX3 grammar yet.
 
-# Todo List
-
-- [ ] Reimplement everything into zig
-- [ ] Implement `defun` keyword which defines LaTeX functions
-- [ ] LaTeX3 grammar support
