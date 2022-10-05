@@ -1,0 +1,3 @@
+[submodule "libs/ziglyph"]
+	path = libs/ziglyph
+	url = https://github.com/jecolon/ziglyph.git

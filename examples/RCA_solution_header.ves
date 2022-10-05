@@ -304,7 +304,7 @@ In this paper, some lemmas are presented. I will use the term \bf{Lemma L.1.1}
 to separate the lemmas in the textbook.
 defun convex (#1)
     \mathop{\rm{co}}(#1)
-endfun
+endfun 
 % \chapter
 % \input{Chapter/ch1.tex}
 % 

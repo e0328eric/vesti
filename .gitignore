@@ -1,4 +1,4 @@
-/target
-/.idea
-.DS_Store
-/.vscode
+/**/.ccls-cache
+/**/.clang-format
+/**/zig-cache
+/**/zig-out
