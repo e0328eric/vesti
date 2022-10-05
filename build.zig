@@ -16,7 +16,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.strip = strip;
     exe.setTarget(target);
     exe.setBuildMode(mode);
-    exe.addCSourceFile("libs/drapeau/drapeau.c", &[_][]const u8{"-std=c11"});
+    exe.addCSourceFile("libs/drapeau.c", &[_][]const u8{"-std=c11"});
     exe.addPackage(ziglyph_pkg);
     exe.addIncludePath("libs/drapeau");
     exe.linkSystemLibrary("c");
