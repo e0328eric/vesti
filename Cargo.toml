@@ -17,7 +17,7 @@ panic = "abort"
 strip = true
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
 signal-hook = "0.3"
 walkdir = "2.3"
 unicode-width = "0.1.8"
