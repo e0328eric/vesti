@@ -1,6 +1,8 @@
 % A latex class (not the vesti's one) written by myself
 docclass coprime (geometry, stix)
 
+import { kotex, tikz }
+
 \settitle{Real and Complex Analysis Rudin Solutions @ Sungbae Jeong}
 \setgeometry{a4paper, margin = 1in}
 

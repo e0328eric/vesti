@@ -45,35 +45,29 @@ fn test_parse_usepackage() {
     let source4 = "import foo (bar1, bar2)";
     let source5 = "import geometry (a4paper, margin = 0.4in)";
     let source6 = r#"import {
-        kotex
-        tcolorbox (many)
-        foo (bar1, bar2, bar3)
-        geometry (a4paper, margin = 0.4in)
+        kotex,
+        tcolorbox (many),
+        foo (bar1, bar2, bar3),
+        geometry (a4paper, margin = 0.4in),
     }"#;
     let source7 = r#"import {
-        kotex
-        tcolorbox (many)
-        foo (bar1, bar2, bar3)
-        geometry (a4paper, margin = 0.4in)
-    }"#;
-    let source8 = r#"import {
-        kotex
-        tcolorbox (many)
+        kotex,
+        tcolorbox (many),
         foo (
           bar1, bar2,
           bar3
-        )
-        geometry (a4paper, margin = 0.4in)
+        ),
+        geometry (a4paper, margin = 0.4in),
     }"#;
-    let source9 = r#"import {
-        kotex
-        tcolorbox (many)
+    let source8 = r#"import {
+        kotex,
+        tcolorbox (many),
         foo (
           bar1,
           bar2,
           bar3,
-        )
-        geometry (a4paper, margin = 0.4in)
+        ),
+        geometry (a4paper, margin = 0.4in),
     }"#;
     let expected1 = "\\usepackage{kotex}\n";
     let expected2 = "\\usepackage[many]{tcolorbox}\n";
@@ -93,7 +87,6 @@ fn test_parse_usepackage() {
     expected!(source6 should be expected5);
     expected!(source7 should be expected5);
     expected!(source8 should be expected5);
-    expected!(source9 should be expected5);
 }
 
 #[test]

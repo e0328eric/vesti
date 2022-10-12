@@ -412,10 +412,17 @@ impl<'a> Parser<'a> {
             take_name!(let name: String <- self);
 
             self.parse_comma_args(&mut options)?;
+            self.eat_whitespaces::<true>();
 
             match self.peek_tok() {
-                TokenType::Newline => self.eat_whitespaces::<true>(),
-                TokenType::Text | TokenType::RawLatex => {}
+                TokenType::Comma => {
+                    self.next_tok();
+                    self.eat_whitespaces::<true>();
+                    if self.peek_tok() == TokenType::Rbrace {
+                        pkgs.push(Statement::Usepackage { name, options });
+                        break;
+                    }
+                }
                 TokenType::Rbrace => {
                     pkgs.push(Statement::Usepackage { name, options });
                     break;
@@ -429,12 +436,7 @@ impl<'a> Parser<'a> {
                 tok_type => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErrKind::TypeMismatch {
-                            expected: vec![
-                                TokenType::Newline,
-                                TokenType::Rbrace,
-                                TokenType::Text,
-                                TokenType::RawLatex,
-                            ],
+                            expected: vec![TokenType::Comma, TokenType::Rbrace],
                             got: tok_type,
                         },
                         self.peek_tok_location(),
