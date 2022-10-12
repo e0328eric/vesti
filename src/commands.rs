@@ -56,6 +56,7 @@ macro_rules! unwrap_err {
 }
 
 #[derive(ClapParser)]
+#[command(author, version, about)]
 pub enum VestiOpt {
     /// Initialize the vesti project
     Init {
@@ -71,7 +72,7 @@ pub enum VestiOpt {
         all: bool,
         /// Input file names or directory name.
         /// Directory name must type once.
-        #[clap(name = "FILE", parse(from_os_str))]
+        #[clap(value_name = "FILE")]
         file_name: Vec<PathBuf>,
     },
 }
