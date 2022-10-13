@@ -104,6 +104,11 @@ impl<'a> Parser<'a> {
                 self.eat_whitespaces::<true>();
                 Ok(Statement::DocumentStart)
             }
+            TokenType::NonStopMode => {
+                self.next_tok();
+                self.eat_whitespaces::<true>();
+                Ok(Statement::NonStopMode)
+            }
             TokenType::Begenv => self.parse_environment::<true>(),
             TokenType::Endenv => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {

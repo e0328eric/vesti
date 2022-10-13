@@ -25,6 +25,7 @@ pub fn make_latex_format<const IS_TEST: bool>(parser: &mut Parser) -> error::Res
 impl ToString for Statement {
     fn to_string(&self) -> String {
         match self {
+            Statement::NonStopMode => String::from("\\nonstopmode\n"),
             Statement::DocumentClass { name, options } => docclass_to_string(name, options),
             Statement::Usepackage { name, options } => usepackage_to_string(name, options),
             Statement::MultiUsepackages { pkgs } => multiusepacakge_to_string(pkgs),

@@ -4,6 +4,7 @@ pub type Latex = Vec<Statement>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    NonStopMode,
     DocumentClass {
         name: String,
         options: Option<Vec<Latex>>,

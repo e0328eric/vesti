@@ -70,6 +70,7 @@ pub enum TokenType {
     PhantomEndenv,
     Mtxt,
     Etxt,
+    NonStopMode,
     DocumentStartMode, // TODO: deprecated
     FunctionDef,
     LongFunctionDef,
@@ -167,6 +168,7 @@ impl TokenType {
             "pendenv" => Some(Self::PhantomEndenv),
             "mtxt" => Some(Self::Mtxt),
             "etxt" => Some(Self::Etxt),
+            "nonstopmode" => Some(Self::NonStopMode),
             "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
