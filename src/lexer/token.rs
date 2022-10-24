@@ -133,6 +133,7 @@ pub enum TokenType {
     Lbrace,          // {
     Rbrace,          // }
     Lsqbrace,        // [
+    OptionalBrace,   // %[
     Rsqbrace,        // ]
     MathLbrace,      // \{
     MathRbrace,      // \}

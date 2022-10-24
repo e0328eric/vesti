@@ -210,6 +210,26 @@ fn test_lexing_ascii_string() {
 }
 
 #[test]
+fn test_lexing_math_character() {
+    let source = "$ $\\[\\]\\[[\\]";
+    let expected = vec![
+        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::TextMathEnd, "$"),
+        token!(TokenType::InlineMathStart, "\\["),
+        token!(TokenType::InlineMathEnd, "\\]"),
+        token!(TokenType::InlineMathStart, "\\["),
+        token!(TokenType::Lsqbrace, "["),
+        token!(TokenType::InlineMathEnd, "\\]"),
+    ];
+
+    let mut lex = Lexer::new(source);
+    let lexed = lexing!(lex);
+
+    assert!(check_same(lexed, expected));
+}
+
+#[test]
 fn test_lexing_unicode_string() {
     let source = "이것은 무엇인가?";
     let expected = vec![
@@ -330,7 +350,7 @@ This is a \LaTeX!
 \[
     1 + 1 = \sum_{j=1}^\infty f(x),\qquad mtxt foobar etxt
 \]
-begenv center %[adadasdawd]
+begenv center % [adadasdawd]
     The TeX
 endenv"#;
     let expected = vec![

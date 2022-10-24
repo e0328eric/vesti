@@ -181,13 +181,13 @@ endenv"#;
 fn parse_latex_functions() {
     let source1 = "startdoc \\foo";
     let source2 = "startdoc \\foo{bar1}";
-    let source3 = "startdoc \\foo[bar1]";
-    let source4 = "startdoc \\foo {bar1}[bar2]";
-    let source5 = "startdoc \\foo{bar1}[bar2]";
-    let source6 = "startdoc \\foo*[bar1]{bar2}{bar3}";
+    let source3 = "startdoc \\foo%[bar1]";
+    let source4 = "startdoc \\foo {bar1}%[bar2]";
+    let source5 = "startdoc \\foo{bar1}%[bar2]";
+    let source6 = "startdoc \\foo*%[bar1]{bar2}{bar3}";
     let source7 = "startdoc \\foo*{bar1 @ bar2}";
-    let source8 = "startdoc \\foo[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
-    let source9 = "startdoc \\foo*[bar1]{bar2}**{bar3}";
+    let source8 = "startdoc \\foo%[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
+    let source9 = "startdoc \\foo*%[bar1]{bar2}**{bar3}";
     let source10 = r#"startdoc \textbf{
     Hallo!\TeX and \foo{bar1 @ bar2{a}{}}; today}"#;
 

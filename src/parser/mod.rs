@@ -925,7 +925,7 @@ impl<'a> Parser<'a> {
         let args = self.parse_function_args(
             TokenType::Lbrace,
             TokenType::Rbrace,
-            TokenType::Lsqbrace,
+            TokenType::OptionalBrace,
             TokenType::Rsqbrace,
         )?;
         if args.is_empty() && is_no_arg_but_space {

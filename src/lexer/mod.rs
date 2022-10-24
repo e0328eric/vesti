@@ -226,6 +226,10 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: LatexComment, "%"; start_loc)
             }
+            Some('[') => {
+                self.next_char();
+                tokenize!(self: OptionalBrace, "["; start_loc)
+            }
             Some('*') => {
                 self.next_char();
                 self.next_char();
@@ -269,6 +273,7 @@ impl<'a> Lexer<'a> {
                 tokenize!(self: RawDollar, "$"; start_loc)
             }
             Some('$') => {
+                self.next_char();
                 if !self.math_started {
                     self.math_started = true;
                     tokenize!(self: InlineMathStart, "$"; start_loc)
