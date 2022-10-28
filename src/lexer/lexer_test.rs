@@ -247,7 +247,7 @@ fn test_lexing_unicode_string() {
 
 #[test]
 fn test_lex_number() {
-    let source = "1 32 -8432 3.2 0.3 32.00";
+    let source = "1 32 -8432 3.2 0.3 32.00 3.20";
     let expected = vec![
         token!(TokenType::Integer, "1"),
         token!(TokenType::Space, " "),
@@ -259,7 +259,9 @@ fn test_lex_number() {
         token!(TokenType::Space, " "),
         token!(TokenType::Float, "0.3"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Float, "32.00"),
+        token!(TokenType::Text, "32.00"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::Text, "3.20"),
     ];
 
     let mut lex = Lexer::new(source);

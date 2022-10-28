@@ -177,7 +177,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
 
-        let toktype;
+        let mut toktype;
         if self.chr0 == Some('0') && self.chr1.map_or(false, |chr| chr.is_ascii_digit()) {
             toktype = TokenType::Text;
             while let Some(chr) = self.chr0 {
@@ -207,11 +207,23 @@ impl<'a> Lexer<'a> {
 
             if self.chr0.map_or(false, |chr| chr.is_ascii_digit()) {
                 while let Some(chr) = self.chr0 {
-                    if !chr.is_ascii_digit() {
-                        break;
+                    match chr {
+                        '1'..='9' => {
+                            literal.push(chr);
+                            self.next_char();
+                        }
+                        '0' => {
+                            if self.chr1.map(|ch| ch.is_ascii_digit()) != Some(true) {
+                                toktype = TokenType::Text;
+                                literal.push(chr);
+                                self.next_char();
+                            } else {
+                                literal.push(chr);
+                                self.next_char();
+                            }
+                        }
+                        _ => break,
                     }
-                    literal.push(chr);
-                    self.next_char();
                 }
             }
         }
