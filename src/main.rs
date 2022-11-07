@@ -18,10 +18,6 @@ use std::thread::{self, JoinHandle};
 
 use clap::Parser;
 
-#[cfg(target_os = "windows")]
-use signal_hook::consts::signal::{SIGILL, SIGINT, SIGTERM};
-#[cfg(not(target_os = "windows"))]
-use signal_hook::consts::signal::{SIGINT, SIGTERM};
 use signal_hook::flag as signal_flag;
 
 use crate::commands::{compile_vesti, VestiOpt};
@@ -53,13 +49,7 @@ fn main() -> ExitCode {
 
         let trap = Arc::new(AtomicUsize::new(0));
         // TODO: I do not test this code in windows actually :)
-        #[cfg(target_os = "windows")]
-        for signal in [SIGINT, SIGTERM, SIGILL].iter() {
-            signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
-                .expect("Undefined behavior happened!");
-        }
-        #[cfg(not(target_os = "windows"))]
-        for signal in [SIGINT, SIGTERM].iter() {
+        for signal in commands::SIGNALS.iter() {
             signal_flag::register_usize(*signal, Arc::clone(&trap), *signal as usize)
                 .expect("Undefined behavior happened!");
         }

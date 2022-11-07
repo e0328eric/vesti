@@ -19,6 +19,11 @@ use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
+#[cfg(target_os = "windows")]
+pub const SIGNALS: [i32; 3] = [SIGINT, SIGTERM, SIGILL];
+#[cfg(not(target_os = "windows"))]
+pub const SIGNALS: [i32; 2] = [SIGINT, SIGTERM];
+
 macro_rules! unwrap_err {
     ($name: ident := $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
         let $name = match $to_unwrap {
@@ -155,38 +160,7 @@ pub fn compile_vesti(
     unwrap_err!(mut init_time := take_time(&file_name), None, None, is_loop_end);
     let mut now_time = init_time;
 
-    #[cfg(target_os = "windows")]
-    while ![SIGINT, SIGTERM, SIGILL].contains(&(trap.load(Ordering::Relaxed) as i32)) {
-        if {
-            let reader = is_loop_end.read().unwrap();
-            *reader
-        } {
-            return ExitCode::Failure;
-        }
-        if init_compile || init_time != now_time {
-            let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
-            let mut parser = Parser::new(Lexer::new(&source));
-            unwrap_err!(contents := make_latex_format::<false>(&mut parser), Some(source.as_ref()), Some(&file_name), is_loop_end);
-            drop(parser);
-
-            fs::write(&output, contents).expect("File write failed.");
-
-            if !is_continuous {
-                break;
-            }
-            if !init_compile {
-                println!("Press Ctrl+C to finish the program.");
-            }
-
-            init_compile = false;
-            init_time = now_time;
-        }
-        unwrap_err!(now_time = take_time(&file_name), None, None, is_loop_end);
-        thread::sleep(Duration::from_millis(500));
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    while ![SIGINT, SIGTERM].contains(&(trap.load(Ordering::Relaxed) as i32)) {
+    while !SIGNALS.contains(&(trap.load(Ordering::Relaxed) as i32)) {
         if {
             let reader = is_loop_end.read().unwrap();
             *reader

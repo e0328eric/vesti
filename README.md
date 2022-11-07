@@ -10,4 +10,5 @@ This program is in beta, so do not use this program in real projects, yet.
 - [x] Fix memory leaking when vesti is closed with error. (in the current version, it uses process::exit to exit the program)
 
 # TODO to upgrade to v0.4.0
-- [ ] Implement tree-sitter parser for vesti.
+- [x] Add fraction syntax
+- [ ] Add matrix syntax

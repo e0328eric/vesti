@@ -72,6 +72,11 @@ impl<'a> Parser<'a> {
         !self.doc_state.doc_start && !self.doc_state.parsing_define
     }
 
+    #[inline]
+    fn is_math_mode(&self) -> bool {
+        self.source.math_started || self.doc_state.parsing_define
+    }
+
     fn eat_whitespaces<const NEWLINE_HANDLE: bool>(&mut self) {
         while self.peek_tok() == TokenType::Space
             || self.peek_tok() == TokenType::Tab
@@ -84,7 +89,8 @@ impl<'a> Parser<'a> {
     pub fn parse_latex(&mut self) -> error::Result<Latex> {
         let mut latex: Latex = Vec::new();
         while !self.is_eof() {
-            latex.push(self.parse_statement()?);
+            let stmt = self.parse_statement()?;
+            latex.push(stmt);
         }
         if !self.is_premiere() {
             latex.push(Statement::DocumentEnd);
@@ -179,9 +185,7 @@ impl<'a> Parser<'a> {
 
             // Math related tokens
             TokenType::TextMathStart | TokenType::InlineMathStart => self.parse_math_stmt(),
-            TokenType::Superscript | TokenType::Subscript
-                if !self.source.math_started && !self.doc_state.parsing_define =>
-            {
+            TokenType::Superscript | TokenType::Subscript if !self.is_math_mode() => {
                 Err(VestiErr::make_parse_err(
                     VestiParseErrKind::IllegalUseErr {
                         got: self.peek_tok(),
@@ -189,6 +193,7 @@ impl<'a> Parser<'a> {
                     self.peek_tok_location(),
                 ))
             }
+            TokenType::Lbrace if self.is_math_mode() => self.parse_brace_stmt(),
 
             TokenType::TextMathEnd => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::InvalidTokToConvert {
@@ -371,13 +376,51 @@ impl<'a> Parser<'a> {
         Ok(Statement::PlainTextInMath { trim, text })
     }
 
+    fn parse_brace_stmt(&mut self) -> error::Result<Statement> {
+        let begin_location = self.peek_tok_location();
+        expect_peek!(self: TokenType::Lbrace; begin_location);
+
+        let mut is_fraction = false;
+        let mut numerator: Latex = Vec::new();
+        let mut denominator: Latex = Vec::new();
+        loop {
+            if self.peek_tok() == TokenType::Eof {
+                break Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::EOFErr,
+                    location: begin_location,
+                });
+            }
+            if self.peek_tok() == TokenType::Rbrace {
+                self.next_tok();
+                break Ok(if is_fraction {
+                    Statement::Fraction {
+                        numerator,
+                        denominator,
+                    }
+                } else {
+                    Statement::BracedStmt(numerator)
+                });
+            }
+            if self.peek_tok() == TokenType::FracDefiner {
+                is_fraction = true;
+                self.next_tok();
+            }
+
+            if is_fraction {
+                denominator.push(self.parse_statement()?);
+            } else {
+                numerator.push(self.parse_statement()?);
+            }
+        }
+    }
+
     fn parse_docclass(&mut self) -> error::Result<Statement> {
         let mut options: Option<Vec<Latex>> = None;
 
         expect_peek!(self: TokenType::Docclass; self.peek_tok_location());
         self.eat_whitespaces::<false>();
 
-        take_name!(let name: String <- self);
+        take_name!(let name: String = self);
 
         self.parse_comma_args(&mut options)?;
         if self.peek_tok() == TokenType::Newline {
@@ -396,7 +439,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut options: Option<Vec<Latex>> = None;
-        take_name!(let name: String <- self);
+        take_name!(let name: String = self);
 
         self.parse_comma_args(&mut options)?;
         if self.peek_tok() == TokenType::Newline {
@@ -414,7 +457,7 @@ impl<'a> Parser<'a> {
 
         while self.peek_tok() != TokenType::Rbrace {
             let mut options: Option<Vec<Latex>> = None;
-            take_name!(let name: String <- self);
+            take_name!(let name: String = self);
 
             self.parse_comma_args(&mut options)?;
             self.eat_whitespaces::<true>();
@@ -1141,25 +1184,16 @@ impl<'a> Parser<'a> {
         arg_need: ArgNeed,
     ) -> error::Result<()> {
         let open_brace_location = self.peek_tok_location();
-        let mut nested = 0;
         expect_peek!(self: open; open_brace_location);
 
         loop {
             let mut tmp_vec: Vec<Statement> = Vec::new();
-            while (self.peek_tok() != closed || nested > 0)
-                && self.peek_tok() != TokenType::ArgSpliter
-            {
+            while self.peek_tok() != closed && self.peek_tok() != TokenType::ArgSpliter {
                 if self.is_eof() {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErrKind::BracketNumberMatchedErr,
                         open_brace_location,
                     ));
-                }
-                if self.peek_tok() == open {
-                    nested += 1;
-                }
-                if self.peek_tok() == closed {
-                    nested -= 1;
                 }
                 let stmt = self.parse_statement()?;
                 tmp_vec.push(stmt);

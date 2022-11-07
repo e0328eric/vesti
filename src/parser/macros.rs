@@ -14,7 +14,7 @@ macro_rules! expect_peek {
 }
 
 macro_rules! take_name {
-    (let $name: ident: String <- $self: ident) => {
+    (let $name: ident: String = $self: ident) => {
         let mut tmp = String::new();
         while $self.peek_tok().can_pkg_name() {
             tmp += &match $self.peek_tok() {

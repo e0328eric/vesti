@@ -14,7 +14,7 @@ pub enum Statement {
         options: Option<Vec<Latex>>,
     },
     MultiUsepackages {
-        pkgs: Vec<Statement>,
+        pkgs: Latex,
     },
     DocumentStart,
     DocumentEnd,
@@ -22,9 +22,14 @@ pub enum Statement {
     Integer(i64),
     Float(f64),
     RawLatex(String),
+    BracedStmt(Latex),
     MathText {
         state: MathState,
-        text: Vec<Statement>,
+        text: Latex,
+    },
+    Fraction {
+        numerator: Latex,
+        denominator: Latex,
     },
     PlainTextInMath {
         trim: TrimWhitespace,
@@ -32,16 +37,16 @@ pub enum Statement {
     },
     LatexFunction {
         name: String,
-        args: Vec<(ArgNeed, Vec<Statement>)>,
+        args: Vec<(ArgNeed, Latex)>,
     },
     Environment {
         name: String,
-        args: Vec<(ArgNeed, Vec<Statement>)>,
+        args: Vec<(ArgNeed, Latex)>,
         text: Latex,
     },
     BeginPhantomEnvironment {
         name: String,
-        args: Vec<(ArgNeed, Vec<Statement>)>,
+        args: Vec<(ArgNeed, Latex)>,
     },
     EndPhantomEnvironment {
         name: String,

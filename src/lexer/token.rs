@@ -95,6 +95,7 @@ pub enum TokenType {
     Minus,          // -
     Star,           // *
     Slash,          // /
+    FracDefiner,    // //
     Equal,          // =
     NotEqual,       // /= or !=
     Less,           // <

@@ -32,6 +32,11 @@ impl ToString for Statement {
             Statement::DocumentStart => String::from("\\begin{document}\n"),
             Statement::DocumentEnd => String::from("\n\\end{document}\n"),
             Statement::MainText(s) => s.clone(),
+            Statement::BracedStmt(latex) => format!("{{{}}}", latex_to_string(latex)),
+            Statement::Fraction {
+                numerator,
+                denominator,
+            } => fraction_to_string(numerator, denominator),
             Statement::PlainTextInMath { trim, text } => plaintext_in_math_to_string(trim, text),
             Statement::Integer(i) => i.to_string(),
             Statement::Float(f) => f.to_string(),
@@ -128,6 +133,14 @@ fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
         }
     }
     output
+}
+
+fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> String {
+    format!(
+        "\\frac{{{}}}{{{}}}",
+        latex_to_string(numerator),
+        latex_to_string(denominator)
+    )
 }
 
 fn plaintext_in_math_to_string(trim: &TrimWhitespace, text: &Latex) -> String {

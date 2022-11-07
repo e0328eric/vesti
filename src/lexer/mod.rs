@@ -78,6 +78,10 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: NotEqual, "\\neq "; start_loc)
                 }
+                Some('/') => {
+                    self.next_char();
+                    tokenize!(self: FracDefiner, "//"; start_loc)
+                }
                 _ => tokenize!(self: Slash, "/"; start_loc),
             },
             Some('=') => tokenize!(self: Equal , "="; start_loc),

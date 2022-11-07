@@ -260,6 +260,35 @@ $\sum_1^\infty f(x)$
 }
 
 #[test]
+fn test_brace() {
+    let source1 = "${\nabcd\n}$";
+    let source2 = "$\\sum_{j=1}$";
+
+    expected!(source1 should be source1);
+    expected!(source2 should be source2);
+}
+
+#[test]
+fn test_fraction() {
+    let source1 = "${1//2}$";
+    let source2 = "${\\alpha+\\beta//c+d-e}$";
+
+    let expected1 = "$\\frac{1}{2}$";
+    let expected2 = "$\\frac{\\alpha+\\beta}{c+d-e}$";
+
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+}
+
+#[test]
+fn test_complicated_fraction() {
+    let source = "${{2//3}+\\alpha//5-{x+y//c-d}}$";
+    let expected = "$\\frac{\\frac{2}{3}+\\alpha}{5-\\frac{x+y}{c-d}}$";
+
+    expected!(source should be expected);
+}
+
+#[test]
 fn test_parse_function_definition_basic() {
     let source1 = "defun foo (#1) \\overline{#1} endfun";
     let source2 = "defun foo(#1) \\overline{#1} endfun";
