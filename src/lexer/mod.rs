@@ -78,10 +78,17 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: NotEqual, "\\neq "; start_loc)
                 }
-                Some('/') => {
+                Some('!') => {
                     self.next_char();
-                    tokenize!(self: FracDefiner, "//"; start_loc)
+                    tokenize!(self: Slash, "/"; start_loc)
                 }
+                Some('/') => match self.chr2 {
+                    Some('!') => tokenize!(self: Slash, "/"; start_loc),
+                    _ => {
+                        self.next_char();
+                        tokenize!(self: FracDefiner, "//"; start_loc)
+                    }
+                },
                 _ => tokenize!(self: Slash, "/"; start_loc),
             },
             Some('=') => tokenize!(self: Equal , "="; start_loc),
@@ -128,7 +135,17 @@ impl<'a> Lexer<'a> {
             Some('`') => tokenize!(self: LeftQuote, "`"; start_loc),
             Some('"') => tokenize!(self: DoubleQuote, "\""; start_loc),
             Some('_') => tokenize!(self: Subscript, "_"; start_loc),
-            Some('|') => tokenize!(self: Vert, "|"; start_loc),
+            Some('|') => match self.chr1 {
+                Some('-') => match self.chr2 {
+                    Some('>') => {
+                        self.next_char();
+                        self.next_char();
+                        tokenize!(self: MapsTo, "\\mapsto "; start_loc)
+                    }
+                    _ => tokenize!(self: Vert, "|"; start_loc),
+                },
+                _ => tokenize!(self: Vert, "|"; start_loc),
+            },
             Some('.') => tokenize!(self: Period, "."; start_loc),
             Some(',') => tokenize!(self: Comma, ","; start_loc),
             Some('~') => tokenize!(self: Tilde, "~"; start_loc),

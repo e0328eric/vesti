@@ -182,13 +182,12 @@ fn parse_latex_functions() {
     let source1 = "startdoc \\foo";
     let source2 = "startdoc \\foo{bar1}";
     let source3 = "startdoc \\foo%[bar1]";
-    let source4 = "startdoc \\foo {bar1}%[bar2]";
-    let source5 = "startdoc \\foo{bar1}%[bar2]";
-    let source6 = "startdoc \\foo*%[bar1]{bar2}{bar3}";
-    let source7 = "startdoc \\foo*{bar1 @ bar2}";
-    let source8 = "startdoc \\foo%[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
-    let source9 = "startdoc \\foo*%[bar1]{bar2}**{bar3}";
-    let source10 = r#"startdoc \textbf{
+    let source4 = "startdoc \\foo{bar1}%[bar2]";
+    let source5 = "startdoc \\foo*%[bar1]{bar2}{bar3}";
+    let source6 = "startdoc \\foo*{bar1 @ bar2}";
+    let source7 = "startdoc \\foo%[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
+    let source8 = "startdoc \\foo*%[bar1]{bar2}**{bar3}";
+    let source9 = r#"startdoc \textbf{
     Hallo!\TeX and \foo{bar1 @ bar2{a}{}}; today}"#;
 
     let expected1 = r#"\begin{document}
@@ -233,12 +232,11 @@ fn parse_latex_functions() {
     expected!(source2 should be expected2);
     expected!(source3 should be expected3);
     expected!(source4 should be expected4);
-    expected!(source5 should be expected4);
-    expected!(source6 should be expected5);
-    expected!(source7 should be expected6);
-    expected!(source8 should be expected7);
-    expected!(source9 should be expected8);
-    expected!(source10 should be expected9);
+    expected!(source5 should be expected5);
+    expected!(source6 should be expected6);
+    expected!(source7 should be expected7);
+    expected!(source8 should be expected8);
+    expected!(source9 should be expected9);
 }
 
 #[test]

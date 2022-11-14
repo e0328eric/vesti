@@ -950,7 +950,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_latex_function(&mut self) -> error::Result<Statement> {
-        let mut name = if self.is_eof() {
+        let name = if self.is_eof() {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::EOFErr,
                 location: self.peek_tok_location(),
@@ -959,21 +959,12 @@ impl<'a> Parser<'a> {
             self.next_tok().literal
         };
 
-        let mut is_no_arg_but_space = false;
-        if self.peek_tok() == TokenType::Space {
-            is_no_arg_but_space = true;
-            self.eat_whitespaces::<false>();
-        }
-
         let args = self.parse_function_args(
             TokenType::Lbrace,
             TokenType::Rbrace,
             TokenType::OptionalBrace,
             TokenType::Rsqbrace,
         )?;
-        if args.is_empty() && is_no_arg_but_space {
-            name += " ";
-        }
 
         Ok(Statement::LatexFunction { name, args })
     }

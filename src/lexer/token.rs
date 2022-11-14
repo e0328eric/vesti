@@ -104,6 +104,7 @@ pub enum TokenType {
     GreatEq,        // >=
     LeftArrow,      // <-
     RightArrow,     // ->
+    MapsTo,         // |->
     Bang,           // !
     Question,       // ?
     RawDollar,      // $!
