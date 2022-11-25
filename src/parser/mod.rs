@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_latex(&mut self) -> error::Result<Latex> {
-        let mut latex: Latex = Vec::new();
+        let mut latex: Latex = Vec::with_capacity(150);
         while !self.is_eof() {
             let stmt = self.parse_statement()?;
             latex.push(stmt);
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
 
     fn parse_math_stmt(&mut self) -> error::Result<Statement> {
         let start_location = self.peek_tok_location();
-        let mut text = Vec::new();
+        let mut text = Vec::with_capacity(20);
         let mut stmt;
 
         match self.peek_tok() {
@@ -341,7 +341,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_text_in_math(&mut self) -> error::Result<Statement> {
-        let mut text: Latex = Vec::new();
+        let mut text: Latex = Vec::with_capacity(20);
         let mut trim = TrimWhitespace {
             start: true,
             mid: None,
@@ -381,8 +381,8 @@ impl<'a> Parser<'a> {
         expect_peek!(self: TokenType::Lbrace; begin_location);
 
         let mut is_fraction = false;
-        let mut numerator: Latex = Vec::new();
-        let mut denominator: Latex = Vec::new();
+        let mut numerator: Latex = Vec::with_capacity(4);
+        let mut denominator: Latex = Vec::with_capacity(4);
         loop {
             if self.peek_tok() == TokenType::Eof {
                 break Err(VestiErr::ParseErr {
@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_multiple_usepackages(&mut self) -> error::Result<Statement> {
-        let mut pkgs: Vec<Statement> = Vec::new();
+        let mut pkgs: Vec<Statement> = Vec::with_capacity(10);
 
         expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
         self.eat_whitespaces::<true>();
@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
                     if self.peek_tok() == TokenType::Space {
                         self.next_tok();
                     }
-                    let mut tmp_inner: Latex = Vec::new();
+                    let mut tmp_inner: Latex = Vec::with_capacity(20);
                     while self.peek_tok() != TokenType::Rsqbrace {
                         if self.is_eof() {
                             return Err(VestiErr::make_parse_err(
@@ -876,7 +876,7 @@ impl<'a> Parser<'a> {
             (0, None)
         };
 
-        let mut begin_part = Vec::new();
+        let mut begin_part = Vec::with_capacity(20);
         loop {
             match self.peek_tok() {
                 TokenType::Defenv | TokenType::Redefenv => {
@@ -907,7 +907,7 @@ impl<'a> Parser<'a> {
             trim.mid = Some(false);
         }
 
-        let mut end_part = Vec::new();
+        let mut end_part = Vec::with_capacity(20);
         loop {
             match self.peek_tok() {
                 TokenType::Defenv | TokenType::Redefenv => {
@@ -1008,7 +1008,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_definebody(&mut self, begdef_location: Span) -> error::Result<Latex> {
-        let mut body: Latex = Vec::new();
+        let mut body: Latex = Vec::with_capacity(64);
         let mut def_level = 0;
         while self.peek_tok() != TokenType::EndFunctionDef && def_level >= 0 {
             match self.peek_tok() {
