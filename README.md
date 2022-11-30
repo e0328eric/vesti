@@ -11,4 +11,5 @@ This program is in beta, so do not use this program in real projects, yet.
 
 # TODO to upgrade to v0.4.0
 - [x] Add fraction syntax
-- [ ] Add matrix syntax
+- [ ] New syntax about environment
+- [ ] Integrate with tectonic backend

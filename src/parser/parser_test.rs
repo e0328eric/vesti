@@ -103,27 +103,27 @@ fn parse_main_string() {
 
 #[test]
 fn parse_environment() {
-    let source1 = r#"startdoc begenv center
+    let source1 = r#"startdoc useenv center {
     The Document.
-endenv"#;
-    let source2 = r#"startdoc begenv minipage (0.7\pagewidth)
+}"#;
+    let source2 = r#"startdoc useenv minipage (0.7\pagewidth) {
     The Document.
-endenv"#;
-    let source3 = r#"startdoc begenv minipage(0.7\pagewidth)
+}"#;
+    let source3 = r#"startdoc useenv minipage(0.7\pagewidth) {
     The Document.
-endenv"#;
-    let source4 = r#"startdoc begenv figure [ht]
+}"#;
+    let source4 = r#"startdoc useenv figure [ht] {
     The Document.
-endenv"#;
-    let source5 = r#"startdoc begenv foo (bar1)[bar2](bar3)(bar4)[bar5]
+}"#;
+    let source5 = r#"startdoc useenv foo (bar1)[bar2](bar3)(bar4)[bar5] {
     The Document.
-endenv"#;
-    let source6 = r#"startdoc begenv foo* (bar1 @ bar2)
+}"#;
+    let source6 = r#"startdoc useenv foo* (bar1 @ bar2) {
     The Document.
-endenv"#;
-    let source7 = r#"startdoc begenv foo *(bar1 @ bar2)
+}"#;
+    let source7 = r#"startdoc useenv foo *(bar1 @ bar2) {
     The Document.
-endenv"#;
+}"#;
 
     let expected1 = r#"\begin{document}
 \begin{center}
@@ -433,11 +433,11 @@ fn test_parse_function_definition_trim() {
 
 #[test]
 fn test_parse_define_environment() {
-    let source = r#"defenv foo
+    let source = r#"defenv foo {
 \vskip 1pc\noindent
-endswith
+}{
 \vskip 1pc
-endenv
+}
 "#;
     let expected = "\\newenvironment{foo}{\\vskip 1pc\\noindent}{\\vskip 1pc}\n";
 
@@ -446,11 +446,11 @@ endenv
 
 #[test]
 fn test_parse_define_environment_with_argument() {
-    let source = r#"defenv foo [1]
+    let source = r#"defenv foo [1] {
 \vskip 1pc\noindent #1
-endswith
+}{
 \vskip 1pc
-endenv
+}
 "#;
     let expected = "\\newenvironment{foo}[1]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
 
@@ -459,23 +459,23 @@ endenv
 
 #[test]
 fn test_parse_define_environment_with_optional_argument() {
-    let source1 = r#"defenv foo [1,basd]
+    let source1 = r#"defenv foo [1,basd] {
 \vskip 1pc\noindent #1
-endswith
+}{
 \vskip 1pc
-endenv
+}
 "#;
-    let source2 = r#"defenv foo [1, basd]
+    let source2 = r#"defenv foo [1, basd] {
 \vskip 1pc\noindent #1
-endswith
+}{
 \vskip 1pc
-endenv
+}
 "#;
-    let source3 = r#"defenv foo [1,  basd]
+    let source3 = r#"defenv foo [1,  basd] {
 \vskip 1pc\noindent #1
-endswith
+}{
 \vskip 1pc
-endenv
+}
 "#;
 
     let expected1 = "\\newenvironment{foo}[1][basd]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
@@ -487,38 +487,12 @@ endenv
 }
 
 #[test]
-fn parse_nested_define_environment() {
-    let source = r#"defenv* foo [1,basd]
-  defenv bar
-      give a number
-  endswith
-      and foo
-  endenv
-begenv bar
-  \noindent #1
-endenv
-endswith*
-\vskip 1pc
-endenv"#;
-
-    let expected = r#"\newenvironment{foo}[1][basd]{
-  \newenvironment{bar}{give a number}{and foo}
-\begin{bar}
-  \noindent #1
-\end{bar}
-}{
-\vskip 1pc}
-"#;
-    expected!(source should be expected);
-}
-
-#[test]
 fn parse_phantom_environment() {
-    let source = r#"defenv newminipage [1]
-    pbegenv minipage (0.4\textwidth)
-endswith
-    pendenv minipage
-endenv"#;
+    let source = r#"defenv newminipage [1] {
+    begenv minipage (0.4\textwidth)
+}{
+    endenv minipage
+}"#;
 
     let expected =
         "\\newenvironment{newminipage}[1]{\\begin{minipage}{0.4\\textwidth}}{\\end{minipage}}\n";

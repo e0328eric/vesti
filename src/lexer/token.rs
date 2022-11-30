@@ -44,7 +44,7 @@ pub enum TokenType {
 
     // Whitespace
     Space,
-    Space2, // /_ where _ is a space
+    BackslashSpace, // \_ where _ is a space
     Tab,
     Newline,
     MathSmallSpace, // \,
@@ -61,17 +61,14 @@ pub enum TokenType {
     Docclass,
     Import,
     StartDoc,
-    Defenv,
-    Redefenv,
-    EndsWith,
-    Begenv,
-    Endenv,
-    PhantomBegenv,
-    PhantomEndenv,
+    DefEnv,
+    RedefEnv,
+    UseEnv,
+    BeginEnv, // TODO: deprecated (begenv replace this syntax)
+    EndEnv, // TODO: deprecated (endenv replace this syntax)
     Mtxt,
     Etxt,
     NonStopMode,
-    DocumentStartMode, // TODO: deprecated
     FunctionDef,
     LongFunctionDef,
     OuterFunctionDef,
@@ -105,6 +102,7 @@ pub enum TokenType {
     LeftArrow,      // <-
     RightArrow,     // ->
     MapsTo,         // |->
+    Norm,           // \|
     Bang,           // !
     Question,       // ?
     RawDollar,      // $!
@@ -162,18 +160,14 @@ impl TokenType {
             "docclass" => Some(Self::Docclass),
             "import" => Some(Self::Import),
             "startdoc" => Some(Self::StartDoc),
-            "defenv" => Some(Self::Defenv),
-            "redefenv" => Some(Self::Redefenv),
-            "endswith" => Some(Self::EndsWith),
-            "begenv" => Some(Self::Begenv),
-            "endenv" => Some(Self::Endenv),
-            "pbegenv" => Some(Self::PhantomBegenv),
-            "pendenv" => Some(Self::PhantomEndenv),
+            "defenv" => Some(Self::DefEnv),
+            "redefenv" => Some(Self::RedefEnv),
+            "useenv" => Some(Self::UseEnv),
+            "begenv" => Some(Self::BeginEnv),
+            "endenv" => Some(Self::EndEnv),
             "mtxt" => Some(Self::Mtxt),
             "etxt" => Some(Self::Etxt),
             "nonstopmode" => Some(Self::NonStopMode),
-            "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
-            "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),
             "odefun" => Some(Self::OuterFunctionDef),
