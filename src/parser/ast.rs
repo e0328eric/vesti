@@ -58,7 +58,6 @@ pub enum Statement {
         trim: TrimWhitespace,
         body: Latex,
     },
-    // TODO: Does not support mandatory argument
     EnvironmentDefine {
         is_redefine: bool,
         name: String,

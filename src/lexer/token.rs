@@ -63,9 +63,10 @@ pub enum TokenType {
     StartDoc,
     DefEnv,
     RedefEnv,
+    EndsWith,
     UseEnv,
-    BeginEnv, // TODO: deprecated (begenv replace this syntax)
-    EndEnv, // TODO: deprecated (endenv replace this syntax)
+    BeginEnv,
+    EndEnv,
     Mtxt,
     Etxt,
     NonStopMode,
@@ -85,7 +86,7 @@ pub enum TokenType {
     LongXFunctionDef,
     OuterXFunctionDef,
     LongOuterXFunctionDef,
-    EndFunctionDef,
+    EndDef,
 
     // Symbols
     Plus,           // +
@@ -152,7 +153,7 @@ pub enum TokenType {
 impl TokenType {
     #[inline]
     pub fn is_keyword(&self) -> bool {
-        Self::Docclass <= *self && *self <= Self::EndFunctionDef
+        Self::Docclass <= *self && *self <= Self::EndDef
     }
 
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
@@ -162,6 +163,7 @@ impl TokenType {
             "startdoc" => Some(Self::StartDoc),
             "defenv" => Some(Self::DefEnv),
             "redefenv" => Some(Self::RedefEnv),
+            "endswith" => Some(Self::EndsWith),
             "useenv" => Some(Self::UseEnv),
             "begenv" => Some(Self::BeginEnv),
             "endenv" => Some(Self::EndEnv),
@@ -184,14 +186,16 @@ impl TokenType {
             "lxdefun" => Some(Self::LongXFunctionDef),
             "oxdefun" => Some(Self::OuterXFunctionDef),
             "loxdefun" => Some(Self::LongOuterXFunctionDef),
-            "endfun" => Some(Self::EndFunctionDef),
+            "enddef" => Some(Self::EndDef),
             _ => None,
         }
     }
 
     #[inline]
-    pub fn get_function_definition_start_list() -> Vec<Self> {
+    pub fn get_definition_start_list() -> Vec<Self> {
         vec![
+            Self::DefEnv,
+            Self::RedefEnv,
             Self::FunctionDef,
             Self::LongFunctionDef,
             Self::OuterFunctionDef,

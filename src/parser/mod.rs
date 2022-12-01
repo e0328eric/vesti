@@ -141,10 +141,10 @@ impl<'a> Parser<'a> {
             | TokenType::LongXFunctionDef
             | TokenType::OuterXFunctionDef
             | TokenType::LongOuterXFunctionDef => self.parse_function_definition(),
-            TokenType::EndFunctionDef => Err(VestiErr::make_parse_err(
+            TokenType::EndDef => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {
-                    open: TokenType::get_function_definition_start_list(),
-                    close: TokenType::EndFunctionDef,
+                    open: TokenType::get_definition_start_list(),
+                    close: TokenType::EndDef,
                 },
                 self.peek_tok_location(),
             )),
@@ -504,7 +504,7 @@ impl<'a> Parser<'a> {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             name.push('*');
         }
-        self.eat_whitespaces::<false>();
+        self.eat_whitespaces::<true>();
 
         Ok(Statement::EndPhantomEnvironment { name })
     }
@@ -597,8 +597,8 @@ impl<'a> Parser<'a> {
         }
 
         if IS_REAL {
-            // SAFETY: We know that text is initialized at the same if branch, and IS_REAL can be
-            // determined at the compile time
+            // SAFETY: We know that text is initialized at the same if branch, and IS_REAL is determined
+            //  at the compile time
             Ok(Statement::Environment {
                 name,
                 args,
@@ -629,7 +629,7 @@ impl<'a> Parser<'a> {
                 Err(got) => {
                     return Err(VestiErr::ParseErr {
                         err_kind: VestiParseErrKind::TypeMismatch {
-                            expected: TokenType::get_function_definition_start_list(),
+                            expected: TokenType::get_definition_start_list(),
                             got,
                         },
                         location: begfntdef_location,
@@ -649,7 +649,7 @@ impl<'a> Parser<'a> {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::IsNotClosedErr {
                     open: vec![beg_toktype],
-                    close: TokenType::EndFunctionDef,
+                    close: TokenType::EndDef,
                 },
                 location: begfntdef_location,
             });
@@ -686,7 +686,7 @@ impl<'a> Parser<'a> {
         let args = self.parse_function_definition_argument()?;
 
         let body = self.parse_function_definebody(begfntdef_location)?;
-        expect_peek!(self: TokenType::EndFunctionDef; self.peek_tok_location());
+        expect_peek!(self: TokenType::EndDef; self.peek_tok_location());
 
         if self.peek_tok() == TokenType::Star {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
@@ -706,7 +706,225 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_environment_definition(&mut self) -> error::Result<Statement> {
-        unimplemented!()
+        let begenvdef_location = self.peek_tok_location();
+        let mut trim = TrimWhitespace {
+            start: true,
+            mid: Some(true),
+            end: true,
+        };
+
+        let (is_redefine, beg_toktype) = match self.peek_tok() {
+            TokenType::Eof => {
+                return Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::EOFErr,
+                    location: begenvdef_location,
+                })
+            }
+            TokenType::DefEnv => (false, TokenType::DefEnv),
+            TokenType::RedefEnv => (true, TokenType::RedefEnv),
+            got => {
+                return Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::TypeMismatch {
+                        expected: vec![TokenType::DefEnv, TokenType::RedefEnv],
+                        got,
+                    },
+                    location: begenvdef_location,
+                })
+            }
+        };
+        expect_peek!(self: beg_toktype; self.peek_tok_location());
+
+        if self.peek_tok() == TokenType::Star {
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
+            trim.start = false;
+        }
+        self.eat_whitespaces::<false>();
+
+        if self.is_eof() {
+            return Err(VestiErr::ParseErr {
+                err_kind: VestiParseErrKind::IsNotClosedErr {
+                    open: vec![beg_toktype],
+                    close: TokenType::EndsWith,
+                },
+                location: begenvdef_location,
+            });
+        }
+
+        let mut name = String::new();
+        loop {
+            name.push_str(
+                match self.peek_tok() {
+                    TokenType::Text | TokenType::ArgSpliter => self.next_tok().literal,
+                    TokenType::Space
+                    | TokenType::Tab
+                    | TokenType::Newline
+                    | TokenType::Lsqbrace => break,
+                    TokenType::Eof => {
+                        return Err(VestiErr::make_parse_err(
+                            VestiParseErrKind::EOFErr,
+                            begenvdef_location,
+                        ));
+                    }
+                    _ => {
+                        return Err(VestiErr::make_parse_err(
+                            VestiParseErrKind::NameMissErr {
+                                r#type: beg_toktype,
+                            },
+                            begenvdef_location,
+                        ));
+                    }
+                }
+                .as_str(),
+            );
+        }
+        self.eat_whitespaces::<false>();
+
+        let (args_num, optional_arg) = if self.peek_tok() == TokenType::Lsqbrace {
+            expect_peek!(self: TokenType::Lsqbrace; self.peek_tok_location());
+            let tmp_argnum = match self.peek_tok() {
+                TokenType::Integer => {
+                    let lex_token = self.next_tok();
+                    if let Ok(num) = lex_token.literal.parse::<u8>() {
+                        num
+                    } else {
+                        return Err(VestiErr::make_parse_err(
+                            VestiParseErrKind::ParseIntErr,
+                            lex_token.span,
+                        ));
+                    }
+                }
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        begenvdef_location,
+                    ));
+                }
+                got => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::TypeMismatch {
+                            expected: vec![TokenType::Integer],
+                            got,
+                        },
+                        self.peek_tok_location(),
+                    ))
+                }
+            };
+
+            match self.peek_tok() {
+                TokenType::Comma => {
+                    expect_peek!(self: TokenType::Comma; self.peek_tok_location());
+                    if self.peek_tok() == TokenType::Space {
+                        self.next_tok();
+                    }
+                    let mut tmp_inner: Latex = Vec::with_capacity(20);
+                    while self.peek_tok() != TokenType::Rsqbrace {
+                        if self.is_eof() {
+                            return Err(VestiErr::make_parse_err(
+                                VestiParseErrKind::EOFErr,
+                                begenvdef_location,
+                            ));
+                        }
+                        tmp_inner.push(self.parse_statement()?);
+                    }
+                    expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
+
+                    (tmp_argnum, Some(tmp_inner))
+                }
+                TokenType::Rsqbrace => {
+                    expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
+                    (tmp_argnum, None)
+                }
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        begenvdef_location,
+                    ));
+                }
+                got => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::TypeMismatch {
+                            expected: vec![TokenType::Rsqbrace, TokenType::Comma],
+                            got,
+                        },
+                        self.peek_tok_location(),
+                    ))
+                }
+            }
+        } else {
+            (0, None)
+        };
+
+        let mut begin_part = Vec::with_capacity(20);
+        loop {
+            match self.peek_tok() {
+                TokenType::DefEnv | TokenType::RedefEnv => {
+                    begin_part.push(self.parse_environment_definition()?)
+                }
+                TokenType::EndsWith => break,
+                TokenType::EndDef | TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::DefEnv, TokenType::RedefEnv],
+                            close: TokenType::EndsWith,
+                        },
+                        begenvdef_location,
+                    ));
+                }
+                _ => {
+                    self.doc_state.parsing_define = true;
+                    begin_part.push(self.parse_statement()?);
+                    self.doc_state.parsing_define = false;
+                }
+            }
+        }
+        let midenvdef_location = self.peek_tok_location();
+
+        expect_peek!(self: TokenType::EndsWith; self.peek_tok_location());
+        if self.peek_tok() == TokenType::Star {
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
+            trim.mid = Some(false);
+        }
+
+        let mut end_part = Vec::with_capacity(20);
+        loop {
+            match self.peek_tok() {
+                TokenType::DefEnv | TokenType::RedefEnv => {
+                    end_part.push(self.parse_environment_definition()?)
+                }
+                TokenType::EndDef => break,
+                TokenType::EndsWith | TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::EndsWith],
+                            close: TokenType::EndDef,
+                        },
+                        midenvdef_location,
+                    ));
+                }
+                _ => {
+                    self.doc_state.parsing_define = true;
+                    end_part.push(self.parse_statement()?);
+                    self.doc_state.parsing_define = false;
+                }
+            }
+        }
+        expect_peek!(self: TokenType::EndDef; self.peek_tok_location());
+        if self.peek_tok() == TokenType::Star {
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
+            trim.end = false;
+        }
+        if self.peek_tok() == TokenType::Newline {
+            self.next_tok();
+        }
+        Ok(Statement::EnvironmentDefine {
+            is_redefine,
+            name,
+            args_num,
+            optional_arg,
+            trim,
+            begin_part,
+            end_part,
+        })
     }
 
     fn parse_latex_function(&mut self) -> error::Result<Statement> {
@@ -770,7 +988,7 @@ impl<'a> Parser<'a> {
     fn parse_function_definebody(&mut self, begdef_location: Span) -> error::Result<Latex> {
         let mut body: Latex = Vec::with_capacity(64);
         let mut def_level = 0;
-        while self.peek_tok() != TokenType::EndFunctionDef && def_level >= 0 {
+        while self.peek_tok() != TokenType::EndDef && def_level >= 0 {
             match self.peek_tok() {
                 TokenType::Eof => {
                     return Err(VestiErr::make_parse_err(
@@ -793,7 +1011,7 @@ impl<'a> Parser<'a> {
                                 TokenType::OuterXFunctionDef,
                                 TokenType::LongOuterXFunctionDef,
                             ],
-                            close: TokenType::EndFunctionDef,
+                            close: TokenType::EndDef,
                         },
                         begdef_location,
                     ));
@@ -814,7 +1032,7 @@ impl<'a> Parser<'a> {
                 | TokenType::LongXFunctionDef
                 | TokenType::OuterXFunctionDef
                 | TokenType::LongOuterXFunctionDef => def_level += 1,
-                toktype if toktype == TokenType::EndFunctionDef => {
+                toktype if toktype == TokenType::EndDef => {
                     def_level -= 1;
                     if def_level < 0 {
                         break;

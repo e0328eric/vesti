@@ -288,16 +288,16 @@ fn test_complicated_fraction() {
 
 #[test]
 fn test_parse_function_definition_basic() {
-    let source1 = "defun foo (#1) \\overline{#1} endfun";
-    let source2 = "defun foo(#1) \\overline{#1} endfun";
-    let source3 = "defun foo (#1)\\overline{#1} endfun";
-    let source4 = "defun foo(#1)\\overline{#1} endfun";
+    let source1 = "defun foo (#1) \\overline{#1} enddef";
+    let source2 = "defun foo(#1) \\overline{#1} enddef";
+    let source3 = "defun foo (#1)\\overline{#1} enddef";
+    let source4 = "defun foo(#1)\\overline{#1} enddef";
     let source5 = r#"defun foo (#1)
         \overline{#1}
-endfun"#;
+enddef"#;
     let source6 = r#"defun foo(#1)
         \overline{#1}
-endfun"#;
+enddef"#;
 
     let expected = "\\def\\foo#1{\\overline{#1}}\n";
 
@@ -311,16 +311,16 @@ endfun"#;
 
 #[test]
 fn test_parse_function_definition_name() {
-    let source1 = "defun bar@foo (#1#2) \\overline{#1} and #2 endfun";
-    let source2 = "defun bar@foo(#1#2) \\overline{#1} and #2 endfun";
-    let source3 = "defun bar@foo (#1#2)\\overline{#1} and #2 endfun";
-    let source4 = "defun bar@foo(#1#2)\\overline{#1} and #2 endfun";
+    let source1 = "defun bar@foo (#1#2) \\overline{#1} and #2 enddef";
+    let source2 = "defun bar@foo(#1#2) \\overline{#1} and #2 enddef";
+    let source3 = "defun bar@foo (#1#2)\\overline{#1} and #2 enddef";
+    let source4 = "defun bar@foo(#1#2)\\overline{#1} and #2 enddef";
     let source5 = r#"defun bar@foo (#1#2)
         \overline{#1} and #2
-endfun"#;
+enddef"#;
     let source6 = r#"defun bar@foo(#1#2)
         \overline{#1} and #2
-endfun"#;
+enddef"#;
 
     let expected = "\\def\\bar@foo#1#2{\\overline{#1} and #2}\n";
 
@@ -334,16 +334,16 @@ endfun"#;
 
 #[test]
 fn test_parse_function_definition_arguments() {
-    let source1 = "defun barfoo (import #1 and #2) \\overline{#1} and #2 endfun";
-    let source2 = "defun barfoo(import #1 and #2) \\overline{#1} and #2 endfun";
-    let source3 = "defun barfoo (import #1 and #2)\\overline{#1} and #2 endfun";
-    let source4 = "defun barfoo(import #1 and #2)\\overline{#1} and #2 endfun";
+    let source1 = "defun barfoo (import #1 and #2) \\overline{#1} and #2 enddef";
+    let source2 = "defun barfoo(import #1 and #2) \\overline{#1} and #2 enddef";
+    let source3 = "defun barfoo (import #1 and #2)\\overline{#1} and #2 enddef";
+    let source4 = "defun barfoo(import #1 and #2)\\overline{#1} and #2 enddef";
     let source5 = r#"defun barfoo (import #1 and #2)
         \overline{#1} and #2
-endfun"#;
+enddef"#;
     let source6 = r#"defun barfoo(import #1 and #2)
         \overline{#1} and #2
-endfun"#;
+enddef"#;
 
     let expected = "\\def\\barfoo import #1 and #2{\\overline{#1} and #2}\n";
 
@@ -357,12 +357,12 @@ endfun"#;
 
 #[test]
 fn test_parse_function_definition_kind() {
-    let source1 = "defun foo(#1\\over#2) bar endfun";
-    let source2 = "edefun foo(#1\\over#2) bar endfun";
-    let source3 = "odefun foo(#1\\over#2) bar endfun";
-    let source4 = "loxdefun foo(#1\\over#2) bar endfun";
-    let source5 = "lgdefun foo(#1\\over#2) bar endfun";
-    let source6 = "lodefun foo(#1\\over#2) bar endfun";
+    let source1 = "defun foo(#1\\over#2) bar enddef";
+    let source2 = "edefun foo(#1\\over#2) bar enddef";
+    let source3 = "odefun foo(#1\\over#2) bar enddef";
+    let source4 = "loxdefun foo(#1\\over#2) bar enddef";
+    let source5 = "lgdefun foo(#1\\over#2) bar enddef";
+    let source6 = "lodefun foo(#1\\over#2) bar enddef";
 
     let expected1 = "\\def\\foo#1\\over#2{bar}\n";
     let expected2 = "\\edef\\foo#1\\over#2{bar}\n";
@@ -381,25 +381,25 @@ fn test_parse_function_definition_kind() {
 
 #[test]
 fn test_parse_function_definition_trim() {
-    let source1_trim_both = "defun foo (#1) \\overline{#1} endfun";
-    let source2_trim_both = "defun foo (#1)\\overline{#1} endfun";
-    let source3_trim_both = "defun foo (#1) \\overline{#1}endfun";
-    let source4_trim_both = "defun foo (#1)\\overline{#1}endfun";
+    let source1_trim_both = "defun foo (#1) \\overline{#1} enddef";
+    let source2_trim_both = "defun foo (#1)\\overline{#1} enddef";
+    let source3_trim_both = "defun foo (#1) \\overline{#1}enddef";
+    let source4_trim_both = "defun foo (#1)\\overline{#1}enddef";
 
-    let source1_trim_left = "defun foo (#1) \\overline{#1} endfun*";
-    let source2_trim_left = "defun foo (#1)\\overline{#1} endfun*";
-    let source3_trim_left = "defun foo (#1) \\overline{#1}endfun*";
-    let source4_trim_left = "defun foo (#1)\\overline{#1}endfun*";
+    let source1_trim_left = "defun foo (#1) \\overline{#1} enddef*";
+    let source2_trim_left = "defun foo (#1)\\overline{#1} enddef*";
+    let source3_trim_left = "defun foo (#1) \\overline{#1}enddef*";
+    let source4_trim_left = "defun foo (#1)\\overline{#1}enddef*";
 
-    let source1_trim_right = "defun* foo (#1) \\overline{#1} endfun";
-    let source2_trim_right = "defun* foo (#1)\\overline{#1} endfun";
-    let source3_trim_right = "defun* foo (#1) \\overline{#1}endfun";
-    let source4_trim_right = "defun* foo (#1)\\overline{#1}endfun";
+    let source1_trim_right = "defun* foo (#1) \\overline{#1} enddef";
+    let source2_trim_right = "defun* foo (#1)\\overline{#1} enddef";
+    let source3_trim_right = "defun* foo (#1) \\overline{#1}enddef";
+    let source4_trim_right = "defun* foo (#1)\\overline{#1}enddef";
 
-    let source1_no_trim = "defun* foo (#1) \\overline{#1} endfun*";
-    let source2_no_trim = "defun* foo (#1)\\overline{#1} endfun*";
-    let source3_no_trim = "defun* foo (#1) \\overline{#1}endfun*";
-    let source4_no_trim = "defun* foo (#1)\\overline{#1}endfun*";
+    let source1_no_trim = "defun* foo (#1) \\overline{#1} enddef*";
+    let source2_no_trim = "defun* foo (#1)\\overline{#1} enddef*";
+    let source3_no_trim = "defun* foo (#1) \\overline{#1}enddef*";
+    let source4_no_trim = "defun* foo (#1)\\overline{#1}enddef*";
 
     let expected_trim_both = "\\def\\foo#1{\\overline{#1}}\n";
     let expected_trim_left = "\\def\\foo#1{\\overline{#1} }\n";
@@ -433,11 +433,11 @@ fn test_parse_function_definition_trim() {
 
 #[test]
 fn test_parse_define_environment() {
-    let source = r#"defenv foo {
+    let source = r#"defenv foo
 \vskip 1pc\noindent
-}{
+endswith
 \vskip 1pc
-}
+enddef
 "#;
     let expected = "\\newenvironment{foo}{\\vskip 1pc\\noindent}{\\vskip 1pc}\n";
 
@@ -446,11 +446,11 @@ fn test_parse_define_environment() {
 
 #[test]
 fn test_parse_define_environment_with_argument() {
-    let source = r#"defenv foo [1] {
+    let source = r#"defenv foo [1]
 \vskip 1pc\noindent #1
-}{
+endswith
 \vskip 1pc
-}
+enddef
 "#;
     let expected = "\\newenvironment{foo}[1]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
 
@@ -459,23 +459,23 @@ fn test_parse_define_environment_with_argument() {
 
 #[test]
 fn test_parse_define_environment_with_optional_argument() {
-    let source1 = r#"defenv foo [1,basd] {
+    let source1 = r#"defenv foo [1,basd]
 \vskip 1pc\noindent #1
-}{
+endswith
 \vskip 1pc
-}
+enddef
 "#;
-    let source2 = r#"defenv foo [1, basd] {
+    let source2 = r#"defenv foo [1, basd]
 \vskip 1pc\noindent #1
-}{
+endswith
 \vskip 1pc
-}
+enddef
 "#;
-    let source3 = r#"defenv foo [1,  basd] {
+    let source3 = r#"defenv foo [1,  basd]
 \vskip 1pc\noindent #1
-}{
+endswith
 \vskip 1pc
-}
+enddef
 "#;
 
     let expected1 = "\\newenvironment{foo}[1][basd]{\\vskip 1pc\\noindent #1}{\\vskip 1pc}\n";
@@ -487,12 +487,38 @@ fn test_parse_define_environment_with_optional_argument() {
 }
 
 #[test]
-fn parse_phantom_environment() {
-    let source = r#"defenv newminipage [1] {
-    begenv minipage (0.4\textwidth)
+fn parse_nested_define_environment() {
+    let source = r#"defenv* foo [1,basd]
+  defenv bar
+      give a number
+  endswith
+      and foo
+  enddef
+useenv bar {
+  \noindent #1
+}
+endswith*
+\vskip 1pc
+enddef"#;
+
+    let expected = r#"\newenvironment{foo}[1][basd]{
+  \newenvironment{bar}{give a number}{and foo}
+\begin{bar}
+  \noindent #1
+\end{bar}
 }{
+\vskip 1pc}
+"#;
+    expected!(source should be expected);
+}
+
+#[test]
+fn parse_phantom_environment() {
+    let source = r#"defenv newminipage [1]
+    begenv minipage (0.4\textwidth)
+endswith
     endenv minipage
-}"#;
+enddef"#;
 
     let expected =
         "\\newenvironment{newminipage}[1]{\\begin{minipage}{0.4\\textwidth}}{\\end{minipage}}\n";
