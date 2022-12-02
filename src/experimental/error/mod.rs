@@ -1,6 +1,6 @@
 pub mod pretty_print;
 
-use crate::lexer::token::TokenType;
+use crate::experimental::lexer::token::TokenType;
 use crate::location::Span;
 
 #[derive(Debug, PartialEq)]
@@ -186,9 +186,8 @@ impl Error for VestiParseErrKind {
                 format!("type `{:?}` is used in here, but vesti cannot", r#type),
                 String::from("find its name part."),
                 match r#type {
-                    TokenType::Begenv => String::from("example: begenv foo"),
-                    TokenType::PhantomBegenv => String::from("example: pbegenv foo"),
-                    TokenType::PhantomEndenv => String::from("example: pendenv foo"),
+                    TokenType::BeginEnv => String::from("example: begenv foo"),
+                    TokenType::EndEnv => String::from("example: pendenv foo"),
                     TokenType::FunctionDef => String::from("example: defun foo"),
                     _ => unreachable!(),
                 },

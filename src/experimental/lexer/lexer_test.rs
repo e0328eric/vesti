@@ -1,3 +1,8 @@
+// Copyright (c) 2022 Sungbae Jeong
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 use super::*;
 
 macro_rules! lexing {
@@ -272,11 +277,11 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc mtxt import etxt endenv pbegenv pendenv";
+    let source = "docclass begenv startdoc mtxt import etxt endenv";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Begenv, "begenv"),
+        token!(TokenType::BeginEnv, "begenv"),
         token!(TokenType::Space, " "),
         token!(TokenType::StartDoc, "startdoc"),
         token!(TokenType::Space, " "),
@@ -286,11 +291,7 @@ fn lexing_keywords() {
         token!(TokenType::Space, " "),
         token!(TokenType::Etxt, "etxt"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Endenv, "endenv"),
-        token!(TokenType::Space, " "),
-        token!(TokenType::PhantomBegenv, "pbegenv"),
-        token!(TokenType::Space, " "),
-        token!(TokenType::PhantomEndenv, "pendenv"),
+        token!(TokenType::EndEnv, "endenv"),
     ];
 
     let mut lex = Lexer::new(source);
@@ -451,7 +452,7 @@ endenv"#;
         token!(TokenType::Newline, "\n"),
         token!(TokenType::InlineMathEnd, "\\]"),
         token!(TokenType::Newline, "\n"),
-        token!(TokenType::Begenv, "begenv"),
+        token!(TokenType::BeginEnv, "begenv"),
         token!(TokenType::Space, " "),
         token!(TokenType::Text, "center"),
         token!(TokenType::Space, " "),
@@ -463,7 +464,7 @@ endenv"#;
         token!(TokenType::Space, " "),
         token!(TokenType::Text, "TeX"),
         token!(TokenType::Newline, "\n"),
-        token!(TokenType::Endenv, "endenv"),
+        token!(TokenType::EndEnv, "endenv"),
     ];
     let mut lex = Lexer::new(source);
     let lexed = lexing!(lex);

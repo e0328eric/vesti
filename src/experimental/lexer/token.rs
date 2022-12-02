@@ -1,3 +1,8 @@
+// Copyright (c) 2022 Sungbae Jeong
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 use crate::location::{Location, Span};
 
 #[derive(Default, Clone, Debug)]
@@ -44,7 +49,7 @@ pub enum TokenType {
 
     // Whitespace
     Space,
-    Space2, // /_ where _ is a space
+    BackslashSpace, // \_ where _ is a space
     Tab,
     Newline,
     MathSmallSpace, // \,
@@ -61,17 +66,15 @@ pub enum TokenType {
     Docclass,
     Import,
     StartDoc,
-    Defenv,
-    Redefenv,
+    DefEnv,
+    RedefEnv,
     EndsWith,
-    Begenv,
-    Endenv,
-    PhantomBegenv,
-    PhantomEndenv,
+    UseEnv,
+    BeginEnv,
+    EndEnv,
     Mtxt,
     Etxt,
     NonStopMode,
-    DocumentStartMode, // TODO: deprecated
     FunctionDef,
     LongFunctionDef,
     OuterFunctionDef,
@@ -88,7 +91,7 @@ pub enum TokenType {
     LongXFunctionDef,
     OuterXFunctionDef,
     LongOuterXFunctionDef,
-    EndFunctionDef,
+    EndDef,
 
     // Symbols
     Plus,           // +
@@ -105,6 +108,7 @@ pub enum TokenType {
     LeftArrow,      // <-
     RightArrow,     // ->
     MapsTo,         // |->
+    Norm,           // \|
     Bang,           // !
     Question,       // ?
     RawDollar,      // $!
@@ -154,7 +158,7 @@ pub enum TokenType {
 impl TokenType {
     #[inline]
     pub fn is_keyword(&self) -> bool {
-        Self::Docclass <= *self && *self <= Self::EndFunctionDef
+        Self::Docclass <= *self && *self <= Self::EndDef
     }
 
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
@@ -162,18 +166,15 @@ impl TokenType {
             "docclass" => Some(Self::Docclass),
             "import" => Some(Self::Import),
             "startdoc" => Some(Self::StartDoc),
-            "defenv" => Some(Self::Defenv),
-            "redefenv" => Some(Self::Redefenv),
+            "defenv" => Some(Self::DefEnv),
+            "redefenv" => Some(Self::RedefEnv),
             "endswith" => Some(Self::EndsWith),
-            "begenv" => Some(Self::Begenv),
-            "endenv" => Some(Self::Endenv),
-            "pbegenv" => Some(Self::PhantomBegenv),
-            "pendenv" => Some(Self::PhantomEndenv),
+            "useenv" => Some(Self::UseEnv),
+            "begenv" => Some(Self::BeginEnv),
+            "endenv" => Some(Self::EndEnv),
             "mtxt" => Some(Self::Mtxt),
             "etxt" => Some(Self::Etxt),
             "nonstopmode" => Some(Self::NonStopMode),
-            "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
-            "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),
             "odefun" => Some(Self::OuterFunctionDef),
@@ -190,14 +191,16 @@ impl TokenType {
             "lxdefun" => Some(Self::LongXFunctionDef),
             "oxdefun" => Some(Self::OuterXFunctionDef),
             "loxdefun" => Some(Self::LongOuterXFunctionDef),
-            "endfun" => Some(Self::EndFunctionDef),
+            "enddef" => Some(Self::EndDef),
             _ => None,
         }
     }
 
     #[inline]
-    pub fn get_function_definition_start_list() -> Vec<Self> {
+    pub fn get_definition_start_list() -> Vec<Self> {
         vec![
+            Self::DefEnv,
+            Self::RedefEnv,
             Self::FunctionDef,
             Self::LongFunctionDef,
             Self::OuterFunctionDef,

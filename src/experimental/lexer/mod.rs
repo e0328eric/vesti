@@ -1,14 +1,18 @@
+// Copyright (c) 2022 Sungbae Jeong
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 #[cfg(test)]
 mod lexer_test;
 
 #[macro_use]
 mod macros;
 
-pub(crate) mod newline_handler;
 pub mod token;
 
+use crate::lexer::newline_handler::Newlinehandler;
 use crate::location::{Location, Span};
-use newline_handler::Newlinehandler;
 use token::{Token, TokenType};
 
 #[derive(Clone)]
@@ -378,12 +382,16 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: MathRbrace, "\\}"; start_loc)
             }
+            Some('|') => {
+                self.next_char();
+                tokenize!(self: Norm, "\\|"; start_loc)
+            }
             Some(' ') => {
                 self.next_char();
                 if self.math_started {
                     tokenize!(self: MathLargeSpace, "\\;"; start_loc)
                 } else {
-                    tokenize!(self: Space2, "\\ "; start_loc)
+                    tokenize!(self: BackslashSpace, "\\ "; start_loc)
                 }
             }
             Some('\\') => {
