@@ -89,7 +89,7 @@ fn main() -> ExitCode {
             continuous: _,
             file_name: _,
         } => {
-            todo!()
+            todo!("ERROR: This feature is not implemented yet.");
         }
     }
 

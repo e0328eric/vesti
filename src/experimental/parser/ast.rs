@@ -1,52 +1,33 @@
 use crate::experimental::lexer::token::TokenType;
 
-pub type Latex = Vec<Statement>;
+pub type StmtVec = Vec<Statement>;
+pub type ExprVec = Vec<Expression>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    NonStopMode,
     DocumentClass {
         name: String,
-        options: Option<Vec<Latex>>,
+        options: Option<Vec<StmtVec>>,
     },
-    Usepackage {
-        name: String,
-        options: Option<Vec<Latex>>,
+    Packages {
+        pkgs: Vec<LtxPackage>,
     },
-    MultiUsepackages {
-        pkgs: Latex,
-    },
+    // TODO: Implement module system for vesti
+    //Module {
+    //    name: String,
+    //},
     DocumentStart,
     DocumentEnd,
-    MainText(String),
-    Integer(i64),
-    Float(f64),
-    RawLatex(String),
-    BracedStmt(Latex),
-    MathText {
-        state: MathState,
-        text: Latex,
-    },
-    Fraction {
-        numerator: Latex,
-        denominator: Latex,
-    },
-    PlainTextInMath {
-        trim: TrimWhitespace,
-        text: Latex,
-    },
-    LatexFunction {
-        name: String,
-        args: Vec<(ArgNeed, Latex)>,
-    },
+    ExprStmt(ExprVec),
+    BlockStmt(StmtVec),
     Environment {
         name: String,
-        args: Vec<(ArgNeed, Latex)>,
-        text: Latex,
+        args: Vec<(ArgNeed, StmtVec)>,
+        text: StmtVec,
     },
     BeginPhantomEnvironment {
         name: String,
-        args: Vec<(ArgNeed, Latex)>,
+        args: Vec<(ArgNeed, StmtVec)>,
     },
     EndPhantomEnvironment {
         name: String,
@@ -56,17 +37,53 @@ pub enum Statement {
         name: String,
         args: String,
         trim: TrimWhitespace,
-        body: Latex,
+        body: StmtVec,
     },
     EnvironmentDefine {
         is_redefine: bool,
         name: String,
         args_num: u8,
-        optional_arg: Option<Latex>,
+        optional_arg: Option<StmtVec>,
         trim: TrimWhitespace,
-        begin_part: Latex,
-        end_part: Latex,
+        begin_part: StmtVec,
+        end_part: StmtVec,
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expression {
+    Letter(String),
+    Integer(i64),
+    Float(f64),
+    RawLatex(String),
+    MathText {
+        state: MathState,
+        text: StmtVec,
+    },
+    Fraction {
+        numerator: StmtVec,
+        denominator: StmtVec,
+    },
+    PlainTextInMath {
+        trim: TrimWhitespace,
+        text: StmtVec,
+    },
+    LatexFunction {
+        name: String,
+        args: Vec<(ArgNeed, StmtVec)>,
+    },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct LtxPackage {
+    name: String,
+    options: Option<Vec<OptionPair>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct OptionPair {
+    key: Expression,
+    value: ExprVec,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -101,31 +118,6 @@ pub enum FunctionStyle {
     LongExpandGlobal,
     OuterExpandGlobal,
     LongOuterExpandGlobal,
-}
-
-impl TryFrom<TokenType> for FunctionStyle {
-    type Error = TokenType;
-    fn try_from(value: TokenType) -> Result<Self, Self::Error> {
-        match value {
-            TokenType::FunctionDef => Ok(Self::Plain),
-            TokenType::LongFunctionDef => Ok(Self::LongPlain),
-            TokenType::OuterFunctionDef => Ok(Self::OuterPlain),
-            TokenType::LongOuterFunctionDef => Ok(Self::LongOuterPlain),
-            TokenType::EFunctionDef => Ok(Self::Expand),
-            TokenType::LongEFunctionDef => Ok(Self::LongExpand),
-            TokenType::OuterEFunctionDef => Ok(Self::OuterExpand),
-            TokenType::LongOuterEFunctionDef => Ok(Self::LongOuterExpand),
-            TokenType::GFunctionDef => Ok(Self::Global),
-            TokenType::LongGFunctionDef => Ok(Self::LongGlobal),
-            TokenType::OuterGFunctionDef => Ok(Self::OuterGlobal),
-            TokenType::LongOuterGFunctionDef => Ok(Self::LongOuterGlobal),
-            TokenType::XFunctionDef => Ok(Self::ExpandGlobal),
-            TokenType::LongXFunctionDef => Ok(Self::LongExpandGlobal),
-            TokenType::OuterXFunctionDef => Ok(Self::OuterExpandGlobal),
-            TokenType::LongOuterXFunctionDef => Ok(Self::LongOuterExpandGlobal),
-            _ => Err(value),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
