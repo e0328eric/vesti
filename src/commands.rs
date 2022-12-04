@@ -12,6 +12,7 @@ pub enum VestiOpt {
         #[clap(name = "PROJECT_NAME")]
         project_name: Option<String>,
     },
+    /// Compile vesti into Latex file
     Run {
         /// Compile vesti continuously.
         #[clap(short, long)]
@@ -19,18 +20,6 @@ pub enum VestiOpt {
         /// If this flag is on, then vesti compiles all vesti files in that directory.
         #[clap(long)]
         all: bool,
-        /// Input file names or directory name.
-        /// Directory name must type once.
-        #[clap(value_name = "FILE")]
-        file_name: Vec<PathBuf>,
-    },
-    /// Use the experimental lexer, parser and backend to compile vesti.
-    /// After all of features are fully implemented, they will be the default
-    /// front, middle, backend for vesti.
-    Experimental {
-        /// Compile vesti continuously.
-        #[clap(short, long)]
-        continuous: bool,
         /// Input file names or directory name.
         /// Directory name must type once.
         #[clap(value_name = "FILE")]
