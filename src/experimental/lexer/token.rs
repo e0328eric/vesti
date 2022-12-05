@@ -64,7 +64,10 @@ pub enum TokenType {
 
     // Keywords
     Docclass,
-    Import,
+    LatexPkg,
+    VestiMod,
+    Verbatim,
+    ModSynonym,
     StartDoc,
     DefEnv,
     RedefEnv,
@@ -72,25 +75,14 @@ pub enum TokenType {
     UseEnv,
     BeginEnv,
     EndEnv,
+    Labeling,
     Mtxt,
     Etxt,
-    NonStopMode,
     FunctionDef,
-    LongFunctionDef,
-    OuterFunctionDef,
-    LongOuterFunctionDef,
-    EFunctionDef,
-    LongEFunctionDef,
-    OuterEFunctionDef,
-    LongOuterEFunctionDef,
-    GFunctionDef,
-    LongGFunctionDef,
-    OuterGFunctionDef,
-    LongOuterGFunctionDef,
-    XFunctionDef,
-    LongXFunctionDef,
-    OuterXFunctionDef,
-    LongOuterXFunctionDef,
+    ExpandAttr,
+    GlobalAttr,
+    OuterAttr,
+    LongAttr,
     EndDef,
 
     // Symbols
@@ -112,7 +104,7 @@ pub enum TokenType {
     Bang,           // !
     Question,       // ?
     RawDollar,      // $!
-    Dollar,         // \$
+    Dollar,         // $
     Sharp,          // \#
     FntParam,       // #
     At,             // @
@@ -134,22 +126,19 @@ pub enum TokenType {
     DoubleQuote,    // "
 
     // Delimiters
-    Lparen,          // (
-    Rparen,          // )
-    Lbrace,          // {
-    Rbrace,          // }
-    Lsqbrace,        // [
-    OptionalBrace,   // %[
-    Rsqbrace,        // ]
-    MathLbrace,      // \{
-    MathRbrace,      // \}
-    TextMathStart,   // \(
-    TextMathEnd,     // \)
-    InlineMathStart, // \[
-    InlineMathEnd,   // \]
-
-    // etc
-    ArgSpliter,
+    LeftParen,        // (
+    RightParen,       // )
+    LeftBrace,        // {
+    RightBrace,       // }
+    LeftSquareBrace,  // [
+    RightSquareBrace, // ]
+    OptionalBrace,    // %[
+    MathLeftBrace,    // \{
+    MathRightBrace,   // \}
+    TextMathStart,    // {{
+    TextMathEnd,      // }}
+    InlineMathStart,  // \[
+    InlineMathEnd,    // \]
 
     // error token
     Illegal,
@@ -164,7 +153,10 @@ impl TokenType {
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
         match string {
             "docclass" => Some(Self::Docclass),
-            "import" => Some(Self::Import),
+            "ltxpkg" => Some(Self::LatexPkg),
+            "vesmod" => Some(Self::VestiMod),
+            "modverbtim" => Some(Self::Verbatim),
+            "modat" => Some(Self::ModSynonym),
             "startdoc" => Some(Self::StartDoc),
             "defenv" => Some(Self::DefEnv),
             "redefenv" => Some(Self::RedefEnv),
@@ -172,25 +164,14 @@ impl TokenType {
             "useenv" => Some(Self::UseEnv),
             "begenv" => Some(Self::BeginEnv),
             "endenv" => Some(Self::EndEnv),
+            "labeling" => Some(Self::Labeling),
             "mtxt" => Some(Self::Mtxt),
             "etxt" => Some(Self::Etxt),
-            "nonstopmode" => Some(Self::NonStopMode),
             "defun" => Some(Self::FunctionDef),
-            "ldefun" => Some(Self::LongFunctionDef),
-            "odefun" => Some(Self::OuterFunctionDef),
-            "lodefun" => Some(Self::LongOuterFunctionDef),
-            "edefun" => Some(Self::EFunctionDef),
-            "ledefun" => Some(Self::LongEFunctionDef),
-            "oedefun" => Some(Self::OuterEFunctionDef),
-            "loedefun" => Some(Self::LongOuterEFunctionDef),
-            "gdefun" => Some(Self::GFunctionDef),
-            "lgdefun" => Some(Self::LongGFunctionDef),
-            "ogdefun" => Some(Self::OuterGFunctionDef),
-            "logdefun" => Some(Self::LongOuterGFunctionDef),
-            "xdefun" => Some(Self::XFunctionDef),
-            "lxdefun" => Some(Self::LongXFunctionDef),
-            "oxdefun" => Some(Self::OuterXFunctionDef),
-            "loxdefun" => Some(Self::LongOuterXFunctionDef),
+            "expand" => Some(Self::ExpandAttr),
+            "global" => Some(Self::GlobalAttr),
+            "outer" => Some(Self::OuterAttr),
+            "long" => Some(Self::LongAttr),
             "enddef" => Some(Self::EndDef),
             _ => None,
         }
@@ -198,26 +179,7 @@ impl TokenType {
 
     #[inline]
     pub fn get_definition_start_list() -> Vec<Self> {
-        vec![
-            Self::DefEnv,
-            Self::RedefEnv,
-            Self::FunctionDef,
-            Self::LongFunctionDef,
-            Self::OuterFunctionDef,
-            Self::LongOuterFunctionDef,
-            Self::EFunctionDef,
-            Self::LongEFunctionDef,
-            Self::OuterEFunctionDef,
-            Self::LongOuterEFunctionDef,
-            Self::GFunctionDef,
-            Self::LongGFunctionDef,
-            Self::OuterGFunctionDef,
-            Self::LongOuterGFunctionDef,
-            Self::XFunctionDef,
-            Self::LongXFunctionDef,
-            Self::OuterXFunctionDef,
-            Self::LongOuterXFunctionDef,
-        ]
+        vec![Self::DefEnv, Self::RedefEnv, Self::FunctionDef]
     }
 
     #[inline]
