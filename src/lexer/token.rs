@@ -139,8 +139,8 @@ pub enum TokenType {
     Rsqbrace,        // ]
     MathLbrace,      // \{
     MathRbrace,      // \}
-    TextMathStart,   // \(
-    TextMathEnd,     // \)
+    TextMathStart,   // \( or {{
+    TextMathEnd,     // \( or }}
     InlineMathStart, // \[
     InlineMathEnd,   // \]
 

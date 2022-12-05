@@ -1,14 +1,18 @@
+// Copyright (c) 2022 Sungbae Jeong
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 #[cfg(test)]
 mod lexer_test;
 
 #[macro_use]
 mod macros;
 
-pub(crate) mod newline_handler;
 pub mod token;
 
+use crate::lexer::newline_handler::Newlinehandler;
 use crate::location::{Location, Span};
-use newline_handler::Newlinehandler;
 use token::{Token, TokenType};
 
 #[derive(Clone)]
@@ -53,14 +57,7 @@ impl<'a> Lexer<'a> {
         let start_loc = self.current_loc;
         match self.chr0 {
             Some('\0') | None => Token::eof(start_loc, self.current_loc),
-            Some(' ') => {
-                if self.chr1 == Some('@') && self.chr2 != Some('!') {
-                    self.next_char();
-                    tokenize!(self:ArgSpliter, ""; start_loc)
-                } else {
-                    tokenize!(self:Space, " "; start_loc)
-                }
-            }
+            Some(' ') => tokenize!(self:Space, " "; start_loc),
             Some('\t') => tokenize!(self:Tab, "\t"; start_loc),
             Some('\n') => tokenize!(self:Newline, "\n"; start_loc),
             Some('+') => tokenize!(self: Plus, "+"; start_loc),
@@ -118,14 +115,7 @@ impl<'a> Lexer<'a> {
                 _ => tokenize!(self: Bang, "!"; start_loc),
             },
             Some('?') => tokenize!(self: Question, "?"; start_loc),
-            Some('@') => {
-                if let Some('!') = self.chr1 {
-                    self.next_char();
-                    tokenize!(self: At, "@"; start_loc)
-                } else {
-                    tokenize!(self: ArgSpliter, "@"; start_loc)
-                }
-            }
+            Some('@') => tokenize!(self: At, "@"; start_loc),
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
             Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
@@ -149,24 +139,24 @@ impl<'a> Lexer<'a> {
             Some('.') => tokenize!(self: Period, "."; start_loc),
             Some(',') => tokenize!(self: Comma, ","; start_loc),
             Some('~') => tokenize!(self: Tilde, "~"; start_loc),
-            Some('(') => tokenize!(self: Lparen, "("; start_loc),
-            Some(')') => tokenize!(self: Rparen, ")"; start_loc),
+            Some('(') => tokenize!(self: LeftParen, "("; start_loc),
+            Some(')') => tokenize!(self: RightParen, ")"; start_loc),
             Some('{') => match self.chr1 {
                 Some('{') => {
                     self.next_char();
                     tokenize!(self: TextMathStart, "$"; start_loc)
                 }
-                _ => tokenize!(self: Lbrace, "{"; start_loc),
+                _ => tokenize!(self: LeftBrace, "{"; start_loc),
             },
             Some('}') => match self.chr1 {
                 Some('}') => {
                     self.next_char();
                     tokenize!(self: TextMathEnd, "$"; start_loc)
                 }
-                _ => tokenize!(self: Rbrace, "}"; start_loc),
+                _ => tokenize!(self: RightBrace, "}"; start_loc),
             },
-            Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
-            Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
+            Some('[') => tokenize!(self: LeftSquareBrace, "["; start_loc),
+            Some(']') => tokenize!(self: RightSquareBrace, "]"; start_loc),
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
@@ -384,18 +374,22 @@ impl<'a> Lexer<'a> {
             }
             Some('{') => {
                 self.next_char();
-                tokenize!(self: MathLbrace, "\\{"; start_loc)
+                tokenize!(self: MathLeftBrace, "\\{"; start_loc)
             }
             Some('}') => {
                 self.next_char();
-                tokenize!(self: MathRbrace, "\\}"; start_loc)
+                tokenize!(self: MathRightBrace, "\\}"; start_loc)
+            }
+            Some('|') => {
+                self.next_char();
+                tokenize!(self: Norm, "\\|"; start_loc)
             }
             Some(' ') => {
                 self.next_char();
                 if self.math_started {
                     tokenize!(self: MathLargeSpace, "\\;"; start_loc)
                 } else {
-                    tokenize!(self: Space2, "\\ "; start_loc)
+                    tokenize!(self: BackslashSpace, "\\ "; start_loc)
                 }
             }
             Some('\\') => {
