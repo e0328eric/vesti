@@ -31,7 +31,7 @@ macro_rules! unwrap_err {
         let $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
-                println!("{}", pretty_print($source, err, $file_name));
+                pretty_print($source, err, $file_name).unwrap();
                 let mut writer = $is_loop_end.write().unwrap();
                 *writer = true;
                 return ExitCode::Failure;
@@ -42,7 +42,7 @@ macro_rules! unwrap_err {
         let mut $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
-                println!("{}", pretty_print($source, err, $file_name));
+                pretty_print($source, err, $file_name).unwrap();
                 let mut writer = $is_loop_end.write().unwrap();
                 *writer = true;
                 return ExitCode::Failure;
@@ -53,7 +53,7 @@ macro_rules! unwrap_err {
         $name = match $to_unwrap {
             Ok(inner) => inner,
             Err(err) => {
-                println!("{}", pretty_print($source, err, $file_name));
+                pretty_print($source, err, $file_name).unwrap();
                 let mut writer = $is_loop_end.write().unwrap();
                 *writer = true;
                 return ExitCode::Failure;

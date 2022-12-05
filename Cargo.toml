@@ -19,6 +19,7 @@ strip = true
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+crossterm = "0.25.0"
 signal-hook = "0.3"
 unicode-width = "0.1.8"
 walkdir = "2.3"

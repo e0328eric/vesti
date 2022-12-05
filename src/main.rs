@@ -7,6 +7,7 @@ mod commands;
 mod compile;
 mod error;
 mod exit_status;
+mod experimental;
 mod initialization;
 mod lexer;
 mod location;
@@ -42,7 +43,7 @@ fn main() -> ExitCode {
             return match generate_vesti_file(project_name) {
                 Ok(()) => ExitCode::Success,
                 Err(err) => {
-                    println!("{}", pretty_print(None, err, None));
+                    pretty_print(None, err, None).unwrap();
                     ExitCode::Failure
                 }
             };
@@ -58,7 +59,7 @@ fn main() -> ExitCode {
             let file_lists = match args.take_filename() {
                 Ok(inner) => inner,
                 Err(err) => {
-                    println!("{}", pretty_print(None, err, None));
+                    pretty_print(None, err, None).unwrap();
                     return ExitCode::Failure;
                 }
             };
@@ -83,6 +84,12 @@ fn main() -> ExitCode {
             }
 
             println!("bye!");
+        }
+        VestiOpt::Experimental {
+            continuous: _,
+            file_name: _,
+        } => {
+            eprintln!("")
         }
     }
 

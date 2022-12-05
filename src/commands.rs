@@ -25,6 +25,18 @@ pub enum VestiOpt {
         #[clap(value_name = "FILE")]
         file_name: Vec<PathBuf>,
     },
+    /// Use the experimental lexer, parser and backend to compile vesti.
+    /// After all of features are fully implemented, they will be the default
+    /// front, middle, backend for vesti.
+    Experimental {
+        /// Compile vesti continuously.
+        #[clap(short, long)]
+        continuous: bool,
+        /// Input file names or directory name.
+        /// Directory name must type once.
+        #[clap(value_name = "FILE")]
+        file_name: Vec<PathBuf>,
+    },
 }
 
 impl VestiOpt {
