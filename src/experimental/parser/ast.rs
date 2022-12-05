@@ -103,31 +103,6 @@ pub enum FunctionStyle {
     LongOuterExpandGlobal,
 }
 
-impl TryFrom<TokenType> for FunctionStyle {
-    type Error = TokenType;
-    fn try_from(value: TokenType) -> Result<Self, Self::Error> {
-        match value {
-            TokenType::FunctionDef => Ok(Self::Plain),
-            TokenType::LongFunctionDef => Ok(Self::LongPlain),
-            TokenType::OuterFunctionDef => Ok(Self::OuterPlain),
-            TokenType::LongOuterFunctionDef => Ok(Self::LongOuterPlain),
-            TokenType::EFunctionDef => Ok(Self::Expand),
-            TokenType::LongEFunctionDef => Ok(Self::LongExpand),
-            TokenType::OuterEFunctionDef => Ok(Self::OuterExpand),
-            TokenType::LongOuterEFunctionDef => Ok(Self::LongOuterExpand),
-            TokenType::GFunctionDef => Ok(Self::Global),
-            TokenType::LongGFunctionDef => Ok(Self::LongGlobal),
-            TokenType::OuterGFunctionDef => Ok(Self::OuterGlobal),
-            TokenType::LongOuterGFunctionDef => Ok(Self::LongOuterGlobal),
-            TokenType::XFunctionDef => Ok(Self::ExpandGlobal),
-            TokenType::LongXFunctionDef => Ok(Self::LongExpandGlobal),
-            TokenType::OuterXFunctionDef => Ok(Self::OuterExpandGlobal),
-            TokenType::LongOuterXFunctionDef => Ok(Self::LongOuterExpandGlobal),
-            _ => Err(value),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TrimWhitespace {
     pub start: bool,
