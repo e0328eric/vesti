@@ -115,7 +115,8 @@ impl<'a> Parser<'a> {
                 self.eat_whitespaces::<true>();
                 Ok(Statement::NonStopMode)
             }
-            TokenType::Begenv => self.parse_environment::<true>(),
+            TokenType::Useenv => self.parse_environment::<true, true>(),
+            TokenType::Begenv => self.parse_environment::<true, false>(),
             TokenType::Endenv => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {
                     open: vec![
@@ -128,7 +129,7 @@ impl<'a> Parser<'a> {
                 },
                 self.peek_tok_location(),
             )),
-            TokenType::PhantomBegenv => self.parse_environment::<false>(),
+            TokenType::PhantomBegenv => self.parse_environment::<false, false>(),
             TokenType::PhantomEndenv => self.parse_end_phantom_environment(),
             TokenType::Mtxt => self.parse_text_in_math(),
             TokenType::Etxt => Err(VestiErr::make_parse_err(
@@ -536,27 +537,42 @@ impl<'a> Parser<'a> {
         Ok(Statement::EndPhantomEnvironment { name })
     }
 
-    fn parse_environment<const IS_REAL: bool>(&mut self) -> error::Result<Statement> {
+    fn parse_environment<const IS_REAL: bool, const USE_BRACKET: bool>(
+        &mut self,
+    ) -> error::Result<Statement> {
         let begenv_location = self.peek_tok_location();
         let mut off_math_state = false;
 
-        expect_peek!(self: if IS_REAL { TokenType::Begenv } else { TokenType::PhantomBegenv }; self.peek_tok_location());
+        if USE_BRACKET {
+            expect_peek!(self: TokenType::Useenv; self.peek_tok_location());
+        } else {
+            expect_peek!(self: if IS_REAL { TokenType::Begenv } else { TokenType::PhantomBegenv }; self.peek_tok_location());
+        }
         self.eat_whitespaces::<false>();
 
         let mut name = match self.peek_tok() {
             TokenType::Text => self.next_tok().literal,
             TokenType::Eof => {
-                return Err(VestiErr::ParseErr {
-                    err_kind: if IS_REAL {
-                        VestiParseErrKind::IsNotClosedErr {
-                            open: vec![TokenType::Begenv],
-                            close: TokenType::Endenv,
-                        }
-                    } else {
-                        VestiParseErrKind::EOFErr
-                    },
-                    location: begenv_location,
-                })
+                if USE_BRACKET {
+                    return Err(VestiErr::ParseErr {
+                        err_kind: VestiParseErrKind::NameMissErr {
+                            r#type: TokenType::Useenv,
+                        },
+                        location: begenv_location,
+                    });
+                } else {
+                    return Err(VestiErr::ParseErr {
+                        err_kind: if IS_REAL {
+                            VestiParseErrKind::IsNotClosedErr {
+                                open: vec![TokenType::Begenv],
+                                close: TokenType::Endenv,
+                            }
+                        } else {
+                            VestiParseErrKind::EOFErr
+                        },
+                        location: begenv_location,
+                    });
+                }
             }
             _ => {
                 return Err(VestiErr::make_parse_err(
@@ -592,7 +608,24 @@ impl<'a> Parser<'a> {
         )?;
 
         let mut text = MaybeUninit::<Latex>::uninit();
-        if IS_REAL {
+        if USE_BRACKET {
+            self.eat_whitespaces::<false>();
+            expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
+            let text_ref = text.write(Vec::new());
+            while self.peek_tok() != TokenType::Rbrace {
+                if self.is_eof() {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IsNotClosedErr {
+                            open: vec![TokenType::Lbrace],
+                            close: TokenType::Rbrace,
+                        },
+                        begenv_location,
+                    ));
+                }
+                text_ref.push(self.parse_statement()?);
+            }
+            expect_peek!(self: TokenType::Rbrace; self.peek_tok_location());
+        } else if IS_REAL {
             let text_ref = text.write(Vec::new());
             while self.peek_tok() != TokenType::Endenv {
                 if self.is_eof() {
@@ -606,7 +639,6 @@ impl<'a> Parser<'a> {
                 }
                 text_ref.push(self.parse_statement()?);
             }
-
             expect_peek!(self: TokenType::Endenv; self.peek_tok_location());
         }
 
