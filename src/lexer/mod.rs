@@ -151,20 +151,8 @@ impl<'a> Lexer<'a> {
             Some('~') => tokenize!(self: Tilde, "~"; start_loc),
             Some('(') => tokenize!(self: Lparen, "("; start_loc),
             Some(')') => tokenize!(self: Rparen, ")"; start_loc),
-            Some('{') => match self.chr1 {
-                Some('{') => {
-                    self.next_char();
-                    tokenize!(self: TextMathStart, "$"; start_loc)
-                }
-                _ => tokenize!(self: Lbrace, "{"; start_loc),
-            },
-            Some('}') => match self.chr1 {
-                Some('}') => {
-                    self.next_char();
-                    tokenize!(self: TextMathEnd, "$"; start_loc)
-                }
-                _ => tokenize!(self: Rbrace, "}"; start_loc),
-            },
+            Some('{') => tokenize!(self: Lbrace, "{"; start_loc),
+            Some('}') => tokenize!(self: Rbrace, "}"; start_loc),
             Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('$') => self.lex_dollar_char(),
