@@ -96,8 +96,6 @@ impl<'a> Parser<'a> {
             latex.push(Statement::DocumentEnd);
         }
 
-        println!("{:#?}", latex);
-
         Ok(latex)
     }
 
