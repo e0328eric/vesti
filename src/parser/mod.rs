@@ -96,6 +96,8 @@ impl<'a> Parser<'a> {
             latex.push(Statement::DocumentEnd);
         }
 
+        println!("{:#?}", latex);
+
         Ok(latex)
     }
 
@@ -194,7 +196,7 @@ impl<'a> Parser<'a> {
                     self.peek_tok_location(),
                 ))
             }
-            TokenType::Lbrace if self.is_math_mode() => self.parse_brace_stmt(),
+            TokenType::Lbrace => self.parse_brace_stmt(),
 
             TokenType::TextMathEnd => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::InvalidTokToConvert {
@@ -382,8 +384,8 @@ impl<'a> Parser<'a> {
         expect_peek!(self: TokenType::Lbrace; begin_location);
 
         let mut is_fraction = false;
-        let mut numerator: Latex = Vec::with_capacity(4);
-        let mut denominator: Latex = Vec::with_capacity(4);
+        let mut numerator: Latex = Vec::with_capacity(10);
+        let mut denominator: Latex = Vec::with_capacity(10);
         loop {
             if self.peek_tok() == TokenType::Eof {
                 break Err(VestiErr::ParseErr {
