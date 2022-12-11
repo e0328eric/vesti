@@ -14,8 +14,9 @@ use crate::lexer::Lexer;
 use crate::location::Span;
 use ast::*;
 
-const ENV_MATH_IDENT: [&str; 6] = [
-    "equation", "align", "array", "eqnarray", "gather", "multline",
+// TODO: Make a keyword that can use lua script
+const ENV_MATH_IDENT: [&str; 7] = [
+    "equation", "align", "array", "eqnarray", "gather", "multline", "luacode",
 ];
 
 #[repr(packed)]
