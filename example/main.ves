@@ -1,0 +1,69 @@
+// vesti is a statically typed language that produces a Latex document.
+//
+// Some primitive types:
+//
+// * void        : An empty type. Same as () type in Rust or Haskell language.
+// * boolean     : Either true or false type.
+// * number      : A number type, especially an integer type. Size of this type is 64bit integer.
+// * real        : A floating number type. Same as f64 in Rust.
+// * string      : Arbitrary shrinkable and growable UTF-8 string.
+// * math        : Math object. It can be constructed using either `$` or `\[`, `\]` pair.
+// * optional    : Write ?number like. It denotes that it can be `null`.
+// * exceptional : Write <err>!<ok>. <err> class should inherit the std::error class.
+
+// I have been thinking that whether an OOP system or trait system is given to this language.
+// If a trait system is given, then std::error class will be replaced into Error trait.
+
+// Functions are not overloadable except for some built-in functions.
+
+// Like zig, every built-in functions has a prefix `@`.
+
+fn main() void {
+    main_text =
+    \\New syntax of the vesti language.
+    \\It will be designed to be splitted into two different sections.
+    \\One is the text section like this, and the other section is the programming part.
+    \\
+    \\Usage of function call is {"like this".bold()}.
+    ;
+
+    important_math = $x + y = 3$;
+
+    main_text +=
+    \\We can inline a math block like $1+2=3$ but also with {important_math.change_var("x", "t")}.
+    \\
+    \\We recommend not to inline the environment but use the following syntax:
+    ;
+
+    // Usage of @useenv
+    // @useenv :: string -> string -> (void -> string) <built-in function>
+    // @useenv :: string -> (void -> string) <built-in function>
+    @useenv(main_text, "center", () => {
+        return
+        \\Is this the real document typesetting syntax?
+        ;
+    });
+
+    // Comment is same as C/C++ and Rust language.
+    // Since this is a typesetting tool, there is a shortcut about writting `main_text = <something>;`
+    // and then typesetting(main_text); for main text.
+    // In the main function, I recommend to write:
+    _ += main_text;
+    @useenv("center", () => {
+        return
+        \\Is this the real document typesetting syntax?
+        ;
+    });
+
+    // The single character `_` is also an identifier that assignes nothing.
+    // So we can use this character instead.
+
+    // declare document class of this document.
+    @docclass("coprime", "korean", "geometry");
+
+    // We can call normal latex function like the original function like syntax in the other languages.
+    // However, latex functions are imported into a special module called `ltx`.
+    // We do not allow calling latex3 functions yet. However, I am thinking about making new module called `ltx3`.
+    ltx::settitle("An example document of new vesti syntax", "Sungbae Jeong");
+    @typesetting(); // We can also write typesetting(main_text);
+}

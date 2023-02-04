@@ -7,7 +7,6 @@ mod commands;
 mod compile;
 mod error;
 mod exit_status;
-mod experimental;
 mod initialization;
 mod lexer;
 mod location;
@@ -84,12 +83,6 @@ fn main() -> ExitCode {
             }
 
             println!("bye!");
-        }
-        VestiOpt::Experimental {
-            continuous: _,
-            file_name: _,
-        } => {
-            eprintln!("")
         }
     }
 
