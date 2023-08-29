@@ -144,6 +144,8 @@ pub enum TokenType {
     TextMathEnd,     // \( or }}
     InlineMathStart, // \[
     InlineMathEnd,   // \]
+    Langle,          // <{
+    Rangle,          // }>
 
     // etc
     ArgSpliter,
