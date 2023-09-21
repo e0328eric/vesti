@@ -68,7 +68,7 @@ fn main() -> ExitCode {
                 let cloned_trap = Arc::clone(&trap);
                 let cloned_bool = Arc::clone(&is_loop_end);
                 handle_vesti.push(thread::spawn(move || {
-                    return compile::compile_vesti(cloned_trap, file_name, continuous, cloned_bool);
+                    compile::compile_vesti(cloned_trap, file_name, continuous, cloned_bool)
                 }));
             }
 

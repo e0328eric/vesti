@@ -19,6 +19,7 @@ pub struct Lexer<'a> {
     chr2: Option<char>,
     current_loc: Location,
     pub math_started: bool,
+    math_string_started: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -30,6 +31,7 @@ impl<'a> Lexer<'a> {
             chr2: None,
             current_loc: Location::default(),
             math_started: false,
+            math_string_started: false,
         };
         output.next_char();
         output.next_char();
@@ -137,7 +139,17 @@ impl<'a> Lexer<'a> {
             Some(':') => tokenize!(self: Colon, ":"; start_loc),
             Some('\'') => tokenize!(self: RightQuote, "'"; start_loc),
             Some('`') => tokenize!(self: LeftQuote, "`"; start_loc),
-            Some('"') => tokenize!(self: DoubleQuote, "\""; start_loc),
+            Some('"') => {
+                if !self.math_started {
+                    tokenize!(self: DoubleQuote, "\""; start_loc)
+                } else if self.math_string_started {
+                    self.math_string_started = false;
+                    tokenize!(self:MathTextEnd, "\""; start_loc)
+                } else {
+                    self.math_string_started = true;
+                    tokenize!(self:MathTextStart, "\""; start_loc)
+                }
+            }
             Some('_') => tokenize!(self: Subscript, "_"; start_loc),
             Some('|') => match self.chr1 {
                 Some('-') => match self.chr2 {
@@ -395,6 +407,14 @@ impl<'a> Lexer<'a> {
                     tokenize!(self: MathLargeSpace, "\\;"; start_loc)
                 } else {
                     tokenize!(self: Space2, "\\ "; start_loc)
+                }
+            }
+            Some('"') => {
+                if self.math_started {
+                    self.next_char();
+                    tokenize!(self: DoubleQuote, "\\\""; start_loc)
+                } else {
+                    tokenize!(self: ShortBackSlash, "\\"; start_loc)
                 }
             }
             Some('\\') => {

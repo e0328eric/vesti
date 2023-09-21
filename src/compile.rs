@@ -83,6 +83,7 @@ pub fn compile_vesti(
     let mut now_time = init_time;
 
     while !SIGNALS.contains(&(trap.load(Ordering::Relaxed) as i32)) {
+        #[allow(clippy::blocks_in_if_conditions)]
         if {
             let reader = is_loop_end.read().unwrap();
             *reader

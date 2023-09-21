@@ -37,16 +37,18 @@ impl ToString for Statement {
                 numerator,
                 denominator,
             } => fraction_to_string(numerator, denominator),
-            Statement::PlainTextInMath { trim, text } => plaintext_in_math_to_string(trim, text),
+            Statement::PlainTextInMath { text } => plaintext_in_math_to_string(text),
             Statement::Integer(i) => i.to_string(),
             Statement::Float(f) => f.to_string(),
             Statement::RawLatex(s) => s.clone(),
             Statement::MathText { state, text } => math_text_to_string(*state, text),
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
-            Statement::BeginPhantomEnvironment { name, args } => {
-                begin_phantom_environment_to_string(name, args)
-            }
+            Statement::BeginPhantomEnvironment {
+                name,
+                args,
+                add_newline,
+            } => begin_phantom_environment_to_string(name, args, *add_newline),
             Statement::EndPhantomEnvironment { name } => format!("\\end{{{name}}}"),
             Statement::FunctionDefine {
                 style,
@@ -143,22 +145,13 @@ fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> String {
     )
 }
 
-fn plaintext_in_math_to_string(trim: &TrimWhitespace, text: &Latex) -> String {
-    let mut output = latex_to_string(text);
-    if output.as_bytes()[output.len() - 1] == b' ' {
-        output.pop();
-    }
-
-    match (trim.start, trim.end) {
-        (true, true) => format!("\\text{{ {} }}", output),
-        (true, false) => format!("\\text{{ {}}}", output),
-        (false, true) => format!("\\text{{{} }}", output),
-        (false, false) => format!("\\text{{{}}}", output),
-    }
+fn plaintext_in_math_to_string(text: &Latex) -> String {
+    let output = latex_to_string(text);
+    format!("\\text{{{}}}", output)
 }
 
 fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {
-    let mut output = format!("{}", name);
+    let mut output = name.to_string();
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
@@ -176,8 +169,12 @@ fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -
 fn begin_phantom_environment_to_string(
     name: &str,
     args: &Vec<(ArgNeed, Vec<Statement>)>,
+    add_newline: bool,
 ) -> String {
     let mut output = format!("\\begin{{{name}}}");
+    if add_newline {
+        output.push('\n');
+    }
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {

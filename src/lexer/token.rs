@@ -67,12 +67,8 @@ pub enum TokenType {
     Useenv,
     Begenv,
     Endenv,
-    PhantomBegenv,
-    PhantomEndenv,
-    Mtxt,
-    Etxt,
+    DocumentStartMode,
     NonStopMode,
-    DocumentStartMode, // TODO: deprecated
     FunctionDef,
     LongFunctionDef,
     OuterFunctionDef,
@@ -89,7 +85,7 @@ pub enum TokenType {
     LongXFunctionDef,
     OuterXFunctionDef,
     LongOuterXFunctionDef,
-    EndFunctionDef,
+    EndDefinition,
 
     // Symbols
     Plus,           // +
@@ -144,20 +140,23 @@ pub enum TokenType {
     TextMathEnd,     // \( or }}
     InlineMathStart, // \[
     InlineMathEnd,   // \]
-    Langle,          // <{
-    Rangle,          // }>
+    MathTextStart,
+    MathTextEnd,
+    Langle, // <{
+    Rangle, // }>
 
     // etc
     ArgSpliter,
 
     // error token
+    Deprecated,
     Illegal,
 }
 
 impl TokenType {
     #[inline]
     pub fn is_keyword(&self) -> bool {
-        Self::Docclass <= *self && *self <= Self::EndFunctionDef
+        Self::Docclass <= *self && *self <= Self::EndDefinition
     }
 
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
@@ -171,13 +170,8 @@ impl TokenType {
             "useenv" => Some(Self::Useenv),
             "begenv" => Some(Self::Begenv),
             "endenv" => Some(Self::Endenv),
-            "pbegenv" => Some(Self::PhantomBegenv),
-            "pendenv" => Some(Self::PhantomEndenv),
-            "mtxt" => Some(Self::Mtxt),
-            "etxt" => Some(Self::Etxt),
+            "docstartmode" => Some(Self::DocumentStartMode),
             "nonstopmode" => Some(Self::NonStopMode),
-            "nodocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
-            "nondocclass" => Some(Self::DocumentStartMode), // TODO: deprecated
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),
             "odefun" => Some(Self::OuterFunctionDef),
@@ -194,14 +188,22 @@ impl TokenType {
             "lxdefun" => Some(Self::LongXFunctionDef),
             "oxdefun" => Some(Self::OuterXFunctionDef),
             "loxdefun" => Some(Self::LongOuterXFunctionDef),
-            "endfun" => Some(Self::EndFunctionDef),
+            "enddef" => Some(Self::EndDefinition),
+            "pbegenv" => Some(Self::Deprecated), //TODO: deprecated
+            "pendenv" => Some(Self::Deprecated), //TODO: deprecated
+            "mtxt" => Some(Self::Deprecated),    // TODO: deprecated
+            "etxt" => Some(Self::Deprecated),    // TODO: deprecated
+            "nodocclass" => Some(Self::Deprecated), // TODO: deprecated
+            "nondocclass" => Some(Self::Deprecated), // TODO: deprecated
             _ => None,
         }
     }
 
     #[inline]
-    pub fn get_function_definition_start_list() -> Vec<Self> {
+    pub fn get_definition_start_list() -> Vec<Self> {
         vec![
+            Self::Defenv,
+            Self::Redefenv,
             Self::FunctionDef,
             Self::LongFunctionDef,
             Self::OuterFunctionDef,

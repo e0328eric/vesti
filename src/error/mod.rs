@@ -1,3 +1,5 @@
+#![allow(clippy::needless_raw_string_hashes)]
+
 pub mod pretty_print;
 
 use crate::lexer::token::TokenType;
@@ -31,6 +33,7 @@ pub enum VestiParseErrKind {
     NameMissErr {
         r#type: TokenType,
     },
+    DeprecatedUseErr,
     IllegalUseErr {
         got: TokenType,
     },
@@ -116,7 +119,8 @@ impl Error for VestiParseErrKind {
             Self::IsNotClosedErr { .. } => 0x0108,
             Self::IsNotOpenedErr { .. } => 0x0109,
             Self::NameMissErr { .. } => 0x0110,
-            Self::IllegalUseErr { .. } => 0x0111,
+            Self::DeprecatedUseErr => 0x0111,
+            Self::IllegalUseErr { .. } => 0x0112,
         }
     }
     fn err_str(&self) -> String {
@@ -138,6 +142,7 @@ impl Error for VestiParseErrKind {
                 format!("Type `{close:?}` is used without the opening part")
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
+            Self::DeprecatedUseErr => "This is deprecated".to_string(),
             Self::IllegalUseErr { got } => {
                 format!("Type `{got:?}` cannot use out of the math block or function definition")
             }
@@ -158,7 +163,7 @@ impl Error for VestiParseErrKind {
                 String::from("so let me know when this error occurs"),
             ],
             Self::InvalidTokToConvert { got } => match got {
-                TokenType::Etxt => vec![
+                TokenType::MathTextEnd => vec![
                     String::from("must use `etxt` only at a math context"),
                     String::from("If `etxt` is in a math mode, then this error can"),
                     String::from("occur when `mtxt` is missing."),
@@ -187,12 +192,13 @@ impl Error for VestiParseErrKind {
                 String::from("find its name part."),
                 match r#type {
                     TokenType::Begenv => String::from("example: begenv foo"),
-                    TokenType::PhantomBegenv => String::from("example: pbegenv foo"),
-                    TokenType::PhantomEndenv => String::from("example: pendenv foo"),
                     TokenType::FunctionDef => String::from("example: defun foo"),
                     _ => unreachable!(),
                 },
             ],
+            Self::DeprecatedUseErr => vec![String::from(
+                "This error occurs because of the breaking change",
+            )],
             Self::IllegalUseErr { .. } => {
                 vec![
                     String::from("wrap the whole expression that uses this"),

@@ -32,7 +32,6 @@ pub enum Statement {
         denominator: Latex,
     },
     PlainTextInMath {
-        trim: TrimWhitespace,
         text: Latex,
     },
     LatexFunction {
@@ -47,6 +46,7 @@ pub enum Statement {
     BeginPhantomEnvironment {
         name: String,
         args: Vec<(ArgNeed, Latex)>,
+        add_newline: bool,
     },
     EndPhantomEnvironment {
         name: String,

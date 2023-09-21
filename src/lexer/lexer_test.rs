@@ -1,3 +1,5 @@
+#![allow(clippy::needless_raw_string_hashes)]
+
 use super::*;
 
 macro_rules! lexing {
@@ -272,7 +274,7 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc mtxt import etxt endenv pbegenv pendenv";
+    let source = "docclass begenv startdoc import endenv";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
@@ -280,17 +282,9 @@ fn lexing_keywords() {
         token!(TokenType::Space, " "),
         token!(TokenType::StartDoc, "startdoc"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Mtxt, "mtxt"),
-        token!(TokenType::Space, " "),
         token!(TokenType::Import, "import"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Etxt, "etxt"),
-        token!(TokenType::Space, " "),
         token!(TokenType::Endenv, "endenv"),
-        token!(TokenType::Space, " "),
-        token!(TokenType::PhantomBegenv, "pbegenv"),
-        token!(TokenType::Space, " "),
-        token!(TokenType::PhantomEndenv, "pendenv"),
     ];
 
     let mut lex = Lexer::new(source);
@@ -350,7 +344,7 @@ startdoc
 
 This is a \LaTeX!
 \[
-    1 + 1 = \sum_{j=1}^\infty f(x),\qquad mtxt foobar etxt
+    1 + 1 = \sum_{j=1}^\infty f(x),\qquad "foobar"
 \]
 begenv center % [adadasdawd]
     The TeX
@@ -443,11 +437,9 @@ endenv"#;
         token!(TokenType::Comma, ","),
         token!(TokenType::LatexFunction, "\\qquad"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Mtxt, "mtxt"),
-        token!(TokenType::Space, " "),
+        token!(TokenType::MathTextStart, "\""),
         token!(TokenType::Text, "foobar"),
-        token!(TokenType::Space, " "),
-        token!(TokenType::Etxt, "etxt"),
+        token!(TokenType::MathTextEnd, "\""),
         token!(TokenType::Newline, "\n"),
         token!(TokenType::InlineMathEnd, "\\]"),
         token!(TokenType::Newline, "\n"),
