@@ -29,7 +29,7 @@ Upper code is a figure using tikz.
 \end{document}
 ```
 
-What I am anoying to uee it is `\begin` and `\end` block. Is there a way to write much simpler? This
+What I am anoying about to use it is `\begin` and `\end` block. Is there a way to write much simpler? This
 question makes me to start this project. Currently, below code is generated into upper LaTeX code
 using vesti except comments.
 
