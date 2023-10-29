@@ -16,14 +16,7 @@ use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-#[cfg(target_os = "windows")]
-use signal_hook::consts::signal::{SIGILL, SIGINT, SIGTERM};
-#[cfg(not(target_os = "windows"))]
 use signal_hook::consts::signal::{SIGINT, SIGTERM};
-
-#[cfg(target_os = "windows")]
-pub const SIGNALS: [i32; 3] = [SIGINT, SIGTERM, SIGILL];
-#[cfg(not(target_os = "windows"))]
 pub const SIGNALS: [i32; 2] = [SIGINT, SIGTERM];
 
 macro_rules! unwrap_err {

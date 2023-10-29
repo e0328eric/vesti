@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
 repository = "https://github.com/e0328eric/vesti.git"
@@ -21,5 +21,5 @@ strip = true
 clap = { version = "4", features = ["derive"] }
 crossterm = "0.27.0"
 signal-hook = "0.3"
-unicode-width = "0.1.8"
-walkdir = "2.3"
+unicode-width = "0.1"
+walkdir = "2.4"
