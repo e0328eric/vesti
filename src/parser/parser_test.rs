@@ -301,7 +301,7 @@ enddef"#;
         \overline{#1}
 enddef"#;
 
-    let expected = "\\def\\foo#1{\\overline{#1}}\n";
+    let expected = "\\def\\foo#1{\\overline{#1}}%\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -324,7 +324,7 @@ enddef"#;
         \overline{#1} and #2
 enddef"#;
 
-    let expected = "\\def\\bar@foo#1#2{\\overline{#1} and #2}\n";
+    let expected = "\\def\\bar@foo#1#2{\\overline{#1} and #2}%\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -347,7 +347,7 @@ enddef"#;
         \overline{#1} and #2
 enddef"#;
 
-    let expected = "\\def\\barfoo import #1 and #2{\\overline{#1} and #2}\n";
+    let expected = "\\def\\barfoo import #1 and #2{\\overline{#1} and #2}%\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -366,12 +366,12 @@ fn test_parse_function_definition_kind() {
     let source5 = "lgdefun foo(#1\\over#2) bar enddef";
     let source6 = "lodefun foo(#1\\over#2) bar enddef";
 
-    let expected1 = "\\def\\foo#1\\over#2{bar}\n";
-    let expected2 = "\\edef\\foo#1\\over#2{bar}\n";
-    let expected3 = "\\outer\\def\\foo#1\\over#2{bar}\n";
-    let expected4 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}\n";
-    let expected5 = "\\long\\gdef\\foo#1\\over#2{bar}\n";
-    let expected6 = "\\long\\outer\\def\\foo#1\\over#2{bar}\n";
+    let expected1 = "\\def\\foo#1\\over#2{bar}%\n";
+    let expected2 = "\\edef\\foo#1\\over#2{bar}%\n";
+    let expected3 = "\\outer\\def\\foo#1\\over#2{bar}%\n";
+    let expected4 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}%\n";
+    let expected5 = "\\long\\gdef\\foo#1\\over#2{bar}%\n";
+    let expected6 = "\\long\\outer\\def\\foo#1\\over#2{bar}%\n";
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
@@ -403,10 +403,10 @@ fn test_parse_function_definition_trim() {
     let source3_no_trim = "defun* foo (#1) \\overline{#1}enddef*";
     let source4_no_trim = "defun* foo (#1)\\overline{#1}enddef*";
 
-    let expected_trim_both = "\\def\\foo#1{\\overline{#1}}\n";
-    let expected_trim_left = "\\def\\foo#1{\\overline{#1} }\n";
-    let expected_trim_right = "\\def\\foo#1{ \\overline{#1}}\n";
-    let expected_no_trim = "\\def\\foo#1{ \\overline{#1} }\n";
+    let expected_trim_both = "\\def\\foo#1{\\overline{#1}}%\n";
+    let expected_trim_left = "\\def\\foo#1{\\overline{#1} }%\n";
+    let expected_trim_right = "\\def\\foo#1{ \\overline{#1}}%\n";
+    let expected_no_trim = "\\def\\foo#1{ \\overline{#1} }%\n";
 
     // Check trim_both
     expected!(source1_trim_both should be expected_trim_both);

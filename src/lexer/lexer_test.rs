@@ -33,17 +33,17 @@ macro_rules! token {
 
 fn check_same(toks1: Vec<Token>, toks2: Vec<Token>) -> bool {
     if toks1.len() != toks2.len() {
-        println!("length expected {:?}, got {:?}", toks1.len(), toks2.len());
+        eprintln!("length expected {:?}, got {:?}", toks1.len(), toks2.len());
         return false;
     }
 
     for (tok1, tok2) in toks1.into_iter().zip(toks2) {
         if tok1.toktype != tok2.toktype {
-            println!("token expected {:?}, got {:?}", tok1.toktype, tok2.toktype);
+            eprintln!("token expected {:?}, got {:?}", tok1.toktype, tok2.toktype);
             return false;
         }
         if tok1.literal != tok2.literal {
-            println!(
+            eprintln!(
                 "literal expected {:?}, got {:?}",
                 tok1.literal, tok2.literal
             );
@@ -84,7 +84,7 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->$<-$<-$>=<=@!%!";
+    let source = "$!-->$->$<-$<-$>=<=@!%!$(})({}>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),
@@ -102,6 +102,12 @@ fn test_lexing_double_symbols() {
         token!(TokenType::LessEq, "\\leq "),
         token!(TokenType::At, "@"),
         token!(TokenType::LatexComment, "%"),
+        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::Lparen, "("),
+        token!(TokenType::BigRparen, "\\right)"),
+        token!(TokenType::BigLparen, "\\left("),
+        token!(TokenType::Rangle, "\\rangle "),
+        token!(TokenType::TextMathEnd, "$"),
     ];
 
     let mut lex = Lexer::new(source);

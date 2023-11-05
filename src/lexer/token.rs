@@ -127,23 +127,31 @@ pub enum TokenType {
     DoubleQuote,    // "
 
     // Delimiters
-    Lparen,          // (
-    Rparen,          // )
     Lbrace,          // {
     Rbrace,          // }
+    Lparen,          // (
+    Rparen,          // )
     Lsqbrace,        // [
-    OptionalBrace,   // %[
     Rsqbrace,        // ]
+    Langle,          // <{
+    Rangle,          // }>
     MathLbrace,      // \{
     MathRbrace,      // \}
+    BigLparen,       // ({
+    BigRparen,       // })
+    BigLsqbrace,     // [{
+    BigRsqbrace,     // }]
+    BigLangle,       // <{{
+    BigRangle,       // }}>
+    BigMathLbrace,   // \{{
+    BigMathRbrace,   // \}}
+    OptionalBrace,   // %[
     TextMathStart,   // \( or {{
     TextMathEnd,     // \( or }}
     InlineMathStart, // \[
     InlineMathEnd,   // \]
     MathTextStart,
     MathTextEnd,
-    Langle, // <{
-    Rangle, // }>
 
     // etc
     ArgSpliter,
