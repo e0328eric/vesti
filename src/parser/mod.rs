@@ -1056,7 +1056,7 @@ impl<'a> Parser<'a> {
                 | TokenType::LongXFunctionDef
                 | TokenType::OuterXFunctionDef
                 | TokenType::LongOuterXFunctionDef => def_level += 1,
-                toktype if toktype == TokenType::EndDefinition => {
+                TokenType::EndDefinition => {
                     def_level -= 1;
                     if def_level < 0 {
                         break;

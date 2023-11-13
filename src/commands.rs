@@ -13,7 +13,7 @@ pub enum VestiOpt {
         project_name: Option<String>,
     },
     /// Compile vesti into Latex file
-    Run {
+    Compile {
         /// Compile vesti continuously.
         #[clap(short, long)]
         continuous: bool,
@@ -31,7 +31,7 @@ impl VestiOpt {
     pub fn take_filename(&self) -> error::Result<Vec<PathBuf>> {
         let mut output: Vec<PathBuf> = Vec::new();
 
-        if let Self::Run {
+        if let Self::Compile {
             continuous: _,
             all,
             file_name,

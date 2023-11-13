@@ -105,7 +105,7 @@ impl<'a> Lexer<'a> {
                 }
                 Some('{') if self.math_started => {
                     self.next_char();
-                    if self.chr1 == Some('{') {
+                    if self.chr1 == Some('!') {
                         self.next_char();
                         tokenize!(self: BigLangle, "\\left\\langle "; start_loc)
                     } else {
@@ -120,13 +120,6 @@ impl<'a> Lexer<'a> {
                     tokenize!(self: GreatEq, "\\geq "; start_loc)
                 }
                 _ => tokenize!(self: Great, ">"; start_loc),
-            },
-            Some('!') => match self.chr1 {
-                Some('=') => {
-                    self.next_char();
-                    tokenize!(self: NotEqual, "\\neq "; start_loc)
-                }
-                _ => tokenize!(self: Bang, "!"; start_loc),
             },
             Some('?') => tokenize!(self: Question, "?"; start_loc),
             Some('@') => {
@@ -171,7 +164,7 @@ impl<'a> Lexer<'a> {
             Some(',') => tokenize!(self: Comma, ","; start_loc),
             Some('~') => tokenize!(self: Tilde, "~"; start_loc),
             Some('(') => {
-                if self.math_started && self.chr1 == Some('{') {
+                if self.math_started && self.chr1 == Some('!') {
                     self.next_char();
                     tokenize!(self: BigLparen, "\\left("; start_loc)
                 } else {
@@ -180,7 +173,7 @@ impl<'a> Lexer<'a> {
             }
             Some(')') => tokenize!(self: Rparen, ")"; start_loc),
             Some('[') => {
-                if self.math_started && self.chr1 == Some('{') {
+                if self.math_started && self.chr1 == Some('!') {
                     self.next_char();
                     tokenize!(self: BigLsqbrace, "\\left["; start_loc)
                 } else {
@@ -189,7 +182,8 @@ impl<'a> Lexer<'a> {
             }
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('{') => tokenize!(self: Lbrace, "{"; start_loc),
-            Some('}') => self.lex_closed_bracket(),
+            Some('}') => tokenize!(self: Rbrace, "}"; start_loc),
+            Some('!') => self.lex_bang(),
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
@@ -414,7 +408,7 @@ impl<'a> Lexer<'a> {
             }
             Some('{') => {
                 self.next_char();
-                if self.chr1 == Some('{') {
+                if self.chr1 == Some('!') {
                     self.next_char();
                     tokenize!(self: BigMathLbrace, "\\left\\{"; start_loc)
                 } else {
@@ -423,7 +417,7 @@ impl<'a> Lexer<'a> {
             }
             Some('}') => {
                 self.next_char();
-                if self.chr1 == Some('}') {
+                if self.chr1 == Some('!') {
                     self.next_char();
                     tokenize!(self: BigMathRbrace, "\\right\\}"; start_loc)
                 } else {
@@ -471,14 +465,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn lex_closed_bracket(&mut self) -> Token {
+    fn lex_bang(&mut self) -> Token {
         let start_loc = self.current_loc;
 
         if !self.math_started {
-            return tokenize!(self: Rbrace, "}"; start_loc);
+            return tokenize!(self: Bang, "!"; start_loc);
         }
 
         match self.chr1 {
+            Some('=') => {
+                self.next_char();
+                tokenize!(self: NotEqual, "\\neq "; start_loc)
+            }
             Some(')') => {
                 self.next_char();
                 tokenize!(self: BigRparen, "\\right)"; start_loc)
@@ -497,10 +495,10 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: BigRangle, "\\right\\rangle "; start_loc)
                 } else {
-                    tokenize!(self:Rbrace, "}"; start_loc)
+                    tokenize!(self: Bang, "!"; start_loc)
                 }
             }
-            _ => tokenize!(self: Rbrace, "}"; start_loc),
+            _ => tokenize!(self: Bang, "!"; start_loc),
         }
     }
 }

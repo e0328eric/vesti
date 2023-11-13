@@ -47,7 +47,7 @@ fn main() -> ExitCode {
                 }
             };
         }
-        VestiOpt::Run { continuous, .. } => {
+        VestiOpt::Compile { continuous, .. } => {
             let trap = Arc::new(AtomicUsize::new(0));
             // TODO: I do not test this code in windows actually :)
             for signal in compile::SIGNALS.iter() {
