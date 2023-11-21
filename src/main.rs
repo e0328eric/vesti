@@ -15,7 +15,7 @@ mod parser;
 
 use std::env;
 use std::fs;
-use std::io::{self, ErrorKind, Write};
+use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc;
