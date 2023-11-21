@@ -11,7 +11,9 @@ use std::path::PathBuf;
 
 use base64ct::{Base64Url, Encoding};
 use md5::{Digest, Md5};
+use path_slash::PathBufExt;
 
+use crate::constants;
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::Token;
 use crate::lexer::token::TokenType;
@@ -139,6 +141,7 @@ impl<'a> Parser<'a> {
             TokenType::Docclass if self.is_premiere() => self.parse_docclass(),
             TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
             TokenType::ImportVesti => self.parse_import_vesti(),
+            TokenType::ImportFile => self.parse_import_file(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
                 self.next_tok();
@@ -550,8 +553,8 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
         // Release verbatim mode
-        self.next_tok();
         self.source.switch_lex_with_verbatim();
+        self.next_tok();
 
         self.eat_whitespaces::<false>();
         if self.peek_tok() == TokenType::Newline {
@@ -577,6 +580,42 @@ impl<'a> Parser<'a> {
         filename.push(format!("@vesti__{}.tex", base64_hash));
 
         Ok(Statement::ImportVesti { filename })
+    }
+
+    fn parse_import_file(&mut self) -> error::Result<Statement> {
+        expect_peek!(self: TokenType::ImportFile; self.peek_tok_location());
+        self.eat_whitespaces::<false>();
+
+        let mut file_path_str = String::with_capacity(30);
+
+        // Parse vesti contents within verbatim
+        self.source.switch_lex_with_verbatim();
+        expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
+        assert!(self.peek_tok.toktype == TokenType::VerbatimChar);
+
+        while self.peek_tok.literal != ")" {
+            if self.is_eof() {
+                return Err(VestiErr::make_parse_err(
+                    VestiParseErrKind::EOFErr,
+                    self.peek_tok_location(),
+                ));
+            }
+
+            file_path_str.push_str(&self.peek_tok.literal);
+            self.next_tok();
+        }
+        // Release verbatim mode
+        self.source.switch_lex_with_verbatim();
+        self.next_tok();
+
+        // trim whitespaces
+        file_path_str = format!("./{}", file_path_str.trim());
+        let filepath_diff =
+            pathdiff::diff_paths(file_path_str, constants::VESTI_CACHE_DIR).unwrap();
+
+        Ok(Statement::ImportFile {
+            filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
+        })
     }
 
     fn parse_end_phantom_environment(&mut self) -> error::Result<Statement> {
