@@ -2,6 +2,8 @@
 
 pub mod pretty_print;
 
+use yaml_rust::scanner::ScanError;
+
 use crate::lexer::token::TokenType;
 use crate::location::Span;
 
@@ -33,17 +35,22 @@ pub enum VestiParseErrKind {
     NameMissErr {
         r#type: TokenType,
     },
-    DeprecatedUseErr,
+    DeprecatedUseErr {
+        instead: &'static str,
+    },
     IllegalUseErr {
         got: TokenType,
     },
 }
 
 #[derive(Debug, PartialEq)]
-pub enum VestiCommandUtilErrKind {
+pub enum VestiUtilErrKind {
     IOErr(std::io::ErrorKind),
+    ScanErr(ScanError),
     NoFilenameInputErr,
     TakeFilesErr,
+    CompileAllWithoutHasSubVesti,
+    InvalidLaTeXEngine,
 }
 
 #[derive(Debug)]
@@ -53,7 +60,7 @@ pub enum VestiErr {
         location: Span,
     },
     UtilErr {
-        err_kind: VestiCommandUtilErrKind,
+        err_kind: VestiUtilErrKind,
     },
 }
 
@@ -61,12 +68,24 @@ impl VestiErr {
     pub fn make_parse_err(err_kind: VestiParseErrKind, location: Span) -> Self {
         Self::ParseErr { err_kind, location }
     }
+
+    pub fn make_util_err(err_kind: VestiUtilErrKind) -> Self {
+        Self::UtilErr { err_kind }
+    }
 }
 
 impl From<std::io::Error> for VestiErr {
     fn from(err: std::io::Error) -> Self {
         Self::UtilErr {
-            err_kind: VestiCommandUtilErrKind::IOErr(err.kind()),
+            err_kind: VestiUtilErrKind::IOErr(err.kind()),
+        }
+    }
+}
+
+impl From<ScanError> for VestiErr {
+    fn from(err: ScanError) -> Self {
+        Self::UtilErr {
+            err_kind: VestiUtilErrKind::ScanErr(err),
         }
     }
 }
@@ -119,7 +138,7 @@ impl Error for VestiParseErrKind {
             Self::IsNotClosedErr { .. } => 0x0108,
             Self::IsNotOpenedErr { .. } => 0x0109,
             Self::NameMissErr { .. } => 0x0110,
-            Self::DeprecatedUseErr => 0x0111,
+            Self::DeprecatedUseErr { .. } => 0x0111,
             Self::IllegalUseErr { .. } => 0x0112,
         }
     }
@@ -142,7 +161,7 @@ impl Error for VestiParseErrKind {
                 format!("Type `{close:?}` is used without the opening part")
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
-            Self::DeprecatedUseErr => "This is deprecated".to_string(),
+            Self::DeprecatedUseErr { .. } => "This is deprecated".to_string(),
             Self::IllegalUseErr { got } => {
                 format!("Type `{got:?}` cannot use out of the math block or function definition")
             }
@@ -196,9 +215,13 @@ impl Error for VestiParseErrKind {
                     _ => unreachable!(),
                 },
             ],
-            Self::DeprecatedUseErr => vec![String::from(
-                "This error occurs because of the breaking change",
-            )],
+            Self::DeprecatedUseErr { instead } => {
+                if instead.is_empty() {
+                    vec![format!("There is no alternative token")]
+                } else {
+                    vec![format!("Use `{instead}` token instead.")]
+                }
+            }
             Self::IllegalUseErr { .. } => {
                 vec![
                     String::from("wrap the whole expression that uses this"),
@@ -210,24 +233,32 @@ impl Error for VestiParseErrKind {
     }
 }
 
-impl Error for VestiCommandUtilErrKind {
+impl Error for VestiUtilErrKind {
     fn err_code(&self) -> u16 {
         match self {
             Self::IOErr(_) => 0x0001,
-            Self::NoFilenameInputErr => 0x0002,
-            Self::TakeFilesErr => 0x0003,
+            Self::ScanErr(_) => 0x0002,
+            Self::NoFilenameInputErr => 0x0003,
+            Self::TakeFilesErr => 0x0004,
+            Self::CompileAllWithoutHasSubVesti => 0x0005,
+            Self::InvalidLaTeXEngine => 0x0006,
         }
     }
     fn err_str(&self) -> String {
         match self {
             Self::IOErr(err) => format!("IO error `{:?}` occurs", err),
+            Self::ScanErr(err) => format!("Yaml parsing error `{:?}` occurs", err),
             Self::NoFilenameInputErr => String::from("No file name or path is given"),
             Self::TakeFilesErr => String::from("Error occurs while taking files"),
+            Self::CompileAllWithoutHasSubVesti => {
+                String::from("cannot use `--all` flag without `--has-sub` flag")
+            }
+            Self::InvalidLaTeXEngine => String::from("Invalid LaTeX engine was given."),
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
         match self {
-            Self::TakeFilesErr => vec![
+            Self::TakeFilesErr | Self::InvalidLaTeXEngine => vec![
                 String::from("If there is no reason that error occurs you think,"),
                 String::from("it might be a vesti's bug. If so, let me know."),
                 String::from("Report it at https://github.com/e0328eric/vesti"),

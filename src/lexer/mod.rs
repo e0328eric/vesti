@@ -18,8 +18,9 @@ pub struct Lexer<'a> {
     chr1: Option<char>,
     chr2: Option<char>,
     current_loc: Location,
-    pub math_started: bool,
+    math_started: bool,
     math_string_started: bool,
+    lex_with_verbatim: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -32,12 +33,28 @@ impl<'a> Lexer<'a> {
             current_loc: Location::default(),
             math_started: false,
             math_string_started: false,
+            lex_with_verbatim: false,
         };
         output.next_char();
         output.next_char();
         output.next_char();
         output.current_loc.reset_location();
         output
+    }
+
+    #[inline]
+    pub fn get_math_started(&self) -> bool {
+        self.math_started
+    }
+
+    #[inline]
+    pub fn set_math_started(&mut self, val: bool) {
+        self.math_started = val;
+    }
+
+    #[inline]
+    pub fn switch_lex_with_verbatim(&mut self) {
+        self.lex_with_verbatim = !self.lex_with_verbatim;
     }
 
     fn next_char(&mut self) {
@@ -53,12 +70,38 @@ impl<'a> Lexer<'a> {
 
     pub fn next(&mut self) -> Token {
         let start_loc = self.current_loc;
+
+        if self.lex_with_verbatim {
+            let token = if let Some(chr) = self.chr0 {
+                Token {
+                    toktype: TokenType::VerbatimChar,
+                    literal: String::from(chr),
+                    span: Span {
+                        start: start_loc,
+                        end: self.current_loc,
+                    },
+                }
+            } else {
+                Token {
+                    toktype: TokenType::Eof,
+                    literal: String::new(),
+                    span: Span {
+                        start: start_loc,
+                        end: self.current_loc,
+                    },
+                }
+            };
+
+            self.next_char();
+            return token;
+        }
+
         match self.chr0 {
             Some('\0') | None => Token::eof(start_loc, self.current_loc),
             Some(' ') => {
                 if self.chr1 == Some('@') && self.chr2 != Some('!') {
                     self.next_char();
-                    tokenize!(self:ArgSpliter, ""; start_loc)
+                    tokenize!(self: ArgSpliter, ""; start_loc)
                 } else {
                     tokenize!(self:Space, " "; start_loc)
                 }
@@ -182,7 +225,13 @@ impl<'a> Lexer<'a> {
             }
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('{') => tokenize!(self: Lbrace, "{"; start_loc),
-            Some('}') => tokenize!(self: Rbrace, "}"; start_loc),
+            Some('}') => match self.chr1 {
+                Some('>') => {
+                    self.next_char();
+                    tokenize!(self: Rangle, "\\rangle "; start_loc)
+                }
+                _ => tokenize!(self: Rbrace, "}"; start_loc),
+            },
             Some('!') => self.lex_bang(),
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),

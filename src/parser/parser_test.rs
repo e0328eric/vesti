@@ -5,7 +5,7 @@ use crate::codegen::make_latex_format;
 
 macro_rules! expected {
     ($source: ident should be $expected: ident) => {{
-        let mut parser = Parser::new(Lexer::new($source));
+        let mut parser = Parser::new(Lexer::new($source), true);
         assert_eq!($expected, make_latex_format::<true>(&mut parser).unwrap());
     }};
 }
@@ -41,18 +41,18 @@ fn test_parse_docclass() {
 
 #[test]
 fn test_parse_usepackage() {
-    let source1 = "import kotex";
-    let source2 = "import tcolorbox (many)";
-    let source3 = "import tcolorbox ( many )";
-    let source4 = "import foo (bar1, bar2)";
-    let source5 = "import geometry (a4paper, margin = 0.4in)";
-    let source6 = r#"import {
+    let source1 = "importpkg kotex";
+    let source2 = "importpkg tcolorbox (many)";
+    let source3 = "importpkg tcolorbox ( many )";
+    let source4 = "importpkg foo (bar1, bar2)";
+    let source5 = "importpkg geometry (a4paper, margin = 0.4in)";
+    let source6 = r#"importpkg {
         kotex,
         tcolorbox (many),
         foo (bar1, bar2, bar3),
         geometry (a4paper, margin = 0.4in),
     }"#;
-    let source7 = r#"import {
+    let source7 = r#"importpkg {
         kotex,
         tcolorbox (many),
         foo (
@@ -61,7 +61,7 @@ fn test_parse_usepackage() {
         ),
         geometry (a4paper, margin = 0.4in),
     }"#;
-    let source8 = r#"import {
+    let source8 = r#"importpkg {
         kotex,
         tcolorbox (many),
         foo (

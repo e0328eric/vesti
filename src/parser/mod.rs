@@ -5,7 +5,12 @@ mod parser_test;
 mod macros;
 pub mod ast;
 
+use std::fs;
 use std::mem::MaybeUninit;
+use std::path::PathBuf;
+
+use base64ct::{Base64Url, Encoding};
+use md5::{Digest, Md5};
 
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::Token;
@@ -20,26 +25,49 @@ const ENV_MATH_IDENT: [&str; 7] = [
 ];
 
 #[repr(packed)]
-#[derive(Default)]
 struct DocState {
     doc_start: bool,
     prevent_end_doc: bool,
     parsing_define: bool,
 }
 
+impl DocState {
+    fn main_document_state() -> Self {
+        Self {
+            doc_start: false,
+            prevent_end_doc: false,
+            parsing_define: false,
+        }
+    }
+
+    fn default_state() -> Self {
+        Self {
+            doc_start: true,
+            prevent_end_doc: true,
+            parsing_define: false,
+        }
+    }
+}
+
 pub struct Parser<'a> {
     source: Lexer<'a>,
     peek_tok: Token,
+    is_main_vesti: bool,
     doc_state: DocState,
 }
 
 impl<'a> Parser<'a> {
     // Store Parser in the heap
-    pub fn new(source: Lexer<'a>) -> Box<Self> {
+    pub fn new(source: Lexer<'a>, is_main_vesti: bool) -> Box<Self> {
         let mut output = Box::new(Self {
             source,
             peek_tok: Token::default(),
-            doc_state: DocState::default(),
+            is_main_vesti,
+            doc_state: if is_main_vesti {
+                DocState::main_document_state()
+            } else {
+                DocState::default_state()
+            },
         });
         output.next_tok();
 
@@ -51,6 +79,11 @@ impl<'a> Parser<'a> {
         self.peek_tok = self.source.next();
 
         curr_tok
+    }
+
+    #[inline]
+    pub fn is_main_vesti(&self) -> bool {
+        self.is_main_vesti
     }
 
     #[inline]
@@ -75,7 +108,7 @@ impl<'a> Parser<'a> {
 
     #[inline]
     fn is_math_mode(&self) -> bool {
-        self.source.math_started || self.doc_state.parsing_define
+        self.source.get_math_started() || self.doc_state.parsing_define
     }
 
     fn eat_whitespaces<const NEWLINE_HANDLE: bool>(&mut self) {
@@ -93,7 +126,7 @@ impl<'a> Parser<'a> {
             let stmt = self.parse_statement()?;
             latex.push(stmt);
         }
-        if !self.is_premiere() {
+        if !self.is_premiere() && !self.doc_state.prevent_end_doc {
             latex.push(Statement::DocumentEnd);
         }
 
@@ -104,7 +137,8 @@ impl<'a> Parser<'a> {
         match self.peek_tok() {
             // Keywords
             TokenType::Docclass if self.is_premiere() => self.parse_docclass(),
-            TokenType::Import if self.is_premiere() => self.parse_usepackage(),
+            TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
+            TokenType::ImportVesti => self.parse_import_vesti(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
                 self.next_tok();
@@ -127,9 +161,10 @@ impl<'a> Parser<'a> {
                 },
                 self.peek_tok_location(),
             )),
-            TokenType::DocumentStartMode => {
-                self.doc_state.prevent_end_doc = true;
-                self.doc_state.doc_start = true;
+            TokenType::MainVestiFile => {
+                self.doc_state.prevent_end_doc = false;
+                self.doc_state.doc_start = false;
+                self.is_main_vesti = true;
                 let loc = self.next_tok().span;
                 expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
@@ -197,8 +232,12 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             )),
 
-            TokenType::Deprecated => Err(VestiErr::make_parse_err(
-                VestiParseErrKind::DeprecatedUseErr,
+            // TODO: warning if `valid_in_text` is true
+            TokenType::Deprecated {
+                valid_in_text,
+                instead,
+            } if !valid_in_text => Err(VestiErr::make_parse_err(
+                VestiParseErrKind::DeprecatedUseErr { instead },
                 self.peek_tok_location(),
             )),
 
@@ -414,7 +453,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_usepackage(&mut self) -> error::Result<Statement> {
-        expect_peek!(self: TokenType::Import; self.peek_tok_location());
+        expect_peek!(self: TokenType::ImportPkg; self.peek_tok_location());
         self.eat_whitespaces::<false>();
 
         if self.peek_tok() == TokenType::Lbrace {
@@ -486,6 +525,58 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Statement::MultiUsepackages { pkgs })
+    }
+
+    fn parse_import_vesti(&mut self) -> error::Result<Statement> {
+        expect_peek!(self: TokenType::ImportVesti; self.peek_tok_location());
+        self.eat_whitespaces::<false>();
+
+        let mut file_path_str = String::with_capacity(30);
+
+        // Parse vesti contents within verbatim
+        self.source.switch_lex_with_verbatim();
+        expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
+        assert!(self.peek_tok.toktype == TokenType::VerbatimChar);
+
+        while self.peek_tok.literal != ")" {
+            if self.is_eof() {
+                return Err(VestiErr::make_parse_err(
+                    VestiParseErrKind::EOFErr,
+                    self.peek_tok_location(),
+                ));
+            }
+
+            file_path_str.push_str(&self.peek_tok.literal);
+            self.next_tok();
+        }
+        // Release verbatim mode
+        self.next_tok();
+        self.source.switch_lex_with_verbatim();
+
+        self.eat_whitespaces::<false>();
+        if self.peek_tok() == TokenType::Newline {
+            self.next_tok();
+        }
+
+        // trim whitespaces
+        file_path_str = String::from(file_path_str.trim());
+
+        // get the absolute path
+        // TODO: fs::canonicalize returns error when there is no such path for
+        // `file_path_str`. But vesti's error message is so ambiguous to recognize
+        // whether error occurs at here. Make a new error variant to handle this.
+        let file_path = fs::canonicalize(file_path_str)?;
+
+        // name mangling process
+        let mut hasher = Md5::new();
+        hasher.update(file_path.into_os_string().into_encoded_bytes());
+        let hash = hasher.finalize();
+        let base64_hash = Base64Url::encode_string(&hash);
+
+        let mut filename = PathBuf::with_capacity(30);
+        filename.push(format!("@vesti__{}.tex", base64_hash));
+
+        Ok(Statement::ImportVesti { filename })
     }
 
     fn parse_end_phantom_environment(&mut self) -> error::Result<Statement> {
@@ -571,7 +662,7 @@ impl<'a> Parser<'a> {
 
         // If name is math related one, then math mode will be turn on
         if ENV_MATH_IDENT.contains(&name.as_str()) {
-            self.source.math_started = true;
+            self.source.set_math_started(true);
             off_math_state = true;
         }
 
@@ -610,7 +701,7 @@ impl<'a> Parser<'a> {
 
         // If name is math related one, then math mode will be turn off
         if off_math_state {
-            self.source.math_started = false;
+            self.source.set_math_started(false);
         }
         if self.peek_tok() == TokenType::Newline {
             self.next_tok();
@@ -996,7 +1087,10 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
 
-            if is_first_token && self.peek_tok() == TokenType::Text || self.peek_tok().is_keyword()
+            if is_first_token
+                && (self.peek_tok() == TokenType::Text
+                    || self.peek_tok().is_deprecated()
+                    || self.peek_tok().is_keyword())
             {
                 output.push(' ');
             }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::lexer::token::TokenType;
 
 pub type Latex = Vec<Statement>;
@@ -15,6 +17,9 @@ pub enum Statement {
     },
     MultiUsepackages {
         pkgs: Latex,
+    },
+    ImportVesti {
+        filename: PathBuf,
     },
     DocumentStart,
     DocumentEnd,

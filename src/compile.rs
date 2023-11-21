@@ -1,109 +1,96 @@
-// Copyright (c) 2022 Sungbae Jeong
-//
-// This software is released under the MIT License.
-// https://opensource.org/licenses/MIT
-
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
-use std::thread;
-use std::time::{Duration, SystemTime};
+use std::sync::mpsc::SyncSender;
+
+use base64ct::{Base64Url, Encoding};
+use md5::{Digest, Md5};
 
 use crate::codegen::make_latex_format;
+use crate::constants;
+use crate::error::VestiErr;
 use crate::error::{self, pretty_print::pretty_print};
 use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use signal_hook::consts::signal::{SIGINT, SIGTERM};
-pub const SIGNALS: [i32; 2] = [SIGINT, SIGTERM];
-
-macro_rules! unwrap_err {
-    ($name: ident := $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
-        let $name = match $to_unwrap {
-            Ok(inner) => inner,
-            Err(err) => {
-                pretty_print($source, err, $file_name).unwrap();
-                let mut writer = $is_loop_end.write().unwrap();
-                *writer = true;
-                return ExitCode::Failure;
-            }
-        };
-    };
-    (mut $name: ident := $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
-        let mut $name = match $to_unwrap {
-            Ok(inner) => inner,
-            Err(err) => {
-                pretty_print($source, err, $file_name).unwrap();
-                let mut writer = $is_loop_end.write().unwrap();
-                *writer = true;
-                return ExitCode::Failure;
-            }
-        };
-    };
-    ($name: ident = $to_unwrap: expr, $source: expr, $file_name: expr, $is_loop_end: expr) => {
-        $name = match $to_unwrap {
-            Ok(inner) => inner,
-            Err(err) => {
-                pretty_print($source, err, $file_name).unwrap();
-                let mut writer = $is_loop_end.write().unwrap();
-                *writer = true;
-                return ExitCode::Failure;
-            }
-        };
-    };
-}
-
-fn output_file_name(file_name: &Path) -> PathBuf {
-    file_name.with_extension("tex")
-}
-
-fn take_time(file_name: &Path) -> error::Result<SystemTime> {
-    let path = file_name;
-    Ok(path.metadata()?.modified()?)
-}
-
 pub fn compile_vesti(
-    trap: Arc<AtomicUsize>,
+    main_file_sender: SyncSender<PathBuf>,
     file_name: PathBuf,
-    is_continuous: bool,
-    is_loop_end: Arc<RwLock<bool>>,
+    has_sub_vesti: bool,
+    emit_tex_only: bool,
 ) -> ExitCode {
-    let mut init_compile = true;
-    let output = output_file_name(&file_name);
-    unwrap_err!(mut init_time := take_time(&file_name), None, None, is_loop_end);
-    let mut now_time = init_time;
+    let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
 
-    while !SIGNALS.contains(&(trap.load(Ordering::Relaxed) as i32)) {
-        #[allow(clippy::blocks_in_if_conditions)]
-        if {
-            let reader = is_loop_end.read().unwrap();
-            *reader
-        } {
+    let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
+    let contents = match make_latex_format::<false>(&mut parser) {
+        Ok(inner) => inner,
+        Err(err) => {
+            pretty_print(Some(source.as_ref()), err, Some(&file_name)).unwrap();
             return ExitCode::Failure;
         }
-        if init_compile || init_time != now_time {
-            let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
-            let mut parser = Parser::new(Lexer::new(&source));
-            unwrap_err!(contents := make_latex_format::<false>(&mut parser), Some(source.as_ref()), Some(&file_name), is_loop_end);
-            drop(parser);
+    };
+    let is_main_vesti = parser.is_main_vesti();
+    drop(parser);
 
-            fs::write(&output, contents).expect("File write failed.");
-
-            if !is_continuous {
-                break;
+    let output_filename =
+        match compile_vesti_write_file(&file_name, contents, is_main_vesti, emit_tex_only) {
+            Ok(name) => name,
+            Err(err) => {
+                pretty_print(None, err, None).unwrap();
+                return ExitCode::Failure;
             }
-            if !init_compile {
-                println!("Press Ctrl+C to finish the program.");
-            }
+        };
 
-            init_compile = false;
-            init_time = now_time;
-        }
-        unwrap_err!(now_time = take_time(&file_name), None, None, is_loop_end);
-        thread::sleep(Duration::from_millis(500));
+    if is_main_vesti {
+        main_file_sender
+            .send(output_filename)
+            .expect("send failed (compile.rs)");
     }
 
     ExitCode::Success
+}
+
+// TODO: integrate all tex files into standalone one if `emit_tex_only` flag is true
+fn compile_vesti_write_file(
+    filename: &Path,
+    contents: String,
+    is_main_vesti: bool,
+    _emit_tex_only: bool,
+) -> error::Result<PathBuf> {
+    let output_filename = if !is_main_vesti {
+        // get the absolute path
+        // TODO: fs::canonicalize returns error when there is no such path for
+        // `file_path_str`. But vesti's error message is so ambiguous to recognize
+        // whether error occurs at here. Make a new error variant to handle this.
+        let file_path = fs::canonicalize(filename)?;
+
+        // name mangling process
+        let mut hasher = Md5::new();
+        hasher.update(file_path.into_os_string().into_encoded_bytes());
+        let hash = hasher.finalize();
+        let base64_hash = Base64Url::encode_string(&hash);
+
+        format!("@vesti__{}.tex", base64_hash)
+    } else {
+        let tmp = filename.with_extension("tex");
+        let Some(raw_filename) = tmp.iter().next_back() else {
+            return Err(VestiErr::make_util_err(
+                error::VestiUtilErrKind::NoFilenameInputErr,
+            ));
+        };
+        let Some(raw_filename) = raw_filename.to_str() else {
+            return Err(VestiErr::make_util_err(
+                error::VestiUtilErrKind::NoFilenameInputErr,
+            ));
+        };
+
+        raw_filename.to_string()
+    };
+
+    fs::write(
+        format!("{}/{}", constants::VESTI_CACHE_DIR, output_filename),
+        contents,
+    )?;
+
+    Ok(PathBuf::from(output_filename))
 }

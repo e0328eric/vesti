@@ -56,10 +56,12 @@ pub enum TokenType {
     Text,
     LatexFunction,
     RawLatex,
+    VerbatimChar,
 
     // Keywords
     Docclass,
-    Import,
+    ImportPkg,
+    ImportVesti,
     StartDoc,
     Defenv,
     Redefenv,
@@ -67,7 +69,7 @@ pub enum TokenType {
     Useenv,
     Begenv,
     Endenv,
-    DocumentStartMode,
+    MainVestiFile,
     NonStopMode,
     FunctionDef,
     LongFunctionDef,
@@ -157,7 +159,10 @@ pub enum TokenType {
     ArgSpliter,
 
     // error token
-    Deprecated,
+    Deprecated {
+        valid_in_text: bool,
+        instead: &'static str,
+    },
     Illegal,
 }
 
@@ -167,10 +172,16 @@ impl TokenType {
         Self::Docclass <= *self && *self <= Self::EndDefinition
     }
 
+    #[inline]
+    pub fn is_deprecated(&self) -> bool {
+        matches!(self, Self::Deprecated { .. })
+    }
+
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
         match string {
             "docclass" => Some(Self::Docclass),
-            "import" => Some(Self::Import),
+            "importpkg" => Some(Self::ImportPkg),
+            "importves" => Some(Self::ImportVesti),
             "startdoc" => Some(Self::StartDoc),
             "defenv" => Some(Self::Defenv),
             "redefenv" => Some(Self::Redefenv),
@@ -178,7 +189,7 @@ impl TokenType {
             "useenv" => Some(Self::Useenv),
             "begenv" => Some(Self::Begenv),
             "endenv" => Some(Self::Endenv),
-            "docstartmode" => Some(Self::DocumentStartMode),
+            "mainvesfile" => Some(Self::MainVestiFile),
             "nonstopmode" => Some(Self::NonStopMode),
             "defun" => Some(Self::FunctionDef),
             "ldefun" => Some(Self::LongFunctionDef),
@@ -197,12 +208,38 @@ impl TokenType {
             "oxdefun" => Some(Self::OuterXFunctionDef),
             "loxdefun" => Some(Self::LongOuterXFunctionDef),
             "enddef" => Some(Self::EndDefinition),
-            "pbegenv" => Some(Self::Deprecated), //TODO: deprecated
-            "pendenv" => Some(Self::Deprecated), //TODO: deprecated
-            "mtxt" => Some(Self::Deprecated),    // TODO: deprecated
-            "etxt" => Some(Self::Deprecated),    // TODO: deprecated
-            "nodocclass" => Some(Self::Deprecated), // TODO: deprecated
-            "nondocclass" => Some(Self::Deprecated), // TODO: deprecated
+            "import" => Some(Self::Deprecated {
+                valid_in_text: true,
+                instead: "importpkg",
+            }), // NOTE: deprecated
+            "pbegenv" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "begenv",
+            }), // NOTE: deprecated
+            "pendenv" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "endenv",
+            }), // NOTE: deprecated
+            "mtxt" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "\" (double quote)",
+            }), // NOTE: deprecated
+            "etxt" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "\" (double quote)",
+            }), // NOTE: deprecated
+            "docstartmode" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "",
+            }), // NOTE: deprecated
+            "nodocclass" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "",
+            }), // NOTE: deprecated
+            "nondocclass" => Some(Self::Deprecated {
+                valid_in_text: false,
+                instead: "",
+            }), // NOTE: deprecated
             _ => None,
         }
     }

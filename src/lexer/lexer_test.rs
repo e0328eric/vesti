@@ -33,21 +33,18 @@ macro_rules! token {
 
 fn check_same(toks1: Vec<Token>, toks2: Vec<Token>) -> bool {
     if toks1.len() != toks2.len() {
-        eprintln!("length expected {:?}, got {:?}", toks1.len(), toks2.len());
-        return false;
+        panic!("length expected {:?}, got {:?}", toks1.len(), toks2.len());
     }
 
     for (tok1, tok2) in toks1.into_iter().zip(toks2) {
         if tok1.toktype != tok2.toktype {
-            eprintln!("token expected {:?}, got {:?}", tok1.toktype, tok2.toktype);
-            return false;
+            panic!("token expected {:?}, got {:?}", tok1.toktype, tok2.toktype);
         }
         if tok1.literal != tok2.literal {
-            eprintln!(
+            panic!(
                 "literal expected {:?}, got {:?}",
                 tok1.literal, tok2.literal
             );
-            return false;
         }
     }
 
@@ -84,7 +81,7 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->$<-$<-$>=<=@!%!$(})({}>$";
+    let source = "$!-->$->$<-$<-$>=<=@!%!$(!)(!}>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),
@@ -103,8 +100,8 @@ fn test_lexing_double_symbols() {
         token!(TokenType::At, "@"),
         token!(TokenType::LatexComment, "%"),
         token!(TokenType::TextMathStart, "$"),
-        token!(TokenType::Lparen, "("),
-        token!(TokenType::BigRparen, "\\right)"),
+        token!(TokenType::BigLparen, "\\left("),
+        token!(TokenType::Rparen, ")"),
         token!(TokenType::BigLparen, "\\left("),
         token!(TokenType::Rangle, "\\rangle "),
         token!(TokenType::TextMathEnd, "$"),
@@ -280,7 +277,7 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc import endenv";
+    let source = "docclass begenv startdoc importpkg endenv";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
@@ -288,7 +285,7 @@ fn lexing_keywords() {
         token!(TokenType::Space, " "),
         token!(TokenType::StartDoc, "startdoc"),
         token!(TokenType::Space, " "),
-        token!(TokenType::Import, "import"),
+        token!(TokenType::ImportPkg, "importpkg"),
         token!(TokenType::Space, " "),
         token!(TokenType::Endenv, "endenv"),
     ];
@@ -341,7 +338,7 @@ fn lexing_latex_functions() {
 #[test]
 fn basic_vesti() {
     let source = r#"docclass coprime (tikz, korean)
-import {
+importpkg {
     geometry (a4paper, margin = 0.4in),
     amsmath,
 }
@@ -367,7 +364,7 @@ endenv"#;
         token!(TokenType::Text, "korean"),
         token!(TokenType::Rparen, ")"),
         token!(TokenType::Newline, "\n"),
-        token!(TokenType::Import, "import"),
+        token!(TokenType::ImportPkg, "importpkg"),
         token!(TokenType::Space, " "),
         token!(TokenType::Lbrace, "{"),
         token!(TokenType::Newline, "\n"),

@@ -4,3 +4,4 @@
 /.vscode
 /.fleet
 /Cargo.lock
+/vesti-cache
