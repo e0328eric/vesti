@@ -29,7 +29,7 @@ impl ToString for Statement {
             Statement::DocumentClass { name, options } => docclass_to_string(name, options),
             Statement::Usepackage { name, options } => usepackage_to_string(name, options),
             Statement::MultiUsepackages { pkgs } => multiusepacakge_to_string(pkgs),
-            Statement::ImportVesti { filename } => format!("\\include{{{}}}", filename.display()),
+            Statement::ImportVesti { filename } => format!("\\input{{{}}}", filename.display()),
             Statement::DocumentStart => String::from("\\begin{document}\n"),
             Statement::DocumentEnd => String::from("\n\\end{document}\n"),
             Statement::MainText(s) => s.clone(),
