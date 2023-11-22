@@ -11,11 +11,12 @@ mod exit_status;
 mod initialization;
 mod lexer;
 mod location;
+mod macros;
 mod parser;
 
 use std::env;
-use std::fs;
-use std::io::ErrorKind;
+use std::fs::{self, File};
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc;
@@ -42,21 +43,11 @@ fn main() -> ExitCode {
                 let tmp = std::env::current_dir().expect(ERR_MESSAGE);
                 PathBuf::from(tmp.file_name().expect(ERR_MESSAGE))
             };
-            match generate_vesti_file(project_name) {
-                Ok(()) => ExitCode::Success,
-                Err(err) => {
-                    pretty_print(None, err, None).unwrap();
-                    ExitCode::Failure
-                }
-            }
+            try_catch!(generate_vesti_file(project_name), _, ExitCode::Success)
         }
-        VestiOpt::Clear => match fs::remove_dir_all(constants::VESTI_CACHE_DIR) {
-            Ok(()) => ExitCode::Success,
-            Err(err) => {
-                pretty_print(None, err.into(), None).unwrap();
-                ExitCode::Failure
-            }
-        },
+        VestiOpt::Clear => {
+            try_catch!(io_handle: fs::remove_dir_all(constants::VESTI_CACHE_DIR), _, ExitCode::Success)
+        }
         ref argument @ VestiOpt::Compile {
             has_sub_vesti,
             emit_tex_only,
@@ -125,27 +116,18 @@ fn main() -> ExitCode {
 
             // compile latex files
             if !emit_tex_only {
-                match env::set_current_dir(constants::VESTI_CACHE_DIR) {
-                    Ok(()) => {}
-                    Err(err) => {
-                        pretty_print(None, err.into(), None).unwrap();
-                        return ExitCode::Failure;
-                    }
-                }
+                try_catch!(io_handle: env::set_current_dir(constants::VESTI_CACHE_DIR));
 
                 let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
                 for latex_file in main_files {
                     handle_latex.push(thread::spawn(move || {
-                        let output = match Command::new(engine_type.to_string())
+                        let output = try_catch!(
+                            io_handle: Command::new(engine_type.to_string())
                             .arg(&latex_file)
-                            .output()
-                        {
-                            Ok(output) => output,
-                            Err(err) => {
-                                pretty_print(None, err.into(), None).unwrap();
-                                return ExitCode::Failure;
-                            }
-                        };
+                            .output(),
+                            output,
+                            output
+                        );
 
                         println!("[Compile {}]", latex_file.display());
                         fs::write(format!("./{}.stdout", latex_file.display()), &output.stdout)
@@ -155,13 +137,15 @@ fn main() -> ExitCode {
 
                         let mut pdf_filename = latex_file.clone();
                         pdf_filename.set_extension("pdf");
-                        match fs::rename(&pdf_filename, format!("../{}", pdf_filename.display())) {
-                            Ok(()) => {}
-                            Err(err) => {
-                                pretty_print(None, err.into(), None).unwrap();
-                                return ExitCode::Failure;
-                            }
-                        }
+                        let final_pdf_filename =
+                            PathBuf::from(format!("../{}", pdf_filename.display()));
+
+                        let mut generated_pdf_file =
+                            File::open(&pdf_filename).expect("Undefined Behavior");
+                        let mut contents = Vec::with_capacity(1000);
+
+                        try_catch!(io_handle: generated_pdf_file.read_to_end(&mut contents));
+                        try_catch!(io_handle: fs::write(final_pdf_filename, contents));
 
                         ExitCode::Success
                     }));
