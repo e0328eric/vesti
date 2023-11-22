@@ -16,7 +16,7 @@ mod parser;
 
 use std::env;
 use std::fs::{self, File};
-use std::io::{ErrorKind, Read};
+use std::io::{BufWriter, ErrorKind, Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc;
@@ -51,6 +51,7 @@ fn main() -> ExitCode {
         ref argument @ VestiOpt::Compile {
             has_sub_vesti,
             emit_tex_only,
+            compile_limit,
             ..
         } => {
             match fs::create_dir(constants::VESTI_CACHE_DIR) {
@@ -121,19 +122,38 @@ fn main() -> ExitCode {
                 let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
                 for latex_file in main_files {
                     handle_latex.push(thread::spawn(move || {
-                        let output = try_catch!(
-                            io_handle: Command::new(engine_type.to_string())
-                            .arg(&latex_file)
-                            .output(),
-                            output,
-                            output
-                        );
+                        let mut latex_stdout = BufWriter::new(try_catch!(io_handle:
+                            File::create(format!("./{}.stdout", latex_file.display())),
+                            file,
+                            file
+                        ));
+                        let mut latex_stderr = BufWriter::new(try_catch!(io_handle:
+                            File::create(format!("./{}.stderr", latex_file.display())),
+                            file,
+                            file
+                        ));
 
+                        // It is good to compile latex at least three times
                         println!("[Compile {}]", latex_file.display());
-                        fs::write(format!("./{}.stdout", latex_file.display()), &output.stdout)
-                            .unwrap();
-                        fs::write(format!("./{}.stderr", latex_file.display()), &output.stderr)
-                            .unwrap();
+                        for i in 0..compile_limit {
+                            println!("[Compile num {}]", i + 1);
+                            let output = try_catch!(
+                                io_handle: Command::new(engine_type.to_string())
+                                .arg(&latex_file)
+                                .output(),
+                                output,
+                                output
+                            );
+
+                            latex_stdout
+                                .write_all(format!("[Compile Num {}]", i + 1).as_bytes())
+                                .unwrap();
+                            latex_stdout.write_all(&output.stdout).unwrap();
+                            latex_stderr
+                                .write_all(format!("[Compile Num {}]", i + 1).as_bytes())
+                                .unwrap();
+                            latex_stderr.write_all(&output.stderr).unwrap();
+                        }
 
                         let mut pdf_filename = latex_file.clone();
                         pdf_filename.set_extension("pdf");
@@ -141,11 +161,13 @@ fn main() -> ExitCode {
                             PathBuf::from(format!("../{}", pdf_filename.display()));
 
                         let mut generated_pdf_file =
-                            File::open(&pdf_filename).expect("Undefined Behavior");
+                            try_catch!(io_handle: File::open(&pdf_filename), file, file);
                         let mut contents = Vec::with_capacity(1000);
 
                         try_catch!(io_handle: generated_pdf_file.read_to_end(&mut contents));
                         try_catch!(io_handle: fs::write(final_pdf_filename, contents));
+
+                        println!("[Compile {} Done]", latex_file.display());
 
                         ExitCode::Success
                     }));
