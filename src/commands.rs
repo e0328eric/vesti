@@ -97,6 +97,7 @@ pub enum VestiOpt {
             conflicts_with_all(["is_latex", "is_pdflatex", "is_xelatex"]),
         )]
         is_lualatex: bool,
+        /// Set the number of the compile cycles
         #[arg(long = "lim", default_value_t = 2)]
         compile_limit: usize,
     },

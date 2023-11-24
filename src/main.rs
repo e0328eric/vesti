@@ -27,7 +27,7 @@ use clap::Parser;
 
 use crate::commands::{LaTeXEngineType, VestiOpt};
 use crate::error::pretty_print::pretty_print;
-use crate::error::VestiErr;
+use crate::error::{VestiErr, VestiUtilErrKind};
 use crate::exit_status::ExitCode;
 use crate::initialization::generate_vesti_file;
 
@@ -59,7 +59,7 @@ fn main() -> ExitCode {
                 Err(err) => {
                     let err_kind = err.kind();
                     if err_kind != ErrorKind::AlreadyExists {
-                        pretty_print(None, err.into(), None).unwrap();
+                        pretty_print::<false>(None, err.into(), None).unwrap();
                         return ExitCode::Failure;
                     }
                 }
@@ -68,7 +68,7 @@ fn main() -> ExitCode {
             let file_lists = match args.take_filename() {
                 Ok(inner) => inner,
                 Err(err) => {
-                    pretty_print(None, err, None).unwrap();
+                    pretty_print::<false>(None, err, None).unwrap();
                     return ExitCode::Failure;
                 }
             };
@@ -76,12 +76,12 @@ fn main() -> ExitCode {
             let engine_type = match argument.get_latex_type() {
                 Ok(LaTeXEngineType::Invalid) => {
                     let err = VestiErr::make_util_err(error::VestiUtilErrKind::InvalidLaTeXEngine);
-                    pretty_print(None, err, None).unwrap();
+                    pretty_print::<false>(None, err, None).unwrap();
                     return ExitCode::Failure;
                 }
                 Ok(engine) => engine,
                 Err(err) => {
-                    pretty_print(None, err, None).unwrap();
+                    pretty_print::<false>(None, err, None).unwrap();
                     return ExitCode::Failure;
                 }
             };
@@ -146,13 +146,22 @@ fn main() -> ExitCode {
                             );
 
                             latex_stdout
-                                .write_all(format!("[Compile Num {}]", i + 1).as_bytes())
+                                .write_all(format!("[Compile Num {}]\n", i + 1).as_bytes())
                                 .unwrap();
                             latex_stdout.write_all(&output.stdout).unwrap();
+                            latex_stdout.write_all("\n".as_bytes()).unwrap();
                             latex_stderr
-                                .write_all(format!("[Compile Num {}]", i + 1).as_bytes())
+                                .write_all(format!("[Compile Num {}]\n", i + 1).as_bytes())
                                 .unwrap();
                             latex_stderr.write_all(&output.stderr).unwrap();
+                            latex_stderr.write_all("\n".as_bytes()).unwrap();
+
+                            if !output.status.success() {
+                                let err =
+                                    VestiErr::make_util_err(VestiUtilErrKind::LatexCompliationErr);
+                                pretty_print::<true>(None, err, None).unwrap();
+                                return ExitCode::Failure;
+                            }
                         }
 
                         let mut pdf_filename = latex_file.clone();
@@ -166,6 +175,10 @@ fn main() -> ExitCode {
 
                         try_catch!(io_handle: generated_pdf_file.read_to_end(&mut contents));
                         try_catch!(io_handle: fs::write(final_pdf_filename, contents));
+
+                        // close a file before remove it
+                        drop(generated_pdf_file);
+                        try_catch!(io_handle: fs::remove_file(pdf_filename));
 
                         println!("[Compile {} Done]", latex_file.display());
 

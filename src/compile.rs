@@ -25,7 +25,7 @@ pub fn compile_vesti(
     let contents = match make_latex_format::<false>(&mut parser) {
         Ok(inner) => inner,
         Err(err) => {
-            pretty_print(Some(source.as_ref()), err, Some(&file_name)).unwrap();
+            pretty_print::<false>(Some(source.as_ref()), err, Some(&file_name)).unwrap();
             return ExitCode::Failure;
         }
     };
@@ -36,7 +36,7 @@ pub fn compile_vesti(
         match compile_vesti_write_file(&file_name, contents, is_main_vesti, emit_tex_only) {
             Ok(name) => name,
             Err(err) => {
-                pretty_print(None, err, None).unwrap();
+                pretty_print::<false>(None, err, None).unwrap();
                 return ExitCode::Failure;
             }
         };

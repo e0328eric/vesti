@@ -51,6 +51,7 @@ pub enum VestiUtilErrKind {
     TakeFilesErr,
     CompileAllWithoutHasSubVesti,
     InvalidLaTeXEngine,
+    LatexCompliationErr,
 }
 
 #[derive(Debug)]
@@ -242,6 +243,7 @@ impl Error for VestiUtilErrKind {
             Self::TakeFilesErr => 0x0004,
             Self::CompileAllWithoutHasSubVesti => 0x0005,
             Self::InvalidLaTeXEngine => 0x0006,
+            Self::LatexCompliationErr => 0x0007,
         }
     }
     fn err_str(&self) -> String {
@@ -254,6 +256,9 @@ impl Error for VestiUtilErrKind {
                 String::from("cannot use `--all` flag without `--has-sub` flag")
             }
             Self::InvalidLaTeXEngine => String::from("Invalid LaTeX engine was given."),
+            Self::LatexCompliationErr => {
+                String::from("Failed to generate pdf from compiled tex files")
+            }
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
@@ -262,6 +267,12 @@ impl Error for VestiUtilErrKind {
                 String::from("If there is no reason that error occurs you think,"),
                 String::from("it might be a vesti's bug. If so, let me know."),
                 String::from("Report it at https://github.com/e0328eric/vesti"),
+            ],
+            Self::LatexCompliationErr => vec![
+                String::from("This error occurs when LaTeX compiler failed."),
+                String::from(
+                    "For more information, see stdout and stderr files inside vesti-cache.",
+                ),
             ],
             _ => Vec::new(),
         }

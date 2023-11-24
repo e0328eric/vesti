@@ -4,7 +4,7 @@ macro_rules! try_catch {
         match $to_handle {
             Ok($val) => $success,
             Err(err) => {
-                pretty_print(None, err.into(), None).unwrap();
+                pretty_print::<false>(None, err.into(), None).unwrap();
                 return ExitCode::Failure;
             }
         }
@@ -13,7 +13,7 @@ macro_rules! try_catch {
         match $to_handle {
             Ok(_) => {}
             Err(err) => {
-                pretty_print(None, err.into(), None).unwrap();
+                pretty_print::<false>(None, err.into(), None).unwrap();
                 return ExitCode::Failure;
             }
         }
@@ -22,7 +22,7 @@ macro_rules! try_catch {
         match $to_handle {
             Ok($val) => $success,
             Err(err) => {
-                pretty_print(None, err, None).unwrap();
+                pretty_print::<false>(None, err, None).unwrap();
                 return ExitCode::Failure;
             }
         }
