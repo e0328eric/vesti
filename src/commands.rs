@@ -60,7 +60,7 @@ pub enum VestiOpt {
         #[clap(value_name = "FILE")]
         file_name: Vec<PathBuf>,
         /// If this flag is on, then vesti compiles all vesti files in that directory.
-        #[clap(long)]
+        #[clap(short, long)]
         all: bool,
         /// Whether the project has a sub-vesti files
         #[arg(short = 's', long = "has-sub")]

@@ -91,43 +91,54 @@ pub enum TokenType {
     EndDefinition,
 
     // Symbols
-    Plus,           // +
-    Minus,          // -
-    Star,           // *
-    Slash,          // /
-    FracDefiner,    // //
-    Equal,          // =
-    NotEqual,       // /= or !=
-    Less,           // <
-    Great,          // >
-    LessEq,         // <=
-    GreatEq,        // >=
-    LeftArrow,      // <-
-    RightArrow,     // ->
-    MapsTo,         // |->
-    Bang,           // !
-    Question,       // ?
-    RawDollar,      // $!
-    Dollar,         // \$
-    Sharp,          // \#
-    FntParam,       // #
-    At,             // @
-    Percent,        // %
-    LatexComment,   // \%
-    Superscript,    // ^
-    Subscript,      // _
-    Ampersand,      // &
-    BackSlash,      // \\
-    ShortBackSlash, // \
-    Vert,           // |
-    Period,         // .
-    Comma,          // ,
-    Colon,          // :
-    Semicolon,      // ;
-    Tilde,          // ~
-    LeftQuote,      // `
-    RightQuote,     // '
-    DoubleQuote,    // "
+    Plus,               // +
+    Minus,              // -
+    Star,               // *
+    Slash,              // /
+    FracDefiner,        // //
+    Equal,              // =
+    NotEqual,           // /= or !=
+    Less,               // <
+    Great,              // >
+    LessEq,             // <=
+    GreatEq,            // >=
+    LeftArrow,          // <-
+    RightArrow,         // ->
+    LeftRightArrow,     // <->
+    LongLeftArrow,      // <--
+    LongRightArrow,     // -->
+    LongLeftRightArrow, // <-->
+    // NOTE: The reason why there is no DoubleLeftArrow is that
+    // symbolically, it is same with LessEq and it is already preserved.
+    DoubleRightArrow,         // =>
+    DoubleLeftRightArrow,     // <=>
+    LongDoubleLeftArrow,      // <==
+    LongDoubleRightArrow,     // ==>
+    LongDoubleLeftRightArrow, // <==>
+    MapsTo,                   // |->
+    Bang,                     // !
+    Question,                 // ?
+    RawDollar,                // $!
+    Dollar,                   // \$
+    Sharp,                    // \#
+    FntParam,                 // #
+    At,                       // @
+    Percent,                  // %
+    LatexComment,             // \%
+    Superscript,              // ^
+    Subscript,                // _
+    Ampersand,                // &
+    BackSlash,                // \\
+    ShortBackSlash,           // \
+    Vert,                     // |
+    Period,                   // .
+    Comma,                    // ,
+    Colon,                    // :
+    Semicolon,                // ;
+    Tilde,                    // ~
+    LeftQuote,                // `
+    RightQuote,               // '
+    DoubleQuote,              // "
 
     // Delimiters
     Lbrace,          // {

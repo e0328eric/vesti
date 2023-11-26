@@ -17,6 +17,7 @@ pub struct Lexer<'a> {
     pub(crate) chr0: Option<char>,
     chr1: Option<char>,
     chr2: Option<char>,
+    chr3: Option<char>,
     current_loc: Location,
     math_started: bool,
     math_string_started: bool,
@@ -30,11 +31,13 @@ impl<'a> Lexer<'a> {
             chr0: None,
             chr1: None,
             chr2: None,
+            chr3: None,
             current_loc: Location::default(),
             math_started: false,
             math_string_started: false,
             lex_with_verbatim: false,
         };
+        output.next_char();
         output.next_char();
         output.next_char();
         output.next_char();
@@ -65,7 +68,8 @@ impl<'a> Lexer<'a> {
         }
         self.chr0 = self.chr1;
         self.chr1 = self.chr2;
-        self.chr2 = self.source.next();
+        self.chr2 = self.chr3;
+        self.chr3 = self.source.next();
     }
 
     pub fn next(&mut self) -> Token {
@@ -109,12 +113,17 @@ impl<'a> Lexer<'a> {
             Some('\t') => tokenize!(self:Tab, "\t"; start_loc),
             Some('\n') => tokenize!(self:Newline, "\n"; start_loc),
             Some('+') => tokenize!(self: Plus, "+"; start_loc),
-            Some('-') => match self.chr1 {
-                Some('>') if self.math_started => {
+            Some('-') => match (self.chr1, self.chr2) {
+                (Some('-'), Some('>')) if self.math_started => {
+                    self.next_char();
+                    self.next_char();
+                    tokenize!(self: LongRightArrow, "\\longrightarrow "; start_loc)
+                }
+                (Some('>'), _) if self.math_started => {
                     self.next_char();
                     tokenize!(self: RightArrow, "\\rightarrow "; start_loc)
                 }
-                Some(chr) if chr.is_ascii_digit() => self.lex_number(),
+                (Some(chr), _) if chr.is_ascii_digit() => self.lex_number(),
                 _ => tokenize!(self: Minus, "-"; start_loc),
             },
             Some('*') => tokenize!(self: Star, "*"; start_loc),
@@ -136,29 +145,21 @@ impl<'a> Lexer<'a> {
                 },
                 _ => tokenize!(self: Slash, "/"; start_loc),
             },
-            Some('=') => tokenize!(self: Equal , "="; start_loc),
-            Some('<') => match self.chr1 {
-                Some('=') => {
+            Some('=') => match (self.chr1, self.chr2) {
+                (Some('='), Some('>')) if self.math_started => {
                     self.next_char();
-                    tokenize!(self: LessEq, "\\leq "; start_loc)
-                }
-                Some('-') if self.math_started => {
                     self.next_char();
-                    tokenize!(self: LeftArrow, "\\leftarrow "; start_loc)
+                    tokenize!(self: LongDoubleRightArrow, "\\Longrightarrow "; start_loc)
                 }
-                Some('{') if self.math_started => {
+                (Some('>'), _) if self.math_started => {
                     self.next_char();
-                    if self.chr1 == Some('!') {
-                        self.next_char();
-                        tokenize!(self: BigLangle, "\\left\\langle "; start_loc)
-                    } else {
-                        tokenize!(self: Langle, "\\langle "; start_loc)
-                    }
+                    tokenize!(self: DoubleRightArrow, "\\Rightarrow "; start_loc)
                 }
-                _ => tokenize!(self: Less, "<"; start_loc),
+                _ => tokenize!(self: Equal , "="; start_loc),
             },
+            Some('<') => self.lex_less_than(),
             Some('>') => match self.chr1 {
-                Some('=') => {
+                Some('=') if self.math_started => {
                     self.next_char();
                     tokenize!(self: GreatEq, "\\geq "; start_loc)
                 }
@@ -548,6 +549,67 @@ impl<'a> Lexer<'a> {
                 }
             }
             _ => tokenize!(self: Bang, "!"; start_loc),
+        }
+    }
+
+    fn lex_less_than(&mut self) -> Token {
+        let start_loc = self.current_loc;
+
+        if !self.math_started {
+            return tokenize!(self: Less, "<"; start_loc);
+        }
+
+        match (self.chr1, self.chr2, self.chr3) {
+            (Some('='), Some('='), Some('>')) => {
+                self.next_char();
+                self.next_char();
+                self.next_char();
+                tokenize!(self: LongDoubleLeftRightArrow, "\\Longleftrightarrow "; start_loc)
+            }
+            (Some('-'), Some('-'), Some('>')) => {
+                self.next_char();
+                self.next_char();
+                self.next_char();
+                tokenize!(self: LongLeftRightArrow, "\\longleftrightarrow "; start_loc)
+            }
+            (Some('='), Some('='), _) => {
+                self.next_char();
+                self.next_char();
+                tokenize!(self: LongDoubleLeftArrow, "\\Longleftarrow "; start_loc)
+            }
+            (Some('='), Some('>'), _) => {
+                self.next_char();
+                self.next_char();
+                tokenize!(self: DoubleLeftRightArrow, "\\Leftrightarrow "; start_loc)
+            }
+            (Some('-'), Some('-'), _) => {
+                self.next_char();
+                self.next_char();
+                tokenize!(self: LongLeftArrow, "\\longleftarrow "; start_loc)
+            }
+            (Some('-'), Some('>'), _) => {
+                self.next_char();
+                self.next_char();
+                tokenize!(self: LeftRightArrow, "\\leftrightarrow "; start_loc)
+            }
+            (Some('='), _, _) => {
+                self.next_char();
+                tokenize!(self: LessEq, "\\leq "; start_loc)
+            }
+            (Some('-'), _, _) => {
+                self.next_char();
+                tokenize!(self: LeftArrow, "\\leftarrow "; start_loc)
+            }
+            (Some('{'), _, _) => {
+                self.next_char();
+                if self.chr1 == Some('!') {
+                    self.next_char();
+                    tokenize!(self: BigLangle, "\\left\\langle "; start_loc)
+                } else {
+                    tokenize!(self: Langle, "\\langle "; start_loc)
+                }
+            }
+            _ => tokenize!(self: Less, "<"; start_loc),
         }
     }
 }

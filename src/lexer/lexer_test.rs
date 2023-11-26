@@ -81,7 +81,7 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->$<-$<-$>=<=@!%!$(!)(!}>$";
+    let source = "$!-->$->-->$<-$<->=<=$@!%!$(!)(!}><==>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),
@@ -89,14 +89,15 @@ fn test_lexing_double_symbols() {
         token!(TokenType::Great, ">"),
         token!(TokenType::TextMathStart, "$"),
         token!(TokenType::RightArrow, "\\rightarrow "),
+        token!(TokenType::LongRightArrow, "\\longrightarrow "),
         token!(TokenType::TextMathEnd, "$"),
         token!(TokenType::Less, "<"),
         token!(TokenType::Minus, "-"),
         token!(TokenType::TextMathStart, "$"),
-        token!(TokenType::LeftArrow, "\\leftarrow "),
-        token!(TokenType::TextMathEnd, "$"),
-        token!(TokenType::GreatEq, "\\geq "),
+        token!(TokenType::LeftRightArrow, "\\leftrightarrow "),
+        token!(TokenType::Equal, "="),
         token!(TokenType::LessEq, "\\leq "),
+        token!(TokenType::TextMathEnd, "$"),
         token!(TokenType::At, "@"),
         token!(TokenType::LatexComment, "%"),
         token!(TokenType::TextMathStart, "$"),
@@ -104,6 +105,7 @@ fn test_lexing_double_symbols() {
         token!(TokenType::Rparen, ")"),
         token!(TokenType::BigLparen, "\\left("),
         token!(TokenType::Rangle, "\\rangle "),
+        token!(TokenType::LongDoubleLeftRightArrow, "\\Longleftrightarrow "),
         token!(TokenType::TextMathEnd, "$"),
     ];
 
