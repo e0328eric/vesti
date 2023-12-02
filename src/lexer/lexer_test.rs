@@ -81,7 +81,7 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->-->$<-$<->=<=$@!%!$(!)(!}><==>$";
+    let source = "$!-->$->-->$<-$<->=<=$@!%!||$||}><==>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),
@@ -100,10 +100,10 @@ fn test_lexing_double_symbols() {
         token!(TokenType::TextMathEnd, "$"),
         token!(TokenType::At, "@"),
         token!(TokenType::LatexComment, "%"),
+        token!(TokenType::Vert, "|"),
+        token!(TokenType::Vert, "|"),
         token!(TokenType::TextMathStart, "$"),
-        token!(TokenType::BigLparen, "\\left("),
-        token!(TokenType::Rparen, ")"),
-        token!(TokenType::BigLparen, "\\left("),
+        token!(TokenType::Norm, "\\|"),
         token!(TokenType::Rangle, "\\rangle "),
         token!(TokenType::LongDoubleLeftRightArrow, "\\Longleftrightarrow "),
         token!(TokenType::TextMathEnd, "$"),

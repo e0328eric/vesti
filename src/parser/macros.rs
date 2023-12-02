@@ -1,5 +1,5 @@
 macro_rules! expect_peek {
-    ($self:ident: $expect: expr; $span: expr) => {
+    ($self: ident: $expect: expr; $span: expr) => {
         let tok_tmp = $self.next_tok();
         if tok_tmp.toktype != $expect {
             return Err(VestiErr::ParseErr {

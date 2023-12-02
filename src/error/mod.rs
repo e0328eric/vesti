@@ -212,7 +212,7 @@ impl Error for VestiParseErrKind {
                 String::from("find its name part."),
                 match r#type {
                     TokenType::Begenv => String::from("example: begenv foo"),
-                    TokenType::FunctionDef => String::from("example: defun foo"),
+                    TokenType::FunctionDef(_) => String::from("example: defun foo"),
                     _ => unreachable!(),
                 },
             ],

@@ -1,6 +1,7 @@
 // Implementing ToString for Statement enum so that making full latex text easily.
 
 use crate::error;
+use crate::lexer::token::FunctionDefKind;
 use crate::parser::ast::*;
 use crate::parser::Parser;
 
@@ -35,6 +36,9 @@ impl ToString for Statement {
             Statement::DocumentEnd => String::from("\n\\end{document}\n"),
             Statement::MainText(s) => s.clone(),
             Statement::BracedStmt(latex) => format!("{{{}}}", latex_to_string(latex)),
+            Statement::MathDelimiter { delimiter, kind } => {
+                math_delimiter_to_string(delimiter, kind)
+            }
             Statement::Fraction {
                 numerator,
                 denominator,
@@ -53,12 +57,12 @@ impl ToString for Statement {
             } => begin_phantom_environment_to_string(name, args, *add_newline),
             Statement::EndPhantomEnvironment { name } => format!("\\end{{{name}}}"),
             Statement::FunctionDefine {
-                style,
+                kind,
                 name,
                 args,
                 trim,
                 body,
-            } => function_def_to_string(style, name, args, trim, body),
+            } => function_def_to_string(kind, name, args, trim, body),
             Statement::EnvironmentDefine {
                 is_redefine,
                 name,
@@ -137,6 +141,14 @@ fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
         }
     }
     output
+}
+
+fn math_delimiter_to_string(delimiter: &str, kind: &DelimiterKind) -> String {
+    match kind {
+        DelimiterKind::Default => String::from(delimiter),
+        DelimiterKind::LeftBig => format!("\\left{delimiter}"),
+        DelimiterKind::RightBig => format!("\\right{delimiter}"),
+    }
 }
 
 fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> String {
@@ -224,30 +236,35 @@ fn latex_to_string(latex: &Latex) -> String {
 }
 
 fn function_def_to_string(
-    style: &FunctionStyle,
+    kind: &FunctionDefKind,
     name: &str,
     args: &str,
     trim: &TrimWhitespace,
     body: &Latex,
 ) -> String {
-    let mut output = match style {
-        FunctionStyle::Plain => format!("\\def\\{name}{args}{{"),
-        FunctionStyle::LongPlain => format!("\\long\\def\\{name}{args}{{"),
-        FunctionStyle::OuterPlain => format!("\\outer\\def\\{name}{args}{{"),
-        FunctionStyle::LongOuterPlain => format!("\\long\\outer\\def\\{name}{args}{{"),
-        FunctionStyle::Expand => format!("\\edef\\{name}{args}{{"),
-        FunctionStyle::LongExpand => format!("\\long\\edef\\{name}{args}{{"),
-        FunctionStyle::OuterExpand => format!("\\outer\\edef\\{name}{args}{{"),
-        FunctionStyle::LongOuterExpand => format!("\\long\\outer\\edef\\{name}{args}{{"),
-        FunctionStyle::Global => format!("\\gdef\\{name}{args}{{"),
-        FunctionStyle::LongGlobal => format!("\\long\\gdef\\{name}{args}{{"),
-        FunctionStyle::OuterGlobal => format!("\\outer\\gdef\\{name}{args}{{"),
-        FunctionStyle::LongOuterGlobal => format!("\\long\\outer\\gdef\\{name}{args}{{"),
-        FunctionStyle::ExpandGlobal => format!("\\xdef\\{name}{args}{{"),
-        FunctionStyle::LongExpandGlobal => format!("\\long\\xdef\\{name}{args}{{"),
-        FunctionStyle::OuterExpandGlobal => format!("\\outer\\xdef\\{name}{args}{{"),
-        FunctionStyle::LongOuterExpandGlobal => format!("\\long\\outer\\xdef\\{name}{args}{{"),
-    };
+    use FunctionDefKind as FDK;
+
+    let mut output = String::with_capacity(30);
+
+    if kind.has_property(FDK::LONG) {
+        output.push_str("\\long");
+    }
+
+    if kind.has_property(FDK::OUTER) {
+        output.push_str("\\outer");
+    }
+
+    if kind.has_property(FDK::EXPAND | FDK::GLOBAL) {
+        output.push_str("\\xdef")
+    } else if kind.has_property(FDK::GLOBAL) {
+        output.push_str("\\gdef")
+    } else if kind.has_property(FDK::EXPAND) {
+        output.push_str("\\edef")
+    } else {
+        output.push_str("\\def")
+    }
+
+    output += &format!("\\{name}{args}{{");
 
     let mut tmp = String::new();
     for b in body {

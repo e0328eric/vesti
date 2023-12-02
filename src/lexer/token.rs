@@ -1,3 +1,6 @@
+use std::fmt::{self, Debug};
+use std::ops::{BitAnd, BitOr};
+
 use crate::location::{Location, Span};
 
 #[derive(Default, Clone, Debug)]
@@ -33,6 +36,48 @@ impl Token {
             literal: String::new(),
             span: Span { start, end },
         }
+    }
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Default)]
+pub struct FunctionDefKind(u8);
+
+impl FunctionDefKind {
+    pub const LONG: Self = Self(1 << 0);
+    pub const OUTER: Self = Self(1 << 1);
+    pub const EXPAND: Self = Self(1 << 2);
+    pub const GLOBAL: Self = Self(1 << 3);
+
+    const MAX_BOUND_EXCLUDE: u8 = 1 << 4;
+
+    #[inline]
+    pub fn has_property(self, rhs: Self) -> bool {
+        self & rhs == rhs
+    }
+}
+
+impl BitOr for FunctionDefKind {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitAnd for FunctionDefKind {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl Debug for FunctionDefKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.has_property(Self::LONG) {
+            write!(f, "long")?;
+        }
+
+        Ok(())
     }
 }
 
@@ -72,22 +117,7 @@ pub enum TokenType {
     Endenv,
     MainVestiFile,
     NonStopMode,
-    FunctionDef,
-    LongFunctionDef,
-    OuterFunctionDef,
-    LongOuterFunctionDef,
-    EFunctionDef,
-    LongEFunctionDef,
-    OuterEFunctionDef,
-    LongOuterEFunctionDef,
-    GFunctionDef,
-    LongGFunctionDef,
-    OuterGFunctionDef,
-    LongOuterGFunctionDef,
-    XFunctionDef,
-    LongXFunctionDef,
-    OuterXFunctionDef,
-    LongOuterXFunctionDef,
+    FunctionDef(FunctionDefKind),
     EndDefinition,
 
     // Symbols
@@ -118,11 +148,12 @@ pub enum TokenType {
     MapsTo,                   // |->
     Bang,                     // !
     Question,                 // ?
-    RawDollar,                // $!
+    RawQuestion,              // \?
+    RawDollar,                // %!
     Dollar,                   // \$
     Sharp,                    // \#
     FntParam,                 // #
-    At,                       // @
+    At,                       // @! or @
     Percent,                  // %
     LatexComment,             // \%
     Superscript,              // ^
@@ -131,6 +162,7 @@ pub enum TokenType {
     BackSlash,                // \\
     ShortBackSlash,           // \
     Vert,                     // |
+    Norm,                     // ||
     Period,                   // .
     Comma,                    // ,
     Colon,                    // :
@@ -151,24 +183,16 @@ pub enum TokenType {
     Rangle,          // }>
     MathLbrace,      // \{
     MathRbrace,      // \}
-    BigLparen,       // ({
-    BigRparen,       // })
-    BigLsqbrace,     // [{
-    BigRsqbrace,     // }]
-    BigLangle,       // <{{
-    BigRangle,       // }}>
-    BigMathLbrace,   // \{{
-    BigMathRbrace,   // \}}
     OptionalBrace,   // %[
-    TextMathStart,   // \( or {{
-    TextMathEnd,     // \( or }}
+    TextMathStart,   // $
+    TextMathEnd,     // $
     InlineMathStart, // \[
     InlineMathEnd,   // \]
-    MathTextStart,
-    MathTextEnd,
+    MathTextStart,   // "
+    MathTextEnd,     // "
 
     // etc
-    ArgSpliter,
+    ArgSpliter, // @
 
     // error token
     Deprecated {
@@ -185,11 +209,30 @@ impl TokenType {
     }
 
     #[inline]
+    pub fn is_math_delimiter(&self) -> bool {
+        matches!(
+            self,
+            Self::Lparen
+                | Self::Lsqbrace
+                | Self::Langle
+                | Self::MathLbrace
+                | Self::Vert
+                | Self::Norm
+                | Self::Rparen
+                | Self::Rsqbrace
+                | Self::Rangle
+                | Self::MathRbrace
+        )
+    }
+
+    #[inline]
     pub fn is_deprecated(&self) -> bool {
         matches!(self, Self::Deprecated { .. })
     }
 
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
+        use FunctionDefKind as FDK;
+
         match string {
             "docclass" => Some(Self::Docclass),
             "importpkg" => Some(Self::ImportPkg),
@@ -204,22 +247,24 @@ impl TokenType {
             "endenv" => Some(Self::Endenv),
             "mainvesfile" => Some(Self::MainVestiFile),
             "nonstopmode" => Some(Self::NonStopMode),
-            "defun" => Some(Self::FunctionDef),
-            "ldefun" => Some(Self::LongFunctionDef),
-            "odefun" => Some(Self::OuterFunctionDef),
-            "lodefun" => Some(Self::LongOuterFunctionDef),
-            "edefun" => Some(Self::EFunctionDef),
-            "ledefun" => Some(Self::LongEFunctionDef),
-            "oedefun" => Some(Self::OuterEFunctionDef),
-            "loedefun" => Some(Self::LongOuterEFunctionDef),
-            "gdefun" => Some(Self::GFunctionDef),
-            "lgdefun" => Some(Self::LongGFunctionDef),
-            "ogdefun" => Some(Self::OuterGFunctionDef),
-            "logdefun" => Some(Self::LongOuterGFunctionDef),
-            "xdefun" => Some(Self::XFunctionDef),
-            "lxdefun" => Some(Self::LongXFunctionDef),
-            "oxdefun" => Some(Self::OuterXFunctionDef),
-            "loxdefun" => Some(Self::LongOuterXFunctionDef),
+            "defun" => Some(Self::FunctionDef(FunctionDefKind::default())),
+            "ldefun" => Some(Self::FunctionDef(FDK::LONG)),
+            "odefun" => Some(Self::FunctionDef(FDK::OUTER)),
+            "lodefun" => Some(Self::FunctionDef(FDK::LONG | FDK::OUTER)),
+            "edefun" => Some(Self::FunctionDef(FDK::EXPAND)),
+            "ledefun" => Some(Self::FunctionDef(FDK::LONG | FDK::EXPAND)),
+            "oedefun" => Some(Self::FunctionDef(FDK::OUTER | FDK::EXPAND)),
+            "loedefun" => Some(Self::FunctionDef(FDK::LONG | FDK::OUTER | FDK::EXPAND)),
+            "gdefun" => Some(Self::FunctionDef(FDK::GLOBAL)),
+            "lgdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::LONG)),
+            "ogdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::OUTER)),
+            "logdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::LONG | FDK::OUTER)),
+            "xdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND)),
+            "lxdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND | FDK::LONG)),
+            "oxdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND | FDK::OUTER)),
+            "loxdefun" => Some(Self::FunctionDef(
+                FDK::GLOBAL | FDK::EXPAND | FDK::LONG | FDK::OUTER,
+            )),
             "enddef" => Some(Self::EndDefinition),
             "import" => Some(Self::Deprecated {
                 valid_in_text: true,
@@ -259,26 +304,13 @@ impl TokenType {
 
     #[inline]
     pub fn get_definition_start_list() -> Vec<Self> {
-        vec![
-            Self::Defenv,
-            Self::Redefenv,
-            Self::FunctionDef,
-            Self::LongFunctionDef,
-            Self::OuterFunctionDef,
-            Self::LongOuterFunctionDef,
-            Self::EFunctionDef,
-            Self::LongEFunctionDef,
-            Self::OuterEFunctionDef,
-            Self::LongOuterEFunctionDef,
-            Self::GFunctionDef,
-            Self::LongGFunctionDef,
-            Self::OuterGFunctionDef,
-            Self::LongOuterGFunctionDef,
-            Self::XFunctionDef,
-            Self::LongXFunctionDef,
-            Self::OuterXFunctionDef,
-            Self::LongOuterXFunctionDef,
-        ]
+        let mut output = vec![Self::Defenv, Self::Redefenv];
+
+        for i in 0..FunctionDefKind::MAX_BOUND_EXCLUDE {
+            output.push(Self::FunctionDef(FunctionDefKind(i)));
+        }
+
+        output
     }
 
     #[inline]

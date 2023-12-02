@@ -360,18 +360,38 @@ enddef"#;
 #[test]
 fn test_parse_function_definition_kind() {
     let source1 = "defun foo(#1\\over#2) bar enddef";
-    let source2 = "edefun foo(#1\\over#2) bar enddef";
+    let source2 = "ldefun foo(#1\\over#2) bar enddef";
     let source3 = "odefun foo(#1\\over#2) bar enddef";
-    let source4 = "loxdefun foo(#1\\over#2) bar enddef";
-    let source5 = "lgdefun foo(#1\\over#2) bar enddef";
-    let source6 = "lodefun foo(#1\\over#2) bar enddef";
+    let source4 = "lodefun foo(#1\\over#2) bar enddef";
+    let source5 = "edefun foo(#1\\over#2) bar enddef";
+    let source6 = "ledefun foo(#1\\over#2) bar enddef";
+    let source7 = "oedefun foo(#1\\over#2) bar enddef";
+    let source8 = "loedefun foo(#1\\over#2) bar enddef";
+    let source9 = "gdefun foo(#1\\over#2) bar enddef";
+    let source10 = "lgdefun foo(#1\\over#2) bar enddef";
+    let source11 = "ogdefun foo(#1\\over#2) bar enddef";
+    let source12 = "logdefun foo(#1\\over#2) bar enddef";
+    let source13 = "xdefun foo(#1\\over#2) bar enddef";
+    let source14 = "lxdefun foo(#1\\over#2) bar enddef";
+    let source15 = "oxdefun foo(#1\\over#2) bar enddef";
+    let source16 = "loxdefun foo(#1\\over#2) bar enddef";
 
     let expected1 = "\\def\\foo#1\\over#2{bar}%\n";
-    let expected2 = "\\edef\\foo#1\\over#2{bar}%\n";
+    let expected2 = "\\long\\def\\foo#1\\over#2{bar}%\n";
     let expected3 = "\\outer\\def\\foo#1\\over#2{bar}%\n";
-    let expected4 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}%\n";
-    let expected5 = "\\long\\gdef\\foo#1\\over#2{bar}%\n";
-    let expected6 = "\\long\\outer\\def\\foo#1\\over#2{bar}%\n";
+    let expected4 = "\\long\\outer\\def\\foo#1\\over#2{bar}%\n";
+    let expected5 = "\\edef\\foo#1\\over#2{bar}%\n";
+    let expected6 = "\\long\\edef\\foo#1\\over#2{bar}%\n";
+    let expected7 = "\\outer\\edef\\foo#1\\over#2{bar}%\n";
+    let expected8 = "\\long\\outer\\edef\\foo#1\\over#2{bar}%\n";
+    let expected9 = "\\gdef\\foo#1\\over#2{bar}%\n";
+    let expected10 = "\\long\\gdef\\foo#1\\over#2{bar}%\n";
+    let expected11 = "\\outer\\gdef\\foo#1\\over#2{bar}%\n";
+    let expected12 = "\\long\\outer\\gdef\\foo#1\\over#2{bar}%\n";
+    let expected13 = "\\xdef\\foo#1\\over#2{bar}%\n";
+    let expected14 = "\\long\\xdef\\foo#1\\over#2{bar}%\n";
+    let expected15 = "\\outer\\xdef\\foo#1\\over#2{bar}%\n";
+    let expected16 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}%\n";
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
@@ -379,6 +399,16 @@ fn test_parse_function_definition_kind() {
     expected!(source4 should be expected4);
     expected!(source5 should be expected5);
     expected!(source6 should be expected6);
+    expected!(source7 should be expected7);
+    expected!(source8 should be expected8);
+    expected!(source9 should be expected9);
+    expected!(source10 should be expected10);
+    expected!(source11 should be expected11);
+    expected!(source12 should be expected12);
+    expected!(source13 should be expected13);
+    expected!(source14 should be expected14);
+    expected!(source15 should be expected15);
+    expected!(source16 should be expected16);
 }
 
 #[test]
@@ -525,4 +555,16 @@ enddef"#;
     let expected =
         "\\newenvironment{newminipage}[1]{\\begin{minipage}{0.4\\textwidth}}{\\end{minipage}}\n";
     expected!(source should be expected);
+}
+
+#[test]
+fn parse_math_delimiters() {
+    let source1 = "$(?)?<{?\\{?|?||?$";
+    let source2 = "$?)?(?}>?\\}?|?||$";
+
+    let expected1 = "$\\left(\\left)\\left\\langle \\left\\{\\left|\\left\\|$";
+    let expected2 = "$\\right)\\right(\\right\\rangle \\right\\}\\right|\\right\\|$";
+
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
 }
