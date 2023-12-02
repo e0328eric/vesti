@@ -739,7 +739,7 @@ impl<'a> Parser<'a> {
         if IS_REAL {
             self.eat_whitespaces::<false>();
             expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
-            let text_ref = text.write(Vec::new());
+            let text_ref = text.write(Vec::with_capacity(32));
             while self.peek_tok() != TokenType::Rbrace {
                 if self.is_eof() {
                     return Err(VestiErr::make_parse_err(
