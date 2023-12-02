@@ -666,12 +666,12 @@ impl<'a> Parser<'a> {
         Ok(Statement::EndPhantomEnvironment { name })
     }
 
-    fn parse_environment<const IS_PHANTOM: bool>(&mut self) -> error::Result<Statement> {
+    fn parse_environment<const IS_REAL: bool>(&mut self) -> error::Result<Statement> {
         let begenv_location = self.peek_tok_location();
         let mut off_math_state = false;
         let mut add_newline = false;
 
-        if IS_PHANTOM {
+        if IS_REAL {
             expect_peek!(self: TokenType::Useenv; self.peek_tok_location());
         } else {
             expect_peek!(self: TokenType::Begenv; self.peek_tok_location());
@@ -685,7 +685,7 @@ impl<'a> Parser<'a> {
         let mut name = match self.peek_tok() {
             TokenType::Text => self.next_tok().literal,
             TokenType::Eof => {
-                if IS_PHANTOM {
+                if IS_REAL {
                     return Err(VestiErr::ParseErr {
                         err_kind: VestiParseErrKind::NameMissErr {
                             r#type: TokenType::Useenv,
@@ -694,7 +694,7 @@ impl<'a> Parser<'a> {
                     });
                 } else {
                     return Err(VestiErr::ParseErr {
-                        err_kind: if IS_PHANTOM {
+                        err_kind: if IS_REAL {
                             VestiParseErrKind::IsNotClosedErr {
                                 open: vec![TokenType::Begenv],
                                 close: TokenType::Endenv,
@@ -736,7 +736,7 @@ impl<'a> Parser<'a> {
         )?;
 
         let mut text = MaybeUninit::<Latex>::uninit();
-        if IS_PHANTOM {
+        if IS_REAL {
             self.eat_whitespaces::<false>();
             expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
             let text_ref = text.write(Vec::new());
@@ -763,7 +763,7 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
 
-        if IS_PHANTOM {
+        if IS_REAL {
             // SAFETY: We know that text is initialized at the same if branch, and IS_REAL can be
             // determined only at the compile time
             Ok(Statement::Environment {
