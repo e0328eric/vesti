@@ -279,7 +279,7 @@ fn test_lex_number() {
 
 #[test]
 fn lexing_keywords() {
-    let source = "docclass begenv startdoc importpkg endenv";
+    let source = "docclass begenv startdoc importpkg endenv ltx3off";
     let expected = vec![
         token!(TokenType::Docclass, "docclass"),
         token!(TokenType::Space, " "),
@@ -290,6 +290,8 @@ fn lexing_keywords() {
         token!(TokenType::ImportPkg, "importpkg"),
         token!(TokenType::Space, " "),
         token!(TokenType::Endenv, "endenv"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::Latex3Off, "ltx3off"),
     ];
 
     let mut lex = Lexer::new(source);
@@ -316,11 +318,19 @@ fn lexing_backslash() {
 
 #[test]
 fn lexing_latex_functions() {
-    let source = "\\foo \\bar@hand \\frac{a @ b}";
+    let source = "\\foo \\bar_hand makeatletter \\bar_hand makeatother \\frac{a @ b}";
     let expected = vec![
         token!(TokenType::LatexFunction, "\\foo"),
         token!(TokenType::Space, " "),
+        token!(TokenType::LatexFunction, "\\bar"),
+        token!(TokenType::Subscript, "_"),
+        token!(TokenType::Text, "hand"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::MakeAtLetter, "makeatletter"),
+        token!(TokenType::Space, " "),
         token!(TokenType::LatexFunction, "\\bar@hand"),
+        token!(TokenType::Space, " "),
+        token!(TokenType::MakeAtOther, "makeatother"),
         token!(TokenType::Space, " "),
         token!(TokenType::LatexFunction, "\\frac"),
         token!(TokenType::Lbrace, "{"),

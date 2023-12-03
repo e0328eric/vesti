@@ -21,6 +21,8 @@ pub struct Lexer<'a> {
     current_loc: Location,
     math_started: bool,
     math_string_started: bool,
+    use_subscript_as_letter: bool,
+    is_latex3_on: bool,
     lex_with_verbatim: bool,
 }
 
@@ -35,6 +37,8 @@ impl<'a> Lexer<'a> {
             current_loc: Location::default(),
             math_started: false,
             math_string_started: false,
+            use_subscript_as_letter: false,
+            is_latex3_on: false,
             lex_with_verbatim: false,
         };
         output.next_char();
@@ -247,7 +251,7 @@ impl<'a> Lexer<'a> {
     fn lex_main_string(&mut self) -> Token {
         let start_loc = self.current_loc;
 
-        let mut literal = String::new();
+        let mut literal = String::with_capacity(16);
 
         while let Some(chr) = self.chr0 {
             if !chr.is_alphanumeric() {
@@ -257,8 +261,12 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
         let toktype = if let Some(toktype) = TokenType::is_keyword_str(&literal) {
-            if &literal == "mnd" && self.chr0 == Some(' ') {
-                self.next_char();
+            match toktype {
+                TokenType::MakeAtLetter => self.use_subscript_as_letter = true,
+                TokenType::MakeAtOther => self.use_subscript_as_letter = false,
+                TokenType::Latex3On => self.is_latex3_on = true,
+                TokenType::Latex3Off => self.is_latex3_on = false,
+                _ => {}
             }
             toktype
         } else {
@@ -485,16 +493,28 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: BackSlash, "\\\\"; start_loc)
             }
-            _ if self.chr1.map_or(false, token::is_latex_function_ident) => {
+            _ if self.chr1.map_or(false, |chr| {
+                token::is_latex_function_ident(chr, self.use_subscript_as_letter, self.is_latex3_on)
+            }) =>
+            {
                 self.next_char();
                 let mut literal = String::from("\\");
                 while let Some(chr) = self.chr0 {
-                    if !token::is_latex_function_ident(chr) {
+                    if !token::is_latex_function_ident(
+                        chr,
+                        self.use_subscript_as_letter,
+                        self.is_latex3_on,
+                    ) {
                         break;
                     }
                     literal.push(chr);
                     self.next_char();
                 }
+
+                if !self.is_latex3_on {
+                    literal = literal.replace("_", "@");
+                }
+
                 Token::new(
                     TokenType::LatexFunction,
                     literal,

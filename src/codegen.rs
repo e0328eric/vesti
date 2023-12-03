@@ -27,6 +27,11 @@ impl ToString for Statement {
     fn to_string(&self) -> String {
         match self {
             Statement::NonStopMode => String::from("\\nonstopmode\n"),
+            Statement::ImportExpl3Pkg => String::from("\\usepackage{expl3}\n"),
+            Statement::MakeAtLetter => String::from("\\makeatletter\n"),
+            Statement::MakeAtOther => String::from("\\makeatother\n"),
+            Statement::Latex3On => String::from("\\ExplSyntaxOn\n"),
+            Statement::Latex3Off => String::from("\\ExplSyntaxOff\n"),
             Statement::DocumentClass { name, options } => docclass_to_string(name, options),
             Statement::Usepackage { name, options } => usepackage_to_string(name, options),
             Statement::MultiUsepackages { pkgs } => multiusepacakge_to_string(pkgs),

@@ -13,7 +13,7 @@ use base64ct::{Base64Url, Encoding};
 use md5::{Digest, Md5};
 use path_slash::PathBufExt;
 
-use crate::constants;
+use crate::constants::{self, ILLEGAL_USAGE_OF_SUPERSUB_SCRIPT};
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::{FunctionDefKind, Token, TokenType};
 use crate::lexer::Lexer;
@@ -54,6 +54,7 @@ pub struct Parser<'a> {
     source: Lexer<'a>,
     peek_tok: Token,
     is_main_vesti: bool,
+    latex3_included: bool,
     doc_state: DocState,
 }
 
@@ -64,6 +65,7 @@ impl<'a> Parser<'a> {
             source,
             peek_tok: Token::default(),
             is_main_vesti,
+            latex3_included: false,
             doc_state: if is_main_vesti {
                 DocState::main_document_state()
             } else {
@@ -152,6 +154,52 @@ impl<'a> Parser<'a> {
                 self.eat_whitespaces::<true>();
                 Ok(Statement::NonStopMode)
             }
+            TokenType::MakeAtLetter => {
+                self.next_tok();
+                self.eat_whitespaces::<true>();
+                Ok(Statement::MakeAtLetter)
+            }
+            TokenType::MakeAtOther => {
+                self.next_tok();
+                self.eat_whitespaces::<true>();
+                Ok(Statement::MakeAtOther)
+            }
+            TokenType::ImportLatex3 if self.is_premiere() => {
+                self.latex3_included = true;
+                self.next_tok();
+                self.eat_whitespaces::<true>();
+                Ok(Statement::ImportExpl3Pkg)
+            }
+            TokenType::Latex3On => {
+                if self.latex3_included {
+                    self.next_tok();
+                    self.eat_whitespaces::<true>();
+                    Ok(Statement::Latex3On)
+                } else {
+                    Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IllegalUseErr {
+                            got: self.peek_tok(),
+                            reason: Some("must use `importltx3` to use this keyword"),
+                        },
+                        self.peek_tok_location(),
+                    ))
+                }
+            }
+            TokenType::Latex3Off => {
+                if self.latex3_included {
+                    self.next_tok();
+                    self.eat_whitespaces::<true>();
+                    Ok(Statement::Latex3Off)
+                } else {
+                    Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::IllegalUseErr {
+                            got: self.peek_tok(),
+                            reason: Some("must use `importltx3` to use this keyword"),
+                        },
+                        self.peek_tok_location(),
+                    ))
+                }
+            }
             TokenType::Useenv => self.parse_environment::<true>(),
             TokenType::Begenv => self.parse_environment::<false>(),
             TokenType::Endenv => self.parse_end_phantom_environment(),
@@ -200,6 +248,7 @@ impl<'a> Parser<'a> {
                 Err(VestiErr::make_parse_err(
                     VestiParseErrKind::IllegalUseErr {
                         got: self.peek_tok(),
+                        reason: Some(ILLEGAL_USAGE_OF_SUPERSUB_SCRIPT),
                     },
                     self.peek_tok_location(),
                 ))

@@ -108,6 +108,7 @@ pub enum TokenType {
     ImportPkg,
     ImportVesti,
     ImportFile,
+    ImportLatex3,
     StartDoc,
     Defenv,
     Redefenv,
@@ -115,6 +116,10 @@ pub enum TokenType {
     Useenv,
     Begenv,
     Endenv,
+    MakeAtLetter,
+    MakeAtOther,
+    Latex3On,
+    Latex3Off,
     MainVestiFile,
     NonStopMode,
     FunctionDef(FunctionDefKind),
@@ -238,6 +243,7 @@ impl TokenType {
             "importpkg" => Some(Self::ImportPkg),
             "importves" => Some(Self::ImportVesti),
             "importfile" => Some(Self::ImportFile),
+            "importltx3" => Some(Self::ImportLatex3),
             "startdoc" => Some(Self::StartDoc),
             "defenv" => Some(Self::Defenv),
             "redefenv" => Some(Self::Redefenv),
@@ -245,6 +251,10 @@ impl TokenType {
             "useenv" => Some(Self::Useenv),
             "begenv" => Some(Self::Begenv),
             "endenv" => Some(Self::Endenv),
+            "makeatletter" => Some(Self::MakeAtLetter),
+            "makeatother" => Some(Self::MakeAtOther),
+            "ltx3on" => Some(Self::Latex3On),
+            "ltx3off" => Some(Self::Latex3Off),
             "mainvesfile" => Some(Self::MainVestiFile),
             "nonstopmode" => Some(Self::NonStopMode),
             "defun" => Some(Self::FunctionDef(FunctionDefKind::default())),
@@ -319,7 +329,6 @@ impl TokenType {
     }
 }
 
-#[inline]
-pub fn is_latex_function_ident(chr: char) -> bool {
-    chr == '@' || chr.is_alphabetic()
+pub fn is_latex_function_ident(chr: char, subscript_is_letter: bool, is_latex3: bool) -> bool {
+    chr.is_alphabetic() || (subscript_is_letter && chr == '_') || (is_latex3 && chr == ':')
 }

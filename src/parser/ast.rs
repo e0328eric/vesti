@@ -7,6 +7,11 @@ pub type Latex = Vec<Statement>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     NonStopMode,
+    MakeAtLetter,
+    MakeAtOther,
+    Latex3On,
+    Latex3Off,
+    ImportExpl3Pkg,
     DocumentClass {
         name: String,
         options: Option<Vec<Latex>>,

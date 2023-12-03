@@ -40,6 +40,7 @@ pub enum VestiParseErrKind {
     },
     IllegalUseErr {
         got: TokenType,
+        reason: Option<&'static str>,
     },
 }
 
@@ -163,8 +164,8 @@ impl Error for VestiParseErrKind {
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::DeprecatedUseErr { .. } => "This is deprecated".to_string(),
-            Self::IllegalUseErr { got } => {
-                format!("Type `{got:?}` cannot use out of the math block or function definition")
+            Self::IllegalUseErr { got, .. } => {
+                format!("Invalid usage of `{got:?} found")
             }
         }
     }
@@ -223,12 +224,12 @@ impl Error for VestiParseErrKind {
                     vec![format!("Use `{instead}` token instead.")]
                 }
             }
-            Self::IllegalUseErr { .. } => {
-                vec![
-                    String::from("wrap the whole expression that uses this"),
-                    String::from("symbol using math related warppers like"),
-                    String::from("`$`, `\\(`, `\\)`, `\\[`, `\\]` or `defun` like blocks"),
-                ]
+            Self::IllegalUseErr { reason, .. } => {
+                if let Some(reason) = reason {
+                    vec![String::from(*reason)]
+                } else {
+                    Vec::new()
+                }
             }
         }
     }
