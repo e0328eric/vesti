@@ -3,10 +3,12 @@
 A transpiler that compiles into LaTeX.
 
 ## Why need a LaTeX transpiler?
+
 I used to make several documentations using LaTeX (or plainTeX, but TeX is quite cumbersome to write
 a document, especially very complex tables or put an image, for example).
 However, its markdown like syntax is not confortable to use it.
 For example, there is a simple LaTeX document.
+
 ```tex
 % coprime is my custom class. See https://github.com/e0328eric/coprime.
 \documentclass[tikz, geometry]{coprime}
@@ -55,11 +57,14 @@ Upper code is a figure using tikz.
 ```
 
 ## Installation
+
 Vesti can be installed using `cargo`.
+
 ```console
 $ cargo install vesti
 ```
 
 ## Warning
+
 This language is in beta version, so future break changes can be exist. Beware to use in the large
 projects.
