@@ -855,11 +855,11 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let mut name = String::new();
+        let mut name = String::with_capacity(16);
         loop {
             name.push_str(
                 match self.peek_tok() {
-                    TokenType::Text | TokenType::ArgSpliter => self.next_tok().literal,
+                    TokenType::Text | TokenType::Subscript => self.next_tok().literal,
                     TokenType::Space | TokenType::Tab | TokenType::Newline | TokenType::Lparen => {
                         break
                     }
@@ -881,6 +881,7 @@ impl<'a> Parser<'a> {
                 .as_str(),
             );
         }
+        name = name.replace("_", "@");
         self.eat_whitespaces::<false>();
 
         let args = self.parse_function_definition_argument()?;

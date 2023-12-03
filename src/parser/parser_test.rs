@@ -2,11 +2,15 @@
 
 use super::*;
 use crate::codegen::make_latex_format;
+use crate::commands::LatexEngineType;
 
 macro_rules! expected {
     ($source: ident should be $expected: ident) => {{
         let mut parser = Parser::new(Lexer::new($source), true);
-        assert_eq!($expected, make_latex_format::<true>(&mut parser).unwrap());
+        assert_eq!(
+            $expected,
+            make_latex_format::<true>(&mut parser, LatexEngineType::Invalid).unwrap()
+        );
     }};
 }
 
@@ -313,14 +317,14 @@ enddef"#;
 
 #[test]
 fn test_parse_function_definition_name() {
-    let source1 = "defun bar@foo (#1#2) \\overline{#1} and #2 enddef";
-    let source2 = "defun bar@foo(#1#2) \\overline{#1} and #2 enddef";
-    let source3 = "defun bar@foo (#1#2)\\overline{#1} and #2 enddef";
-    let source4 = "defun bar@foo(#1#2)\\overline{#1} and #2 enddef";
-    let source5 = r#"defun bar@foo (#1#2)
+    let source1 = "defun bar_foo (#1#2) \\overline{#1} and #2 enddef";
+    let source2 = "defun bar_foo(#1#2) \\overline{#1} and #2 enddef";
+    let source3 = "defun bar_foo (#1#2)\\overline{#1} and #2 enddef";
+    let source4 = "defun bar_foo(#1#2)\\overline{#1} and #2 enddef";
+    let source5 = r#"defun bar_foo (#1#2)
         \overline{#1} and #2
 enddef"#;
-    let source6 = r#"defun bar@foo(#1#2)
+    let source6 = r#"defun bar_foo(#1#2)
         \overline{#1} and #2
 enddef"#;
 

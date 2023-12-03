@@ -6,6 +6,7 @@ use base64ct::{Base64Url, Encoding};
 use md5::{Digest, Md5};
 
 use crate::codegen::make_latex_format;
+use crate::commands::LatexEngineType;
 use crate::constants;
 use crate::error::VestiErr;
 use crate::error::{self, pretty_print::pretty_print};
@@ -16,13 +17,14 @@ use crate::parser::Parser;
 pub fn compile_vesti(
     main_file_sender: SyncSender<PathBuf>,
     file_name: PathBuf,
+    engine_type: LatexEngineType,
     has_sub_vesti: bool,
     emit_tex_only: bool,
 ) -> ExitCode {
     let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
 
     let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
-    let contents = match make_latex_format::<false>(&mut parser) {
+    let contents = match make_latex_format::<false>(&mut parser, engine_type) {
         Ok(inner) => inner,
         Err(err) => {
             pretty_print::<false>(Some(source.as_ref()), err, Some(&file_name)).unwrap();

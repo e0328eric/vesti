@@ -330,5 +330,7 @@ impl TokenType {
 }
 
 pub fn is_latex_function_ident(chr: char, subscript_is_letter: bool, is_latex3: bool) -> bool {
-    chr.is_alphabetic() || (subscript_is_letter && chr == '_') || (is_latex3 && chr == ':')
+    chr.is_alphabetic()
+        || (subscript_is_letter && chr == '_')
+        || (is_latex3 && (chr == '_' || chr == ':'))
 }

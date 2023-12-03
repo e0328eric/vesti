@@ -1,7 +1,7 @@
+use std::fmt::{self, Display};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::string::ToString;
 
 use clap::Parser as ClapParser;
 use yaml_rust::YamlLoader;
@@ -9,7 +9,7 @@ use yaml_rust::YamlLoader;
 use crate::error::{self, VestiErr, VestiUtilErrKind};
 
 #[derive(Debug, Clone, Copy)]
-pub enum LaTeXEngineType {
+pub enum LatexEngineType {
     LaTeX,
     PdfLaTeX,
     XeLaTeX,
@@ -17,7 +17,7 @@ pub enum LaTeXEngineType {
     Invalid,
 }
 
-impl FromStr for LaTeXEngineType {
+impl FromStr for LatexEngineType {
     type Err = std::convert::Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -31,14 +31,14 @@ impl FromStr for LaTeXEngineType {
     }
 }
 
-impl ToString for LaTeXEngineType {
-    fn to_string(&self) -> String {
+impl Display for LatexEngineType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::LaTeX => String::from("latex"),
-            Self::PdfLaTeX => String::from("pdflatex"),
-            Self::XeLaTeX => String::from("xelatex"),
-            Self::LuaLaTeX => String::from("lualatex"),
-            Self::Invalid => String::new(),
+            Self::LaTeX => write!(f, "latex"),
+            Self::PdfLaTeX => write!(f, "pdflatex"),
+            Self::XeLaTeX => write!(f, "xelatex"),
+            Self::LuaLaTeX => write!(f, "lualatex"),
+            Self::Invalid => write!(f, ""),
         }
     }
 }
@@ -157,7 +157,7 @@ impl VestiOpt {
         Ok(output)
     }
 
-    pub fn get_latex_type(&self) -> error::Result<LaTeXEngineType> {
+    pub fn get_latex_type(&self) -> error::Result<LatexEngineType> {
         let default_engine = read_config()?;
 
         if let Self::Compile {
@@ -174,14 +174,14 @@ impl VestiOpt {
                 | (*is_lualatex as u8);
 
             Ok(match bitmask {
-                1 => LaTeXEngineType::LuaLaTeX,
-                2 => LaTeXEngineType::XeLaTeX,
-                4 => LaTeXEngineType::PdfLaTeX,
-                8 => LaTeXEngineType::LaTeX,
+                1 => LatexEngineType::LuaLaTeX,
+                2 => LatexEngineType::XeLaTeX,
+                4 => LatexEngineType::PdfLaTeX,
+                8 => LatexEngineType::LaTeX,
                 _ => default_engine,
             })
         } else {
-            Ok(LaTeXEngineType::Invalid)
+            Ok(LatexEngineType::Invalid)
         }
     }
 }
@@ -189,7 +189,7 @@ impl VestiOpt {
 // Read a config file and return the position of the given engine
 // The config file must in at .config/vesti directory
 // and its name is config.yaml
-fn read_config() -> error::Result<LaTeXEngineType> {
+fn read_config() -> error::Result<LatexEngineType> {
     let mut dir = dirs::config_dir().unwrap();
     dir.push("vesti/config.yaml");
     let contents = fs::read_to_string(dir).unwrap_or_default();

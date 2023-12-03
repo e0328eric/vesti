@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use crate::commands::{LaTeXEngineType, VestiOpt};
+use crate::commands::{LatexEngineType, VestiOpt};
 use crate::error::pretty_print::pretty_print;
 use crate::error::{VestiErr, VestiUtilErrKind};
 use crate::exit_status::ExitCode;
@@ -74,7 +74,7 @@ fn main() -> ExitCode {
             };
 
             let engine_type = match argument.get_latex_type() {
-                Ok(LaTeXEngineType::Invalid) => {
+                Ok(LatexEngineType::Invalid) => {
                     let err = VestiErr::make_util_err(error::VestiUtilErrKind::InvalidLaTeXEngine);
                     pretty_print::<false>(None, err, None).unwrap();
                     return ExitCode::Failure;
@@ -97,6 +97,7 @@ fn main() -> ExitCode {
                     compile::compile_vesti(
                         main_file_sender,
                         file_name,
+                        engine_type,
                         has_sub_vesti,
                         emit_tex_only,
                     )
