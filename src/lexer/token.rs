@@ -101,7 +101,7 @@ pub enum TokenType {
     Text,
     LatexFunction,
     RawLatex,
-    VerbatimChar,
+    VerbatimChar(char),
 
     // Keywords
     Docclass,
@@ -176,6 +176,10 @@ pub enum TokenType {
     LeftQuote,                // `
     RightQuote,               // '
     DoubleQuote,              // "
+    RawLbrace,                // \(
+    RawRbrace,                // \)
+    RawLsqbrace,              // \[
+    RawRsqbrace,              // \]
 
     // Delimiters
     Lbrace,          // {
@@ -191,8 +195,8 @@ pub enum TokenType {
     OptionalBrace,   // %[
     TextMathStart,   // $
     TextMathEnd,     // $
-    InlineMathStart, // \[
-    InlineMathEnd,   // \]
+    InlineMathStart, // $$
+    InlineMathEnd,   // $$
     MathTextStart,   // "
     MathTextEnd,     // "
 

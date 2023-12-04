@@ -121,7 +121,7 @@ pub fn pretty_print<const PRINT_NOTE: bool>(
             stdout,
             BOLD_TEXT,
             NOTE_COLOR,
-            Print(format!("note: ")),
+            Print("note: ".to_string()),
             RESET_STYLE,
         )?;
         for (idx, line) in vesti_error.err_detail_str().into_iter().enumerate() {

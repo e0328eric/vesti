@@ -605,17 +605,22 @@ impl<'a> Parser<'a> {
         // Parse vesti contents within verbatim
         self.source.switch_lex_with_verbatim();
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
-        assert!(self.peek_tok.toktype == TokenType::VerbatimChar);
+        assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
-        while self.peek_tok.literal != ")" {
-            if self.is_eof() {
-                return Err(VestiErr::make_parse_err(
-                    VestiParseErrKind::EOFErr,
-                    self.peek_tok_location(),
-                ));
-            }
+        loop {
+            let chr = match self.peek_tok() {
+                TokenType::VerbatimChar(')') => break,
+                TokenType::VerbatimChar(chr) => chr,
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        self.peek_tok_location(),
+                    ))
+                }
+                _ => unreachable!(),
+            };
 
-            file_path_str.push_str(&self.peek_tok.literal);
+            file_path_str.push(chr);
             self.next_tok();
         }
         // Release verbatim mode
@@ -657,17 +662,22 @@ impl<'a> Parser<'a> {
         // Parse vesti contents within verbatim
         self.source.switch_lex_with_verbatim();
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
-        assert!(self.peek_tok.toktype == TokenType::VerbatimChar);
+        assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
-        while self.peek_tok.literal != ")" {
-            if self.is_eof() {
-                return Err(VestiErr::make_parse_err(
-                    VestiParseErrKind::EOFErr,
-                    self.peek_tok_location(),
-                ));
-            }
+        loop {
+            let chr = match self.peek_tok() {
+                TokenType::VerbatimChar(')') => break,
+                TokenType::VerbatimChar(chr) => chr,
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        self.peek_tok_location(),
+                    ))
+                }
+                _ => unreachable!(),
+            };
 
-            file_path_str.push_str(&self.peek_tok.literal);
+            file_path_str.push(chr);
             self.next_tok();
         }
         // Release verbatim mode

@@ -82,8 +82,8 @@ impl<'a> Lexer<'a> {
         if self.lex_with_verbatim {
             let token = if let Some(chr) = self.chr0 {
                 Token {
-                    toktype: TokenType::VerbatimChar,
-                    literal: String::from(chr),
+                    toktype: TokenType::VerbatimChar(chr),
+                    literal: String::new(),
                     span: Span {
                         start: start_loc,
                         end: self.current_loc,
@@ -448,22 +448,20 @@ impl<'a> Lexer<'a> {
             Some('(') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self: TextMathStart, "$"; start_loc)
+                tokenize!(self: RawLbrace, "("; start_loc)
             }
             Some(')') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self: TextMathEnd, "$"; start_loc)
+                tokenize!(self: RawRbrace, ")"; start_loc)
             }
             Some('[') => {
-                self.math_started = true;
                 self.next_char();
-                tokenize!(self: InlineMathStart, "\\["; start_loc)
+                tokenize!(self: RawLsqbrace, "["; start_loc)
             }
             Some(']') => {
-                self.math_started = false;
                 self.next_char();
-                tokenize!(self: InlineMathEnd, "\\]"; start_loc)
+                tokenize!(self: RawRsqbrace, "]"; start_loc)
             }
             Some('{') => {
                 self.next_char();
@@ -512,7 +510,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 if !self.is_latex3_on {
-                    literal = literal.replace("_", "@");
+                    literal = literal.replace('_', "@");
                 }
 
                 Token::new(

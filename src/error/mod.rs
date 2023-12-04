@@ -165,7 +165,7 @@ impl Error for VestiParseErrKind {
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::DeprecatedUseErr { .. } => "This is deprecated".to_string(),
             Self::IllegalUseErr { got, .. } => {
-                format!("Invalid usage of `{got:?} found")
+                format!("Invalid usage of `{got:?}` found")
             }
         }
     }
