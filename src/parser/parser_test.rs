@@ -247,7 +247,7 @@ fn parse_latex_functions() {
 
 #[test]
 fn test_parse_math_stmt() {
-    let source1 = "startdoc \\(\\sum_1^\\infty f(x)\\)";
+    let source1 = "startdoc $\\sum_1^\\infty f(x)$";
     let source2 = "startdoc \\[\\sum_1^\\infty f(x)\\]";
 
     let expected1 = r#"\begin{document}

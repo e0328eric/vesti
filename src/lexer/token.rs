@@ -178,8 +178,6 @@ pub enum TokenType {
     DoubleQuote,              // "
     RawLbrace,                // \(
     RawRbrace,                // \)
-    RawLsqbrace,              // \[
-    RawRsqbrace,              // \]
 
     // Delimiters
     Lbrace,          // {
@@ -195,8 +193,8 @@ pub enum TokenType {
     OptionalBrace,   // %[
     TextMathStart,   // $
     TextMathEnd,     // $
-    InlineMathStart, // $$
-    InlineMathEnd,   // $$
+    InlineMathStart, // $$ or \[
+    InlineMathEnd,   // $$ or \]
     MathTextStart,   // "
     MathTextEnd,     // "
 

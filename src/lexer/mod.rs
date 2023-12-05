@@ -456,12 +456,14 @@ impl<'a> Lexer<'a> {
                 tokenize!(self: RawRbrace, ")"; start_loc)
             }
             Some('[') => {
+                self.math_started = true;
                 self.next_char();
-                tokenize!(self: RawLsqbrace, "["; start_loc)
+                tokenize!(self: InlineMathStart, "\\["; start_loc)
             }
             Some(']') => {
+                self.math_started = false;
                 self.next_char();
-                tokenize!(self: RawRsqbrace, "]"; start_loc)
+                tokenize!(self: InlineMathEnd, "\\]"; start_loc)
             }
             Some('{') => {
                 self.next_char();

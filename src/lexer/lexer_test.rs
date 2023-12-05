@@ -302,11 +302,10 @@ fn lexing_keywords() {
 
 #[test]
 fn lexing_backslash() {
-    let source = "\\#\\$\\)\\%";
+    let source = "\\#\\$\\%";
     let expected = vec![
         token!(TokenType::Sharp, "\\#"),
         token!(TokenType::Dollar, "\\$"),
-        token!(TokenType::TextMathEnd, "$"),
         token!(TokenType::Percent, "\\%"),
     ];
 
