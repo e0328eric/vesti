@@ -44,15 +44,17 @@ pub enum VestiParseErrKind {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum VestiUtilErrKind {
-    IOErr(std::io::ErrorKind),
-    ScanErr(ScanError),
     NoFilenameInputErr,
     TakeFilesErr,
     CompileAllWithoutHasSubVesti,
     InvalidLaTeXEngine,
     LatexCompliationErr,
+    IOErr(std::io::ErrorKind),
+    ScanErr(ScanError),
+    #[cfg(feature = "tectonic-backend")]
+    TectonicErr(tectonic::Error),
 }
 
 #[derive(Debug)]
@@ -88,6 +90,15 @@ impl From<ScanError> for VestiErr {
     fn from(err: ScanError) -> Self {
         Self::UtilErr {
             err_kind: VestiUtilErrKind::ScanErr(err),
+        }
+    }
+}
+
+#[cfg(feature = "tectonic-backend")]
+impl From<tectonic::Error> for VestiErr {
+    fn from(err: tectonic::Error) -> Self {
+        Self::UtilErr {
+            err_kind: VestiUtilErrKind::TectonicErr(err),
         }
     }
 }
@@ -238,19 +249,19 @@ impl Error for VestiParseErrKind {
 impl Error for VestiUtilErrKind {
     fn err_code(&self) -> u16 {
         match self {
+            Self::NoFilenameInputErr => 0x0011,
+            Self::TakeFilesErr => 0x0012,
+            Self::CompileAllWithoutHasSubVesti => 0x0013,
+            Self::InvalidLaTeXEngine => 0x0014,
+            Self::LatexCompliationErr => 0x0015,
             Self::IOErr(_) => 0x0001,
             Self::ScanErr(_) => 0x0002,
-            Self::NoFilenameInputErr => 0x0003,
-            Self::TakeFilesErr => 0x0004,
-            Self::CompileAllWithoutHasSubVesti => 0x0005,
-            Self::InvalidLaTeXEngine => 0x0006,
-            Self::LatexCompliationErr => 0x0007,
+            #[cfg(feature = "tectonic-backend")]
+            Self::TectonicErr(_) => 0x0003,
         }
     }
     fn err_str(&self) -> String {
         match self {
-            Self::IOErr(err) => format!("IO error `{:?}` occurs", err),
-            Self::ScanErr(err) => format!("Yaml parsing error `{:?}` occurs", err),
             Self::NoFilenameInputErr => String::from("No file name or path is given"),
             Self::TakeFilesErr => String::from("Error occurs while taking files"),
             Self::CompileAllWithoutHasSubVesti => {
@@ -260,6 +271,10 @@ impl Error for VestiUtilErrKind {
             Self::LatexCompliationErr => {
                 String::from("Failed to generate pdf from compiled tex files")
             }
+            Self::IOErr(err) => format!("IO error `{err:?}` occurs"),
+            Self::ScanErr(err) => format!("Yaml parsing error `{err:?}` occurs"),
+            #[cfg(feature = "tectonic-backend")]
+            Self::TectonicErr(err) => format!("Tectonic error `{err:?}` occurs"),
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
@@ -271,6 +286,13 @@ impl Error for VestiUtilErrKind {
             ],
             Self::LatexCompliationErr => vec![
                 String::from("This error occurs when LaTeX compiler failed."),
+                String::from(
+                    "For more information, see stdout and stderr files inside vesti-cache.",
+                ),
+            ],
+            #[cfg(feature = "tectonic-backend")]
+            Self::TectonicErr(_) => vec![
+                String::from("This error occurs when Tectonic compiler failed."),
                 String::from(
                     "For more information, see stdout and stderr files inside vesti-cache.",
                 ),

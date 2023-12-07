@@ -417,13 +417,12 @@ impl<'a> Parser<'a> {
 
     fn parse_open_delimiter(&mut self) -> error::Result<Statement> {
         let delimiter = self.next_tok().literal;
-        let kind: DelimiterKind;
-        if self.peek_tok() == TokenType::Question {
+        let kind: DelimiterKind = if self.peek_tok() == TokenType::Question {
             expect_peek!(self: TokenType::Question; self.peek_tok_location());
-            kind = DelimiterKind::LeftBig;
+            DelimiterKind::LeftBig
         } else {
-            kind = DelimiterKind::Default;
-        }
+            DelimiterKind::Default
+        };
 
         Ok(Statement::MathDelimiter { delimiter, kind })
     }
@@ -654,7 +653,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_import_file(&mut self) -> error::Result<Statement> {
-        expect_peek!(self: TokenType::ImportFile; self.peek_tok_location());
+        let import_file_loc = self.peek_tok_location();
+        expect_peek!(self: TokenType::ImportFile; import_file_loc);
+        let copy_file = if self.peek_tok() == TokenType::Star {
+            expect_peek!(self: TokenType::Star; self.peek_tok_location());
+            true
+        } else {
+            false
+        };
         self.eat_whitespaces::<false>();
 
         let mut file_path_str = String::with_capacity(30);
@@ -664,18 +670,42 @@ impl<'a> Parser<'a> {
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
+        let mut inside_config_dir = false;
+        let mut parse_very_first_chr = false;
         loop {
             let chr = match self.peek_tok() {
                 TokenType::VerbatimChar(')') => break,
+                TokenType::VerbatimChar('@') => {
+                    if !parse_very_first_chr {
+                        inside_config_dir = true;
+                        self.next_tok();
+
+                        if self.peek_tok() != TokenType::VerbatimChar('/') {
+                            return Err(VestiErr::make_parse_err(
+                                VestiParseErrKind::IllegalUseErr {
+                                    got: TokenType::ImportFile,
+                                    reason: Some("The next token for `@` should be `/`."),
+                                },
+                                import_file_loc,
+                            ));
+                        }
+                        continue;
+                    } else {
+                        '@'
+                    }
+                }
                 TokenType::VerbatimChar(chr) => chr,
                 TokenType::Eof => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErrKind::EOFErr,
                         self.peek_tok_location(),
-                    ))
+                    ));
                 }
                 _ => unreachable!(),
             };
+
+            // as we just parse at least one character, in here, it should set with true value
+            parse_very_first_chr = true;
 
             file_path_str.push(chr);
             self.next_tok();
@@ -685,13 +715,41 @@ impl<'a> Parser<'a> {
         self.next_tok();
 
         // trim whitespaces
-        file_path_str = format!("./{}", file_path_str.trim());
-        let filepath_diff =
-            pathdiff::diff_paths(file_path_str, constants::VESTI_CACHE_DIR).unwrap();
+        file_path_str = if inside_config_dir {
+            format!(
+                "{}/vesti{}",
+                dirs::config_dir()
+                    .expect("failed to get a config directory for this OS")
+                    .display(),
+                file_path_str.trim()
+            )
+        } else {
+            format!("./{}", file_path_str.trim())
+        };
 
-        Ok(Statement::ImportFile {
-            filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
-        })
+        if copy_file {
+            let raw_filename_pathbuf = PathBuf::from(&file_path_str);
+            let raw_filename = raw_filename_pathbuf.file_name().unwrap();
+
+            dbg!(&file_path_str, raw_filename);
+
+            fs::copy(
+                file_path_str,
+                format!(
+                    "{}/{}",
+                    constants::VESTI_CACHE_DIR,
+                    raw_filename.to_string_lossy()
+                ),
+            )?;
+
+            Ok(Statement::NopStmt)
+        } else {
+            let filepath_diff =
+                pathdiff::diff_paths(file_path_str, constants::VESTI_CACHE_DIR).unwrap();
+            Ok(Statement::ImportFile {
+                filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
+            })
+        }
     }
 
     fn parse_end_phantom_environment(&mut self) -> error::Result<Statement> {
@@ -891,7 +949,7 @@ impl<'a> Parser<'a> {
                 .as_str(),
             );
         }
-        name = name.replace("_", "@");
+        name = name.replace('_', "@");
         self.eat_whitespaces::<false>();
 
         let args = self.parse_function_definition_argument()?;

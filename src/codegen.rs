@@ -31,6 +31,8 @@ pub fn make_latex_format<const IS_TEST: bool>(
 impl ToString for Statement {
     fn to_string(&self) -> String {
         match self {
+            // an empty statement
+            Statement::NopStmt => String::new(),
             Statement::NonStopMode => String::from("\\nonstopmode\n"),
             Statement::ImportExpl3Pkg => String::from("\\usepackage{expl3, xparse}\n"),
             Statement::MakeAtLetter => String::from("\\makeatletter\n"),

@@ -8,12 +8,14 @@ use yaml_rust::YamlLoader;
 
 use crate::error::{self, VestiErr, VestiUtilErrKind};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LatexEngineType {
     LaTeX,
     PdfLaTeX,
     XeLaTeX,
     LuaLaTeX,
+    #[cfg(feature = "tectonic-backend")]
+    Tectonic,
     Invalid,
 }
 
@@ -26,6 +28,8 @@ impl FromStr for LatexEngineType {
             "pdflatex" => Self::PdfLaTeX,
             "xelatex" => Self::XeLaTeX,
             "lualatex" => Self::LuaLaTeX,
+            #[cfg(feature = "tectonic-backend")]
+            "tectonic" => Self::Tectonic,
             _ => Self::Invalid,
         })
     }
@@ -38,6 +42,8 @@ impl Display for LatexEngineType {
             Self::PdfLaTeX => write!(f, "pdflatex"),
             Self::XeLaTeX => write!(f, "xelatex"),
             Self::LuaLaTeX => write!(f, "lualatex"),
+            #[cfg(feature = "tectonic-backend")]
+            Self::Tectonic => write!(f, "tectonic"),
             Self::Invalid => write!(f, ""),
         }
     }
@@ -67,39 +73,46 @@ pub enum VestiOpt {
         has_sub_vesti: bool,
         /// Compile vesti into tex file only.
         /// There is a plan to make a standalone tex file
-        #[arg(short = 'T', long = "emit-tex")]
+        #[arg(short = 'e', long = "emit-tex")]
         emit_tex_only: bool,
         /// Compile vesti into pdf with latex
         #[arg(
             short = 'L',
             long = "latex",
-            conflicts_with_all(["is_pdflatex", "is_xelatex", "is_lualatex"]),
+            conflicts_with_all(["is_pdflatex", "is_xelatex", "is_lualatex", "is_tectonic"]),
         )]
         is_latex: bool,
         /// Compile vesti into pdf with pdflatex
         #[arg(
             short = 'p',
             long = "pdflatex",
-            conflicts_with_all(["is_latex", "is_xelatex", "is_lualatex"]),
+            conflicts_with_all(["is_latex", "is_xelatex", "is_lualatex", "is_tectonic"]),
         )]
         is_pdflatex: bool,
         /// Compile vesti into pdf with xelatex
         #[arg(
             short = 'x',
             long = "xelatex",
-            conflicts_with_all(["is_latex", "is_pdflatex", "is_lualatex"]),
+            conflicts_with_all(["is_latex", "is_pdflatex", "is_lualatex", "is_tectonic"]),
         )]
         is_xelatex: bool,
         /// Compile vesti into pdf with lualatex
         #[arg(
             short = 'l',
             long = "lualatex",
-            conflicts_with_all(["is_latex", "is_pdflatex", "is_xelatex"]),
+            conflicts_with_all(["is_latex", "is_pdflatex", "is_xelatex", "is_tectonic"]),
         )]
         is_lualatex: bool,
+        /// Compile vesti into pdf with tectonic (can use only when it is compiled with `tectonic-backend` feature)
+        #[arg(
+            short = 'T',
+            long = "tectonic",
+            conflicts_with_all(["is_latex", "is_pdflatex", "is_xelatex", "is_lualatex"]),
+        )]
+        is_tectonic: bool,
         /// Set the number of the compile cycles
-        #[arg(long = "lim", default_value_t = 2)]
-        compile_limit: usize,
+        #[arg(long = "lim")]
+        compile_limit: Option<usize>,
     },
 }
 
@@ -165,19 +178,23 @@ impl VestiOpt {
             is_xelatex,
             is_pdflatex,
             is_lualatex,
+            is_tectonic,
             ..
         } = self
         {
-            let bitmask = (*is_latex as u8) << 3
-                | (*is_pdflatex as u8) << 2
-                | (*is_xelatex as u8) << 1
-                | (*is_lualatex as u8);
+            let bitmask = (*is_latex as u8)
+                | (*is_pdflatex as u8) << 1
+                | (*is_xelatex as u8) << 2
+                | (*is_lualatex as u8) << 3
+                | (*is_tectonic as u8) << 4;
 
             Ok(match bitmask {
-                1 => LatexEngineType::LuaLaTeX,
-                2 => LatexEngineType::XeLaTeX,
-                4 => LatexEngineType::PdfLaTeX,
-                8 => LatexEngineType::LaTeX,
+                1 => LatexEngineType::LaTeX,
+                2 => LatexEngineType::PdfLaTeX,
+                4 => LatexEngineType::XeLaTeX,
+                8 => LatexEngineType::LuaLaTeX,
+                #[cfg(feature = "tectonic-backend")]
+                16 => LatexEngineType::Tectonic,
                 _ => default_engine,
             })
         } else {

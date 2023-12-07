@@ -6,6 +6,7 @@ pub type Latex = Vec<Statement>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    NopStmt,
     NonStopMode,
     MakeAtLetter,
     MakeAtOther,
