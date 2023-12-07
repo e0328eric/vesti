@@ -274,7 +274,7 @@ impl Error for VestiUtilErrKind {
             Self::IOErr(err) => format!("IO error `{err:?}` occurs"),
             Self::ScanErr(err) => format!("Yaml parsing error `{err:?}` occurs"),
             #[cfg(feature = "tectonic-backend")]
-            Self::TectonicErr(err) => format!("Tectonic error `{err:?}` occurs"),
+            Self::TectonicErr(err) => format!("Tectonic error `{}` occurs", err.kind()),
         }
     }
     fn err_detail_str(&self) -> Vec<String> {

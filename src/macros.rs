@@ -27,4 +27,13 @@ macro_rules! try_catch {
             }
         }
     };
+    (note: $to_handle: expr, $val: pat, $success: expr) => {
+        match $to_handle {
+            Ok($val) => $success,
+            Err(err) => {
+                pretty_print::<true>(None, err, None).unwrap();
+                return ExitCode::Failure;
+            }
+        }
+    };
 }

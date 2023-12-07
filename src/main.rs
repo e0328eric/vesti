@@ -122,7 +122,7 @@ fn main() -> ExitCode {
                 let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
                 for latex_filename in main_files {
                     handle_latex.push(thread::spawn(move || {
-                        try_catch!(
+                        try_catch!(note:
                             compile::latex::compile_latex(
                                 latex_filename,
                                 compile_limit,

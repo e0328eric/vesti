@@ -1,3 +1,13 @@
+# 0.11.1
+
+## Changed
+
+-   Better error message for tectonic backend
+
+## Fixed
+
+-   a bug not to print notes when backend compilation error occurs
+
 # 0.11.0
 
 ## Added
