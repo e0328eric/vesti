@@ -731,8 +731,6 @@ impl<'a> Parser<'a> {
             let raw_filename_pathbuf = PathBuf::from(&file_path_str);
             let raw_filename = raw_filename_pathbuf.file_name().unwrap();
 
-            dbg!(&file_path_str, raw_filename);
-
             fs::copy(
                 file_path_str,
                 format!(
