@@ -714,6 +714,11 @@ impl<'a> Parser<'a> {
         self.source.switch_lex_with_verbatim();
         self.next_tok();
 
+        self.eat_whitespaces::<false>();
+        if self.peek_tok() == TokenType::Newline {
+            self.next_tok();
+        }
+
         // trim whitespaces
         file_path_str = if inside_config_dir {
             format!(
