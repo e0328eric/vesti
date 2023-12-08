@@ -22,6 +22,9 @@ pub fn make_latex_format<const IS_TEST: bool>(
     }
 
     for stmt in latex {
+        if stmt == Statement::NopStmt {
+            continue;
+        }
         output += &stmt.to_string();
     }
 
