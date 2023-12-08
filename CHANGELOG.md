@@ -7,6 +7,7 @@
 ## Fixed
 
 -   a bug not to print notes when backend compilation error occurs
+-   `importfile` does not ignore the end of line
 
 # 0.11.0
 
