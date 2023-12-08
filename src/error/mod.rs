@@ -274,7 +274,7 @@ impl Error for VestiUtilErrKind {
             Self::IOErr(err) => format!("IO error `{err:?}` occurs"),
             Self::ScanErr(err) => format!("Yaml parsing error `{err:?}` occurs"),
             #[cfg(feature = "tectonic-backend")]
-            Self::TectonicErr(err) => format!("Tectonic error `{}` occurs", err.kind()),
+            Self::TectonicErr(_) => format!("Tectonic error occurs"),
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
@@ -292,10 +292,8 @@ impl Error for VestiUtilErrKind {
             ],
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => vec![
-                String::from("This error occurs when Tectonic compiler failed."),
-                String::from(
-                    "For more information, see stdout and stderr files inside vesti-cache.",
-                ),
+                String::from("This error occurs when Tectonic backend failed."),
+                String::from("See the detail in the above tectonic emitted error message"),
             ],
             _ => Vec::new(),
         }
