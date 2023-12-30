@@ -10,6 +10,7 @@ use crate::error::{self, VestiErr, VestiUtilErrKind};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LatexEngineType {
+    RawTexCode,
     LaTeX,
     PdfLaTeX,
     XeLaTeX,
@@ -24,6 +25,7 @@ impl FromStr for LatexEngineType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
+            "raw" => Self::RawTexCode,
             "latex" => Self::LaTeX,
             "pdflatex" => Self::PdfLaTeX,
             "xelatex" => Self::XeLaTeX,
@@ -44,7 +46,7 @@ impl Display for LatexEngineType {
             Self::LuaLaTeX => write!(f, "lualatex"),
             #[cfg(feature = "tectonic-backend")]
             Self::Tectonic => write!(f, "tectonic"),
-            Self::Invalid => write!(f, ""),
+            _ => write!(f, ""),
         }
     }
 }
