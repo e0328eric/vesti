@@ -1,3 +1,8 @@
+# 0.11.2
+
+## Changed
+Fix some bugs
+
 # 0.11.1
 
 ## Changed
