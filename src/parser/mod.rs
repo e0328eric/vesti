@@ -724,7 +724,7 @@ impl<'a> Parser<'a> {
             format!(
                 "{}/vesti{}",
                 dirs::config_dir()
-                    .expect("failed to get a config directory for this OS")
+                    .expect("failed to get a config directory for this OS.")
                     .display(),
                 file_path_str.trim()
             )
