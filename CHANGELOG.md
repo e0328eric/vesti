@@ -1,8 +1,9 @@
-# 0.11.3
+# 0.11.4
 
 # Fixed
 
 - Add a note message for `IOErr`
+- Use tectonic 0.15.0
 
 # 0.11.2
 
