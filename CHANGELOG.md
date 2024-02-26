@@ -1,3 +1,9 @@
+# 0.11.3
+
+# Fixed
+
+- Add a note message for `IOErr`
+
 # 0.11.2
 
 ## Changed
