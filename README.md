@@ -64,6 +64,15 @@ Vesti can be installed using `cargo`.
 $ cargo install vesti
 ```
 
+## config file
+In default, it uses local `pdflatex` to compile vesti. If you want to change the default behavior, add `config.yaml` in `$CONFIG_PATH/vesti` and type like the following:
+```yaml
+engine:
+  main:
+    "tectonic"
+```
+This example defaults vesti to run `tectonic` backend. (You must download vesti using `tectonic-backend` to use `tectonic`). The full list for main engine is in `src/commands.rs`.
+
 ## Warning
 
 This language is in beta version, so future break changes can be exist. Beware to use in the large
