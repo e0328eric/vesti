@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::io::{BufWriter, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::commands::LatexEngineType;
@@ -9,7 +9,7 @@ use crate::error::{self, VestiErr, VestiUtilErrKind};
 
 #[cfg(feature = "tectonic-backend")]
 pub fn compile_latex(
-    latex_filename: PathBuf,
+    latex_filename: &Path,
     compile_limit: Option<usize>,
     engine_type: LatexEngineType,
 ) -> error::Result<()> {
@@ -22,7 +22,7 @@ pub fn compile_latex(
 
 #[cfg(not(feature = "tectonic-backend"))]
 pub fn compile_latex(
-    latex_filename: PathBuf,
+    latex_filename: &Path,
     compile_limit: Option<usize>,
     engine_type: LatexEngineType,
 ) -> error::Result<()> {
@@ -30,7 +30,7 @@ pub fn compile_latex(
 }
 
 fn compile_latex_with_local(
-    latex_filename: PathBuf,
+    latex_filename: &Path,
     compile_limit: Option<usize>,
     engine_type: LatexEngineType,
 ) -> error::Result<()> {
@@ -70,7 +70,7 @@ fn compile_latex_with_local(
         }
     }
 
-    let mut pdf_filename = latex_filename.clone();
+    let mut pdf_filename: PathBuf = latex_filename.into();
     pdf_filename.set_extension("pdf");
     let final_pdf_filename = PathBuf::from(format!("../{}", pdf_filename.display()));
 
@@ -103,7 +103,7 @@ mod vesti_tectonic {
     use crate::constants::VESTI_CACHE_DIR;
 
     pub(super) fn compile_latex_with_tectonic(
-        latex_filename: PathBuf,
+        latex_filename: &Path,
         compile_limit: Option<usize>,
     ) -> error::Result<()> {
         println!("[Compile {}]", latex_filename.display());
@@ -139,7 +139,7 @@ mod vesti_tectonic {
         let mut sess = sb.create(&mut *status)?;
         sess.run(&mut *status)?;
 
-        let mut pdf_filename = latex_filename.clone();
+        let mut pdf_filename: PathBuf = latex_filename.into();
         pdf_filename.set_extension("pdf");
         let final_pdf_filename = PathBuf::from(format!("../{}", pdf_filename.display()));
 

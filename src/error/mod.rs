@@ -51,7 +51,10 @@ pub enum VestiUtilErrKind {
     CompileAllWithoutHasSubVesti,
     InvalidLaTeXEngine,
     LatexCompliationErr,
-    IOErr(std::io::ErrorKind),
+    IOErr {
+        kind: std::io::ErrorKind,
+        note_msg: Option<String>,
+    },
     ScanErr(ScanError),
     #[cfg(feature = "tectonic-backend")]
     TectonicErr(tectonic::Error),
@@ -76,12 +79,30 @@ impl VestiErr {
     pub fn make_util_err(err_kind: VestiUtilErrKind) -> Self {
         Self::UtilErr { err_kind }
     }
+
+    pub fn inject_note_msg(&mut self, msg: String) {
+        #[allow(clippy::single_match)]
+        match self {
+            Self::UtilErr {
+                err_kind:
+                    VestiUtilErrKind::IOErr {
+                        ref mut note_msg, ..
+                    },
+            } => {
+                *note_msg = Some(msg);
+            }
+            _ => {}
+        }
+    }
 }
 
 impl From<std::io::Error> for VestiErr {
     fn from(err: std::io::Error) -> Self {
         Self::UtilErr {
-            err_kind: VestiUtilErrKind::IOErr(err.kind()),
+            err_kind: VestiUtilErrKind::IOErr {
+                kind: err.kind(),
+                note_msg: None,
+            },
         }
     }
 }
@@ -254,7 +275,7 @@ impl Error for VestiUtilErrKind {
             Self::CompileAllWithoutHasSubVesti => 0x0013,
             Self::InvalidLaTeXEngine => 0x0014,
             Self::LatexCompliationErr => 0x0015,
-            Self::IOErr(_) => 0x0001,
+            Self::IOErr { .. } => 0x0001,
             Self::ScanErr(_) => 0x0002,
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => 0x0003,
@@ -271,7 +292,7 @@ impl Error for VestiUtilErrKind {
             Self::LatexCompliationErr => {
                 String::from("Failed to generate pdf from compiled tex files")
             }
-            Self::IOErr(err) => format!("IO error `{err:?}` occurs"),
+            Self::IOErr { kind, .. } => format!("IO error `{kind:?}` occurs"),
             Self::ScanErr(err) => format!("Yaml parsing error `{err:?}` occurs"),
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => format!("Tectonic error occurs"),
@@ -290,6 +311,10 @@ impl Error for VestiUtilErrKind {
                     "For more information, see stdout and stderr files inside vesti-cache.",
                 ),
             ],
+            Self::IOErr {
+                note_msg: Some(ref msg),
+                ..
+            } => vec![msg.clone()],
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => vec![
                 String::from("This error occurs when Tectonic backend failed."),

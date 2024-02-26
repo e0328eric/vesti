@@ -1,0 +1,266 @@
+% import coprime class manually because of an usage of tectonic
+importfile* (@/coprime/coprime.cls)
+importfile* (@/coprime/coprime-math.sty)
+importfile* (@/coprime/coprime-reference.sty)
+importfile* (@/coprime/fancythm.sty)
+
+docclass coprime (geometry, fancy)
+
+importpkg { xparse, fontspec }
+
+\settitle{Partial Differential Equations Homework 1}{2022021350 Sungbae Jeong}
+\setgeometry{a4paper, margin=2.5cm}
+
+%-
+\newfontfamily{\hebrewSans}{Noto Serif Hebrew}
+\NewDocumentCommand{\cone}{o}{
+    \makeatletter
+    \def\c@ne{\hebrewSans\char"05E7}
+    \IfNoValueTF{#1}{\!\mathop{\text{\c@ne}}\nolimits}{\!\mathop{\text{\c@ne}}\nolimits_{#1}}
+    \makeatother
+}
+-%
+
+defun cl() \overline enddef
+defun supp() \mathop{\rm{supp}}\nolimits enddef
+defun diff() \partial enddef
+
+\fancyon
+startdoc
+\section{Some notations used in here}
+In here, denote $B(x,r)\subset\R^n$ be an \it{open} ball centered at $x$ with a radius $r$.
+To write a closed ball, it is used $B[x,r]$ instead.
+If $x\in\R^n$, then write $x^j$ be a $j^"th"$ coordinate for $x$ for each $1<=j<=n$.
+In other words,
+$$
+    x = (x^1,\cdots,x^n).
+$$
+Also denote $x'\in\R^{n-1}$ by $x'=(x^1,\cdots,x^{n-1})$ for each $x\in\R^n$.
+
+If $E,F\subset\R^n$, $x\in\R^n$ and $\lambda\in\R$, we define
+$$
+    useenv aligned {
+        x + E &:= \{ x + y : y\in E \} \\
+        E + F &:= \{ x + y : x\in E,\ y\in F \} \\
+        \lambda E &:= \{ \lambda y : y \in E\}
+    }
+$$
+If there is a constant $C=C(p_1,\cdots,p_n)>0$ which depends on $p_1,\cdots,p_n$, then the notation
+$f\lesssim_{p_1,\cdots,p_n} g$ means that $f<= Cg$. Also write $f\lesssim g$ to omit such dependencies.
+
+We shall use a special open set so called a \it{cone} in $\R^n$ defined by
+$$
+    \cone[\alpha] := \{x\in\R^n : x^n>0,\ |x'|<\alpha|x^n|\} \qquad (\alpha>0).
+$$
+The reason why I choose this special character is that the
+first letter of word \it{cone} in Hebrew is $\cone$.
+
+\section{Global approximation by smooth functions}
+The homework which I should solve is proving the following theorem:
+
+useenv thm [Global approximation by functions smooth up to the boundary] {
+    \label{thm:main}
+
+    Assume that $\Omega$ is bounded and $\partial\Omega\in C^{0,1}$.
+    Suppose that $u\in W^{k,p}(\Omega)$ for some $1<=p<\infty$.
+    Then there exist functions $u_m\in C^\infty(\overline\Omega)$ such that
+    $$
+        u_m -> u \quad "in"\quad W^{k,p}(\Omega).
+    $$
+}
+
+To prove this theorem, we need some steps to work with.
+
+\section{The one and only one lemma}
+useenv lemma { \label{lemma:1}
+    Let
+    $$
+        \Omega := \{x\in\R^n : x^n > h(x')\}
+    $$
+    where $h:\R^{n-1}->\R$ is Lipschitz continuous. Then there exists $\alpha>0$ such that
+    $x+\cone[\alpha]\subset\Omega$ for every $x\in\cl\Omega$.
+    \proof
+    First of all, take $M<\infty$ such that
+    $$
+        |h(u)-h(v)| <= M|u-v|
+    $$
+    for every $u,v\in\R^{n-1}$.
+    If $x\in\cl\Omega$, then $x_n>=h(x')$ holds, thus if $y\in x+\cone[1/M]$, we get
+    $$
+        h(y') <= h(x') + M|x'-y'|
+        < h(x') + |y^n-x^n|
+        <= x^n + (y^n-x^n) = y^n.
+    $$
+    Therefore, $y\in\Omega$ holds so $x-\cone[1/M]\subset\Omega$. \proved
+}
+
+\section{Special case for \cref{thm:main}}
+Before proving \cref{thm:main}, we will prove the somewhat \it{special} case of \cref{thm:main}, which is the
+following.
+useenv prop { \label{prop:1}
+    \cref{thm:main} is valid for an open set $\Omega$ whose definition is
+    $$
+        \Omega := \{x\in\R^n : x^n > h(x')\}
+    $$
+    for Lipschitz function $h:\R^{n-1}->\R$.
+    \proof
+    Fix $\alpha$ as in \cref{lemma:1} and simply write $\cone:=\cone[\alpha]$.
+    and take $\zeta\in C_c^\infty(\R^n)$ such that $\zeta>=0$,
+    $\supp\zeta\subset -\cone$, and $\int\zeta=1$.
+    Then define $\zeta_\epsilon(x) := \epsilon^{-n}\zeta(x/\epsilon)$ and
+    $$
+        u_\epsilon(x) := \int_{-\cone} \zeta_\epsilon(y)u(x-y)dy \qquad (x\in\cl\Omega).
+    $$
+    Indeed, if $y\in-\cone$ and $x\in\cl\Omega$, we get $x-y\in x+\cone\subset\Omega$ by \cref{lemma:1}.
+    This shows that $u_\epsilon$ is well-defined in $\cl\Omega$.
+
+    Also, for fixed $x\in\cl\Omega$, if $y\in\Omega\setminus(x+\cone)$, then $x-y\notin-\cone$.
+    Since
+    $$
+        \supp\zeta_\epsilon = \epsilon\supp\zeta \subset \epsilon(-\cone) = -\cone,
+    $$
+    we get $\zeta_\epsilon(x-y)=0$. Hence, by the change of variables, we can write
+    $$
+        u_\epsilon(x) = \int_{x+\cone}\zeta_\epsilon(x-y)u(y)dy = \int_\Omega\zeta_\epsilon(x-y)u(y)dy.
+    $$
+
+    First, claim that $u_\epsilon\in C^\infty(\cl\Omega)$ for every $\epsilon>0$.
+    To prove this, first we need some fact to deal with.
+    Put $\delta=(1/2)d(\supp\zeta,\diff(-\cone))$. Then if $x\in\cl\Omega$, $y\in\supp\zeta_\epsilon$ and
+    $h\in\R^n$ for which $|h|<\delta\epsilon$.
+    Since $-\cone$ is open, we have
+    $$
+        y-h \in B(y,\delta\epsilon) = \epsilon B(y/\epsilon,\delta) \subset \epsilon (-\cone) = -\cone.
+    $$
+    This implies that $x-y+h\in x+\cone\subset\Omega$ by \cref{lemma:1}.
+    In other words, for fixed $x\in\cl\Omega$ and $h\in\R^n$ with $|h|$ suffciently near to zero,
+    we can extend the value of $u_\epsilon$ at $x+h$ by defining
+    $$
+        u_\epsilon(x+h) := \int_{\supp\zeta_\epsilon}\zeta_\epsilon(y)u(x-y+h)dy.
+    $$
+    This extension does not harm the case when $x+h\in\cl\Omega$ because $\supp\zeta_\epsilon\subset-\cone$.
+    Also, the change of variables gives that
+    $$
+        u_\epsilon(x+h) = \int_{\Omega}\zeta_\epsilon(x-y+h)u(y)dy.
+    $$
+
+    Now, let $\{e_j\}_1^n$ be a standard basis for $\R^n$.
+    Then fix $x\in\cl\Omega$, $1<=j<=n$, and $\epsilon>0$. If $h$ is sufficiently near zero, we get
+    useenv equation { \label{eq:1}
+        useenv aligned {
+            {u_\epsilon(x+he_j) - u_\epsilon(x)//h}
+            &= \int_\Omega [?{\zeta_\epsilon(x-y+he_j) - \zeta_\epsilon(x-y)//h}?]u(y)dy \\
+            &= {1//\epsilon^n}\int_\Omega {1//h}[?\zeta(?{x-y+he_j//\epsilon}?) \zeta(?{x-y//\epsilon}?)?]u(y)dy \\
+            &= {1//\epsilon^n}\int_V {1//h}[?\zeta(?{x-y+he_j//\epsilon}?) \zeta(?{x-y//\epsilon}?)?]u(y)dy
+        }
+    }
+    for some open $V\Subset\Omega$ because $\zeta$ has a compact support.
+    Since
+    $$
+        {1//h}[?\zeta(?{x-y+he_j//\epsilon}?) \zeta(?{x-y//\epsilon}?)?]\uniform
+        {1//\epsilon}\zeta_{x_j}(?{x-y//\epsilon}?)
+    $$
+    on $y\in V$ as $h->0$. This can be proved using the mean value theorem on $h$ and the fact that
+    $\zeta\in C_c^\infty(\R^n)$.
+    Using this fact on \cref{eq:1},
+    $$
+        useenv aligned {
+            u_{\epsilon,x_j} &= {1//\epsilon^n}\int_V {1//\epsilon}\zeta_{x_j}(?{x-y//\epsilon}?)u(y)dy \\
+            &= {1//\epsilon^n}\int_\Omega {1//\epsilon}\zeta_{x_j}(?{x-y//\epsilon}?)u(y)dy \\
+            &= \int_\Omega \zeta_{\epsilon,x_j}(x-y)u(y)dy \\
+        }
+    $$
+    because the support of $\zeta_{x_j}$ is contained in the one of $\zeta$.
+    Continuing this process, we get
+    $$
+        D^\alpha u_\epsilon(x) = \int_\Omega D_x^\alpha\zeta_\epsilon(x-y)u(y)dy
+    $$
+    for all $|\alpha|<=k$. This shows that $u_\epsilon\in C^\infty(\cl\Omega)$ as $x\in\cl\Omega$ is arbitrary.
+
+    Now as $\zeta_\epsilon\in C_c^\infty(\R^n)$ and $u\in W^{k,p}(\Omega)$,
+    we get
+    $$
+        D^\alpha u_\epsilon(x)
+        = \int_\Omega D_x^\alpha\zeta_\epsilon(x-y)u(y)dy
+        = (-1)^{|\alpha|}\int_\Omega D_y^\alpha\zeta_\epsilon(x-y)u(y)dy
+        = \int_\Omega \zeta_\epsilon(x-y)D^\alpha u(y)dy,
+    $$
+    thus $D^\alpha u_\epsilon(x) = [\zeta_\epsilon * D^\alpha u](x)$ for all $x\in\Omega$ and $|\alpha|<=k$.
+    This implies that $\|D^\alpha u_\epsilon-D^\alpha u\|_{W^{k,p}(\Omega)}->0$ as $\epsilon->0$, so it is
+    finished. \proved
+}
+
+Now we are ready to prove the main theorem \cref{thm:main} and the proof of which is in the next section.
+
+\section{The proof of \cref{thm:main}}
+Let $\Omega$ be a bounded Lipschitz domain and $u\in W^{k,p}(\Omega)$.
+For each $x\in\diff\Omega$ corresponds a positive $r_x$ and a Lipschitz function $h_x:\R^{n-1}->\R$ such that
+by relabling, translating and rotating coordinate axes if necessary, we have
+$$
+    \Omega\cap B[x,r_x] = \{y\in B[x,r_x] : y^n > h_x(y')\}.
+$$
+Being compact, there are $x_1,x_2,\cdots,x_N\in\diff\Omega$ such that
+$$
+    \diff\Omega \subset B(x_1,r_{x_1}/2) \cup B(x_2,r_{x_2}/2) \cup\cdots\cup B(x_N,r_{x_N}/2).
+$$
+Define $V_j=\Omega\cap B(x_j,r_{x_j}/2)$ for $1<=j<=N$. Finally, take $V_0\Subset\Omega$ such that
+$$
+    \cl\Omega \subset V_0\cup B(x_1,r_{x_1}/2)\cup B(x_2,r_{x_2}/2)\cup\cdots\cup B(x_N,r_{x_N}/2).
+$$
+Take a smooth partition of unity $\{\zeta_j\}_0^N$ of $\cl\Omega$ subordinate to the open cover
+$$
+    \{V_0,B(x_1,r_{x_1}/2),\cdots,B(x_N,r_{x_N}/2)\}.
+$$
+
+Fix $\epsilon>0$.
+If $j!=0$, first of all, take $\eta_j\in C_c^\infty(B(x_j,r_{x_j}))$ such that $\eta_j\equiv 1$ on $\cl{V_j}$.
+Then we can apply \cref{prop:1} to take $u_j \in C^\infty(\cl{\Omega_j})$
+such that $\|u_j - u\eta_j\|_{W^{k,p}(\Omega_j)}<\epsilon$ where
+by relabling, translating and rotating coordinate axes if necessary,
+$$
+    \Omega_j := \{y\in\R^n : y^n > h_{x_j}(y') \}.
+$$
+For the case when $j=0$,
+we can take $u_0\in C^\infty(\cl{V_0})$ such that $\|u_0-u\zeta_0\|_{W^{k,p}(V_0)}<\epsilon$
+by the theorem in the textbook page 264.
+
+Finally, define $\tilde u := \sum_{j=0}^N u_j\zeta_j$.
+Then clearly $\tilde u\in C^\infty(\cl\Omega)$.
+Note that $u=\sum_0^N u\zeta_j$ and $u\eta_j=u$ in $V_j$ for $1<=j<=N$.
+Hence, for each $|\alpha|<=k$ and $1<=j<=N$, we get
+$$
+    useenv aligned {
+        \|D^\alpha u_j\zeta_j - D^\alpha u\zeta_j\|_{L^p(\Omega)}
+        &= \|D^\alpha u_j\zeta_j - D^\alpha u\zeta_j\|_{L^p(V_j)} \\
+        &<= \sum_{\beta<=\alpha}\binom{\alpha @\beta}\sup_{x\in V_j}|D^{\alpha-\beta}\zeta_j(x)|
+            \|D^\beta u_j - D^\beta u\|_{L^p(V_j)} \\
+        &<= \sum_{\beta<=\alpha}\binom{\alpha @\beta}\sup_{x\in V_j}|D^{\alpha-\beta}\zeta_j(x)|
+            \|D^\beta u_j - D^\beta u\eta_j\|_{L^p(V_j)} \\
+        &\lesssim_{\alpha,V_j,\zeta_j} \|u_j-u\eta_j\|_{W^{k,p}(V_j)} \\
+        &<= \|u_j-u\eta_j\|_{W^{k,p}(\Omega_j)} \\
+        &< \epsilon.
+    }
+$$
+Also, for $j=0$, we get
+$$
+    useenv aligned {
+        ||D^\alpha u_0\zeta_0 - D^\alpha u\zeta_0||_{L^p(\Omega)}
+        &= \|D^\alpha u_0\zeta_0 - D^\alpha u\zeta_0\|_{L^p(V_0)} \\
+        &<= \sum_{\beta<=\alpha}\binom{\alpha @\beta}\sup_{x\in V_0}|D^{\alpha-\beta}\zeta_0(x)|
+            \|D^\beta u_0 - D^\beta u\|_{L^p(V_0)} \\
+        &<= \sum_{\beta<=\alpha}\binom{\alpha @\beta}\sup_{x\in V_0}|D^{\alpha-\beta}\zeta_0(x)|
+            \|D^\beta u_0 - D^\beta u\eta_0\|_{L^p(V_0)} \\
+        &\lesssim_{\alpha,V_0,\zeta_0} \|u_0-u\eta_0\|_{W^{k,p}(V_0)} \\
+        &< \epsilon.
+    }
+$$
+This finishes the proof because
+$$
+    useenv aligned {
+        \|\tilde u - u\|_{W^{k,p}(\Omega)}
+        &<= \sum_{j=0}^N \|u_j\zeta_j - u\zeta_j\|_{W^{k,p}(\Omega)} \\
+        &<= \sum_{j=0}^N \sum_{|\alpha|<=k} \|D^\alpha(u_j\zeta_j) - D^\alpha(u\zeta_j)\|_{L^p(\Omega)} \\
+        &\lesssim \epsilon(N+1)\#\{\alpha : |\alpha|<=k\}. \\
+    }
+$$
+\hbox{}\proved

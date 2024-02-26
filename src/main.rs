@@ -122,15 +122,21 @@ fn main() -> ExitCode {
                 let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
                 for latex_filename in main_files {
                     handle_latex.push(thread::spawn(move || {
-                        try_catch!(note:
-                            compile::latex::compile_latex(
-                                latex_filename,
-                                compile_limit,
-                                engine_type
-                            ),
-                            (),
-                            ExitCode::Success
-                        )
+                        match compile::latex::compile_latex(
+                            &latex_filename,
+                            compile_limit,
+                            engine_type,
+                        ) {
+                            Ok(()) => ExitCode::Success,
+                            Err(mut err) => {
+                                err.inject_note_msg(format!(
+                                    "cannot compile {} with {engine_type}.",
+                                    latex_filename.display()
+                                ));
+                                pretty_print::<true>(None, err, None).unwrap();
+                                ExitCode::Failure
+                            }
+                        }
                     }));
                 }
 
