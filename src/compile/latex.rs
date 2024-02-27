@@ -94,6 +94,7 @@ mod vesti_tectonic {
     use super::*;
 
     use std::io::{self, IsTerminal};
+    use std::time::SystemTime;
 
     use tectonic::{
         config, driver,
@@ -130,6 +131,7 @@ mod vesti_tectonic {
             .keep_logs(false)
             .keep_intermediates(false)
             .print_stdout(true)
+            .build_date(SystemTime::now())
             .output_format(driver::OutputFormat::Pdf);
 
         if let Some(this_many) = compile_limit {

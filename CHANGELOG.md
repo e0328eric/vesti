@@ -1,3 +1,9 @@
+# 0.11.5
+
+# Fixed
+
+- Fix a bug for tectonic-backed for inappropriate output for `\today`.
+
 # 0.11.4
 
 # Fixed
