@@ -264,6 +264,13 @@ $\sum_1^\infty f(x)$
 }
 
 #[test]
+fn test_other_character() {
+    let source1 = "これて、何ですか？";
+
+    expected!(source1 should be source1);
+}
+
+#[test]
 fn test_brace() {
     let source1 = "${\nabcd\n}$";
     let source2 = "$\\sum_{j=1}$";
@@ -305,7 +312,7 @@ enddef"#;
         \overline{#1}
 enddef"#;
 
-    let expected = "\\def\\foo#1{\\overline{#1}}%\n";
+    let expected = "\\def\\foo#1{%\n\\overline{#1}%\n}\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -328,7 +335,7 @@ enddef"#;
         \overline{#1} and #2
 enddef"#;
 
-    let expected = "\\def\\bar@foo#1#2{\\overline{#1} and #2}%\n";
+    let expected = "\\def\\bar@foo#1#2{%\n\\overline{#1} and #2%\n}\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -351,7 +358,7 @@ enddef"#;
         \overline{#1} and #2
 enddef"#;
 
-    let expected = "\\def\\barfoo import #1 and #2{\\overline{#1} and #2}%\n";
+    let expected = "\\def\\barfoo import #1 and #2{%\n\\overline{#1} and #2%\n}\n";
 
     expected!(source1 should be expected);
     expected!(source2 should be expected);
@@ -380,22 +387,22 @@ fn test_parse_function_definition_kind() {
     let source15 = "oxdefun foo(#1\\over#2) bar enddef";
     let source16 = "loxdefun foo(#1\\over#2) bar enddef";
 
-    let expected1 = "\\def\\foo#1\\over#2{bar}%\n";
-    let expected2 = "\\long\\def\\foo#1\\over#2{bar}%\n";
-    let expected3 = "\\outer\\def\\foo#1\\over#2{bar}%\n";
-    let expected4 = "\\long\\outer\\def\\foo#1\\over#2{bar}%\n";
-    let expected5 = "\\edef\\foo#1\\over#2{bar}%\n";
-    let expected6 = "\\long\\edef\\foo#1\\over#2{bar}%\n";
-    let expected7 = "\\outer\\edef\\foo#1\\over#2{bar}%\n";
-    let expected8 = "\\long\\outer\\edef\\foo#1\\over#2{bar}%\n";
-    let expected9 = "\\gdef\\foo#1\\over#2{bar}%\n";
-    let expected10 = "\\long\\gdef\\foo#1\\over#2{bar}%\n";
-    let expected11 = "\\outer\\gdef\\foo#1\\over#2{bar}%\n";
-    let expected12 = "\\long\\outer\\gdef\\foo#1\\over#2{bar}%\n";
-    let expected13 = "\\xdef\\foo#1\\over#2{bar}%\n";
-    let expected14 = "\\long\\xdef\\foo#1\\over#2{bar}%\n";
-    let expected15 = "\\outer\\xdef\\foo#1\\over#2{bar}%\n";
-    let expected16 = "\\long\\outer\\xdef\\foo#1\\over#2{bar}%\n";
+    let expected1 = "\\def\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected2 = "\\long\\def\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected3 = "\\outer\\def\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected4 = "\\long\\outer\\def\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected5 = "\\edef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected6 = "\\long\\edef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected7 = "\\outer\\edef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected8 = "\\long\\outer\\edef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected9 = "\\gdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected10 = "\\long\\gdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected11 = "\\outer\\gdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected12 = "\\long\\outer\\gdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected13 = "\\xdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected14 = "\\long\\xdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected15 = "\\outer\\xdef\\foo#1\\over#2{%\nbar%\n}\n";
+    let expected16 = "\\long\\outer\\xdef\\foo#1\\over#2{%\nbar%\n}\n";
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
@@ -437,34 +444,36 @@ fn test_parse_function_definition_trim() {
     let source3_no_trim = "defun* foo (#1) \\overline{#1}enddef*";
     let source4_no_trim = "defun* foo (#1)\\overline{#1}enddef*";
 
-    let expected_trim_both = "\\def\\foo#1{\\overline{#1}}%\n";
-    let expected_trim_left = "\\def\\foo#1{\\overline{#1} }%\n";
-    let expected_trim_right = "\\def\\foo#1{ \\overline{#1}}%\n";
-    let expected_no_trim = "\\def\\foo#1{ \\overline{#1} }%\n";
+    let case1 = "\\def\\foo#1{%\n\\overline{#1}%\n}\n";
+    let case2 = "\\def\\foo#1{%\n\\overline{#1} %\n}\n";
+    let case3 = "\\def\\foo#1{\\overline{#1}%\n}\n";
+    let case4 = "\\def\\foo#1{ \\overline{#1}%\n}\n";
+    let case5 = "\\def\\foo#1{\\overline{#1} %\n}\n";
+    let case6 = "\\def\\foo#1{ \\overline{#1} %\n}\n";
 
     // Check trim_both
-    expected!(source1_trim_both should be expected_trim_both);
-    expected!(source2_trim_both should be expected_trim_both);
-    expected!(source3_trim_both should be expected_trim_both);
-    expected!(source4_trim_both should be expected_trim_both);
+    expected!(source1_trim_both should be case1);
+    expected!(source2_trim_both should be case1);
+    expected!(source3_trim_both should be case1);
+    expected!(source4_trim_both should be case1);
 
     // Check trim_left
-    expected!(source1_trim_left should be expected_trim_left);
-    expected!(source2_trim_left should be expected_trim_left);
-    expected!(source3_trim_left should be expected_trim_both);
-    expected!(source4_trim_left should be expected_trim_both);
+    expected!(source1_trim_left should be case2);
+    expected!(source2_trim_left should be case2);
+    expected!(source3_trim_left should be case1);
+    expected!(source4_trim_left should be case1);
 
     // Check trim_right
-    expected!(source1_trim_right should be expected_trim_right);
-    expected!(source2_trim_right should be expected_trim_both);
-    expected!(source3_trim_right should be expected_trim_right);
-    expected!(source4_trim_right should be expected_trim_both);
+    expected!(source1_trim_right should be case4);
+    expected!(source2_trim_right should be case3);
+    expected!(source3_trim_right should be case4);
+    expected!(source4_trim_right should be case3);
 
     // Check no_trim
-    expected!(source1_no_trim should be expected_no_trim);
-    expected!(source2_no_trim should be expected_trim_left);
-    expected!(source3_no_trim should be expected_trim_right);
-    expected!(source4_no_trim should be expected_trim_both);
+    expected!(source1_no_trim should be case6);
+    expected!(source2_no_trim should be case5);
+    expected!(source3_no_trim should be case4);
+    expected!(source4_no_trim should be case3);
 }
 
 #[test]
@@ -571,4 +580,33 @@ fn parse_math_delimiters() {
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
+}
+
+// Actual bugs encountered in previous versions
+
+#[test]
+fn parsing_bug_fix001() {
+    let source = r#"
+makeatletter
+defun ps_solution()
+    \let\_oddfoot=\_empty\let\_evenfoot=\_empty
+    defun _oddhead() \the\titlename\hfill\thepage enddef
+    defun _evenhead() \thepage\hfill\the\titlename enddef
+enddef
+makeatother
+"#;
+    let expected = r#"
+\makeatletter
+\def\ps@solution{%
+\let\@oddfoot=\@empty\let\@evenfoot=\@empty
+    \def\@oddhead{%
+\the\titlename\hfill\thepage%
+}
+    \def\@evenhead{%
+\thepage\hfill\the\titlename%
+}%
+}
+\makeatother
+"#;
+    expected!(source should be expected);
 }

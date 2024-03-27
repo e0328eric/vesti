@@ -240,11 +240,7 @@ impl<'a> Lexer<'a> {
             Some('\\') => self.lex_backslash(),
             Some(chr) if chr.is_alphabetic() => self.lex_main_string(),
             Some(chr) if chr.is_ascii_digit() => self.lex_number(),
-            // TODO: Japanese puncuation "。" is regarded as an "illegal" character
-            _ => {
-                self.next_char();
-                Token::illegal(start_loc, self.current_loc)
-            }
+            Some(chr) => tokenize!(self: OtherChar, chr; start_loc),
         }
     }
 

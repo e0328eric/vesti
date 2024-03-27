@@ -213,7 +213,7 @@ fn read_config() -> error::Result<LatexEngineType> {
     dir.push("vesti/config.yaml");
     let contents = fs::read_to_string(dir).unwrap_or_default();
     let docs = YamlLoader::load_from_str(&contents)?;
-    let doc = docs.get(0);
+    let doc = docs.first();
     let main_engine = if let Some(d) = doc {
         if d["engine"]["main"].is_badvalue() {
             "pdflatex"

@@ -49,7 +49,7 @@ fn compile_latex_with_local(
     for i in 0..compile_limit {
         println!("[Compile num {}]", i + 1);
         let output = Command::new(engine_type.to_string())
-            .arg(&latex_filename)
+            .arg(latex_filename)
             .output()?;
 
         latex_stdout
@@ -101,7 +101,7 @@ mod vesti_tectonic {
         status::{self, StatusBackend},
     };
 
-    use crate::constants::VESTI_CACHE_DIR;
+    use crate::constants::VESTI_LOCAL_CACHE_DIR;
 
     pub(super) fn compile_latex_with_tectonic(
         latex_filename: &Path,

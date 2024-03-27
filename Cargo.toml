@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.11.5"
+version = "0.11.6"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
 repository = "https://github.com/e0328eric/vesti.git"
@@ -26,7 +26,7 @@ base64ct = { version = "1.6.0", features = ["alloc"] }
 clap = { version = "4", features = ["derive"] }
 crossterm = "0.27.0"
 unicode-width = "0.1"
-walkdir = "2.4"
+walkdir = "2.5"
 yaml-rust = "0.4"
 md-5 = "0.10.6"
 dirs = "5.0.1"
