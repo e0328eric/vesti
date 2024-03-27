@@ -101,7 +101,7 @@ mod vesti_tectonic {
         status::{self, StatusBackend},
     };
 
-    use crate::constants::VESTI_CACHE_DIR;
+    use crate::constants::VESTI_LOCAL_CACHE_DIR;
 
     pub(super) fn compile_latex_with_tectonic(
         latex_filename: &Path,

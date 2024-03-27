@@ -1,6 +1,8 @@
 #![allow(clippy::enum_variant_names)]
 #![allow(clippy::derive_partial_eq_without_eq)]
+#![allow(clippy::needless_return)]
 #![deny(bindings_with_variant_name)]
+#![allow(unused)]
 
 mod codegen;
 mod commands;
@@ -45,7 +47,7 @@ fn main() -> ExitCode {
             try_catch!(generate_vesti_file(project_name), _, ExitCode::Success)
         }
         VestiOpt::Clear => {
-            try_catch!(io_handle: fs::remove_dir_all(constants::VESTI_CACHE_DIR), _, ExitCode::Success)
+            try_catch!(io_handle: fs::remove_dir_all(constants::VESTI_LOCAL_CACHE_DIR), _, ExitCode::Success)
         }
         ref argument @ VestiOpt::Compile {
             has_sub_vesti,
@@ -53,7 +55,7 @@ fn main() -> ExitCode {
             compile_limit,
             ..
         } => {
-            match fs::create_dir(constants::VESTI_CACHE_DIR) {
+            match fs::create_dir(constants::VESTI_LOCAL_CACHE_DIR) {
                 Ok(()) => {}
                 Err(err) => {
                     let err_kind = err.kind();
@@ -117,7 +119,7 @@ fn main() -> ExitCode {
 
             // compile latex files
             if !emit_tex_only {
-                try_catch!(io_handle: env::set_current_dir(constants::VESTI_CACHE_DIR));
+                try_catch!(io_handle: env::set_current_dir(constants::VESTI_LOCAL_CACHE_DIR));
 
                 let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
                 for latex_filename in main_files {

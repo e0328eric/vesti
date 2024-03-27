@@ -280,6 +280,9 @@ fn function_def_to_string(
     }
 
     output += &format!("\\{name}{args}{{");
+    if trim.start {
+        output += "%\n";
+    }
 
     let mut tmp = String::new();
     for b in body {
@@ -288,11 +291,11 @@ fn function_def_to_string(
 
     output += match (trim.start, trim.end) {
         (false, false) => tmp.as_str(),
-        (true, false) => tmp.trim_start(),
         (false, true) => tmp.trim_end(),
+        (true, false) => tmp.trim_start(),
         (true, true) => tmp.trim(),
     };
-    output.push_str("}%\n");
+    output.push_str("%\n}\n");
 
     output
 }
