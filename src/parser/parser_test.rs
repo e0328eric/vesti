@@ -264,6 +264,13 @@ $\sum_1^\infty f(x)$
 }
 
 #[test]
+fn test_other_character() {
+    let source1 = "これて、何ですか？";
+
+    expected!(source1 should be source1);
+}
+
+#[test]
 fn test_brace() {
     let source1 = "${\nabcd\n}$";
     let source2 = "$\\sum_{j=1}$";

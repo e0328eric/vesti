@@ -101,6 +101,7 @@ pub enum TokenType {
     Text,
     LatexFunction,
     RawLatex,
+    OtherChar,
     VerbatimChar(char),
 
     // Keywords
@@ -289,26 +290,6 @@ impl TokenType {
             "pendenv" => Some(Self::Deprecated {
                 valid_in_text: false,
                 instead: "endenv",
-            }), // NOTE: deprecated
-            "mtxt" => Some(Self::Deprecated {
-                valid_in_text: false,
-                instead: "\" (double quote)",
-            }), // NOTE: deprecated
-            "etxt" => Some(Self::Deprecated {
-                valid_in_text: false,
-                instead: "\" (double quote)",
-            }), // NOTE: deprecated
-            "docstartmode" => Some(Self::Deprecated {
-                valid_in_text: false,
-                instead: "",
-            }), // NOTE: deprecated
-            "nodocclass" => Some(Self::Deprecated {
-                valid_in_text: false,
-                instead: "",
-            }), // NOTE: deprecated
-            "nondocclass" => Some(Self::Deprecated {
-                valid_in_text: false,
-                instead: "",
             }), // NOTE: deprecated
             _ => None,
         }
