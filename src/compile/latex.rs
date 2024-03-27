@@ -124,7 +124,7 @@ mod vesti_tectonic {
         let mut sb = driver::ProcessingSessionBuilder::default();
         sb.bundle(bundle)
             .primary_input_path(&latex_filename)
-            .filesystem_root(VESTI_CACHE_DIR)
+            .filesystem_root(VESTI_LOCAL_CACHE_DIR)
             .tex_input_name(&latex_filename.to_string_lossy())
             .format_name("latex")
             .format_cache_path(format_cache_path)
