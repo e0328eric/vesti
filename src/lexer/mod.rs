@@ -127,6 +127,10 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: RightArrow, "\\rightarrow "; start_loc)
                 }
+                (Some('-'), _) if self.math_started => {
+                    self.next_char();
+                    tokenize!(self: SetMinus, "\\setminus "; start_loc)
+                }
                 (Some(chr), _) if chr.is_ascii_digit() => self.lex_number(),
                 _ => tokenize!(self: Minus, "-"; start_loc),
             },

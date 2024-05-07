@@ -129,6 +129,7 @@ pub enum TokenType {
     // Symbols
     Plus,               // +
     Minus,              // -
+    SetMinus,           // --
     Star,               // *
     Slash,              // /
     FracDefiner,        // //
