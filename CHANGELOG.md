@@ -1,3 +1,16 @@
+# 0.11.8
+
+# Changed
+
+- In the math context, every math strings has a space at the begin in default. If one remove the
+  padding, add `#` at the end of the string literal like `"example"#`.
+
+# 0.11.7
+
+# Added
+
+- Add `--` math token for setminus
+
 # 0.11.5
 
 # Fixed

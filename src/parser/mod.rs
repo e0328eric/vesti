@@ -442,6 +442,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_text_in_math(&mut self) -> error::Result<Statement> {
+        let mut remove_front_space = false;
         let mut text: Latex = Vec::with_capacity(20);
 
         expect_peek!(self: TokenType::MathTextStart; self.peek_tok_location());
@@ -457,13 +458,21 @@ impl<'a> Parser<'a> {
             }
             text.push(self.parse_statement()?);
         }
-
         expect_peek!(self: TokenType::MathTextEnd; self.peek_tok_location());
+
+        if self.peek_tok() == TokenType::FntParam {
+            self.next_tok();
+            remove_front_space = true;
+        }
+
         if self.peek_tok() == TokenType::Space {
             text.push(Statement::MainText(self.next_tok().literal));
         }
 
-        Ok(Statement::PlainTextInMath { text })
+        Ok(Statement::PlainTextInMath {
+            remove_front_space,
+            text,
+        })
     }
 
     fn parse_brace_stmt(&mut self) -> error::Result<Statement> {

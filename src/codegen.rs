@@ -58,7 +58,10 @@ impl ToString for Statement {
                 numerator,
                 denominator,
             } => fraction_to_string(numerator, denominator),
-            Statement::PlainTextInMath { text } => plaintext_in_math_to_string(text),
+            Statement::PlainTextInMath {
+                remove_front_space,
+                text,
+            } => plaintext_in_math_to_string(*remove_front_space, text),
             Statement::Integer(i) => i.to_string(),
             Statement::Float(f) => f.to_string(),
             Statement::RawLatex(s) => s.clone(),
@@ -174,9 +177,13 @@ fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> String {
     )
 }
 
-fn plaintext_in_math_to_string(text: &Latex) -> String {
+fn plaintext_in_math_to_string(remove_front_space: bool, text: &Latex) -> String {
     let output = latex_to_string(text);
-    format!("\\text{{{}}}", output)
+    if remove_front_space {
+        format!("\\text{{{}}}", output)
+    } else {
+        format!("\\text{{ {}}}", output)
+    }
 }
 
 fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {
