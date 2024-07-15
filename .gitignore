@@ -1,7 +1,2 @@
-/target
-/.idea
-.DS_Store
-/.vscode
-/.fleet
-/Cargo.lock
-/**/vesti-cache
+/.zig-cache
+/zig-out
