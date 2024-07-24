@@ -163,6 +163,7 @@ pub enum TokenType {
     At,                       // @! or @
     Percent,                  // %
     LatexComment,             // \%
+    HatAccent,                // \^
     Superscript,              // ^
     Subscript,                // _
     Ampersand,                // &

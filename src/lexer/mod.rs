@@ -437,6 +437,10 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: RawQuestion, "?"; start_loc)
             }
+            Some('^') => {
+                self.next_char();
+                tokenize!(self: HatAccent, "\\^"; start_loc)
+            }
             Some(',') => {
                 self.next_char();
                 if self.math_started {
