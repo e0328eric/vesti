@@ -1,4 +1,4 @@
-pub const VESTI_LOCAL_CACHE_DIR: &str = "./.vesti-cache";
+pub const VESTI_LOCAL_DUMMY_DIR: &str = "./.vesti-dummy";
 
 pub const DEFAULT_COMPILATION_LIMIT: usize = 2;
 

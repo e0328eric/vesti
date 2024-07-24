@@ -749,7 +749,7 @@ impl<'a> Parser<'a> {
                 file_path_str,
                 format!(
                     "{}/{}",
-                    constants::VESTI_LOCAL_CACHE_DIR,
+                    constants::VESTI_LOCAL_DUMMY_DIR,
                     raw_filename.to_string_lossy()
                 ),
             )?;
@@ -757,7 +757,7 @@ impl<'a> Parser<'a> {
             Ok(Statement::NopStmt)
         } else {
             let filepath_diff =
-                pathdiff::diff_paths(file_path_str, constants::VESTI_LOCAL_CACHE_DIR).unwrap();
+                pathdiff::diff_paths(file_path_str, constants::VESTI_LOCAL_DUMMY_DIR).unwrap();
             Ok(Statement::ImportFile {
                 filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
             })

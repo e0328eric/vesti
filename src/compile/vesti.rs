@@ -90,7 +90,7 @@ fn compile_vesti_write_file(
     };
 
     fs::write(
-        format!("{}/{}", constants::VESTI_LOCAL_CACHE_DIR, output_filename),
+        format!("{}/{}", constants::VESTI_LOCAL_DUMMY_DIR, output_filename),
         contents,
     )?;
 
