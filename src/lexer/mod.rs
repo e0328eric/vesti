@@ -365,18 +365,33 @@ impl<'a> Lexer<'a> {
                 }
                 self.next()
             }
-            Some('-') => {
-                let mut literal = String::new();
-                self.next_char();
-                self.next_char();
-                while self.chr0 != Some('-') || self.chr1 != Some('%') {
+            Some('-') => match self.chr2 {
+                Some('#') => {
+                    let mut literal = String::new();
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
+                    while self.chr0 != Some('\n') {
+                        literal.push(unwrap!(self: chr0, start_loc));
+                        self.next_char();
+                    }
                     literal.push(unwrap!(self: chr0, start_loc));
                     self.next_char();
+                    Token::new(TokenType::RawLatex, literal, start_loc, self.current_loc)
                 }
-                self.next_char();
-                self.next_char();
-                Token::new(TokenType::RawLatex, literal, start_loc, self.current_loc)
-            }
+                _ => {
+                    let mut literal = String::new();
+                    self.next_char();
+                    self.next_char();
+                    while self.chr0 != Some('-') || self.chr1 != Some('%') {
+                        literal.push(unwrap!(self: chr0, start_loc));
+                        self.next_char();
+                    }
+                    self.next_char();
+                    self.next_char();
+                    Token::new(TokenType::RawLatex, literal, start_loc, self.current_loc)
+                }
+            },
             _ => {
                 while unwrap!(self: chr0, start_loc) != '\n' {
                     self.next_char();

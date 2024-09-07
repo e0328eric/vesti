@@ -8,8 +8,7 @@ use md5::{Digest, Md5};
 use crate::codegen::make_latex_format;
 use crate::commands::LatexEngineType;
 use crate::constants;
-use crate::error::VestiErr;
-use crate::error::{self, pretty_print::pretty_print};
+use crate::error::{self, VestiErr};
 use crate::exit_status::ExitCode;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -20,14 +19,21 @@ pub fn compile_vesti(
     engine_type: LatexEngineType,
     has_sub_vesti: bool,
     emit_tex_only: bool,
+    no_color: bool,
 ) -> ExitCode {
+    let pretty_print = if no_color {
+        crate::error::pretty_print::plain_print::<false>
+    } else {
+        crate::error::pretty_print::pretty_print::<false>
+    };
+
     let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
 
     let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
     let contents = match make_latex_format::<false>(&mut parser, engine_type) {
         Ok(inner) => inner,
         Err(err) => {
-            pretty_print::<false>(Some(source.as_ref()), err, Some(&file_name)).unwrap();
+            pretty_print(Some(source.as_ref()), err, Some(&file_name)).unwrap();
             return ExitCode::Failure;
         }
     };
@@ -38,7 +44,7 @@ pub fn compile_vesti(
         match compile_vesti_write_file(&file_name, contents, is_main_vesti, emit_tex_only) {
             Ok(name) => name,
             Err(err) => {
-                pretty_print::<false>(None, err, None).unwrap();
+                pretty_print(None, err, None).unwrap();
                 return ExitCode::Failure;
             }
         };

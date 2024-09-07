@@ -54,11 +54,6 @@ impl Display for LatexEngineType {
 #[derive(ClapParser)]
 #[command(author, version, about)]
 pub enum VestiOpt {
-    /// Initialize the vesti project
-    Init {
-        #[clap(name = "PROJECT_NAME")]
-        project_name: Option<String>,
-    },
     /// Remove `vesti-cache` folder
     Clear,
     /// Compile vesti into Latex file
@@ -77,6 +72,9 @@ pub enum VestiOpt {
         /// There is a plan to make a standalone tex file
         #[arg(short = 'e', long = "emit-tex")]
         emit_tex_only: bool,
+        /// no color output on a terminal
+        #[arg(short = 'N', long = "no-color")]
+        no_color: bool,
         /// Compile vesti into pdf with latex
         #[arg(
             short = 'L',
