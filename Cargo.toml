@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
 repository = "https://github.com/e0328eric/vesti.git"
@@ -25,7 +25,7 @@ tectonic-backend = ["tectonic"]
 base64ct = { version = "1.6.0", features = ["alloc"] }
 clap = { version = "4", features = ["derive"] }
 crossterm = "0.28"
-unicode-width = "0.1"
+unicode-width = "0.2"
 walkdir = "2.5"
 yaml-rust = "0.4.5"
 md-5 = "0.10.6"

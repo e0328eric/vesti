@@ -118,15 +118,15 @@ fn compile_in_watch(
     let mut first_run = true;
     let mut prev_file_modified = time::SystemTime::now();
 
-    let file_lists = match args.take_filename() {
-        Ok(inner) => inner,
-        Err(err) => {
-            pretty_print_note(None, err, None).unwrap();
-            return ExitCode::Failure;
-        }
-    };
-
     loop {
+        let file_lists = match args.take_filename() {
+            Ok(inner) => inner,
+            Err(err) => {
+                pretty_print_note(None, err, None).unwrap();
+                return ExitCode::Failure;
+            }
+        };
+
         let mut file_modified_list = Vec::with_capacity(file_lists.len());
         for filename in &file_lists {
             match fs::metadata(filename).and_then(|metadata| metadata.modified()) {
@@ -177,7 +177,6 @@ fn compile_in_watch(
 
                 if let Err(err) = env::set_current_dir(&current_dir) {
                     pretty_print_note(None, err.into(), None).unwrap();
-                    return ExitCode::Failure;
                 }
 
                 first_run = false;
