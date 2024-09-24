@@ -182,14 +182,17 @@ impl<'a> Lexer<'a> {
                 _ => tokenize!(self: Great, ">"; start_loc),
             },
             Some('?') => tokenize!(self: Question, "?"; start_loc),
-            Some('@') => {
-                if let Some('!') = self.chr1 {
+            Some('@') => match self.chr1 {
+                Some('!') => {
                     self.next_char();
                     tokenize!(self: At, "@"; start_loc)
-                } else {
-                    tokenize!(self: ArgSpliter, "@"; start_loc)
                 }
-            }
+                Some('}') if self.math_started => {
+                    self.next_char();
+                    tokenize!(self: Rangle, "\\rangle "; start_loc)
+                }
+                _ => tokenize!(self: ArgSpliter, "@"; start_loc),
+            },
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
             Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
@@ -231,14 +234,15 @@ impl<'a> Lexer<'a> {
             Some(')') => tokenize!(self: Rparen, ")"; start_loc),
             Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
-            Some('{') => tokenize!(self: Lbrace, "{"; start_loc),
-            Some('}') => match self.chr1 {
-                Some('>') => {
+            Some('{') => match self.chr1 {
+                Some('@') if self.math_started => {
                     self.next_char();
-                    tokenize!(self: Rangle, "\\rangle "; start_loc)
+                    tokenize!(self: Langle, "\\langle "; start_loc)
                 }
-                _ => tokenize!(self: Rbrace, "}"; start_loc),
+                _ => tokenize!(self: Lbrace, "{"; start_loc),
             },
+            Some('}') => tokenize!(self: Rbrace, "}"; start_loc),
+
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
@@ -592,10 +596,6 @@ impl<'a> Lexer<'a> {
             (Some('-'), _, _) => {
                 self.next_char();
                 tokenize!(self: LeftArrow, "\\leftarrow "; start_loc)
-            }
-            (Some('{'), _, _) => {
-                self.next_char();
-                tokenize!(self: Langle, "\\langle "; start_loc)
             }
             _ => tokenize!(self: Less, "<"; start_loc),
         }

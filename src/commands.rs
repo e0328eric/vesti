@@ -58,7 +58,7 @@ pub enum VestiOpt {
     Clear,
     /// Compile vesti into Latex file
     Compile {
-        /// Input file names or directory name.
+        /// Input file name or directory name.
         /// Directory name must type once.
         #[clap(value_name = "FILE")]
         file_name: Vec<PathBuf>,
@@ -75,6 +75,9 @@ pub enum VestiOpt {
         /// no color output on a terminal
         #[arg(short = 'N', long = "no-color")]
         no_color: bool,
+        /// watch compiling vesti file
+        #[arg(short = 'W', long = "watch")]
+        watch: bool,
         /// Compile vesti into pdf with latex
         #[arg(
             short = 'L',
