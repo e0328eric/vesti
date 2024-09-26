@@ -2,7 +2,6 @@
 #![allow(clippy::derive_partial_eq_without_eq)]
 #![allow(clippy::needless_return)]
 #![deny(bindings_with_variant_name)]
-#![allow(unused)]
 
 mod codegen;
 mod commands;
@@ -10,7 +9,6 @@ mod compile;
 mod constants;
 mod error;
 mod exit_status;
-mod initialization;
 mod lexer;
 mod location;
 mod parser;
@@ -23,8 +21,8 @@ use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
+use std::time;
 use std::time::Duration;
-use std::time::{self, SystemTime};
 
 use clap::Parser;
 
@@ -34,7 +32,6 @@ use windows::{core::*, Win32::UI::WindowsAndMessaging as win};
 use crate::commands::{LatexEngineType, VestiOpt};
 use crate::error::VestiErr;
 use crate::exit_status::ExitCode;
-use crate::initialization::generate_vesti_file;
 
 fn main() -> ExitCode {
     let args = commands::VestiOpt::parse();
@@ -86,11 +83,6 @@ fn compile_in_watch(
     compile_limit: Option<usize>,
     no_color: bool,
 ) -> ExitCode {
-    let pretty_print = if no_color {
-        crate::error::pretty_print::plain_print::<false>
-    } else {
-        crate::error::pretty_print::pretty_print::<false>
-    };
     let pretty_print_note = if no_color {
         crate::error::pretty_print::plain_print::<true>
     } else {
@@ -159,28 +151,29 @@ fn compile_in_watch(
                     no_color,
                 );
 
-                if exitcode == ExitCode::Failure {
-                    if cfg!(target_os = "windows") {
-                        unsafe {
-                            win::MessageBoxA(
-                                None,
-                                s!("vesti compilation failed. See the console for more information."),
-                                s!("vesti watch warning"),
-                                win::MB_ICONWARNING | win::MB_OK,
-                            )
-                        };
-                    }
-                    return exitcode;
+                if exitcode == ExitCode::Failure && cfg!(target_os = "windows") {
+                    unsafe {
+                        win::MessageBoxA(
+                            None,
+                            s!("vesti compilation failed. See the console for more information."),
+                            s!("vesti watch warning"),
+                            win::MB_ICONWARNING | win::MB_OK,
+                        )
+                    };
                 }
 
                 println!("Press Ctrl+C to exit...");
 
                 if let Err(err) = env::set_current_dir(&current_dir) {
                     pretty_print_note(None, err.into(), None).unwrap();
+                    return ExitCode::Failure;
                 }
 
-                first_run = false;
-                prev_file_modified = *file_modified;
+                if !first_run {
+                    prev_file_modified = *file_modified;
+                } else {
+                    first_run = false;
+                }
                 break;
             }
         }

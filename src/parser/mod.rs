@@ -283,11 +283,6 @@ impl<'a> Parser<'a> {
                 self.peek_tok_location(),
             )),
 
-            TokenType::Illegal => Err(VestiErr::make_parse_err(
-                VestiParseErrKind::IllegalCharacterFoundErr,
-                self.peek_tok_location(),
-            )),
-
             _ => self.parse_main_stmt(),
         }
     }

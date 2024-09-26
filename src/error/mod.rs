@@ -10,7 +10,6 @@ use crate::location::Span;
 #[derive(Debug, PartialEq)]
 pub enum VestiParseErrKind {
     EOFErr, // EOF found although parsing is not completed
-    IllegalCharacterFoundErr,
     TypeMismatch {
         expected: Vec<TokenType>,
         got: TokenType,
@@ -162,24 +161,22 @@ impl Error for VestiParseErrKind {
     fn err_code(&self) -> u16 {
         match self {
             Self::EOFErr => 0x0E0F,
-            Self::IllegalCharacterFoundErr => 0x0101,
-            Self::TypeMismatch { .. } => 0x0102,
-            Self::ParseIntErr => 0x0103,
-            Self::ParseFloatErr => 0x0104,
-            Self::InvalidTokToConvert { .. } => 0x0105,
-            Self::BracketMismatchErr { .. } => 0x0106,
-            Self::BracketNumberMatchedErr => 0x0107,
-            Self::IsNotClosedErr { .. } => 0x0108,
-            Self::IsNotOpenedErr { .. } => 0x0109,
-            Self::NameMissErr { .. } => 0x0110,
-            Self::DeprecatedUseErr { .. } => 0x0111,
-            Self::IllegalUseErr { .. } => 0x0112,
+            Self::TypeMismatch { .. } => 0x0101,
+            Self::ParseIntErr => 0x0102,
+            Self::ParseFloatErr => 0x0103,
+            Self::InvalidTokToConvert { .. } => 0x0104,
+            Self::BracketMismatchErr { .. } => 0x0105,
+            Self::BracketNumberMatchedErr => 0x0106,
+            Self::IsNotClosedErr { .. } => 0x0107,
+            Self::IsNotOpenedErr { .. } => 0x0108,
+            Self::NameMissErr { .. } => 0x0109,
+            Self::DeprecatedUseErr { .. } => 0x0110,
+            Self::IllegalUseErr { .. } => 0x0111,
         }
     }
     fn err_str(&self) -> String {
         match self {
             Self::EOFErr => String::from("EOF found unexpectedly"),
-            Self::IllegalCharacterFoundErr => String::from("`ILLEGAL` character found"),
             Self::TypeMismatch { .. } => String::from("Type mismatched"),
             Self::ParseIntErr => String::from("Parsing integer error occurs"),
             Self::ParseFloatErr => String::from("Parsing float error occurs"),
@@ -203,7 +200,7 @@ impl Error for VestiParseErrKind {
     }
     fn err_detail_str(&self) -> Vec<String> {
         match self {
-            Self::EOFErr | Self::IllegalCharacterFoundErr => vec![],
+            Self::EOFErr => vec![],
             Self::TypeMismatch { expected, got } => {
                 vec![format!("expected `{expected:?}`, got `{got:?}`")]
             }

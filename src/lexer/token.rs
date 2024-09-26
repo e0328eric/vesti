@@ -28,15 +28,6 @@ impl Token {
             span: Span { start, end },
         }
     }
-
-    #[inline]
-    pub fn illegal(start: Location, end: Location) -> Self {
-        Self {
-            toktype: TokenType::Illegal,
-            literal: String::new(),
-            span: Span { start, end },
-        }
-    }
 }
 
 #[repr(transparent)]
@@ -209,7 +200,6 @@ pub enum TokenType {
         valid_in_text: bool,
         instead: &'static str,
     },
-    Illegal,
 }
 
 impl TokenType {
