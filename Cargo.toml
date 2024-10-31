@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.12.2"
+version = "0.13.0"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
 repository = "https://github.com/e0328eric/vesti.git"
@@ -36,6 +36,8 @@ libc = "0.2"
 tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "d1ee37974a508c9fc093c408f109c85f9f287e96", optional = true, features = [
   "external-harfbuzz",
 ] }
+ron = "0.8.1"
+serde = { version = "1.0.214", features = ["derive"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58.0", features = ["Win32_UI_WindowsAndMessaging"] }

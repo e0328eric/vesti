@@ -18,6 +18,7 @@ use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::lexer::token::{FunctionDefKind, Token, TokenType};
 use crate::lexer::Lexer;
 use crate::location::Span;
+use crate::vesmodule::VestiModule;
 use ast::*;
 
 // TODO: Make a keyword that can use lua script
@@ -143,6 +144,7 @@ impl<'a> Parser<'a> {
             TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
             TokenType::ImportVesti => self.parse_import_vesti(),
             TokenType::ImportFile => self.parse_import_file(),
+            TokenType::ImportModule => self.parse_import_module(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
                 self.next_tok();
@@ -757,6 +759,77 @@ impl<'a> Parser<'a> {
                 filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
             })
         }
+    }
+
+    fn parse_import_module(&mut self) -> error::Result<Statement> {
+        let import_module_loc = self.peek_tok_location();
+        expect_peek!(self: TokenType::ImportModule; import_module_loc);
+        self.eat_whitespaces::<false>();
+
+        let mut mod_dir_path_str = String::with_capacity(30);
+
+        // Parse vesti contents within verbatim
+        self.source.switch_lex_with_verbatim();
+        expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
+        assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
+
+        loop {
+            let chr = match self.peek_tok() {
+                TokenType::VerbatimChar(')') => break,
+                TokenType::VerbatimChar(chr) => chr,
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        self.peek_tok_location(),
+                    ));
+                }
+                _ => unreachable!(),
+            };
+
+            mod_dir_path_str.push(chr);
+            self.next_tok();
+        }
+        // Release verbatim mode
+        self.source.switch_lex_with_verbatim();
+        self.next_tok();
+
+        self.eat_whitespaces::<false>();
+        if self.peek_tok() == TokenType::Newline {
+            self.next_tok();
+        }
+
+        // trim whitespaces
+        let mod_dir_path_str = format!(
+            "{}/vesti/{}",
+            dirs::config_dir()
+                .expect("failed to get a config directory for this OS.")
+                .display(),
+            mod_dir_path_str.trim().trim_start_matches('/')
+        );
+
+        let module_data_pathbuf = PathBuf::from(format!("{}/vesti.ron", &mod_dir_path_str));
+
+        let contents = fs::read_to_string(module_data_pathbuf)?;
+        let ves_module = match ron::from_str::<VestiModule>(&contents) {
+            Ok(ves_mod) => ves_mod,
+            Err(err) => {
+                return Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::ParseModuleRonErr(err),
+                    location: import_module_loc,
+                })
+            }
+        };
+
+        for export_file in ves_module.exports {
+            let mod_filename = format!("{}/{}", &mod_dir_path_str, &export_file);
+
+            fs::copy(
+                &mod_filename,
+                format!("{}/{}", constants::VESTI_LOCAL_DUMMY_DIR, export_file),
+            )?;
+        }
+
+        Ok(Statement::NopStmt)
     }
 
     fn parse_end_phantom_environment(&mut self) -> error::Result<Statement> {

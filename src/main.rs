@@ -12,6 +12,7 @@ mod exit_status;
 mod lexer;
 mod location;
 mod parser;
+mod vesmodule;
 
 use std::env;
 use std::ffi;

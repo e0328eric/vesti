@@ -37,6 +37,7 @@ pub enum VestiParseErrKind {
     DeprecatedUseErr {
         instead: &'static str,
     },
+    ParseModuleRonErr(ron::error::SpannedError),
     IllegalUseErr {
         got: TokenType,
         reason: Option<&'static str>,
@@ -172,7 +173,8 @@ impl Error for VestiParseErrKind {
             Self::IsNotOpenedErr { .. } => 0x0108,
             Self::NameMissErr { .. } => 0x0109,
             Self::DeprecatedUseErr { .. } => 0x0110,
-            Self::IllegalUseErr { .. } => 0x0111,
+            Self::ParseModuleRonErr(_) => 0x0111,
+            Self::IllegalUseErr { .. } => 0x0112,
         }
     }
     fn err_str(&self) -> String {
@@ -194,6 +196,7 @@ impl Error for VestiParseErrKind {
             }
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::DeprecatedUseErr { .. } => "This is deprecated".to_string(),
+            Self::ParseModuleRonErr(_) => "Failed to parse vesti module ron file".to_string(),
             Self::IllegalUseErr { got, .. } => {
                 format!("Invalid usage of `{got:?}` found")
             }
@@ -254,6 +257,7 @@ impl Error for VestiParseErrKind {
                     vec![format!("Use `{instead}` token instead.")]
                 }
             }
+            Self::ParseModuleRonErr(err) => vec![format!("{err}")],
             Self::IllegalUseErr { reason, .. } => {
                 if let Some(reason) = reason {
                     vec![String::from(*reason)]
