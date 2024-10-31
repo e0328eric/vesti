@@ -56,6 +56,7 @@ pub enum VestiUtilErrKind {
     },
     ScanErr(ScanError),
     #[cfg(feature = "tectonic-backend")]
+    #[allow(dead_code)]
     TectonicErr(tectonic::Error),
 }
 

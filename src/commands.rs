@@ -51,7 +51,7 @@ impl Display for LatexEngineType {
     }
 }
 
-#[derive(ClapParser)]
+#[derive(Debug, ClapParser)]
 #[command(author, version, about)]
 pub enum VestiOpt {
     /// Remove `vesti-cache` folder
@@ -198,6 +198,8 @@ impl VestiOpt {
                 8 => LatexEngineType::LuaLaTeX,
                 #[cfg(feature = "tectonic-backend")]
                 16 => LatexEngineType::Tectonic,
+                #[cfg(not(feature = "tectonic-backend"))]
+                16 => LatexEngineType::Invalid,
                 _ => default_engine,
             })
         } else {

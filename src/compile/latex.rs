@@ -118,13 +118,13 @@ mod vesti_tectonic {
         };
 
         let config = config::PersistentConfig::open(true)?;
-        let bundle = config.default_bundle(false, &mut *status)?;
+        let bundle = config.default_bundle(false)?;
         let format_cache_path = config.format_cache_path()?;
 
         let mut sb = driver::ProcessingSessionBuilder::default();
         sb.bundle(bundle)
             .primary_input_path(&latex_filename)
-            .filesystem_root(VESTI_LOCAL_CACHE_DIR)
+            .filesystem_root(VESTI_LOCAL_DUMMY_DIR)
             .tex_input_name(&latex_filename.to_string_lossy())
             .format_name("latex")
             .format_cache_path(format_cache_path)
