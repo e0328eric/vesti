@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct VestiModule {
     pub name: String,

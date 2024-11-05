@@ -227,7 +227,14 @@ impl<'a> Lexer<'a> {
                 }
                 _ => tokenize!(self: Vert, "|"; start_loc),
             },
-            Some('.') => tokenize!(self: Period, "."; start_loc),
+            Some('.') => match (self.chr1, self.chr2) {
+                (Some('.'), Some('.')) if self.math_started => {
+                    self.next_char();
+                    self.next_char();
+                    tokenize!(self: CenterDots, "\\cdots "; start_loc)
+                }
+                _ => tokenize!(self: Period, "."; start_loc),
+            },
             Some(',') => tokenize!(self: Comma, ","; start_loc),
             Some('~') => tokenize!(self: Tilde, "~"; start_loc),
             Some('(') => tokenize!(self: Lparen, "("; start_loc),
@@ -246,6 +253,13 @@ impl<'a> Lexer<'a> {
             Some('$') => self.lex_dollar_char(),
             Some('%') => self.lex_percent_char(),
             Some('\\') => self.lex_backslash(),
+            Some('o') => match (self.chr1, self.chr2) {
+                (Some('o'), Some(chr)) if self.math_started && !chr.is_alphabetic() => {
+                    self.next_char();
+                    tokenize!(self: InfinitySym, "\\infty "; start_loc)
+                }
+                _ => self.lex_main_string(),
+            },
             Some(chr) if chr.is_alphabetic() => self.lex_main_string(),
             Some(chr) if chr.is_ascii_digit() => self.lex_number(),
             Some(chr) => tokenize!(self: OtherChar, chr; start_loc),

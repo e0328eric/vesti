@@ -10,10 +10,6 @@ macro_rules! lexing {
             token = $lex.next();
             match token.toktype {
                 TokenType::Eof => break lexed,
-                TokenType::Illegal => panic!(
-                    "illegal token {:?} was found on {:?}",
-                    $lex.chr0, token.span
-                ),
                 _ => {}
             }
             lexed.push(token);

@@ -173,6 +173,8 @@ pub enum TokenType {
     DoubleQuote,              // "
     RawLbrace,                // \(
     RawRbrace,                // \)
+    CenterDots,               // ...
+    InfinitySym,              // oo
 
     // Delimiters
     Lbrace,          // {
