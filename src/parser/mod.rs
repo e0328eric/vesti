@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
             TokenType::Docclass if self.is_premiere() => self.parse_docclass(),
             TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
             TokenType::ImportVesti => self.parse_import_vesti(),
-            TokenType::ImportFile => self.parse_import_file(),
+            TokenType::FilePath => self.parse_import_file(),
             TokenType::ImportModule => self.parse_import_module(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
@@ -660,7 +660,7 @@ impl<'a> Parser<'a> {
 
     fn parse_import_file(&mut self) -> error::Result<Statement> {
         let import_file_loc = self.peek_tok_location();
-        expect_peek!(self: TokenType::ImportFile; import_file_loc);
+        expect_peek!(self: TokenType::FilePath; import_file_loc);
         let copy_file = if self.peek_tok() == TokenType::Star {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             true
@@ -689,7 +689,7 @@ impl<'a> Parser<'a> {
                         if self.peek_tok() != TokenType::VerbatimChar('/') {
                             return Err(VestiErr::make_parse_err(
                                 VestiParseErrKind::IllegalUseErr {
-                                    got: TokenType::ImportFile,
+                                    got: TokenType::FilePath,
                                     reason: Some("The next token for `@` should be `/`."),
                                 },
                                 import_file_loc,
