@@ -99,6 +99,7 @@ pub enum TokenType {
     Docclass,
     ImportPkg,
     ImportVesti,
+    ImportFile,
     ImportModule,
     ImportLatex3,
     FilePath,
@@ -240,6 +241,7 @@ impl TokenType {
             "docclass" => Some(Self::Docclass),
             "importpkg" => Some(Self::ImportPkg),
             "importves" => Some(Self::ImportVesti),
+            "importfile" => Some(Self::ImportFile),
             "importmod" => Some(Self::ImportModule),
             "importltx3" => Some(Self::ImportLatex3),
             "startdoc" => Some(Self::StartDoc),
@@ -278,10 +280,6 @@ impl TokenType {
             "import" => Some(Self::Deprecated {
                 valid_in_text: true,
                 instead: "importpkg",
-            }), // NOTE: deprecated
-            "importfile" => Some(Self::Deprecated {
-                valid_in_text: true,
-                instead: "getfilepath",
             }), // NOTE: deprecated
             "pbegenv" => Some(Self::Deprecated {
                 valid_in_text: false,

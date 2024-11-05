@@ -228,6 +228,9 @@ pub fn plain_print<const PRINT_NOTE: bool>(
         }
     }
 
+    // Add a newline
+    queue!(stdout, Print("\n"),)?;
+
     stdout.flush()?;
 
     Ok(())

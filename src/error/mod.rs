@@ -8,6 +8,13 @@ use crate::lexer::token::TokenType;
 use crate::location::Span;
 
 #[derive(Debug, PartialEq)]
+pub enum DeprecatedKind {
+    None,
+    InsteadTokenExist(&'static str),
+    OtherExplanation(&'static str),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum VestiParseErrKind {
     EOFErr, // EOF found although parsing is not completed
     TypeMismatch {
@@ -35,7 +42,7 @@ pub enum VestiParseErrKind {
         r#type: TokenType,
     },
     DeprecatedUseErr {
-        instead: &'static str,
+        instead: DeprecatedKind,
     },
     ParseModuleRonErr(ron::error::SpannedError),
     IllegalUseErr {
@@ -250,13 +257,13 @@ impl Error for VestiParseErrKind {
                     _ => unreachable!(),
                 },
             ],
-            Self::DeprecatedUseErr { instead } => {
-                if instead.is_empty() {
-                    vec![format!("There is no alternative token")]
-                } else {
-                    vec![format!("Use `{instead}` token instead.")]
+            Self::DeprecatedUseErr { instead } => match instead {
+                DeprecatedKind::None => vec![format!("There is no alternative token")],
+                DeprecatedKind::InsteadTokenExist(instead_token) => {
+                    vec![format!("Use `{instead_token}` token instead.")]
                 }
-            }
+                DeprecatedKind::OtherExplanation(explain) => vec![format!("{explain}")],
+            },
             Self::ParseModuleRonErr(err) => vec![format!("{err}")],
             Self::IllegalUseErr { reason, .. } => {
                 if let Some(reason) = reason {

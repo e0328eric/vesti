@@ -31,6 +31,7 @@ pub fn make_latex_format<const IS_TEST: bool>(
     Ok(output)
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl ToString for Statement {
     fn to_string(&self) -> String {
         match self {
@@ -46,7 +47,7 @@ impl ToString for Statement {
             Statement::Usepackage { name, options } => usepackage_to_string(name, options),
             Statement::MultiUsepackages { pkgs } => multiusepacakge_to_string(pkgs),
             Statement::ImportVesti { filename } => format!("\\input{{{}}}", filename.display()),
-            Statement::ImportFile { filename } => format!("{}", filename.display()),
+            Statement::FilePath { filename } => format!("{}", filename.display()),
             Statement::DocumentStart => String::from("\\begin{document}\n"),
             Statement::DocumentEnd => String::from("\n\\end{document}\n"),
             Statement::MainText(s) => s.clone(),

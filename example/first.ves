@@ -1,8 +1,9 @@
 % import coprime class manually because of an usage of tectonic
-importfile* (@/coprime/coprime.cls)
-importfile* (@/coprime/coprime-math.sty)
-importfile* (@/coprime/coprime-reference.sty)
-importfile* (@/coprime/fancythm.sty)
+% importfile (@/coprime/coprime.cls)
+% importfile (@/coprime/coprime-math.sty)
+% importfile (@/coprime/coprime-reference.sty)
+% importfile (@/coprime/fancythm.sty)
+importmod (coprime)
 
 docclass coprime (geometry, fancy)
 

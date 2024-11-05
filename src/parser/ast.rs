@@ -27,7 +27,7 @@ pub enum Statement {
     ImportVesti {
         filename: PathBuf,
     },
-    ImportFile {
+    FilePath {
         filename: PathBuf,
     },
     DocumentStart,

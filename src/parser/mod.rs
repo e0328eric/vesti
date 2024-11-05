@@ -5,6 +5,7 @@ mod parser_test;
 mod macros;
 pub mod ast;
 
+use std::ffi::OsString;
 use std::fs;
 use std::mem::MaybeUninit;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ use md5::{Digest, Md5};
 use path_slash::PathBufExt;
 
 use crate::constants::{self, ILLEGAL_USAGE_OF_SUPERSUB_SCRIPT};
-use crate::error::{self, VestiErr, VestiParseErrKind};
+use crate::error::{self, DeprecatedKind, VestiErr, VestiParseErrKind};
 use crate::lexer::token::{FunctionDefKind, Token, TokenType};
 use crate::lexer::Lexer;
 use crate::location::Span;
@@ -143,7 +144,8 @@ impl<'a> Parser<'a> {
             TokenType::Docclass if self.is_premiere() => self.parse_docclass(),
             TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
             TokenType::ImportVesti => self.parse_import_vesti(),
-            TokenType::FilePath => self.parse_import_file(),
+            TokenType::ImportFile => self.parse_import_file(),
+            TokenType::FilePath => self.parse_file_path(),
             TokenType::ImportModule => self.parse_import_module(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
@@ -281,7 +283,9 @@ impl<'a> Parser<'a> {
                 valid_in_text,
                 instead,
             } if !valid_in_text => Err(VestiErr::make_parse_err(
-                VestiParseErrKind::DeprecatedUseErr { instead },
+                VestiParseErrKind::DeprecatedUseErr {
+                    instead: DeprecatedKind::InsteadTokenExist(instead),
+                },
                 self.peek_tok_location(),
             )),
 
@@ -658,17 +662,10 @@ impl<'a> Parser<'a> {
         Ok(Statement::ImportVesti { filename })
     }
 
-    fn parse_import_file(&mut self) -> error::Result<Statement> {
-        let import_file_loc = self.peek_tok_location();
-        expect_peek!(self: TokenType::FilePath; import_file_loc);
-        let copy_file = if self.peek_tok() == TokenType::Star {
-            expect_peek!(self: TokenType::Star; self.peek_tok_location());
-            true
-        } else {
-            false
-        };
-        self.eat_whitespaces::<false>();
-
+    fn parse_filename_helper(
+        &mut self,
+        import_file_loc: Span,
+    ) -> error::Result<(String, OsString)> {
         let mut file_path_str = String::with_capacity(30);
 
         // Parse vesti contents within verbatim
@@ -738,27 +735,52 @@ impl<'a> Parser<'a> {
             format!("./{}", file_path_str.trim())
         };
 
-        if copy_file {
-            let raw_filename_pathbuf = PathBuf::from(&file_path_str);
-            let raw_filename = raw_filename_pathbuf.file_name().unwrap();
+        let raw_filename_pathbuf = PathBuf::from(&file_path_str);
 
-            fs::copy(
-                file_path_str,
-                format!(
-                    "{}/{}",
-                    constants::VESTI_LOCAL_DUMMY_DIR,
-                    raw_filename.to_string_lossy()
-                ),
-            )?;
+        Ok((
+            file_path_str,
+            raw_filename_pathbuf.file_name().unwrap().to_os_string(),
+        ))
+    }
 
-            Ok(Statement::NopStmt)
-        } else {
-            let filepath_diff =
-                pathdiff::diff_paths(file_path_str, constants::VESTI_LOCAL_DUMMY_DIR).unwrap();
-            Ok(Statement::ImportFile {
-                filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
-            })
+    fn parse_file_path(&mut self) -> error::Result<Statement> {
+        let import_file_loc = self.peek_tok_location();
+        expect_peek!(self: TokenType::FilePath; import_file_loc);
+        self.eat_whitespaces::<false>();
+
+        let (file_path_str, _) = self.parse_filename_helper(import_file_loc)?;
+        let filepath_diff =
+            pathdiff::diff_paths(file_path_str, constants::VESTI_LOCAL_DUMMY_DIR).unwrap();
+        Ok(Statement::FilePath {
+            filename: PathBuf::from(filepath_diff.to_slash().unwrap().into_owned()),
+        })
+    }
+
+    fn parse_import_file(&mut self) -> error::Result<Statement> {
+        let import_file_loc = self.peek_tok_location();
+        expect_peek!(self: TokenType::ImportFile; import_file_loc);
+        if self.peek_tok() == TokenType::Star {
+            return Err(VestiErr::make_parse_err(
+                VestiParseErrKind::DeprecatedUseErr {
+                    instead: DeprecatedKind::OtherExplanation("remove this star"),
+                },
+                self.peek_tok_location(),
+            ));
         }
+        self.eat_whitespaces::<false>();
+
+        let (file_path_str, raw_filename) = self.parse_filename_helper(import_file_loc)?;
+
+        fs::copy(
+            file_path_str,
+            format!(
+                "{}/{}",
+                constants::VESTI_LOCAL_DUMMY_DIR,
+                raw_filename.to_string_lossy()
+            ),
+        )?;
+
+        Ok(Statement::NopStmt)
     }
 
     fn parse_import_module(&mut self) -> error::Result<Statement> {
