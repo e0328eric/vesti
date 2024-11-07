@@ -7,6 +7,7 @@ use yaml_rust::scanner::ScanError;
 use crate::lexer::token::TokenType;
 use crate::location::Span;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum DeprecatedKind {
     None,

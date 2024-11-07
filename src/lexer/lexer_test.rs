@@ -77,32 +77,31 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->-->$<-$<->=<=$@!%!||$||@}<==>$";
+    let source = "$!-->$->-->$<-$<->=<=$%!||$||@}<==>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),
         token!(TokenType::Minus, "-"),
         token!(TokenType::Great, ">"),
-        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::InlineMathStart, "$"),
         token!(TokenType::RightArrow, "\\rightarrow "),
         token!(TokenType::LongRightArrow, "\\longrightarrow "),
-        token!(TokenType::TextMathEnd, "$"),
+        token!(TokenType::InlineMathEnd, "$"),
         token!(TokenType::Less, "<"),
         token!(TokenType::Minus, "-"),
-        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::InlineMathStart, "$"),
         token!(TokenType::LeftRightArrow, "\\leftrightarrow "),
         token!(TokenType::Equal, "="),
         token!(TokenType::LessEq, "\\leq "),
-        token!(TokenType::TextMathEnd, "$"),
-        token!(TokenType::At, "@"),
+        token!(TokenType::InlineMathEnd, "$"),
         token!(TokenType::LatexComment, "%"),
         token!(TokenType::Vert, "|"),
         token!(TokenType::Vert, "|"),
-        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::InlineMathStart, "$"),
         token!(TokenType::Norm, "\\|"),
         token!(TokenType::Rangle, "\\rangle "),
         token!(TokenType::LongDoubleLeftRightArrow, "\\Longleftrightarrow "),
-        token!(TokenType::TextMathEnd, "$"),
+        token!(TokenType::InlineMathEnd, "$"),
     ];
 
     let mut lex = Lexer::new(source);
@@ -216,14 +215,14 @@ fn test_lexing_ascii_string() {
 fn test_lexing_math_character() {
     let source = "$ $\\[\\]\\[[\\]";
     let expected = vec![
-        token!(TokenType::TextMathStart, "$"),
+        token!(TokenType::InlineMathStart, "$"),
         token!(TokenType::Space, " "),
-        token!(TokenType::TextMathEnd, "$"),
-        token!(TokenType::InlineMathStart, "\\["),
-        token!(TokenType::InlineMathEnd, "\\]"),
-        token!(TokenType::InlineMathStart, "\\["),
+        token!(TokenType::InlineMathEnd, "$"),
+        token!(TokenType::DisplayMathStart, "\\["),
+        token!(TokenType::DisplayMathEnd, "\\]"),
+        token!(TokenType::DisplayMathStart, "\\["),
         token!(TokenType::Lsqbrace, "["),
-        token!(TokenType::InlineMathEnd, "\\]"),
+        token!(TokenType::DisplayMathEnd, "\\]"),
     ];
 
     let mut lex = Lexer::new(source);
@@ -313,7 +312,7 @@ fn lexing_backslash() {
 
 #[test]
 fn lexing_latex_functions() {
-    let source = "\\foo \\bar_hand makeatletter \\bar_hand makeatother \\frac{a @ b}";
+    let source = "\\foo \\bar_hand makeatletter \\bar_hand makeatother \\frac{a}{b}";
     let expected = vec![
         token!(TokenType::LatexFunction, "\\foo"),
         token!(TokenType::Space, " "),
@@ -330,8 +329,8 @@ fn lexing_latex_functions() {
         token!(TokenType::LatexFunction, "\\frac"),
         token!(TokenType::Lbrace, "{"),
         token!(TokenType::Text, "a"),
-        token!(TokenType::ArgSpliter, ""),
-        token!(TokenType::Space, " "),
+        token!(TokenType::Rbrace, "}"),
+        token!(TokenType::Lbrace, "{"),
         token!(TokenType::Text, "b"),
         token!(TokenType::Rbrace, "}"),
     ];
@@ -416,7 +415,7 @@ endenv"#;
         token!(TokenType::LatexFunction, "\\LaTeX"),
         token!(TokenType::Bang, "!"),
         token!(TokenType::Newline, "\n"),
-        token!(TokenType::InlineMathStart, "\\["),
+        token!(TokenType::DisplayMathStart, "\\["),
         token!(TokenType::Newline, "\n"),
         token!(TokenType::Space, " "),
         token!(TokenType::Space, " "),
@@ -451,7 +450,7 @@ endenv"#;
         token!(TokenType::Text, "foobar"),
         token!(TokenType::MathTextEnd, "\""),
         token!(TokenType::Newline, "\n"),
-        token!(TokenType::InlineMathEnd, "\\]"),
+        token!(TokenType::DisplayMathEnd, "\\]"),
         token!(TokenType::Newline, "\n"),
         token!(TokenType::Begenv, "begenv"),
         token!(TokenType::Space, " "),

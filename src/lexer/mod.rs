@@ -106,14 +106,7 @@ impl<'a> Lexer<'a> {
 
         match self.chr0 {
             Some('\0') | None => Token::eof(start_loc, self.current_loc),
-            Some(' ') => {
-                if self.chr1 == Some('@') && self.chr2 != Some('!') {
-                    self.next_char();
-                    tokenize!(self: ArgSpliter, ""; start_loc)
-                } else {
-                    tokenize!(self:Space, " "; start_loc)
-                }
-            }
+            Some(' ') => tokenize!(self:Space, " "; start_loc),
             Some('\t') => tokenize!(self:Tab, "\t"; start_loc),
             Some('\n') => tokenize!(self:Newline, "\n"; start_loc),
             Some('+') => tokenize!(self: Plus, "+"; start_loc),
@@ -183,15 +176,11 @@ impl<'a> Lexer<'a> {
             },
             Some('?') => tokenize!(self: Question, "?"; start_loc),
             Some('@') => match self.chr1 {
-                Some('!') => {
-                    self.next_char();
-                    tokenize!(self: At, "@"; start_loc)
-                }
                 Some('}') if self.math_started => {
                     self.next_char();
                     tokenize!(self: Rangle, "\\rangle "; start_loc)
                 }
-                _ => tokenize!(self: ArgSpliter, "@"; start_loc),
+                _ => tokenize!(self: At, "@"; start_loc),
             },
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
@@ -201,14 +190,14 @@ impl<'a> Lexer<'a> {
             Some('\'') => tokenize!(self: RightQuote, "'"; start_loc),
             Some('`') => tokenize!(self: LeftQuote, "`"; start_loc),
             Some('"') => {
-                if !self.math_started {
-                    tokenize!(self: DoubleQuote, "\""; start_loc)
-                } else if self.math_string_started {
+                if self.math_string_started {
                     self.math_string_started = false;
                     tokenize!(self:MathTextEnd, "\""; start_loc)
-                } else {
+                } else if self.math_started {
                     self.math_string_started = true;
                     tokenize!(self:MathTextStart, "\""; start_loc)
+                } else {
+                    tokenize!(self: DoubleQuote, "\""; start_loc)
                 }
             }
             Some('_') => tokenize!(self: Subscript, "_"; start_loc),
@@ -366,10 +355,6 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 tokenize!(self: LatexComment, "%"; start_loc)
             }
-            Some('[') => {
-                self.next_char();
-                tokenize!(self: OptionalBrace, "["; start_loc)
-            }
             Some('*') => {
                 self.next_char();
                 self.next_char();
@@ -432,19 +417,19 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 if !self.math_started {
                     self.math_started = true;
-                    tokenize!(self: InlineMathStart, "$"; start_loc)
+                    tokenize!(self: DisplayMathStart, "$"; start_loc)
                 } else {
                     self.math_started = false;
-                    tokenize!(self: InlineMathEnd, "$"; start_loc)
+                    tokenize!(self: DisplayMathEnd, "$"; start_loc)
                 }
             }
             _ => {
                 if !self.math_started {
                     self.math_started = true;
-                    tokenize!(self: TextMathStart, "$"; start_loc)
+                    tokenize!(self: InlineMathStart, "$"; start_loc)
                 } else {
                     self.math_started = false;
-                    tokenize!(self: TextMathEnd, "$"; start_loc)
+                    tokenize!(self: InlineMathEnd, "$"; start_loc)
                 }
             }
         }
@@ -495,12 +480,12 @@ impl<'a> Lexer<'a> {
             Some('[') => {
                 self.math_started = true;
                 self.next_char();
-                tokenize!(self: InlineMathStart, "\\["; start_loc)
+                tokenize!(self: DisplayMathStart, "\\["; start_loc)
             }
             Some(']') => {
                 self.math_started = false;
                 self.next_char();
-                tokenize!(self: InlineMathEnd, "\\]"; start_loc)
+                tokenize!(self: DisplayMathEnd, "\\]"; start_loc)
             }
             Some('{') => {
                 self.next_char();

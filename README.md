@@ -57,12 +57,17 @@ Upper code is a figure using tikz.
 ```
 
 ## Installation
-
 Vesti can be installed using `cargo`.
 
 ```console
 $ cargo install vesti
 ```
+
+### tectonic backend compilation issue
+For a higher version of the rust compiler, somewhat tectonic backend is not
+compilable. See
+[vesti-tectonic-git](https://github.com/e0328eric/vesti-tectonic-git) if one
+want to use tectonic backend for vesti.
 
 ## config file
 In default, it uses local `pdflatex` to compile vesti. If you want to change the default behavior, add `config.yaml` in `$CONFIG_PATH/vesti` and type like the following:

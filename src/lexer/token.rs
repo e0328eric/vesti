@@ -178,26 +178,22 @@ pub enum TokenType {
     InfinitySym,              // oo
 
     // Delimiters
-    Lbrace,          // {
-    Rbrace,          // }
-    Lparen,          // (
-    Rparen,          // )
-    Lsqbrace,        // [
-    Rsqbrace,        // ]
-    Langle,          // <{
-    Rangle,          // }>
-    MathLbrace,      // \{
-    MathRbrace,      // \}
-    OptionalBrace,   // %[
-    TextMathStart,   // $
-    TextMathEnd,     // $
-    InlineMathStart, // $$ or \[
-    InlineMathEnd,   // $$ or \]
-    MathTextStart,   // "
-    MathTextEnd,     // "
-
-    // etc
-    ArgSpliter, // @
+    Lbrace,           // {
+    Rbrace,           // }
+    Lparen,           // (
+    Rparen,           // )
+    Lsqbrace,         // [
+    Rsqbrace,         // ]
+    Langle,           // <{
+    Rangle,           // }>
+    MathLbrace,       // \{
+    MathRbrace,       // \}
+    InlineMathStart,  // $
+    InlineMathEnd,    // $
+    DisplayMathStart, // $$ or \[
+    DisplayMathEnd,   // $$ or \]
+    MathTextStart,    // "
+    MathTextEnd,      // "
 
     // error token
     Deprecated {

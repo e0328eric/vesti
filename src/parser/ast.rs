@@ -51,6 +51,7 @@ pub enum Statement {
     },
     PlainTextInMath {
         remove_front_space: bool,
+        remove_back_space: bool,
         text: Latex,
     },
     LatexFunction {

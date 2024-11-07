@@ -124,10 +124,10 @@ fn parse_environment() {
     let source5 = r#"startdoc useenv foo (bar1)[bar2](bar3)(bar4)[bar5] {
     The Document.
 }"#;
-    let source6 = r#"startdoc useenv foo* (bar1 @ bar2) {
+    let source6 = r#"startdoc useenv foo* (bar1)(bar2) {
     The Document.
 }"#;
-    let source7 = r#"startdoc useenv foo *(bar1 @ bar2) {
+    let source7 = r#"startdoc useenv foo *(bar1)(bar2) {
     The Document.
 }"#;
 
@@ -187,14 +187,14 @@ fn parse_environment() {
 fn parse_latex_functions() {
     let source1 = "startdoc \\foo";
     let source2 = "startdoc \\foo{bar1}";
-    let source3 = "startdoc \\foo%[bar1]";
-    let source4 = "startdoc \\foo{bar1}%[bar2]";
-    let source5 = "startdoc \\foo*%[bar1]{bar2}{bar3}";
-    let source6 = "startdoc \\foo*{bar1 @ bar2}";
-    let source7 = "startdoc \\foo%[bar3 @ bar2 @ bar1]{bar4 @ bar5 @ bar6 @ bar7}";
-    let source8 = "startdoc \\foo*%[bar1]{bar2}**{bar3}";
+    let source3 = "startdoc \\foo[bar1]";
+    let source4 = "startdoc \\foo{bar1}[bar2]";
+    let source5 = "startdoc \\foo*[bar1]{bar2}{bar3}";
+    let source6 = "startdoc \\foo*{bar1}{bar2}";
+    let source7 = "startdoc \\foo[bar3][bar2][bar1]{bar4}{bar5}{bar6}{bar7}";
+    let source8 = "startdoc \\foo*[bar1]{bar2}**{bar3}";
     let source9 = r#"startdoc \textbf{
-    Hallo!\TeX and \foo{bar1 @ bar2{a}{}}; today}"#;
+    Hallo!\TeX and \foo{bar1}{bar2{a}{}}; today}"#;
 
     let expected1 = r#"\begin{document}
 \foo
@@ -582,6 +582,24 @@ fn parse_math_delimiters() {
     expected!(source2 should be expected2);
 }
 
+#[test]
+fn parse_text_in_math() {
+    let source1 = "$\"foo\"$";
+    let source2 = "$#\"foo\"$";
+    let source3 = "$\"foo\"#$";
+    let source4 = "$#\"foo\"#$";
+
+    let expected1 = "$\\text{ foo }$";
+    let expected2 = "$\\text{foo }$";
+    let expected3 = "$\\text{ foo}$";
+    let expected4 = "$\\text{foo}$";
+
+    expected!(source1 should be expected1);
+    expected!(source2 should be expected2);
+    expected!(source3 should be expected3);
+    expected!(source4 should be expected4);
+}
+
 // Actual bugs encountered in previous versions
 
 #[test]
@@ -608,5 +626,15 @@ makeatother
 }
 \makeatother
 "#;
+    expected!(source should be expected);
+}
+
+#[test]
+// This example shows that vesti prefer to use "..." syntax in math instead of
+// using raw \text LaTeX command.
+fn parsing_bug_fix002() {
+    let source = "$oo\\text{oo}$ oo $oo\"oo\"$";
+    let expected = r"$\infty \text{\infty }$ oo $\infty \text{ oo }$";
+
     expected!(source should be expected);
 }
