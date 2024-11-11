@@ -78,6 +78,10 @@ pub enum VestiOpt {
         /// watch compiling vesti file
         #[arg(short = 'W', long = "watch")]
         watch: bool,
+        /// This flag enables to use the old \left, \right pair syntax.
+        /// This will be removed when vesti is stable to use the changed bracket syntax.
+        #[clap(short = 'B', long = "old-bracket")]
+        use_old_bracket: bool,
         /// Compile vesti into pdf with latex
         #[arg(
             short = 'L',
@@ -174,7 +178,7 @@ impl VestiOpt {
     }
 
     pub fn get_latex_type(&self) -> error::Result<LatexEngineType> {
-        let default_engine = read_config()?;
+        let default_engine = read_config()?.0;
 
         if let Self::Compile {
             is_latex,
@@ -208,10 +212,15 @@ impl VestiOpt {
     }
 }
 
+#[inline]
+pub fn get_use_old_bracket_status() -> error::Result<bool> {
+    Ok(read_config()?.1)
+}
+
 // Read a config file and return the position of the given engine
 // The config file must in at .config/vesti directory
 // and its name is config.yaml
-fn read_config() -> error::Result<LatexEngineType> {
+fn read_config() -> error::Result<(LatexEngineType, bool)> {
     let mut dir = dirs::config_dir().unwrap();
     dir.push("vesti/config.yaml");
     let contents = fs::read_to_string(dir).unwrap_or_default();
@@ -226,8 +235,17 @@ fn read_config() -> error::Result<LatexEngineType> {
     } else {
         "pdflatex"
     };
+    let use_old_bracket = if let Some(d) = doc {
+        if d["use-old-bracket"].is_badvalue() {
+            false
+        } else {
+            d["use-old-bracket"].as_bool().unwrap()
+        }
+    } else {
+        false
+    };
     let main_engine = main_engine.to_lowercase();
 
     // String -> LaTeXEngineType never failes
-    Ok(main_engine.parse().unwrap())
+    Ok((main_engine.parse().unwrap(), use_old_bracket))
 }

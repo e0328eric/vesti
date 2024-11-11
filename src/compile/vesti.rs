@@ -20,6 +20,7 @@ pub fn compile_vesti(
     has_sub_vesti: bool,
     emit_tex_only: bool,
     no_color: bool,
+    use_old_bracket: bool,
 ) -> ExitCode {
     let pretty_print = if no_color {
         crate::error::pretty_print::plain_print::<false>
@@ -29,7 +30,7 @@ pub fn compile_vesti(
 
     let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
 
-    let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
+    let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti, use_old_bracket);
     let contents = match make_latex_format::<false>(&mut parser, engine_type) {
         Ok(inner) => inner,
         Err(err) => {

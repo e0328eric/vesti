@@ -6,7 +6,7 @@ use crate::commands::LatexEngineType;
 
 macro_rules! expected {
     ($source: ident should be $expected: ident) => {{
-        let mut parser = Parser::new(Lexer::new($source), true);
+        let mut parser = Parser::new(Lexer::new($source), true, false);
         assert_eq!(
             $expected,
             make_latex_format::<true>(&mut parser, LatexEngineType::Invalid).unwrap()
@@ -572,11 +572,11 @@ enddef"#;
 
 #[test]
 fn parse_math_delimiters() {
-    let source1 = "$(?)?{@?\\{?|?||?$";
-    let source2 = "$?)?(?@}?\\}?|?||$";
+    let source1 = "$?)?(?@}?\\}?|?||$";
+    let source2 = "$(?)?{@?\\{?|?||?$";
 
-    let expected1 = "$\\left(\\left)\\left\\langle \\left\\{\\left|\\left\\|$";
-    let expected2 = "$\\right)\\right(\\right\\rangle \\right\\}\\right|\\right\\|$";
+    let expected1 = "$\\left)\\left(\\left\\rangle \\left\\}\\left|\\left\\|$";
+    let expected2 = "$\\right(\\right)\\right\\langle \\right\\{\\right|\\right\\|$";
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
@@ -635,6 +635,15 @@ makeatother
 fn parsing_bug_fix002() {
     let source = "$oo\\text{oo}$ oo $oo\"oo\"$";
     let expected = r"$\infty \text{\infty }$ oo $\infty \text{ oo }$";
+
+    expected!(source should be expected);
+}
+
+#[test]
+// Below example shows the reason to change the syntax of \left and \right pair
+fn parsing_bug_fix003() {
+    let source = "$?(it\\lambda?(b-\\int)?)?$";
+    let expected = r"$\left(it\lambda\left(b-\int\right)\right)$";
 
     expected!(source should be expected);
 }

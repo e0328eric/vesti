@@ -51,6 +51,7 @@ fn main() -> ExitCode {
             compile_limit,
             no_color,
             watch,
+            use_old_bracket,
             ..
         } => {
             if watch {
@@ -61,6 +62,7 @@ fn main() -> ExitCode {
                     emit_tex_only,
                     compile_limit,
                     no_color,
+                    use_old_bracket,
                 )
             } else {
                 compile_vesti_main(
@@ -70,6 +72,7 @@ fn main() -> ExitCode {
                     emit_tex_only,
                     compile_limit,
                     no_color,
+                    use_old_bracket,
                 )
             }
         }
@@ -83,6 +86,7 @@ fn compile_in_watch(
     emit_tex_only: bool,
     compile_limit: Option<usize>,
     no_color: bool,
+    use_old_bracket: bool,
 ) -> ExitCode {
     let pretty_print_note = if no_color {
         crate::error::pretty_print::plain_print::<true>
@@ -150,6 +154,7 @@ fn compile_in_watch(
                     emit_tex_only,
                     compile_limit,
                     no_color,
+                    use_old_bracket,
                 );
 
                 if exitcode == ExitCode::Failure && cfg!(target_os = "windows") {
@@ -163,7 +168,7 @@ fn compile_in_watch(
                     };
                 }
 
-                println!("Press Ctrl+C to exit...");
+                println!("\r\nPress Ctrl+C to exit...");
 
                 if let Err(err) = env::set_current_dir(&current_dir) {
                     pretty_print_note(None, err.into(), None).unwrap();
@@ -190,6 +195,7 @@ fn compile_vesti_main(
     emit_tex_only: bool,
     compile_limit: Option<usize>,
     no_color: bool,
+    use_old_bracket: bool,
 ) -> ExitCode {
     let pretty_print = if no_color {
         crate::error::pretty_print::plain_print::<false>
@@ -233,6 +239,13 @@ fn compile_vesti_main(
             return ExitCode::Failure;
         }
     };
+    let use_old_bracket = match commands::get_use_old_bracket_status() {
+        Ok(val) => use_old_bracket || val,
+        Err(err) => {
+            pretty_print(None, err, None).unwrap();
+            return ExitCode::Failure;
+        }
+    };
 
     let mut handle_vesti: Vec<JoinHandle<_>> = Vec::with_capacity(10);
     let mut main_files: Vec<PathBuf> = Vec::with_capacity(10);
@@ -249,6 +262,7 @@ fn compile_vesti_main(
                 has_sub_vesti,
                 emit_tex_only,
                 no_color,
+                use_old_bracket,
             )
         }));
 
