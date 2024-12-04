@@ -4,7 +4,6 @@
 % importfile (@/coprime/coprime-reference.sty)
 % importfile (@/coprime/fancythm.sty)
 importmod (coprime)
-
 docclass coprime (geometry, fancy)
 
 importpkg { xparse, fontspec }
