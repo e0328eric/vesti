@@ -129,16 +129,15 @@ fn compile_in_watch(
             match fs::metadata(filename).and_then(|metadata| metadata.modified()) {
                 Ok(modified) => file_modified_list.push(modified),
                 Err(err) => {
-                    if cfg!(target_os = "windows") {
-                        unsafe {
-                            win::MessageBoxA(
-                                None,
-                                s!("vesti error occurs. See the console for more information"),
-                                s!("vesti watch error"),
-                                win::MB_ICONERROR | win::MB_OK,
-                            )
-                        };
-                    }
+                    #[cfg(target_os = "windows")]
+                    unsafe {
+                        win::MessageBoxA(
+                            None,
+                            s!("vesti error occurs. See the console for more information"),
+                            s!("vesti watch error"),
+                            win::MB_ICONERROR | win::MB_OK,
+                        )
+                    };
                     pretty_print_note(None, err.into(), None).unwrap();
                     return ExitCode::Failure;
                 }
@@ -157,7 +156,8 @@ fn compile_in_watch(
                     use_old_bracket,
                 );
 
-                if exitcode == ExitCode::Failure && cfg!(target_os = "windows") {
+                if exitcode == ExitCode::Failure {
+                    #[cfg(target_os = "windows")]
                     unsafe {
                         win::MessageBoxA(
                             None,
