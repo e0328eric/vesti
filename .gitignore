@@ -5,3 +5,4 @@
 /.fleet
 /Cargo.lock
 /**/vesti-cache
+/**/.vesti-dummy
