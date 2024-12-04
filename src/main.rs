@@ -156,8 +156,8 @@ fn compile_in_watch(
                     use_old_bracket,
                 );
 
+                #[cfg(target_os = "windows")]
                 if exitcode == ExitCode::Failure {
-                    #[cfg(target_os = "windows")]
                     unsafe {
                         win::MessageBoxA(
                             None,
