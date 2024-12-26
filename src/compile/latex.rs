@@ -34,23 +34,52 @@ fn compile_latex_with_local(
     compile_limit: Option<usize>,
     engine_type: LatexEngineType,
 ) -> error::Result<()> {
-    let mut latex_stdout = BufWriter::new(File::create(format!(
-        "./{}.stdout",
-        latex_filename.display()
-    ))?);
-    let mut latex_stderr = BufWriter::new(File::create(format!(
-        "./{}.stderr",
-        latex_filename.display()
-    ))?);
+    let mut latex_stdout = {
+        let stdout_filename = format!("./{}.stdout", latex_filename.display());
+        match File::create(&stdout_filename) {
+            Ok(file) => BufWriter::new(file),
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot create file {stdout_filename}"),
+                ))
+            }
+        }
+    };
+    let mut latex_stderr = {
+        let stderr_filename = format!("./{}.stderr", latex_filename.display());
+        match File::create(&stderr_filename) {
+            Ok(file) => BufWriter::new(file),
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot create file {stderr_filename}"),
+                ))
+            }
+        }
+    };
 
     // It is good to compile latex at least two times
     let compile_limit = compile_limit.unwrap_or(DEFAULT_COMPILATION_LIMIT);
     println!("[Compile {}]", latex_filename.display());
     for i in 0..compile_limit {
         println!("[Compile num {}]", i + 1);
-        let output = Command::new(engine_type.to_string())
+        let output = match Command::new(engine_type.to_string())
             .arg(latex_filename)
-            .output()?;
+            .output()
+        {
+            Ok(output) => output,
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!(
+                        "failed to compile {} with {}",
+                        latex_filename.display(),
+                        engine_type,
+                    ),
+                ))
+            }
+        };
 
         latex_stdout
             .write_all(format!("[Compile Num {}]\n", i + 1).as_bytes())
@@ -74,15 +103,47 @@ fn compile_latex_with_local(
     pdf_filename.set_extension("pdf");
     let final_pdf_filename = PathBuf::from(format!("../{}", pdf_filename.display()));
 
-    let mut generated_pdf_file = File::open(&pdf_filename)?;
+    let mut generated_pdf_file = match File::open(&pdf_filename) {
+        Ok(inner) => inner,
+        Err(err) => {
+            return Err(VestiErr::from_io_err(
+                err,
+                format!("cannot open {}", pdf_filename.display()),
+            ))
+        }
+    };
     let mut contents = Vec::with_capacity(1000);
 
-    generated_pdf_file.read_to_end(&mut contents)?;
-    fs::write(final_pdf_filename, contents)?;
+    match generated_pdf_file.read_to_end(&mut contents) {
+        Ok(_) => {}
+        Err(err) => {
+            return Err(VestiErr::from_io_err(
+                err,
+                format!("cannot read from {}", pdf_filename.display()),
+            ))
+        }
+    }
+    match fs::write(&final_pdf_filename, contents) {
+        Ok(()) => {}
+        Err(err) => {
+            return Err(VestiErr::from_io_err(
+                err,
+                format!("cannot write into {}", final_pdf_filename.display()),
+            ))
+        }
+    }
 
     // close a file before remove it
     drop(generated_pdf_file);
-    fs::remove_file(pdf_filename)?;
+    match fs::remove_file(&pdf_filename) {
+        Ok(()) => {}
+        Err(err) => {
+            return Err(VestiErr::from_io_err(
+                err,
+                format!("cannot remove {}", pdf_filename.display()),
+            ))
+        }
+    }
 
     println!("[Compile {} Done]", latex_filename.display());
 

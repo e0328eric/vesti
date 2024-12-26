@@ -8,7 +8,6 @@ mod commands;
 mod compile;
 mod constants;
 mod error;
-mod exit_status;
 mod lexer;
 mod location;
 mod parser;
@@ -19,11 +18,8 @@ use std::ffi;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use std::process;
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::process::{self, ExitCode};
 use std::time;
-use std::time::Duration;
 
 use clap::Parser;
 
@@ -32,17 +28,16 @@ use windows::{core::*, Win32::UI::WindowsAndMessaging as win};
 
 use crate::commands::{LatexEngineType, VestiOpt};
 use crate::error::VestiErr;
-use crate::exit_status::ExitCode;
 
 fn main() -> ExitCode {
     let args = commands::VestiOpt::parse();
 
     match args {
         VestiOpt::Clear => match fs::remove_dir_all(constants::VESTI_LOCAL_DUMMY_DIR) {
-            Ok(_) => ExitCode::Success,
+            Ok(_) => ExitCode::SUCCESS,
             Err(err) => {
                 eprintln!("{err}");
-                return ExitCode::Failure;
+                return ExitCode::FAILURE;
             }
         },
         ref argument @ VestiOpt::Compile {
@@ -88,10 +83,10 @@ fn compile_in_watch(
     no_color: bool,
     use_old_bracket: bool,
 ) -> ExitCode {
-    let pretty_print_note = if no_color {
-        crate::error::pretty_print::plain_print::<true>
+    let pretty_print = if no_color {
+        crate::error::pretty_print::plain_print
     } else {
-        crate::error::pretty_print::pretty_print::<true>
+        crate::error::pretty_print::pretty_print
     };
 
     // handling SIGINT
@@ -107,8 +102,13 @@ fn compile_in_watch(
     let current_dir = match env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
-            pretty_print_note(None, err.into(), None).unwrap();
-            return ExitCode::Failure;
+            pretty_print(
+                None,
+                VestiErr::from_io_err(err, "cannot get the current directory"),
+                None,
+            )
+            .unwrap();
+            return ExitCode::FAILURE;
         }
     };
 
@@ -119,8 +119,8 @@ fn compile_in_watch(
         let file_lists = match args.take_filename() {
             Ok(inner) => inner,
             Err(err) => {
-                pretty_print_note(None, err, None).unwrap();
-                return ExitCode::Failure;
+                pretty_print(None, err, None).unwrap();
+                return ExitCode::FAILURE;
             }
         };
 
@@ -138,8 +138,16 @@ fn compile_in_watch(
                             win::MB_ICONERROR | win::MB_OK,
                         )
                     };
-                    pretty_print_note(None, err.into(), None).unwrap();
-                    return ExitCode::Failure;
+                    pretty_print(
+                        None,
+                        VestiErr::from_io_err(
+                            err,
+                            format!("cannot get a metadata from {}", filename.display()),
+                        ),
+                        None,
+                    )
+                    .unwrap();
+                    return ExitCode::FAILURE;
                 }
             };
         }
@@ -157,7 +165,7 @@ fn compile_in_watch(
                 );
 
                 #[cfg(target_os = "windows")]
-                if exitcode == ExitCode::Failure {
+                if exitcode == ExitCode::FAILURE {
                     unsafe {
                         win::MessageBoxA(
                             None,
@@ -171,8 +179,19 @@ fn compile_in_watch(
                 println!("\r\nPress Ctrl+C to exit...");
 
                 if let Err(err) = env::set_current_dir(&current_dir) {
-                    pretty_print_note(None, err.into(), None).unwrap();
-                    return ExitCode::Failure;
+                    pretty_print(
+                        None,
+                        VestiErr::from_io_err(
+                            err,
+                            format!(
+                                "cannot set the current directory into {}",
+                                current_dir.display()
+                            ),
+                        ),
+                        None,
+                    )
+                    .unwrap();
+                    return ExitCode::FAILURE;
                 }
 
                 if !first_run {
@@ -198,14 +217,9 @@ fn compile_vesti_main(
     use_old_bracket: bool,
 ) -> ExitCode {
     let pretty_print = if no_color {
-        crate::error::pretty_print::plain_print::<false>
+        crate::error::pretty_print::plain_print
     } else {
-        crate::error::pretty_print::pretty_print::<false>
-    };
-    let pretty_print_note = if no_color {
-        crate::error::pretty_print::plain_print::<true>
-    } else {
-        crate::error::pretty_print::pretty_print::<true>
+        crate::error::pretty_print::pretty_print
     };
 
     match fs::create_dir(constants::VESTI_LOCAL_DUMMY_DIR) {
@@ -213,8 +227,19 @@ fn compile_vesti_main(
         Err(err) => {
             let err_kind = err.kind();
             if err_kind != ErrorKind::AlreadyExists {
-                pretty_print(None, err.into(), None).unwrap();
-                return ExitCode::Failure;
+                pretty_print(
+                    None,
+                    VestiErr::from_io_err(
+                        err,
+                        format!(
+                            "cannot create directory {}",
+                            constants::VESTI_LOCAL_DUMMY_DIR
+                        ),
+                    ),
+                    None,
+                )
+                .unwrap();
+                return ExitCode::FAILURE;
             }
         }
     }
@@ -223,7 +248,7 @@ fn compile_vesti_main(
         Ok(inner) => inner,
         Err(err) => {
             pretty_print(None, err, None).unwrap();
-            return ExitCode::Failure;
+            return ExitCode::FAILURE;
         }
     };
 
@@ -231,86 +256,71 @@ fn compile_vesti_main(
         Ok(LatexEngineType::Invalid) => {
             let err = VestiErr::make_util_err(error::VestiUtilErrKind::InvalidLaTeXEngine);
             pretty_print(None, err, None).unwrap();
-            return ExitCode::Failure;
+            return ExitCode::FAILURE;
         }
         Ok(engine) => engine,
         Err(err) => {
             pretty_print(None, err, None).unwrap();
-            return ExitCode::Failure;
+            return ExitCode::FAILURE;
         }
     };
     let use_old_bracket = match commands::get_use_old_bracket_status() {
         Ok(val) => use_old_bracket || val,
         Err(err) => {
             pretty_print(None, err, None).unwrap();
-            return ExitCode::Failure;
+            return ExitCode::FAILURE;
         }
     };
 
-    let mut handle_vesti: Vec<JoinHandle<_>> = Vec::with_capacity(10);
-    let mut main_files: Vec<PathBuf> = Vec::with_capacity(10);
-    let (main_file_sender, main_file_receiver) = mpsc::sync_channel::<PathBuf>(5);
-
     // compile vesti files into latex files
+    let mut main_files: Vec<PathBuf> = Vec::with_capacity(10);
     for file_name in file_lists {
-        let main_file_sender = main_file_sender.clone();
-        handle_vesti.push(thread::spawn(move || {
-            compile::vesti::compile_vesti(
-                main_file_sender,
-                file_name,
-                engine_type,
-                has_sub_vesti,
-                emit_tex_only,
-                no_color,
-                use_old_bracket,
-            )
-        }));
-
-        if let Ok(main_filename) = main_file_receiver.recv_timeout(Duration::from_millis(500)) {
-            main_files.push(main_filename);
-        }
-    }
-
-    for vesti in handle_vesti.into_iter() {
-        if vesti.join().unwrap() == ExitCode::Failure {
-            return ExitCode::Failure;
+        if compile::vesti::compile_vesti(
+            &mut main_files,
+            file_name,
+            engine_type,
+            has_sub_vesti,
+            emit_tex_only,
+            no_color,
+            use_old_bracket,
+        ) == ExitCode::FAILURE
+        {
+            return ExitCode::FAILURE;
         }
     }
 
     // compile latex files
     if !emit_tex_only {
         if let Err(err) = env::set_current_dir(constants::VESTI_LOCAL_DUMMY_DIR) {
-            pretty_print(None, err.into(), None).unwrap();
-            return ExitCode::Failure;
+            pretty_print(
+                None,
+                VestiErr::from_io_err(
+                    err,
+                    format!(
+                        "cannot set current directory into {}",
+                        constants::VESTI_LOCAL_DUMMY_DIR
+                    ),
+                ),
+                None,
+            )
+            .unwrap();
+            return ExitCode::FAILURE;
         }
 
-        let mut handle_latex: Vec<JoinHandle<_>> = Vec::with_capacity(10);
         for latex_filename in main_files {
-            handle_latex.push(thread::spawn(move || {
-                match compile::latex::compile_latex(&latex_filename, compile_limit, engine_type) {
-                    Ok(()) => ExitCode::Success,
-                    Err(mut err) => {
-                        err.inject_note_msg(format!(
-                            "cannot compile {} with {engine_type}.",
-                            latex_filename.display()
-                        ));
-                        pretty_print_note(None, err, None).unwrap();
-                        ExitCode::Failure
-                    }
+            match compile::latex::compile_latex(&latex_filename, compile_limit, engine_type) {
+                Ok(()) => {}
+                Err(err) => {
+                    pretty_print(None, err, None).unwrap();
+                    return ExitCode::FAILURE;
                 }
-            }));
-        }
-
-        for latex in handle_latex.into_iter() {
-            if latex.join().unwrap() == ExitCode::Failure {
-                return ExitCode::Failure;
             }
         }
     }
 
     println!("bye!");
 
-    ExitCode::Success
+    ExitCode::SUCCESS
 }
 
 extern "C" fn signal_handler(_signal: ffi::c_int) -> ! {

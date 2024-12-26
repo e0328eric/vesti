@@ -25,7 +25,7 @@ impl<'a> Newlinehandler<'a> {
     }
 }
 
-impl<'a> Iterator for Newlinehandler<'a> {
+impl Iterator for Newlinehandler<'_> {
     type Item = char;
     fn next(&mut self) -> Option<Self::Item> {
         let output = match (self.chr0, self.chr1) {

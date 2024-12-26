@@ -61,7 +61,7 @@ pub enum VestiUtilErrKind {
     LatexCompliationErr,
     IOErr {
         kind: std::io::ErrorKind,
-        note_msg: Option<String>,
+        note_msg: String,
     },
     ScanErr(ScanError),
     #[cfg(feature = "tectonic-backend")]
@@ -89,28 +89,11 @@ impl VestiErr {
         Self::UtilErr { err_kind }
     }
 
-    pub fn inject_note_msg(&mut self, msg: String) {
-        #[allow(clippy::single_match)]
-        match self {
-            Self::UtilErr {
-                err_kind:
-                    VestiUtilErrKind::IOErr {
-                        ref mut note_msg, ..
-                    },
-            } => {
-                *note_msg = Some(msg);
-            }
-            _ => {}
-        }
-    }
-}
-
-impl From<std::io::Error> for VestiErr {
-    fn from(err: std::io::Error) -> Self {
+    pub fn from_io_err(err: std::io::Error, note_msg: impl ToString) -> Self {
         Self::UtilErr {
             err_kind: VestiUtilErrKind::IOErr {
                 kind: err.kind(),
-                note_msg: None,
+                note_msg: note_msg.to_string(),
             },
         }
     }
@@ -144,6 +127,7 @@ pub trait Error {
     fn err_code(&self) -> u16;
     fn err_str(&self) -> String;
     fn err_detail_str(&self) -> Vec<String>;
+    fn err_note_str(&self) -> Option<Vec<String>>;
 }
 
 impl Error for VestiErr {
@@ -163,6 +147,12 @@ impl Error for VestiErr {
         match self {
             Self::ParseErr { err_kind, .. } => err_kind.err_detail_str(),
             Self::UtilErr { err_kind } => err_kind.err_detail_str(),
+        }
+    }
+    fn err_note_str(&self) -> Option<Vec<String>> {
+        match self {
+            Self::ParseErr { err_kind, .. } => err_kind.err_note_str(),
+            Self::UtilErr { err_kind } => err_kind.err_note_str(),
         }
     }
 }
@@ -275,6 +265,9 @@ impl Error for VestiParseErrKind {
             }
         }
     }
+    fn err_note_str(&self) -> Option<Vec<String>> {
+        None
+    }
 }
 
 impl Error for VestiUtilErrKind {
@@ -309,28 +302,30 @@ impl Error for VestiUtilErrKind {
         }
     }
     fn err_detail_str(&self) -> Vec<String> {
+        Vec::new()
+    }
+    fn err_note_str(&self) -> Option<Vec<String>> {
         match self {
-            Self::TakeFilesErr | Self::InvalidLaTeXEngine => vec![
+            Self::TakeFilesErr | Self::InvalidLaTeXEngine => Some(vec![
                 String::from("If there is no reason that error occurs you think,"),
                 String::from("it might be a vesti's bug. If so, let me know."),
                 String::from("Report it at https://github.com/e0328eric/vesti"),
-            ],
-            Self::LatexCompliationErr => vec![
+            ]),
+            Self::LatexCompliationErr => Some(vec![
                 String::from("This error occurs when LaTeX compiler failed."),
                 String::from(
                     "For more information, see stdout and stderr files inside vesti-cache.",
                 ),
-            ],
+            ]),
             Self::IOErr {
-                note_msg: Some(ref msg),
-                ..
-            } => vec![msg.clone()],
+                note_msg: ref msg, ..
+            } => Some(vec![msg.clone()]),
             #[cfg(feature = "tectonic-backend")]
-            Self::TectonicErr(_) => vec![
+            Self::TectonicErr(_) => Some(vec![
                 String::from("This error occurs when Tectonic backend failed."),
                 String::from("See the detail in the above tectonic emitted error message"),
-            ],
-            _ => Vec::new(),
+            ]),
+            _ => None,
         }
     }
 }

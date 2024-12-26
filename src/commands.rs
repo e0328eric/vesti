@@ -125,7 +125,7 @@ pub enum VestiOpt {
 
 impl VestiOpt {
     pub fn take_filename(&self) -> error::Result<Vec<PathBuf>> {
-        let mut output: Vec<PathBuf> = Vec::new();
+        let mut output: Vec<PathBuf> = Vec::with_capacity(15);
 
         if let Self::Compile {
             all,
