@@ -206,15 +206,47 @@ mod vesti_tectonic {
         pdf_filename.set_extension("pdf");
         let final_pdf_filename = PathBuf::from(format!("../{}", pdf_filename.display()));
 
-        let mut generated_pdf_file = File::open(&pdf_filename)?;
+        let mut generated_pdf_file = match File::open(&pdf_filename) {
+            Ok(file) => file,
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot open {}", pdf_filename.display()),
+                ))
+            }
+        };
         let mut contents = Vec::with_capacity(1000);
 
-        generated_pdf_file.read_to_end(&mut contents)?;
-        fs::write(final_pdf_filename, contents)?;
+        match generated_pdf_file.read_to_end(&mut contents) {
+            Ok(_) => {}
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot read from {}", pdf_filename.display()),
+                ))
+            }
+        }
+        match fs::write(&final_pdf_filename, contents) {
+            Ok(()) => {}
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot write into {}", final_pdf_filename.display()),
+                ))
+            }
+        }
 
         // close a file before remove it
         drop(generated_pdf_file);
-        fs::remove_file(pdf_filename)?;
+        match fs::remove_file(&pdf_filename) {
+            Ok(()) => {}
+            Err(err) => {
+                return Err(VestiErr::from_io_err(
+                    err,
+                    format!("cannot remove {}", pdf_filename.display()),
+                ))
+            }
+        }
 
         println!("[Compile {} Done]", latex_filename.display());
 
