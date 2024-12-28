@@ -1,21 +1,20 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::SystemTime;
 
 use base64ct::{Base64Url, Encoding};
 use md5::{Digest, Md5};
 
 use crate::codegen::make_latex_format;
 use crate::commands::LatexEngineType;
+use crate::compile::VestiFile;
 use crate::constants;
 use crate::error::{self, VestiErr};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
 pub fn compile_vesti(
-    main_files: &mut Vec<PathBuf>,
-    file_name: PathBuf,
+    ves_file: &mut VestiFile,
     engine_type: LatexEngineType,
     has_sub_vesti: bool,
     emit_tex_only: bool,
@@ -28,60 +27,26 @@ pub fn compile_vesti(
         crate::error::pretty_print::pretty_print
     };
 
-    let current_time = SystemTime::now();
-    let (modified_time, first_time) = 'blk: {
-        let mangled_name = match vesti_name_mangle(&file_name) {
-            Ok(name) => format!("{}/{}", constants::VESTI_LOCAL_DUMMY_DIR, name),
-            Err(err) => {
-                pretty_print(None, err, Some(&file_name)).unwrap();
-                return ExitCode::FAILURE;
-            }
-        };
-        let metadata = match fs::metadata(&mangled_name) {
-            Ok(metadata) => metadata,
-            Err(err) => {
-                if err.kind() == std::io::ErrorKind::NotFound {
-                    break 'blk (SystemTime::now(), true);
-                } else {
-                    pretty_print(
-                        None,
-                        VestiErr::from_io_err(
-                            err,
-                            format!("cannot get the metadata from {mangled_name}"),
-                        ),
-                        Some(&file_name),
-                    )
-                    .unwrap();
-                    return ExitCode::FAILURE;
-                }
-            }
-        };
-        match metadata.modified() {
-            Ok(time) => (time, false),
-            Err(err) => {
-                pretty_print(
-                    None,
-                    VestiErr::from_io_err(
-                        err,
-                        format!("cannot get the metadata from {mangled_name}"),
-                    ),
-                    Some(&file_name),
-                )
-                .unwrap();
-                return ExitCode::FAILURE;
-            }
+    let source = match fs::read_to_string(ves_file.filename) {
+        Ok(content) => content,
+        Err(err) => {
+            pretty_print(
+                None,
+                VestiErr::from_io_err(
+                    err,
+                    format!("cannot read from {}", ves_file.filename.display()),
+                ),
+                Some(ves_file.filename),
+            )
+            .unwrap();
+            return ExitCode::FAILURE;
         }
     };
-    if !first_time && modified_time <= current_time {
-        return ExitCode::SUCCESS;
-    }
-
-    let source = fs::read_to_string(&file_name).expect("Opening file error occurred!");
     let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti, use_old_bracket);
     let contents = match make_latex_format::<false>(&mut parser, engine_type) {
         Ok(inner) => inner,
         Err(err) => {
-            pretty_print(Some(source.as_ref()), err, Some(&file_name)).unwrap();
+            pretty_print(Some(source.as_ref()), err, Some(ves_file.filename)).unwrap();
             return ExitCode::FAILURE;
         }
     };
@@ -89,7 +54,7 @@ pub fn compile_vesti(
     drop(parser);
 
     let output_filename =
-        match compile_vesti_write_file(&file_name, contents, is_main_vesti, emit_tex_only) {
+        match compile_vesti_write_file(ves_file.filename, contents, is_main_vesti, emit_tex_only) {
             Ok(name) => name,
             Err(err) => {
                 pretty_print(None, err, None).unwrap();
@@ -97,9 +62,8 @@ pub fn compile_vesti(
             }
         };
 
-    if is_main_vesti {
-        main_files.push(output_filename);
-    }
+    ves_file.is_main = is_main_vesti;
+    ves_file.latex_filename = Some(output_filename);
 
     ExitCode::SUCCESS
 }
