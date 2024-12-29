@@ -1,6 +1,6 @@
+use std::fmt::{self, Debug};
+use std::ops::{BitAnd, BitOr};
 use std::path::PathBuf;
-
-use crate::lexer::token::FunctionDefKind;
 
 pub type Latex = Vec<Statement>;
 
@@ -29,6 +29,9 @@ pub enum Statement {
     },
     FilePath {
         filename: PathBuf,
+    },
+    PythonCode {
+        code: String,
     },
     DocumentStart,
     DocumentEnd,
@@ -115,4 +118,70 @@ pub enum DelimiterKind {
     Default,
     LeftBig,
     RightBig,
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+pub struct FunctionDefKind(u8);
+
+impl FunctionDefKind {
+    pub const NONE: Self = Self(0);
+    pub const LONG: Self = Self(1 << 0);
+    pub const OUTER: Self = Self(1 << 1);
+    pub const EXPAND: Self = Self(1 << 2);
+    pub const GLOBAL: Self = Self(1 << 3);
+
+    #[inline]
+    pub fn has_property(self, rhs: Self) -> bool {
+        self & rhs == rhs
+    }
+
+    pub fn parse_kind(kind_str: &str) -> Self {
+        let long = if kind_str.contains(['l', 'L']) {
+            Self::LONG
+        } else {
+            Self::NONE
+        };
+        let outer = if kind_str.contains(['o', 'O']) {
+            Self::OUTER
+        } else {
+            Self::NONE
+        };
+        let expand = if kind_str.contains(['e', 'E']) {
+            Self::EXPAND
+        } else {
+            Self::NONE
+        };
+        let global = if kind_str.contains(['g', 'G']) {
+            Self::GLOBAL
+        } else {
+            Self::NONE
+        };
+
+        long | outer | expand | global
+    }
+}
+
+impl BitOr for FunctionDefKind {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitAnd for FunctionDefKind {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl Debug for FunctionDefKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.has_property(Self::LONG) {
+            write!(f, "long")?;
+        }
+
+        Ok(())
+    }
 }

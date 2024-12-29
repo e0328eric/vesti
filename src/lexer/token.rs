@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug};
-use std::ops::{BitAnd, BitOr};
 
 use crate::location::{Location, Span};
 
@@ -27,48 +26,6 @@ impl Token {
             literal: String::new(),
             span: Span { start, end },
         }
-    }
-}
-
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, PartialOrd, Default)]
-pub struct FunctionDefKind(u8);
-
-impl FunctionDefKind {
-    pub const LONG: Self = Self(1 << 0);
-    pub const OUTER: Self = Self(1 << 1);
-    pub const EXPAND: Self = Self(1 << 2);
-    pub const GLOBAL: Self = Self(1 << 3);
-
-    const MAX_BOUND_EXCLUDE: u8 = 1 << 4;
-
-    #[inline]
-    pub fn has_property(self, rhs: Self) -> bool {
-        self & rhs == rhs
-    }
-}
-
-impl BitOr for FunctionDefKind {
-    type Output = Self;
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
-    }
-}
-
-impl BitAnd for FunctionDefKind {
-    type Output = Self;
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
-    }
-}
-
-impl Debug for FunctionDefKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.has_property(Self::LONG) {
-            write!(f, "long")?;
-        }
-
-        Ok(())
     }
 }
 
@@ -102,6 +59,7 @@ pub enum TokenType {
     ImportFile,
     ImportModule,
     ImportLatex3,
+    PythonCode,
     FilePath,
     StartDoc,
     Defenv,
@@ -116,7 +74,7 @@ pub enum TokenType {
     Latex3Off,
     MainVestiFile,
     NonStopMode,
-    FunctionDef(FunctionDefKind),
+    FunctionDef,
     EndDefinition,
 
     // Symbols
@@ -231,8 +189,6 @@ impl TokenType {
     }
 
     pub fn is_keyword_str(string: &str) -> Option<TokenType> {
-        use FunctionDefKind as FDK;
-
         match string {
             "docclass" => Some(Self::Docclass),
             "importpkg" => Some(Self::ImportPkg),
@@ -240,6 +196,7 @@ impl TokenType {
             "importfile" => Some(Self::ImportFile),
             "importmod" => Some(Self::ImportModule),
             "importltx3" => Some(Self::ImportLatex3),
+            "pycode" => Some(Self::PythonCode),
             "startdoc" => Some(Self::StartDoc),
             "defenv" => Some(Self::Defenv),
             "redefenv" => Some(Self::Redefenv),
@@ -254,50 +211,87 @@ impl TokenType {
             "mainvesfile" => Some(Self::MainVestiFile),
             "nonstopmode" => Some(Self::NonStopMode),
             "getfilepath" => Some(Self::FilePath),
-            "defun" => Some(Self::FunctionDef(FunctionDefKind::default())),
-            "ldefun" => Some(Self::FunctionDef(FDK::LONG)),
-            "odefun" => Some(Self::FunctionDef(FDK::OUTER)),
-            "lodefun" => Some(Self::FunctionDef(FDK::LONG | FDK::OUTER)),
-            "edefun" => Some(Self::FunctionDef(FDK::EXPAND)),
-            "ledefun" => Some(Self::FunctionDef(FDK::LONG | FDK::EXPAND)),
-            "oedefun" => Some(Self::FunctionDef(FDK::OUTER | FDK::EXPAND)),
-            "loedefun" => Some(Self::FunctionDef(FDK::LONG | FDK::OUTER | FDK::EXPAND)),
-            "gdefun" => Some(Self::FunctionDef(FDK::GLOBAL)),
-            "lgdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::LONG)),
-            "ogdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::OUTER)),
-            "logdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::LONG | FDK::OUTER)),
-            "xdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND)),
-            "lxdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND | FDK::LONG)),
-            "oxdefun" => Some(Self::FunctionDef(FDK::GLOBAL | FDK::EXPAND | FDK::OUTER)),
-            "loxdefun" => Some(Self::FunctionDef(
-                FDK::GLOBAL | FDK::EXPAND | FDK::LONG | FDK::OUTER,
-            )),
+            "defun" => Some(Self::FunctionDef),
             "enddef" => Some(Self::EndDefinition),
             "import" => Some(Self::Deprecated {
-                valid_in_text: true,
                 instead: "importpkg",
-            }), // NOTE: deprecated
+                valid_in_text: true,
+            }),
             "pbegenv" => Some(Self::Deprecated {
-                valid_in_text: false,
                 instead: "begenv",
-            }), // NOTE: deprecated
-            "pendenv" => Some(Self::Deprecated {
                 valid_in_text: false,
+            }),
+            "pendenv" => Some(Self::Deprecated {
                 instead: "endenv",
-            }), // NOTE: deprecated
+                valid_in_text: false,
+            }),
+            "ldefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "odefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "lodefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "edefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "ledefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "oedefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "loedefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "gdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "lgdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "ogdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "logdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "xdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "lxdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "oxdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
+            "loxdefun" => Some(Self::Deprecated {
+                instead: "defun",
+                valid_in_text: false,
+            }),
             _ => None,
         }
     }
 
     #[inline]
     pub fn get_definition_start_list() -> Vec<Self> {
-        let mut output = vec![Self::Defenv, Self::Redefenv];
-
-        for i in 0..FunctionDefKind::MAX_BOUND_EXCLUDE {
-            output.push(Self::FunctionDef(FunctionDefKind(i)));
-        }
-
-        output
+        vec![Self::Defenv, Self::Redefenv, Self::FunctionDef]
     }
 
     #[inline]

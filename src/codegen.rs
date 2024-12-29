@@ -2,7 +2,6 @@
 
 use crate::commands::LatexEngineType;
 use crate::error;
-use crate::lexer::token::FunctionDefKind;
 use crate::parser::ast::*;
 use crate::parser::Parser;
 
@@ -100,6 +99,7 @@ impl ToString for Statement {
                 begin_part,
                 end_part,
             ),
+            Statement::PythonCode { code } => run_pycode(&code),
         }
     }
 }
@@ -371,4 +371,8 @@ fn environment_def_to_string(
     output.push_str("}\n");
 
     output
+}
+
+fn run_pycode(code: &str) -> String {
+    todo!("implement run_pycode")
 }

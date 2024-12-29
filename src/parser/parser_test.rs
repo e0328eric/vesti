@@ -371,21 +371,22 @@ enddef"#;
 #[test]
 fn test_parse_function_definition_kind() {
     let source1 = "defun foo(#1\\over#2) bar enddef";
-    let source2 = "ldefun foo(#1\\over#2) bar enddef";
-    let source3 = "odefun foo(#1\\over#2) bar enddef";
-    let source4 = "lodefun foo(#1\\over#2) bar enddef";
-    let source5 = "edefun foo(#1\\over#2) bar enddef";
-    let source6 = "ledefun foo(#1\\over#2) bar enddef";
-    let source7 = "oedefun foo(#1\\over#2) bar enddef";
-    let source8 = "loedefun foo(#1\\over#2) bar enddef";
-    let source9 = "gdefun foo(#1\\over#2) bar enddef";
-    let source10 = "lgdefun foo(#1\\over#2) bar enddef";
-    let source11 = "ogdefun foo(#1\\over#2) bar enddef";
-    let source12 = "logdefun foo(#1\\over#2) bar enddef";
-    let source13 = "xdefun foo(#1\\over#2) bar enddef";
-    let source14 = "lxdefun foo(#1\\over#2) bar enddef";
-    let source15 = "oxdefun foo(#1\\over#2) bar enddef";
-    let source16 = "loxdefun foo(#1\\over#2) bar enddef";
+    let source2 = "defun foo(#1\\over#2) bar enddef";
+    let source3 = "defun[l] foo(#1\\over#2) bar enddef";
+    let source4 = "defun[o] foo(#1\\over#2) bar enddef";
+    let source5 = "defun[lo] foo(#1\\over#2) bar enddef";
+    let source6 = "defun[e] foo(#1\\over#2) bar enddef";
+    let source7 = "defun[le] foo(#1\\over#2) bar enddef";
+    let source8 = "defun[oe] foo(#1\\over#2) bar enddef";
+    let source9 = "defun[loe] foo(#1\\over#2) bar enddef";
+    let source10 = "defun[g] foo(#1\\over#2) bar enddef";
+    let source11 = "defun[lg] foo(#1\\over#2) bar enddef";
+    let source12 = "defun[og] foo(#1\\over#2) bar enddef";
+    let source13 = "defun[log] foo(#1\\over#2) bar enddef";
+    let source14 = "defun[ge] foo(#1\\over#2) bar enddef";
+    let source15 = "defun[lge] foo(#1\\over#2) bar enddef";
+    let source16 = "defun[oge] foo(#1\\over#2) bar enddef";
+    let source17 = "defun[loge] foo(#1\\over#2) bar enddef";
 
     let expected1 = "\\def\\foo#1\\over#2{%\nbar%\n}\n";
     let expected2 = "\\long\\def\\foo#1\\over#2{%\nbar%\n}\n";
@@ -405,21 +406,22 @@ fn test_parse_function_definition_kind() {
     let expected16 = "\\long\\outer\\xdef\\foo#1\\over#2{%\nbar%\n}\n";
 
     expected!(source1 should be expected1);
-    expected!(source2 should be expected2);
-    expected!(source3 should be expected3);
-    expected!(source4 should be expected4);
-    expected!(source5 should be expected5);
-    expected!(source6 should be expected6);
-    expected!(source7 should be expected7);
-    expected!(source8 should be expected8);
-    expected!(source9 should be expected9);
-    expected!(source10 should be expected10);
-    expected!(source11 should be expected11);
-    expected!(source12 should be expected12);
-    expected!(source13 should be expected13);
-    expected!(source14 should be expected14);
-    expected!(source15 should be expected15);
-    expected!(source16 should be expected16);
+    expected!(source2 should be expected1);
+    expected!(source3 should be expected2);
+    expected!(source4 should be expected3);
+    expected!(source5 should be expected4);
+    expected!(source6 should be expected5);
+    expected!(source7 should be expected6);
+    expected!(source8 should be expected7);
+    expected!(source9 should be expected8);
+    expected!(source10 should be expected9);
+    expected!(source11 should be expected10);
+    expected!(source12 should be expected11);
+    expected!(source13 should be expected12);
+    expected!(source14 should be expected13);
+    expected!(source15 should be expected14);
+    expected!(source16 should be expected15);
+    expected!(source17 should be expected16);
 }
 
 #[test]

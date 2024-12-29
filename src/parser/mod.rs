@@ -16,7 +16,7 @@ use path_slash::PathBufExt;
 
 use crate::constants::{self, ILLEGAL_USAGE_OF_SUPERSUB_SCRIPT};
 use crate::error::{self, DeprecatedKind, VestiErr, VestiParseErrKind};
-use crate::lexer::token::{FunctionDefKind, Token, TokenType};
+use crate::lexer::token::{Token, TokenType};
 use crate::lexer::Lexer;
 use crate::location::Span;
 use crate::vesmodule::VestiModule;
@@ -228,7 +228,8 @@ impl<'a> Parser<'a> {
                 expect_peek!(self: TokenType::Newline; loc);
                 self.parse_statement()
             }
-            TokenType::FunctionDef(kind) => self.parse_function_definition(kind),
+            TokenType::PythonCode => self.parse_pycode_block(),
+            TokenType::FunctionDef => self.parse_function_definition(),
             TokenType::EndDefinition => Err(VestiErr::make_parse_err(
                 VestiParseErrKind::IsNotOpenedErr {
                     open: TokenType::get_definition_start_list(),
@@ -674,7 +675,7 @@ impl<'a> Parser<'a> {
         let mut file_path_str = String::with_capacity(30);
 
         // Parse vesti contents within verbatim
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
@@ -695,7 +696,7 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
         // Release verbatim mode
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         self.next_tok();
 
         self.eat_whitespaces::<false>();
@@ -739,7 +740,7 @@ impl<'a> Parser<'a> {
         let mut file_path_str = String::with_capacity(30);
 
         // Parse vesti contents within verbatim
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
@@ -784,7 +785,7 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
         // Release verbatim mode
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         self.next_tok();
 
         self.eat_whitespaces::<false>();
@@ -867,7 +868,7 @@ impl<'a> Parser<'a> {
         let mut mod_dir_path_str = String::with_capacity(30);
 
         // Parse vesti contents within verbatim
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         expect_peek!(self: TokenType::Lparen; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
@@ -888,7 +889,7 @@ impl<'a> Parser<'a> {
             self.next_tok();
         }
         // Release verbatim mode
-        self.source.switch_lex_with_verbatim();
+        self.source.switch_lex_verbatim_mode();
         self.next_tok();
 
         self.eat_whitespaces::<false>();
@@ -1089,7 +1090,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_function_definition(&mut self, kind: FunctionDefKind) -> error::Result<Statement> {
+    fn parse_function_definition(&mut self) -> error::Result<Statement> {
         let begfntdef_location = self.peek_tok_location();
         let mut trim = TrimWhitespace {
             start: true,
@@ -1097,18 +1098,35 @@ impl<'a> Parser<'a> {
             end: true,
         };
 
-        expect_peek!(self: TokenType::FunctionDef(kind); self.peek_tok_location());
+        expect_peek!(self: TokenType::FunctionDef; self.peek_tok_location());
 
         if self.peek_tok() == TokenType::Star {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             trim.start = false;
         }
+        let kind = if self.peek_tok() == TokenType::Lsqbrace {
+            expect_peek!(self: TokenType::Lsqbrace; self.peek_tok_location());
+            let kind_str = self.next_tok();
+            expect_peek!(self: TokenType::Rsqbrace; self.peek_tok_location());
+            if kind_str.toktype != TokenType::Text {
+                return Err(VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::TypeMismatch {
+                        expected: vec![TokenType::Text],
+                        got: kind_str.toktype,
+                    },
+                    location: kind_str.span,
+                });
+            }
+            FunctionDefKind::parse_kind(kind_str.literal.trim())
+        } else {
+            FunctionDefKind::NONE
+        };
         self.eat_whitespaces::<false>();
 
         if self.is_eof() {
             return Err(VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::IsNotClosedErr {
-                    open: vec![TokenType::FunctionDef(kind)],
+                    open: vec![TokenType::FunctionDef],
                     close: TokenType::EndDefinition,
                 },
                 location: begfntdef_location,
@@ -1132,7 +1150,7 @@ impl<'a> Parser<'a> {
                     _ => {
                         return Err(VestiErr::make_parse_err(
                             VestiParseErrKind::NameMissErr {
-                                r#type: TokenType::FunctionDef(kind),
+                                r#type: TokenType::FunctionDef,
                             },
                             begfntdef_location,
                         ));
@@ -1146,7 +1164,7 @@ impl<'a> Parser<'a> {
 
         let args = self.parse_function_definition_argument()?;
 
-        let body = self.parse_function_definebody(begfntdef_location, kind)?;
+        let body = self.parse_function_definebody(begfntdef_location)?;
         expect_peek!(self: TokenType::EndDefinition; self.peek_tok_location());
 
         if self.peek_tok() == TokenType::Star {
@@ -1408,6 +1426,50 @@ impl<'a> Parser<'a> {
         Ok(Statement::LatexFunction { name, args })
     }
 
+    fn parse_pycode_block(&mut self) -> error::Result<Statement> {
+        let pycode_location = self.peek_tok_location();
+        expect_peek!(self: TokenType::PythonCode; pycode_location);
+        self.eat_whitespaces::<false>();
+        expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
+        self.eat_whitespaces::<true>();
+
+        // Parse vesti contents within verbatim
+        self.source.switch_lex_verbatim_mode();
+        assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
+
+        let mut code = String::with_capacity(100);
+        let mut bracket = 0i32;
+        loop {
+            code.push(match self.peek_tok() {
+                TokenType::VerbatimChar('{') => {
+                    bracket += 1;
+                    '{'
+                }
+                TokenType::VerbatimChar('}') => {
+                    if bracket <= 0 {
+                        break;
+                    } else {
+                        bracket -= 1;
+                    }
+                    '}'
+                }
+                TokenType::VerbatimChar(chr) => chr,
+                TokenType::Eof => {
+                    return Err(VestiErr::make_parse_err(
+                        VestiParseErrKind::EOFErr,
+                        self.peek_tok_location(),
+                    ));
+                }
+                _ => unreachable!(),
+            });
+        }
+        // Release verbatim mode
+        self.source.switch_lex_verbatim_mode();
+        expect_peek!(self: TokenType::Rbrace; self.peek_tok_location());
+
+        Ok(Statement::PythonCode { code })
+    }
+
     fn parse_function_definition_argument(&mut self) -> error::Result<String> {
         let open_brace_location = self.peek_tok_location();
         let mut output = String::new();
@@ -1449,11 +1511,7 @@ impl<'a> Parser<'a> {
         Ok(output)
     }
 
-    fn parse_function_definebody(
-        &mut self,
-        begdef_location: Span,
-        kind: FunctionDefKind,
-    ) -> error::Result<Latex> {
+    fn parse_function_definebody(&mut self, begdef_location: Span) -> error::Result<Latex> {
         let mut body: Latex = Vec::with_capacity(64);
         let mut def_level = 0;
         while self.peek_tok() != TokenType::EndDefinition && def_level >= 0 {
@@ -1461,13 +1519,13 @@ impl<'a> Parser<'a> {
                 TokenType::Eof => {
                     return Err(VestiErr::make_parse_err(
                         VestiParseErrKind::IsNotClosedErr {
-                            open: vec![TokenType::FunctionDef(kind)],
+                            open: vec![TokenType::FunctionDef],
                             close: TokenType::EndDefinition,
                         },
                         begdef_location,
                     ));
                 }
-                TokenType::FunctionDef(_) => def_level += 1,
+                TokenType::FunctionDef => def_level += 1,
                 TokenType::EndDefinition => {
                     def_level -= 1;
                     if def_level < 0 {

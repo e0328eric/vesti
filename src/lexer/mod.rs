@@ -60,7 +60,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline]
-    pub fn switch_lex_with_verbatim(&mut self) {
+    pub fn switch_lex_verbatim_mode(&mut self) {
         self.lex_with_verbatim = !self.lex_with_verbatim;
     }
 
