@@ -34,7 +34,6 @@ pub struct VestiCompiler<'p> {
     emit_tex_only: bool,
     compile_limit: Option<usize>,
     no_color: bool,
-    use_old_bracket: bool,
     is_watch: bool,
 }
 
@@ -47,7 +46,6 @@ impl<'p> VestiCompiler<'p> {
         emit_tex_only: bool,
         compile_limit: Option<usize>,
         no_color: bool,
-        use_old_bracket: bool,
         is_watch: bool,
     ) -> error::Result<Self> {
         let mut ves_files = Vec::with_capacity(ves_files_raw.len());
@@ -73,7 +71,6 @@ impl<'p> VestiCompiler<'p> {
             emit_tex_only,
             compile_limit,
             no_color,
-            use_old_bracket,
             is_watch,
         })
     }
@@ -217,7 +214,6 @@ impl<'p> VestiCompiler<'p> {
                 self.has_sub_vesti,
                 self.emit_tex_only,
                 self.no_color,
-                self.use_old_bracket,
             ) == ExitCode::FAILURE
             {
                 return ExitCode::FAILURE;

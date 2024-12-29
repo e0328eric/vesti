@@ -40,7 +40,6 @@ fn main() -> ExitCode {
             compile_limit,
             no_color,
             watch,
-            use_old_bracket,
             ..
         } => {
             let pretty_print = if no_color {
@@ -70,14 +69,6 @@ fn main() -> ExitCode {
                 }
             };
 
-            let use_old_bracket = match commands::get_use_old_bracket_status() {
-                Ok(val) => use_old_bracket || val,
-                Err(err) => {
-                    pretty_print(None, err, None).unwrap();
-                    return ExitCode::FAILURE;
-                }
-            };
-
             let mut compiler = match VestiCompiler::init(
                 &file_lists,
                 engine_type,
@@ -85,7 +76,6 @@ fn main() -> ExitCode {
                 emit_tex_only,
                 compile_limit,
                 no_color,
-                use_old_bracket,
                 watch,
             ) {
                 Ok(compiler) => compiler,

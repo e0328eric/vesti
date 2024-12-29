@@ -56,19 +56,17 @@ pub struct Parser<'a> {
     peek_tok: Token,
     is_main_vesti: bool,
     latex3_included: bool,
-    use_old_bracket: bool,
     doc_state: DocState,
 }
 
 impl<'a> Parser<'a> {
     // Store Parser in the heap
-    pub fn new(source: Lexer<'a>, is_main_vesti: bool, use_old_bracket: bool) -> Box<Self> {
+    pub fn new(source: Lexer<'a>, is_main_vesti: bool) -> Box<Self> {
         let mut output = Box::new(Self {
             source,
             peek_tok: Token::default(),
             is_main_vesti,
             latex3_included: false,
-            use_old_bracket,
             doc_state: if is_main_vesti {
                 DocState::main_document_state()
             } else {
@@ -278,22 +276,10 @@ impl<'a> Parser<'a> {
             )),
 
             // Math Brackets
-            // NOTE: After v0.13.1, \left and \right bracket syntax is reversed.
-            // if one want to use older compatibility, put -B flag on it.
             toktype if self.is_math_mode() && toktype.is_math_delimiter() => {
-                if self.use_old_bracket {
-                    self.parse_open_delimiter()
-                } else {
-                    self.parse_closed_delimiter()
-                }
+                self.parse_closed_delimiter()
             }
-            TokenType::Question if self.is_math_mode() => {
-                if self.use_old_bracket {
-                    self.parse_closed_delimiter()
-                } else {
-                    self.parse_open_delimiter()
-                }
-            }
+            TokenType::Question if self.is_math_mode() => self.parse_open_delimiter(),
 
             // TODO: warning if `valid_in_text` is true
             TokenType::Deprecated {
@@ -435,61 +421,35 @@ impl<'a> Parser<'a> {
 
     #[allow(clippy::collapsible_else_if)]
     fn parse_open_delimiter(&mut self) -> error::Result<Statement> {
-        if self.use_old_bracket {
-            let delimiter = self.next_tok().literal;
-            let kind: DelimiterKind = if self.peek_tok() == TokenType::Question {
-                expect_peek!(self: TokenType::Question; self.peek_tok_location());
-                DelimiterKind::LeftBig
-            } else {
-                DelimiterKind::Default
-            };
-
-            Ok(Statement::MathDelimiter { delimiter, kind })
+        if self.peek_tok().is_math_delimiter() {
+            Ok(Statement::MathDelimiter {
+                delimiter: self.next_tok().literal,
+                kind: DelimiterKind::Default,
+            })
         } else {
-            if self.peek_tok().is_math_delimiter() {
-                Ok(Statement::MathDelimiter {
-                    delimiter: self.next_tok().literal,
-                    kind: DelimiterKind::Default,
-                })
-            } else {
-                expect_peek!(self: TokenType::Question; self.peek_tok_location());
+            expect_peek!(self: TokenType::Question; self.peek_tok_location());
 
-                Ok(if self.peek_tok().is_math_delimiter() {
-                    Statement::MathDelimiter {
-                        delimiter: self.next_tok().literal,
-                        kind: DelimiterKind::LeftBig,
-                    }
-                } else {
-                    Statement::MainText(String::from("?"))
-                })
-            }
+            Ok(if self.peek_tok().is_math_delimiter() {
+                Statement::MathDelimiter {
+                    delimiter: self.next_tok().literal,
+                    kind: DelimiterKind::LeftBig,
+                }
+            } else {
+                Statement::MainText(String::from("?"))
+            })
         }
     }
 
     fn parse_closed_delimiter(&mut self) -> error::Result<Statement> {
-        if self.use_old_bracket {
+        let delimiter = self.next_tok().literal;
+        let kind: DelimiterKind = if self.peek_tok() == TokenType::Question {
             expect_peek!(self: TokenType::Question; self.peek_tok_location());
-
-            Ok(if self.peek_tok().is_math_delimiter() {
-                let delimiter = self.next_tok().literal;
-                Statement::MathDelimiter {
-                    delimiter,
-                    kind: DelimiterKind::RightBig,
-                }
-            } else {
-                Statement::MainText(String::from("!"))
-            })
+            DelimiterKind::RightBig
         } else {
-            let delimiter = self.next_tok().literal;
-            let kind: DelimiterKind = if self.peek_tok() == TokenType::Question {
-                expect_peek!(self: TokenType::Question; self.peek_tok_location());
-                DelimiterKind::RightBig
-            } else {
-                DelimiterKind::Default
-            };
+            DelimiterKind::Default
+        };
 
-            Ok(Statement::MathDelimiter { delimiter, kind })
-        }
+        Ok(Statement::MathDelimiter { delimiter, kind })
     }
 
     fn parse_text_in_math<const REMOVE_FRONT_SPACE: bool>(&mut self) -> error::Result<Statement> {
