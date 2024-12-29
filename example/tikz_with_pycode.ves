@@ -1,0 +1,20 @@
+docclass article
+
+importpkg { tikz }
+
+startdoc
+
+useenv figure [ht] {
+    \centering
+    useenv tikzpicture {
+    % NOTE: python does not allow outermost indentation
+    pycode {
+import vesti
+import math
+i = 0
+while i < 2 * math.pi:
+    xcos_val = i * math.cos(i)
+    xsin_val = i * math.sin(i)
+    vesti.sprintln(f"\\draw (0,0) -- ({xcos_val},{xsin_val});")
+    i += 0.01
+}}}

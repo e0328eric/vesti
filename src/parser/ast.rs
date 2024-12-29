@@ -2,6 +2,8 @@ use std::fmt::{self, Debug};
 use std::ops::{BitAnd, BitOr};
 use std::path::PathBuf;
 
+use crate::location::Span;
+
 pub type Latex = Vec<Statement>;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -31,6 +33,7 @@ pub enum Statement {
         filename: PathBuf,
     },
     PythonCode {
+        pycode_span: Span,
         code: String,
     },
     DocumentStart,

@@ -11,6 +11,7 @@ mod error;
 mod lexer;
 mod location;
 mod parser;
+mod python;
 mod vesmodule;
 
 use std::fs;

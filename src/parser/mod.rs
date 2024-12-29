@@ -22,7 +22,6 @@ use crate::location::Span;
 use crate::vesmodule::VestiModule;
 use ast::*;
 
-// TODO: Make a keyword that can use lua script
 const ENV_MATH_IDENT: [&str; 7] = [
     "equation", "align", "array", "eqnarray", "gather", "multline", "luacode",
 ];
@@ -147,7 +146,7 @@ impl<'a> Parser<'a> {
             TokenType::ImportPkg if self.is_premiere() => self.parse_usepackage(),
             TokenType::ImportVesti => self.parse_import_vesti(),
             TokenType::ImportFile => self.parse_import_file(),
-            TokenType::FilePath => self.parse_file_path(),
+            TokenType::GetFilePath => self.parse_file_path(),
             TokenType::ImportModule => self.parse_import_module(),
             TokenType::StartDoc if self.is_premiere() => {
                 self.doc_state.doc_start = true;
@@ -757,7 +756,7 @@ impl<'a> Parser<'a> {
                         if self.peek_tok() != TokenType::VerbatimChar('/') {
                             return Err(VestiErr::make_parse_err(
                                 VestiParseErrKind::IllegalUseErr {
-                                    got: TokenType::FilePath,
+                                    got: TokenType::GetFilePath,
                                     reason: Some("The next token for `@` should be `/`."),
                                 },
                                 import_file_loc,
@@ -816,7 +815,7 @@ impl<'a> Parser<'a> {
 
     fn parse_file_path(&mut self) -> error::Result<Statement> {
         let import_file_loc = self.peek_tok_location();
-        expect_peek!(self: TokenType::FilePath; import_file_loc);
+        expect_peek!(self: TokenType::GetFilePath; import_file_loc);
         self.eat_whitespaces::<false>();
 
         let (file_path_str, _) = self.parse_filename_helper(import_file_loc)?;
@@ -1104,6 +1103,8 @@ impl<'a> Parser<'a> {
             expect_peek!(self: TokenType::Star; self.peek_tok_location());
             trim.start = false;
         }
+        self.eat_whitespaces::<false>();
+
         let kind = if self.peek_tok() == TokenType::Lsqbrace {
             expect_peek!(self: TokenType::Lsqbrace; self.peek_tok_location());
             let kind_str = self.next_tok();
@@ -1427,14 +1428,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_pycode_block(&mut self) -> error::Result<Statement> {
-        let pycode_location = self.peek_tok_location();
-        expect_peek!(self: TokenType::PythonCode; pycode_location);
+        let pycode_span = self.peek_tok_location();
+        expect_peek!(self: TokenType::PythonCode; pycode_span);
         self.eat_whitespaces::<false>();
-        expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
-        self.eat_whitespaces::<true>();
 
-        // Parse vesti contents within verbatim
         self.source.switch_lex_verbatim_mode();
+        expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
         let mut code = String::with_capacity(100);
@@ -1462,12 +1461,17 @@ impl<'a> Parser<'a> {
                 }
                 _ => unreachable!(),
             });
+            self.next_tok();
         }
         // Release verbatim mode
         self.source.switch_lex_verbatim_mode();
-        expect_peek!(self: TokenType::Rbrace; self.peek_tok_location());
+        // Which is same as TokenType::Rbrace
+        expect_peek!(self: TokenType::VerbatimChar('}'); self.peek_tok_location());
 
-        Ok(Statement::PythonCode { code })
+        Ok(Statement::PythonCode {
+            pycode_span,
+            code: code.trim().to_string(),
+        })
     }
 
     fn parse_function_definition_argument(&mut self) -> error::Result<String> {

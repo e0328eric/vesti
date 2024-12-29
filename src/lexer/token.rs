@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 
 use crate::location::{Location, Span};
 
@@ -60,7 +60,7 @@ pub enum TokenType {
     ImportModule,
     ImportLatex3,
     PythonCode,
-    FilePath,
+    GetFilePath,
     StartDoc,
     Defenv,
     Redefenv,
@@ -210,7 +210,7 @@ impl TokenType {
             "ltx3off" => Some(Self::Latex3Off),
             "mainvesfile" => Some(Self::MainVestiFile),
             "nonstopmode" => Some(Self::NonStopMode),
-            "getfilepath" => Some(Self::FilePath),
+            "getfilepath" => Some(Self::GetFilePath),
             "defun" => Some(Self::FunctionDef),
             "enddef" => Some(Self::EndDefinition),
             "import" => Some(Self::Deprecated {

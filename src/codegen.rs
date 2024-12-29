@@ -2,8 +2,10 @@
 
 use crate::commands::LatexEngineType;
 use crate::error;
+use crate::location::Span;
 use crate::parser::ast::*;
 use crate::parser::Parser;
+use crate::python::Python;
 
 pub fn make_latex_format<const IS_TEST: bool>(
     parser: &mut Parser,
@@ -24,33 +26,32 @@ pub fn make_latex_format<const IS_TEST: bool>(
         if stmt == Statement::NopStmt {
             continue;
         }
-        output += &stmt.to_string();
+        output += &stmt.eval_vesti()?;
     }
 
     Ok(output)
 }
 
-#[allow(clippy::to_string_trait_impl)]
-impl ToString for Statement {
-    fn to_string(&self) -> String {
+impl Statement {
+    fn eval_vesti(&self) -> error::Result<String> {
         match self {
             // an empty statement
-            Statement::NopStmt => String::new(),
-            Statement::NonStopMode => String::from("\\nonstopmode\n"),
-            Statement::ImportExpl3Pkg => String::from("\\usepackage{expl3, xparse}\n"),
-            Statement::MakeAtLetter => String::from("\\makeatletter\n"),
-            Statement::MakeAtOther => String::from("\\makeatother\n"),
-            Statement::Latex3On => String::from("\\ExplSyntaxOn\n"),
-            Statement::Latex3Off => String::from("\\ExplSyntaxOff\n"),
+            Statement::NopStmt => Ok(String::new()),
+            Statement::NonStopMode => Ok(String::from("\\nonstopmode\n")),
+            Statement::ImportExpl3Pkg => Ok(String::from("\\usepackage{expl3, xparse}\n")),
+            Statement::MakeAtLetter => Ok(String::from("\\makeatletter\n")),
+            Statement::MakeAtOther => Ok(String::from("\\makeatother\n")),
+            Statement::Latex3On => Ok(String::from("\\ExplSyntaxOn\n")),
+            Statement::Latex3Off => Ok(String::from("\\ExplSyntaxOff\n")),
             Statement::DocumentClass { name, options } => docclass_to_string(name, options),
             Statement::Usepackage { name, options } => usepackage_to_string(name, options),
             Statement::MultiUsepackages { pkgs } => multiusepacakge_to_string(pkgs),
-            Statement::ImportVesti { filename } => format!("\\input{{{}}}", filename.display()),
-            Statement::FilePath { filename } => format!("{}", filename.display()),
-            Statement::DocumentStart => String::from("\\begin{document}\n"),
-            Statement::DocumentEnd => String::from("\n\\end{document}\n"),
-            Statement::MainText(s) => s.clone(),
-            Statement::BracedStmt(latex) => format!("{{{}}}", latex_to_string(latex)),
+            Statement::ImportVesti { filename } => Ok(format!("\\input{{{}}}", filename.display())),
+            Statement::FilePath { filename } => Ok(format!("{}", filename.display())),
+            Statement::DocumentStart => Ok(String::from("\\begin{document}\n")),
+            Statement::DocumentEnd => Ok(String::from("\n\\end{document}\n")),
+            Statement::MainText(s) => Ok(s.clone()),
+            Statement::BracedStmt(latex) => Ok(format!("{{{}}}", latex_to_string(latex)?)),
             Statement::MathDelimiter { delimiter, kind } => {
                 math_delimiter_to_string(delimiter, kind)
             }
@@ -63,9 +64,9 @@ impl ToString for Statement {
                 remove_back_space,
                 text,
             } => plaintext_in_math_to_string(*remove_front_space, *remove_back_space, text),
-            Statement::Integer(i) => i.to_string(),
-            Statement::Float(f) => f.to_string(),
-            Statement::RawLatex(s) => s.clone(),
+            Statement::Integer(i) => Ok(i.to_string()),
+            Statement::Float(f) => Ok(f.to_string()),
+            Statement::RawLatex(s) => Ok(s.clone()),
             Statement::MathText { state, text } => math_text_to_string(*state, text),
             Statement::LatexFunction { name, args } => latex_function_to_string(name, args),
             Statement::Environment { name, args, text } => environment_to_string(name, args, text),
@@ -74,7 +75,7 @@ impl ToString for Statement {
                 args,
                 add_newline,
             } => begin_phantom_environment_to_string(name, args, *add_newline),
-            Statement::EndPhantomEnvironment { name } => format!("\\end{{{name}}}"),
+            Statement::EndPhantomEnvironment { name } => Ok(format!("\\end{{{name}}}")),
             Statement::FunctionDefine {
                 kind,
                 name,
@@ -99,106 +100,109 @@ impl ToString for Statement {
                 begin_part,
                 end_part,
             ),
-            Statement::PythonCode { code } => run_pycode(&code),
+            Statement::PythonCode { pycode_span, code } => run_pycode(*pycode_span, code),
         }
     }
 }
 
-fn docclass_to_string(name: &str, options: &Option<Vec<Latex>>) -> String {
-    if let Some(opts) = options {
+fn docclass_to_string(name: &str, options: &Option<Vec<Latex>>) -> error::Result<String> {
+    Ok(if let Some(opts) = options {
         let mut options_str = String::new();
         for o in opts {
-            options_str = options_str + &latex_to_string(o) + ",";
+            options_str = options_str + &latex_to_string(o)? + ",";
         }
         options_str.pop();
 
         format!("\\documentclass[{options_str}]{{{name}}}\n")
     } else {
         format!("\\documentclass{{{name}}}\n")
-    }
+    })
 }
 
-fn usepackage_to_string(name: &str, options: &Option<Vec<Latex>>) -> String {
-    if let Some(opts) = options {
+fn usepackage_to_string(name: &str, options: &Option<Vec<Latex>>) -> error::Result<String> {
+    Ok(if let Some(opts) = options {
         let mut options_str = String::new();
         for o in opts {
-            options_str = options_str + &latex_to_string(o) + ",";
+            options_str = options_str + &latex_to_string(o)? + ",";
         }
         options_str.pop();
 
         format!("\\usepackage[{options_str}]{{{name}}}\n")
     } else {
         format!("\\usepackage{{{name}}}\n")
-    }
+    })
 }
 
-fn multiusepacakge_to_string(pkgs: &[Statement]) -> String {
+fn multiusepacakge_to_string(pkgs: &[Statement]) -> error::Result<String> {
     let mut output = String::new();
     for pkg in pkgs {
         if let Statement::Usepackage { name, options } = pkg {
-            output += &usepackage_to_string(name, options);
+            output += &usepackage_to_string(name, options)?;
         }
     }
-    output
+    Ok(output)
 }
 
-fn math_text_to_string(state: MathState, text: &[Statement]) -> String {
+fn math_text_to_string(state: MathState, text: &[Statement]) -> error::Result<String> {
     let mut output = String::new();
     match state {
         MathState::Text => {
             output += "$";
             for t in text {
-                output += &t.to_string();
+                output += &t.eval_vesti()?;
             }
             output += "$";
         }
         MathState::Inline => {
             output += "\\[";
             for t in text {
-                output += &t.to_string();
+                output += &t.eval_vesti()?;
             }
             output += "\\]";
         }
     }
-    output
+    Ok(output)
 }
 
-fn math_delimiter_to_string(delimiter: &str, kind: &DelimiterKind) -> String {
-    match kind {
+fn math_delimiter_to_string(delimiter: &str, kind: &DelimiterKind) -> error::Result<String> {
+    Ok(match kind {
         DelimiterKind::Default => String::from(delimiter),
         DelimiterKind::LeftBig => format!("\\left{delimiter}"),
         DelimiterKind::RightBig => format!("\\right{delimiter}"),
-    }
+    })
 }
 
-fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> String {
-    format!(
+fn fraction_to_string(numerator: &Latex, denominator: &Latex) -> error::Result<String> {
+    Ok(format!(
         "\\frac{{{}}}{{{}}}",
-        latex_to_string(numerator),
-        latex_to_string(denominator)
-    )
+        latex_to_string(numerator)?,
+        latex_to_string(denominator)?
+    ))
 }
 
 fn plaintext_in_math_to_string(
     remove_front_space: bool,
     remove_back_space: bool,
     text: &Latex,
-) -> String {
-    let output = latex_to_string(text);
-    match (remove_front_space, remove_back_space) {
+) -> error::Result<String> {
+    let output = latex_to_string(text)?;
+    Ok(match (remove_front_space, remove_back_space) {
         (false, false) => format!("\\text{{ {} }}", output),
         (true, false) => format!("\\text{{{} }}", output),
         (false, true) => format!("\\text{{ {}}}", output),
         (true, true) => format!("\\text{{{}}}", output),
-    }
+    })
 }
 
-fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -> String {
+fn latex_function_to_string(
+    name: &str,
+    args: &Vec<(ArgNeed, Vec<Statement>)>,
+) -> error::Result<String> {
     let mut output = name.to_string();
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
-            tmp += &t.to_string();
+            tmp += &t.eval_vesti()?;
         }
         match arg.0 {
             ArgNeed::MainArg => output += &format!("{{{tmp}}}"),
@@ -206,14 +210,14 @@ fn latex_function_to_string(name: &str, args: &Vec<(ArgNeed, Vec<Statement>)>) -
             ArgNeed::StarArg => output.push('*'),
         }
     }
-    output
+    Ok(output)
 }
 
 fn begin_phantom_environment_to_string(
     name: &str,
     args: &Vec<(ArgNeed, Vec<Statement>)>,
     add_newline: bool,
-) -> String {
+) -> error::Result<String> {
     let mut output = format!("\\begin{{{name}}}");
     if add_newline {
         output.push('\n');
@@ -221,7 +225,7 @@ fn begin_phantom_environment_to_string(
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
-            tmp += &t.to_string();
+            tmp += &t.eval_vesti()?;
         }
         match arg.0 {
             ArgNeed::MainArg => output += &format!("{{{tmp}}}"),
@@ -229,19 +233,19 @@ fn begin_phantom_environment_to_string(
             ArgNeed::StarArg => output.push('*'),
         }
     }
-    output
+    Ok(output)
 }
 
 fn environment_to_string(
     name: &str,
     args: &Vec<(ArgNeed, Vec<Statement>)>,
     text: &Latex,
-) -> String {
+) -> error::Result<String> {
     let mut output = format!("\\begin{{{name}}}");
     for arg in args {
         let mut tmp = String::new();
         for t in &arg.1 {
-            tmp += &t.to_string();
+            tmp += &t.eval_vesti()?;
         }
         match arg.0 {
             ArgNeed::MainArg => output += &format!("{{{tmp}}}"),
@@ -250,18 +254,18 @@ fn environment_to_string(
         }
     }
     for t in text {
-        output += &t.to_string();
+        output += &t.eval_vesti()?;
     }
     output += &format!("\\end{{{name}}}\n");
-    output
+    Ok(output)
 }
 
-fn latex_to_string(latex: &Latex) -> String {
+fn latex_to_string(latex: &Latex) -> error::Result<String> {
     let mut output = String::new();
     for l in latex {
-        output += &l.to_string();
+        output += &l.eval_vesti()?;
     }
-    output
+    Ok(output)
 }
 
 fn function_def_to_string(
@@ -270,7 +274,7 @@ fn function_def_to_string(
     args: &str,
     trim: &TrimWhitespace,
     body: &Latex,
-) -> String {
+) -> error::Result<String> {
     use FunctionDefKind as FDK;
 
     let mut output = String::with_capacity(30);
@@ -300,7 +304,7 @@ fn function_def_to_string(
 
     let mut tmp = String::new();
     for b in body {
-        tmp += &b.to_string();
+        tmp += &b.eval_vesti()?;
     }
 
     output += match (trim.start, trim.end) {
@@ -311,7 +315,7 @@ fn function_def_to_string(
     };
     output.push_str("%\n}\n");
 
-    output
+    Ok(output)
 }
 
 fn environment_def_to_string(
@@ -322,7 +326,7 @@ fn environment_def_to_string(
     trim: &TrimWhitespace,
     begin_part: &Latex,
     end_part: &Latex,
-) -> String {
+) -> error::Result<String> {
     let mut output = if is_redefine {
         format!("\\renewenvironment{{{name}}}")
     } else {
@@ -334,7 +338,7 @@ fn environment_def_to_string(
         if let Some(inner) = optional_arg {
             output.push('[');
             for stmt in inner {
-                output += &stmt.to_string();
+                output += &stmt.eval_vesti()?;
             }
             output.push_str("]{");
         } else {
@@ -346,7 +350,7 @@ fn environment_def_to_string(
 
     let mut tmp = String::new();
     for b in begin_part {
-        tmp += &b.to_string();
+        tmp += &b.eval_vesti()?;
     }
     output += match (trim.start, trim.mid) {
         (false, Some(false)) => tmp.as_str(),
@@ -359,7 +363,7 @@ fn environment_def_to_string(
 
     tmp.clear();
     for b in end_part {
-        tmp += &b.to_string();
+        tmp += &b.eval_vesti()?;
     }
     output += match (trim.mid, trim.end) {
         (Some(false), false) => tmp.as_str(),
@@ -370,9 +374,10 @@ fn environment_def_to_string(
     };
     output.push_str("}\n");
 
-    output
+    Ok(output)
 }
 
-fn run_pycode(code: &str) -> String {
-    todo!("implement run_pycode")
+fn run_pycode(pycode_span: Span, code: &str) -> error::Result<String> {
+    let python = Python::new(code, pycode_span);
+    python.run()
 }

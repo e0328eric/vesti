@@ -46,6 +46,9 @@ pub enum VestiParseErrKind {
         instead: DeprecatedKind,
     },
     ParseModuleRonErr(ron::error::SpannedError),
+    PythonEvalErr {
+        note_msg: String,
+    },
     IllegalUseErr {
         got: TokenType,
         reason: Option<&'static str>,
@@ -172,7 +175,8 @@ impl Error for VestiParseErrKind {
             Self::NameMissErr { .. } => 0x0109,
             Self::DeprecatedUseErr { .. } => 0x0110,
             Self::ParseModuleRonErr(_) => 0x0111,
-            Self::IllegalUseErr { .. } => 0x0112,
+            Self::PythonEvalErr { .. } => 0x0112,
+            Self::IllegalUseErr { .. } => 0x0113,
         }
     }
     fn err_str(&self) -> String {
@@ -195,6 +199,7 @@ impl Error for VestiParseErrKind {
             Self::NameMissErr { r#type } => format!("Type `{:?}` requires its name", r#type),
             Self::DeprecatedUseErr { .. } => "This is deprecated".to_string(),
             Self::ParseModuleRonErr(_) => "Failed to parse vesti module ron file".to_string(),
+            Self::PythonEvalErr { .. } => "Failed to evaluate pycode block".to_string(),
             Self::IllegalUseErr { got, .. } => {
                 format!("Invalid usage of `{got:?}` found")
             }
@@ -202,7 +207,7 @@ impl Error for VestiParseErrKind {
     }
     fn err_detail_str(&self) -> Vec<String> {
         match self {
-            Self::EOFErr => vec![],
+            Self::EOFErr | Self::InvalidTokToConvert { .. } | Self::PythonEvalErr { .. } => vec![],
             Self::TypeMismatch { expected, got } => {
                 vec![format!("expected `{expected:?}`, got `{got:?}`")]
             }
@@ -214,14 +219,6 @@ impl Error for VestiParseErrKind {
                 String::from("if this error occurs, this preprocessor has an error"),
                 String::from("so let me know when this error occurs"),
             ],
-            Self::InvalidTokToConvert { got } => match got {
-                TokenType::MathTextEnd => vec![
-                    String::from("must use `etxt` only at a math context"),
-                    String::from("If `etxt` is in a math mode, then this error can"),
-                    String::from("occur when `mtxt` is missing."),
-                ],
-                _ => Vec::new(),
-            },
             Self::BracketMismatchErr { expected } => {
                 vec![format!("Cannot find `{:?}` delimiter", expected)]
             }
@@ -241,10 +238,11 @@ impl Error for VestiParseErrKind {
             ],
             Self::NameMissErr { r#type } => vec![
                 format!("type `{:?}` is used in here, but vesti cannot", r#type),
-                String::from("find its name part."),
                 match r#type {
-                    TokenType::Begenv => String::from("example: begenv foo"),
-                    TokenType::FunctionDef => String::from("example: defun foo"),
+                    TokenType::Begenv => String::from("find its name part. example: begenv foo"),
+                    TokenType::FunctionDef => {
+                        String::from("find its name part. example: defun foo")
+                    }
                     _ => unreachable!(),
                 },
             ],
@@ -256,6 +254,7 @@ impl Error for VestiParseErrKind {
                 DeprecatedKind::OtherExplanation(explain) => vec![format!("{explain}")],
             },
             Self::ParseModuleRonErr(err) => vec![format!("{err}")],
+            // TODO: make more concrete error message
             Self::IllegalUseErr { reason, .. } => {
                 if let Some(reason) = reason {
                     vec![String::from(*reason)]
@@ -266,7 +265,10 @@ impl Error for VestiParseErrKind {
         }
     }
     fn err_note_str(&self) -> Option<Vec<String>> {
-        None
+        match self {
+            Self::PythonEvalErr { note_msg } => Some(vec![note_msg.clone()]),
+            _ => None,
+        }
     }
 }
 
