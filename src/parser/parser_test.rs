@@ -6,7 +6,7 @@ use crate::commands::LatexEngineType;
 
 macro_rules! expected {
     ($source: ident should be $expected: ident) => {{
-        let mut parser = Parser::new(Lexer::new($source), true, false);
+        let mut parser = Parser::new(Lexer::new($source), true);
         assert_eq!(
             $expected,
             make_latex_format::<true>(&mut parser, LatexEngineType::Invalid).unwrap()
