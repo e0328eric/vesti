@@ -667,9 +667,6 @@ impl<'a> Parser<'a> {
         file_path_str = String::from(file_path_str.trim());
 
         // get the absolute path
-        // TODO: fs::canonicalize returns error when there is no such path for
-        // `file_path_str`. But vesti's error message is so ambiguous to recognize
-        // whether error occurs at here. Make a new error variant to handle this.
         let file_path = match fs::canonicalize(&file_path_str) {
             Ok(path) => path,
             Err(err) => {

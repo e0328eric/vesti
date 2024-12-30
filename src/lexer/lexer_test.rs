@@ -77,7 +77,7 @@ fn test_lexing_single_symbols() {
 
 #[test]
 fn test_lexing_double_symbols() {
-    let source = "$!-->$->-->$<-$<->=<=$%!||$||@}<==>$";
+    let source = "$!-->$->-->$<-$<->=<=$%!||$||>}<==>$";
     let expected = vec![
         token!(TokenType::RawDollar, "$"),
         token!(TokenType::Minus, "-"),

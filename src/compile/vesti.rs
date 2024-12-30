@@ -69,9 +69,6 @@ pub fn compile_vesti(
 
 fn vesti_name_mangle(filename: &Path) -> error::Result<String> {
     // get the absolute path
-    // TODO: fs::canonicalize returns error when there is no such path for
-    // `file_path_str`. But vesti's error message is so ambiguous to recognize
-    // whether error occurs at here. Make a new error variant to handle this.
     let file_path = match fs::canonicalize(filename) {
         Ok(path) => path,
         Err(err) => {

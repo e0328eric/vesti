@@ -574,8 +574,8 @@ enddef"#;
 
 #[test]
 fn parse_math_delimiters() {
-    let source1 = "$?)?(?@}?\\}?|?||$";
-    let source2 = "$(?)?{@?\\{?|?||?$";
+    let source1 = "$?)?(?>}?\\}?|?||$";
+    let source2 = "$(?)?{<?\\{?|?||?$";
 
     let expected1 = "$\\left)\\left(\\left\\rangle \\left\\}\\left|\\left\\|$";
     let expected2 = "$\\right(\\right)\\right\\langle \\right\\{\\right|\\right\\|$";

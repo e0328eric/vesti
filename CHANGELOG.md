@@ -1,3 +1,14 @@
+# 0.15.0
+# Added
+- Add `pycode` block to execute python scripts inside of vesti.
+
+# Changed
+- `{@` -> `{<`
+- `@}` -> `>}`
+
+# Removed
+- `defun` family are replaced into single `defun` syntax
+
 # 0.11.8
 
 # Changed

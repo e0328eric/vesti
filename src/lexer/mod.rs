@@ -172,16 +172,14 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     tokenize!(self: GreatEq, "\\geq "; start_loc)
                 }
-                _ => tokenize!(self: Great, ">"; start_loc),
-            },
-            Some('?') => tokenize!(self: Question, "?"; start_loc),
-            Some('@') => match self.chr1 {
                 Some('}') if self.math_started => {
                     self.next_char();
                     tokenize!(self: Rangle, "\\rangle "; start_loc)
                 }
-                _ => tokenize!(self: At, "@"; start_loc),
+                _ => tokenize!(self: Great, ">"; start_loc),
             },
+            Some('?') => tokenize!(self: Question, "?"; start_loc),
+            Some('@') => tokenize!(self: At, "@"; start_loc),
             Some('#') => tokenize!(self: FntParam, "#"; start_loc),
             Some('^') => tokenize!(self: Superscript, "^"; start_loc),
             Some('&') => tokenize!(self: Ampersand, "&"; start_loc),
@@ -231,7 +229,7 @@ impl<'a> Lexer<'a> {
             Some('[') => tokenize!(self: Lsqbrace, "["; start_loc),
             Some(']') => tokenize!(self: Rsqbrace, "]"; start_loc),
             Some('{') => match self.chr1 {
-                Some('@') if self.math_started => {
+                Some('<') if self.math_started => {
                     self.next_char();
                     tokenize!(self: Langle, "\\langle "; start_loc)
                 }

@@ -142,8 +142,8 @@ pub enum TokenType {
     Rparen,           // )
     Lsqbrace,         // [
     Rsqbrace,         // ]
-    Langle,           // <{
-    Rangle,           // }>
+    Langle,           // {>
+    Rangle,           // >}
     MathLbrace,       // \{
     MathRbrace,       // \}
     InlineMathStart,  // $
