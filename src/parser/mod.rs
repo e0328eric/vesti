@@ -5,6 +5,7 @@ mod parser_test;
 mod macros;
 pub mod ast;
 
+use std::cell::OnceCell;
 use std::ffi::OsString;
 use std::fs;
 use std::mem::MaybeUninit;
@@ -1393,10 +1394,10 @@ impl<'a> Parser<'a> {
         expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
 
-        let mut code = String::with_capacity(100);
+        let mut raw_code = String::with_capacity(100);
         let mut bracket = 0i32;
         loop {
-            code.push(match self.peek_tok() {
+            raw_code.push(match self.peek_tok() {
                 TokenType::VerbatimChar('{') => {
                     bracket += 1;
                     '{'
@@ -1425,10 +1426,35 @@ impl<'a> Parser<'a> {
         // Which is same as TokenType::Rbrace
         expect_peek!(self: TokenType::VerbatimChar('}'); self.peek_tok_location());
 
-        Ok(Statement::PythonCode {
-            pycode_span,
-            code: code.trim().to_string(),
-        })
+        let code = {
+            let mut output = String::with_capacity(raw_code.len());
+            let lines = raw_code.trim_matches('\n').lines();
+            let first_line_indent = OnceCell::new();
+            for line in lines {
+                if line.chars().all(char::is_whitespace) {
+                    continue;
+                }
+                match first_line_indent.set(
+                    line.split_once(|chr: char| !chr.is_ascii_whitespace())
+                        .map_or(0, |(spaces, _)| spaces.len()),
+                ) {
+                    Ok(()) => output.push_str(line.trim_start()),
+                    Err(_) => {
+                        let first_line_indent = first_line_indent.get().unwrap();
+                        output.push_str(
+                            std::str::from_utf8(&line.as_bytes()[*first_line_indent..])
+                                .expect("first_line_indent counts all ascii whitespaces"),
+                        );
+                    }
+                }
+                output.push('\n');
+            }
+
+            output
+        };
+        dbg!(&code);
+
+        Ok(Statement::PythonCode { pycode_span, code })
     }
 
     fn parse_function_definition_argument(&mut self) -> error::Result<String> {
