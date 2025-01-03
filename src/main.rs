@@ -34,6 +34,10 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         },
+        VestiOpt::Pip { modules } => {
+            //
+            ExitCode::SUCCESS
+        }
         ref argument @ VestiOpt::Compile {
             has_sub_vesti,
             emit_tex_only,

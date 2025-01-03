@@ -5,7 +5,7 @@ use crate::error;
 use crate::location::Span;
 use crate::parser::ast::*;
 use crate::parser::Parser;
-use crate::python::Python;
+use crate::python::PythonVm;
 
 pub fn make_latex_format<const IS_TEST: bool>(
     parser: &mut Parser,
@@ -378,6 +378,6 @@ fn environment_def_to_string(
 }
 
 fn run_pycode(pycode_span: Span, code: &str) -> error::Result<String> {
-    let python = Python::new(code, pycode_span);
+    let python = PythonVm::new(code, pycode_span)?;
     python.run()
 }

@@ -1,137 +1,86 @@
-use rustpython::InterpreterConfig;
-use rustpython_vm::builtins::PyStr;
-use rustpython_vm::convert::ToPyObject;
-use rustpython_vm::scope::Scope;
-use rustpython_vm::{pymodule, Interpreter};
+use std::ffi::CString;
+
+use pyo3::ffi::c_str;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyString};
 
 use crate::error::{self, VestiErr, VestiParseErrKind};
 use crate::location::Span;
 
-pub struct Python<'s> {
-    source: &'s str,
-    interpreter: Interpreter,
+pub struct PythonVm {
+    source: CString,
     pycode_span: Span,
 }
 
-impl<'s> Python<'s> {
-    pub fn new(source: &'s str, pycode_span: Span) -> Self {
-        let interpreter = InterpreterConfig::new()
-            .init_stdlib()
-            .init_hook(Box::new(|vm| {
-                vm.add_native_module("vesti".to_owned(), Box::new(vesti::make_module));
-            }))
-            .interpreter();
-
-        Self {
-            source,
-            interpreter,
+impl PythonVm {
+    pub fn new(source: &str, pycode_span: Span) -> error::Result<Self> {
+        Ok(Self {
+            source: CString::new(source).map_err(|_| VestiErr::ParseErr {
+                err_kind: VestiParseErrKind::PythonEvalErr {
+                    msg: String::from("null byte was found inside of the pycode"),
+                },
+                location: pycode_span,
+            })?,
             pycode_span,
-        }
+        })
     }
 
     pub fn run(&self) -> error::Result<String> {
-        // TODO: for now, output values are ignored
-        self.interpreter.enter(|vm| {
-            let scope = {
-                let globals = vm.ctx.new_dict();
-                if !globals.contains_key("__builtins__", vm) {
-                    globals
-                        .set_item("__builtins__", vm.builtins.clone().into(), vm)
-                        .unwrap();
-                }
-                if !globals.contains_key("__vesti_output_str__", vm) {
-                    globals
-                        .set_item("__vesti_output_str__", "".to_pyobject(vm), vm)
-                        .unwrap();
-                }
-                Scope::new(None, globals)
-            };
-            vm.run_block_expr(scope.clone(), self.source)
-                .map_err(|err| {
-                    // TODO: bake this error message into VestiErr
-                    vm.print_exception(err);
-                    VestiErr::ParseErr {
+        Python::with_gil(|py| {
+            let globals = PyDict::new(py);
+            let vesti_mod = import_vesti_py_module(py).map_err(|err| VestiErr::ParseErr {
+                err_kind: VestiParseErrKind::PythonEvalErr {
+                    msg: err.value(py).to_string(),
+                },
+                location: self.pycode_span,
+            })?;
+            vesti_mod
+                .add("__vesti_output_str__", "")
+                .map_err(|err| VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::PythonEvalErr {
+                        msg: err.value(py).to_string(),
+                    },
+                    location: self.pycode_span,
+                })?;
+
+            py.run(self.source.as_c_str(), Some(&globals), None)
+                .map_err(|err| VestiErr::ParseErr {
+                    err_kind: VestiParseErrKind::PythonEvalErr {
+                        msg: err.value(py).to_string(),
+                    },
+                    location: self.pycode_span,
+                })?;
+
+            let vesti_output_str =
+                vesti_mod
+                    .getattr("__vesti_output_str__")
+                    .map_err(|err| VestiErr::ParseErr {
                         err_kind: VestiParseErrKind::PythonEvalErr {
-                            note_msg: "failed to evaluate pycode".to_string(),
+                            msg: err.value(py).to_string(),
                         },
                         location: self.pycode_span,
-                    }
-                })
-                .and_then(|_| {
-                    scope
-                        .globals
-                        .get_item("__vesti_output_str__", vm)
-                        .ok()
-                        .and_then(|global| global.downcast::<PyStr>().ok())
-                        .map(|s| s.as_str().to_string())
-                        .ok_or(VestiErr::ParseErr {
-                            err_kind: VestiParseErrKind::PythonEvalErr {
-                                note_msg: "cannot obtain __vesti_output_str__ value".to_string(),
-                            },
-                            location: self.pycode_span,
-                        })
-                })
+                    })?;
+            let vesti_output_str =
+                vesti_output_str
+                    .downcast::<PyString>()
+                    .map_err(|err| VestiErr::ParseErr {
+                        err_kind: VestiParseErrKind::PythonEvalErr {
+                            msg: format!("|{err}|"),
+                        },
+                        location: self.pycode_span,
+                    })?;
+
+            Ok(vesti_output_str.to_string_lossy().into_owned())
         })
     }
 }
 
-// vesti python module implementation
-#[pymodule]
-mod vesti {
-    use rustpython_vm::builtins::{PyStr, PyStrRef};
-    use rustpython_vm::convert::ToPyObject;
-    use rustpython_vm::VirtualMachine;
-
-    #[pyfunction]
-    fn sprint(s: PyStrRef, vm: &VirtualMachine) {
-        let mut vesti_output_str = String::with_capacity(50);
-        let vesti_output_str_py = vm
-            .current_globals()
-            .get_item("__vesti_output_str__", vm)
-            .expect("failed to read __vesti_output_str__")
-            .downcast::<PyStr>()
-            .expect("failed to read __vesti_output_str__");
-        vesti_output_str.push_str(vesti_output_str_py.as_str());
-        vesti_output_str.push_str(s.as_str());
-
-        vm.current_globals()
-            .set_item("__vesti_output_str__", vesti_output_str.to_pyobject(vm), vm)
-            .expect("failed to write __vesti_output_str__");
-    }
-
-    #[pyfunction]
-    fn sprintn(s: PyStrRef, vm: &VirtualMachine) {
-        let mut vesti_output_str = String::with_capacity(50);
-        let vesti_output_str_py = vm
-            .current_globals()
-            .get_item("__vesti_output_str__", vm)
-            .expect("failed to read __vesti_output_str__")
-            .downcast::<PyStr>()
-            .expect("failed to read __vesti_output_str__");
-        vesti_output_str.push_str(vesti_output_str_py.as_str());
-        vesti_output_str.push_str(s.as_str());
-        vesti_output_str.push('\n');
-
-        vm.current_globals()
-            .set_item("__vesti_output_str__", vesti_output_str.to_pyobject(vm), vm)
-            .expect("failed to write __vesti_output_str__");
-    }
-
-    #[pyfunction]
-    fn sprintln(s: PyStrRef, vm: &VirtualMachine) {
-        let mut vesti_output_str = String::with_capacity(50);
-        let vesti_output_str_py = vm
-            .current_globals()
-            .get_item("__vesti_output_str__", vm)
-            .expect("failed to read __vesti_output_str__")
-            .downcast::<PyStr>()
-            .expect("failed to read __vesti_output_str__");
-        vesti_output_str.push_str(vesti_output_str_py.as_str());
-        vesti_output_str.push_str(s.as_str());
-        vesti_output_str.push_str("\n\n");
-
-        vm.current_globals()
-            .set_item("__vesti_output_str__", vesti_output_str.to_pyobject(vm), vm)
-            .expect("failed to write __vesti_output_str__");
-    }
+#[inline]
+fn import_vesti_py_module<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyModule>> {
+    PyModule::from_code(
+        py,
+        c_str!(include_str!("./vesti.py")),
+        c"vesti.py",
+        c"vesti",
+    )
 }
