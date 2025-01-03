@@ -57,6 +57,8 @@ Upper code is a figure using tikz.
 ```
 
 ## Installation
+### Prerequisits
+Python 3.12 is need to use `vesti`.
 Vesti can be installed using `cargo`.
 
 ```console
