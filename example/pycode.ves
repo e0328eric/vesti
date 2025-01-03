@@ -3,9 +3,9 @@ docclass article
 startdoc
 
 pycode {
-import vesti
-for i in range(100):
-    vesti.sprint(f"Hello, {i}\n\n")
+    import vesti
+    for i in range(100):
+        vesti.sprint(f"Hello, {i}\n\n")
 }
 
 

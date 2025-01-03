@@ -7,18 +7,18 @@ startdoc
 useenv figure [ht] {
     \centering
     useenv tikzpicture {
-    % NOTE: python does not allow outermost indentation
-    pycode {
-import vesti
-import math
+        pycode {
+            import vesti
+            import math
 
-i = 0
-while i < 2 * math.pi:
-    xcos_val = i * math.cos(i)
-    xsin_val = i * math.sin(i)
-    vesti.sprintn(f"\\draw (0,0) -- ({xcos_val},{xsin_val});")
-    i += 0.01
+            i = 0
+            while i < 2 * math.pi:
+                xcos_val = i * math.cos(i)
+                xsin_val = i * math.sin(i)
+                vesti.sprintn(f"\\draw (0,0) -- ({xcos_val},{xsin_val});")
+                i += 0.01
+        }
     }
-}}
+}
 
 Now, pycode{import vesti;vesti.sprint(f"{2**100}")} can be embedded.

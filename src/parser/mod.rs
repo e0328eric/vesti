@@ -1452,7 +1452,6 @@ impl<'a> Parser<'a> {
 
             output
         };
-        dbg!(&code);
 
         Ok(Statement::PythonCode { pycode_span, code })
     }
