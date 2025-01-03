@@ -67,9 +67,6 @@ pub enum VestiUtilErrKind {
         note_msg: String,
     },
     ScanErr(ScanError),
-    PipErr {
-        note_msg: String,
-    },
     #[cfg(feature = "tectonic-backend")]
     #[allow(dead_code)]
     TectonicErr(tectonic::Error),
@@ -285,9 +282,8 @@ impl Error for VestiUtilErrKind {
             Self::LatexCompliationErr => 0x0015,
             Self::IOErr { .. } => 0x0001,
             Self::ScanErr(_) => 0x0002,
-            Self::PipErr { .. } => 0x0003,
             #[cfg(feature = "tectonic-backend")]
-            Self::TectonicErr(_) => 0x0004,
+            Self::TectonicErr(_) => 0x0003,
         }
     }
     fn err_str(&self) -> String {
@@ -303,7 +299,6 @@ impl Error for VestiUtilErrKind {
             }
             Self::IOErr { kind, .. } => format!("IO error `{kind:?}` occurs"),
             Self::ScanErr(err) => format!("Yaml parsing error `{err:?}` occurs"),
-            Self::PipErr { .. } => format!("Pip error occurs"),
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => format!("Tectonic error occurs"),
         }
@@ -327,7 +322,6 @@ impl Error for VestiUtilErrKind {
             Self::IOErr {
                 note_msg: ref msg, ..
             } => Some(vec![msg.clone()]),
-            Self::PipErr { note_msg: ref msg } => Some(vec![msg.clone()]),
             #[cfg(feature = "tectonic-backend")]
             Self::TectonicErr(_) => Some(vec![
                 String::from("This error occurs when Tectonic backend failed."),

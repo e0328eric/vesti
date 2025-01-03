@@ -56,11 +56,6 @@ impl Display for LatexEngineType {
 pub enum VestiOpt {
     /// Remove `vesti-cache` folder
     Clear,
-    /// Install python package using pip
-    Pip {
-        #[clap(value_name = "MODULES")]
-        modules: Vec<String>,
-    },
     /// Compile vesti into Latex file
     Compile {
         /// Input file name or directory name.

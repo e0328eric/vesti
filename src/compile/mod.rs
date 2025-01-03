@@ -114,6 +114,7 @@ impl<'p> VestiCompiler<'p> {
         };
 
         let mut first_run = true;
+        let mut prev_exitcode = ExitCode::SUCCESS;
         let mut prev_file_modified = time::SystemTime::now();
 
         loop {
@@ -138,10 +139,10 @@ impl<'p> VestiCompiler<'p> {
                 }
                 self.ves_files.iter().any(|ves_file| ves_file.dirty)
             };
-            if recompile {
-                let exitcode = self.run_once();
+            if recompile && prev_exitcode == ExitCode::SUCCESS {
+                prev_exitcode = self.run_once();
                 #[cfg(target_os = "windows")]
-                if exitcode == ExitCode::FAILURE {
+                if prev_exitcode == ExitCode::FAILURE {
                     unsafe {
                         win::MessageBoxA(
                             None,
