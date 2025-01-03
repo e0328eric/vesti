@@ -217,6 +217,7 @@ impl<'p> VestiCompiler<'p> {
                 self.no_color,
             ) == ExitCode::FAILURE
             {
+                ves_file.dirty = false;
                 return ExitCode::FAILURE;
             }
 
