@@ -1,16 +1,14 @@
 #![allow(clippy::needless_raw_string_hashes)]
 
 use super::*;
-use crate::codegen::make_latex_format;
+use crate::codegen::Codegen;
 use crate::commands::LatexEngineType;
 
 macro_rules! expected {
     ($source: ident should be $expected: ident) => {{
-        let mut parser = Parser::new(Lexer::new($source), true);
-        assert_eq!(
-            $expected,
-            make_latex_format::<true>(&mut parser, LatexEngineType::Invalid).unwrap()
-        );
+        let parser = Parser::new(Lexer::new($source), true);
+        let mut codegen = Codegen::new(parser, LatexEngineType::Invalid);
+        assert_eq!($expected, codegen.make_latex_format::<true>().unwrap());
     }};
 }
 
@@ -591,10 +589,10 @@ fn parse_text_in_math() {
     let source3 = "$\"foo\"#$";
     let source4 = "$#\"foo\"#$";
 
-    let expected1 = "$\\text{ foo }$";
-    let expected2 = "$\\text{foo }$";
-    let expected3 = "$\\text{ foo}$";
-    let expected4 = "$\\text{foo}$";
+    let expected1 = "$\\text{foo}$";
+    let expected2 = "$\\text{ foo}$";
+    let expected3 = "$\\text{foo }$";
+    let expected4 = "$\\text{ foo }$";
 
     expected!(source1 should be expected1);
     expected!(source2 should be expected2);
@@ -636,7 +634,7 @@ makeatother
 // using raw \text LaTeX command.
 fn parsing_bug_fix002() {
     let source = "$oo\\text{oo}$ oo $oo\"oo\"$";
-    let expected = r"$\infty \text{\infty }$ oo $\infty \text{ oo }$";
+    let expected = r"$\infty \text{\infty }$ oo $\infty \text{oo}$";
 
     expected!(source should be expected);
 }

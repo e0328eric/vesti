@@ -1390,6 +1390,71 @@ impl<'a> Parser<'a> {
         expect_peek!(self: TokenType::PythonCode; pycode_span);
         self.eat_whitespaces::<false>();
 
+        let pycode_export = match self.peek_tok() {
+            TokenType::Less => {
+                expect_peek!(self: TokenType::Less; pycode_span);
+                let name = match self.peek_tok() {
+                    TokenType::Text => self.next_tok().literal,
+                    _ => {
+                        return Err(VestiErr::make_parse_err(
+                            VestiParseErrKind::NameMissErr {
+                                r#type: TokenType::PythonCode,
+                            },
+                            pycode_span,
+                        ));
+                    }
+                };
+                expect_peek!(self: TokenType::Great; pycode_span);
+                Some(name)
+            }
+            _ => None,
+        };
+        let pycode_import = match self.peek_tok() {
+            TokenType::Lsqbrace => {
+                expect_peek!(self: TokenType::Lsqbrace; pycode_span);
+                self.eat_whitespaces::<true>();
+
+                let mut labels = Vec::with_capacity(10);
+                while self.peek_tok() != TokenType::Rsqbrace {
+                    take_name!(let label: String = self);
+                    labels.push(label);
+                    self.eat_whitespaces::<true>();
+
+                    match self.peek_tok() {
+                        TokenType::Comma => {
+                            self.next_tok();
+                            self.eat_whitespaces::<true>();
+                            if self.peek_tok() == TokenType::Rsqbrace {
+                                break;
+                            }
+                        }
+                        TokenType::Rsqbrace => {
+                            break;
+                        }
+                        TokenType::Eof => {
+                            return Err(VestiErr::make_parse_err(
+                                VestiParseErrKind::EOFErr,
+                                self.peek_tok_location(),
+                            ));
+                        }
+                        tok_type => {
+                            return Err(VestiErr::make_parse_err(
+                                VestiParseErrKind::TypeMismatch {
+                                    expected: vec![TokenType::Comma, TokenType::Rsqbrace],
+                                    got: tok_type,
+                                },
+                                self.peek_tok_location(),
+                            ));
+                        }
+                    }
+                }
+                expect_peek!(self: TokenType::Rsqbrace; pycode_span);
+                Some(labels)
+            }
+            _ => None,
+        };
+
+        // parsing main pycode block
         self.source.switch_lex_verbatim_mode();
         expect_peek!(self: TokenType::Lbrace; self.peek_tok_location());
         assert!(matches!(self.peek_tok.toktype, TokenType::VerbatimChar(_)));
@@ -1453,7 +1518,12 @@ impl<'a> Parser<'a> {
             output
         };
 
-        Ok(Statement::PythonCode { pycode_span, code })
+        Ok(Statement::PythonCode {
+            pycode_span,
+            pycode_import,
+            pycode_export,
+            code,
+        })
     }
 
     fn parse_function_definition_argument(&mut self) -> error::Result<String> {

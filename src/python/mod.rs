@@ -13,7 +13,7 @@ pub struct PythonVm {
 }
 
 impl PythonVm {
-    pub fn new(source: &str, pycode_span: Span) -> error::Result<Self> {
+    pub fn new(source: String, pycode_span: Span) -> error::Result<Self> {
         Ok(Self {
             source: CString::new(source).map_err(|_| VestiErr::ParseErr {
                 err_kind: VestiParseErrKind::PythonEvalErr {
@@ -76,7 +76,7 @@ impl PythonVm {
 }
 
 #[inline]
-fn import_vesti_py_module<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyModule>> {
+fn import_vesti_py_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
     PyModule::from_code(
         py,
         c_str!(include_str!("./vesti.py")),

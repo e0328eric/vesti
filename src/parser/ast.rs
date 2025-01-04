@@ -34,6 +34,8 @@ pub enum Statement {
     },
     PythonCode {
         pycode_span: Span,
+        pycode_import: Option<Vec<String>>,
+        pycode_export: Option<String>,
         code: String,
     },
     DocumentStart,

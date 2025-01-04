@@ -5,7 +5,7 @@ use std::process::ExitCode;
 use base64ct::{Base64Url, Encoding};
 use md5::{Digest, Md5};
 
-use crate::codegen::make_latex_format;
+use crate::codegen::Codegen;
 use crate::commands::LatexEngineType;
 use crate::compile::VestiFile;
 use crate::constants;
@@ -41,16 +41,17 @@ pub fn compile_vesti(
             return ExitCode::FAILURE;
         }
     };
-    let mut parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
-    let contents = match make_latex_format::<false>(&mut parser, engine_type) {
+    let parser = Parser::new(Lexer::new(&source), !has_sub_vesti);
+    let mut codegen = Codegen::new(parser, engine_type);
+    let contents = match codegen.make_latex_format::<false>() {
         Ok(inner) => inner,
         Err(err) => {
             pretty_print(Some(source.as_ref()), err, Some(ves_file.filename)).unwrap();
             return ExitCode::FAILURE;
         }
     };
-    let is_main_vesti = parser.is_main_vesti();
-    drop(parser);
+    let is_main_vesti = codegen.is_main_vesti();
+    drop(codegen);
 
     let output_filename =
         match compile_vesti_write_file(ves_file.filename, contents, is_main_vesti, emit_tex_only) {
