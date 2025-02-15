@@ -2,7 +2,7 @@
 # Changed
 - Codebase of vesti is now changed into zig.
 - `defun`, `enddef`, `defenv`, `redefenv`, and `endswith` are deprecated
-- deprecate `mainvesfile`
+- deprecate `mainvesfile` and `pycode`
 
 # 0.15.0
 # Added
