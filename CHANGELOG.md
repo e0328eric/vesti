@@ -1,3 +1,9 @@
+# 0.16.0
+# Changed
+- Codebase of vesti is now changed into zig.
+- `defun`, `enddef`, `defenv`, `redefenv`, and `endswith` are deprecated
+- deprecate `mainvesfile`
+
 # 0.15.0
 # Added
 - Add `pycode` block to execute python scripts inside of vesti.
