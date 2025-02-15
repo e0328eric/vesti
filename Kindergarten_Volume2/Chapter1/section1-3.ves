@@ -1,0 +1,174 @@
+In this section, we will learn about compact sets in arbitrary topological
+spaces.
+
+\begin{defin}[Compact sets]
+    Let $X$ be a topological space. Then a set $X$ is said to be
+    \it{compact} if for every collection $\Us$ of open sets which cover $X$, we
+    can find a finite subcollection $\Fs\subset\Us$ such that $\bigcup\Fs\supset
+    X$.
+    The collection of type $\Us$ described in above is called an \it{open cover
+    of $X$}.
+    A subset $K\subset X$ is said to be compact if $K$ is compact within the
+    subspace topology.
+    A set is said to be \it{precompact} if the closure of which is compact.
+\end{defin}
+
+We can show that the space is compact by using filters. Here is the theorem
+about.
+\begin{thm} \label{thm:1.3.2}
+    Let $X$ be a topological space. Then $X$ is compact if and only if every
+    ultrafilter in $X$ converges.
+    \proof
+    Suppose that there is an ultrafilter $\Uc$ that converges nowhere in $X$.
+    For each $x\in X$, take an open set $U_x$ which is not contained in $\Uc$.
+    Note that clearly $\{U_x\}_{x\in X}$ is an open cover of $X$.
+    If $X$ were compact, there are finitely many points $x_1,\cdots ,x_n$ such that
+    useenv equation { \label{eq:1.3.2.1}
+        U_{x_1}\cup U_{x_2} \cup ... \cup U_{x_n} \supset X.
+    }
+    However as $\Uc$ is an ultrafilter, $X\setminus U_x\in\Uc$ holds for each $x\in X$
+    by \Cref{prop:1.2.4}. This and \cref{eq:1.3.2.1} gives
+    \[
+        \emptyset = (X\setminus U_{x_1})\cap 
+        (X\setminus U_{x_2}) \cap ... \cap (X\setminus U_{x_n}) \in \Uc,
+    \]
+    which is a contradiction. Such contradiction occurs as we assumed that $X$ is
+    compact. Hence $X$ cannot be compact.
+
+    Conversely, suppose that $X$ is not compact. Then there is an open cover
+    $\Us$ which does not have a finite subset of $\Us$ that covers $X$.
+    Put
+    \[
+        \Vs := \{X \setminus  E : E\in\Us\}.
+    \]
+    Observe that $\Vs$ satisfies FIP. Take an ultrafilter $\Uc$ which is a
+    superset of $\Vs$ by \Cref{prop:1.2.2} and \Cref{prop:1.2.7}.
+    Since $\Vs\subset\Uc$ and $\Us$ is an open cover of $X$, there is no $x\in
+    X$ such that $\Uc\rightarrow x$. Indeed, if $x\in X$ then there is $U\in\Us$ that
+    contains $x$. Since $X\setminus U\in\Uc$, $U$ does not belong to $\Uc$ and this
+    implies that $\Uc$ does not converges to $x$. \proved
+\end{thm}
+
+\begin{coro} \label{coro:1.3.3}
+    Let $X$ be a topological space. Then $\emptyset\neq K\subset X$ is compact
+    if and only if every ultrafilter $\Uc$ in $X$ containing $K$ converges to
+    some point $x\in K$.
+    \proof
+    If $K\subset X$ is compact and fix an ultrafilter $\Uc$ that contains $K$.
+    Then the set
+    \begin{equation}
+        \Uc' := \{F\cap K : F\in\Uc\} \label{eq:1.3.3.1}
+    \end{equation}
+    is an ultrafilter in $K$. Being compact, $\Uc'\to x\in K$ by
+    \Cref{thm:1.3.2}. Now fix an open set $N$ that contains $x$.
+    Since $N\cap K$ is open in $K$ and $x\in N\cap K$, we have $N\cap K\in\Uc'$.
+    This implies $N\in\Uc$ by the definition of $\Uc'$, proving that $\Uc\to x$
+    since $N$ is arbitrary.
+
+    To prove the sufficency, fix an ultrafilter $\Uc$ in $X$ such that $\Uc\ni
+    K$ and $\Uc\to x\in K$. Notice that the ultrafilter $\Uc'$ defined in
+    \cref{eq:1.3.3.1} also converges to $x$ in $K$. Indeed, if $N$ is a
+    neighborhood of $x$ in $K$ then we can take an open set $U$ in $X$ satisfies
+    $N = U\cap K$. Since $U\in\Uc$, we have $N = U\cap K \in \Uc'$.
+    This proves the corollary. \proved
+\end{coro}
+
+Below propositions can be proved without using any filter theory. In here,
+however, we will see how \Cref{thm:1.3.2} (and \Cref{coro:1.3.3}) can be used to
+prove several compactness properties. One may solve \Cref{exe:1.3.5}.
+\begin{prop} \label{prop:1.3.4}
+    Let $X$ be a topological space and $K\subset X$ be a nonempty set.
+    \begin{enumerate}[label = (\alph*)]
+        \item If $X$ is Hausdorff and $K$ is compact, then $K$ is closed.
+        \item If $X$ is compact and $K$ is closed, then $K$ is compact.
+        \item Let $Y$ be another topological space and $f:X\to Y$ a continuous
+            map, then $f[K]$ is compact in $Y$ whenever $K$ is compact in $X$.
+    \end{enumerate}
+    \proof
+    \begin{enumerate}[label = (\alph*)]
+        \item Fix $x\in\cl K$ and take a filter $\Fc$ in $X$ such that $K\in\Fc$
+            and $\Fc\to x$ by \Cref{thm:1.2.13}. Then take an ultrafilter
+            $\Uc\supset\Fc$ by \Cref{prop:1.2.2}, and finally, consider
+            \[
+                \Uc' := \{F\cap K : F\in\Uc\}.
+            \]
+            Since $\Uc'$ is an ultrafilter in $K$, there is a point $y\in K$
+            such that $\Uc'\to y$ by \Cref{coro:1.3.3}.
+            Fix any open set $N$ in $X$ that contains $y$. Then $N\cap K$ is
+            open in $K$, we have $N\cap K\in\Uc'$ as $\Uc'\to y$. Then the
+            definition of $\Uc'$ and \Cref{prop:1.2.4} imply $N\in\Uc$
+            (otherwise, $X\setminus N$ must be in $\Uc$. This makes a contradiction),
+            hence $\Uc\to y$.
+
+            What we have is that the ultrafilter $\Uc$ converges in both $x$ and
+            $y$ where $x\in\cl K$ and $y\in K$. Since $X$ is Hausdorff, $x = y$
+            by \Cref{thm:1.2.14}, proving that $x = y \in K$. Hence, $K$ is
+            closed because $K=\cl K$ which is what we proved in here.
+        \item Fix an ultrafilter $\Uc$ in $X$ which contains $K$. Being compact,
+            $\Uc$ converges to some point $x\in X$. By \Cref{thm:1.2.13}, $x\in
+            \cl K = K$. Hence, $K$ is compact because of \Cref{coro:1.3.3} as
+            $\Uc$ is arbitrary.
+        \item Fix an ultrafilter $\Uc$ in $f[K]$. Then take an ultrafilter
+            $\Uc'$ in $K$ such that $f^*\Uc \subset \Uc'$. Being compact, we can
+            take a point $x\in K$ such that $\Uc'\to x$ by \Cref{thm:1.3.2}.
+            Since $f$ is continuous, $f_*\Uc'\to f(x)$ because of
+            \Cref{thm:1.2.13}. Observe that $\Uc\subset f_*\Uc'$, hence both
+            should be same since $\Uc$ is an ultrafilter. Therefore, $\Uc$
+            converges to $f(x)$, and we proved that $f[K]$ is compact by
+            \Cref{thm:1.3.2} as $\Uc$ is arbitrary. \proved
+    \end{enumerate}
+\end{prop}
+
+useenv exec { \label{exe:1.3.5}
+    Prove \Cref{prop:1.3.4} \it{without using any filter theories}.
+}
+
+We end this section by proving the Tychonoff's theorem. It can be proved with
+several ways, but in here, obviously, we will use filters to prove it.
+
+\begin{thm}[Tychonoff's Theorem]
+    Let $\{X_\alpha\}_{\alpha\in A}$ be a collection of compact topological
+    spaces where $A$ is an index set.
+    Then the space $X = \prod_{\alpha\in A} X_\alpha$ equipped with the product
+    topology is compact.
+    \proof
+    Let us define a projection $\pi_\alpha : X \to X_\alpha$ for each $\alpha\in
+    A$, and fix an ultrafilter $\Uc$ in $X$. By \Cref{thm:1.2.10},
+    $(\pi_\alpha)_*\Uc$ is an ultrafilter in $X_\alpha$, so we can take
+    a point $x_\alpha\in X_\alpha$ such that $(\pi_\alpha)_*\Uc\to
+    x_\alpha$. Such points exists because $X_\alpha$ is compact and recall
+    \Cref{thm:1.3.2}. Finally, take the point $x\in X$ such that
+    $\pi_\alpha(x)=x_\alpha$ for every $\alpha\in A$. Claim that $\Uc\to x$.
+
+    To prove this, fix an open neighborhood $N$ of $x$ in $X$.
+    Since
+    \[
+        \{\pi_\alpha^{-1}[U] : \alpha\in A,\ U\in X_\alpha\}
+    \]
+    forms a subbasis of $X$, there exists $\alpha_1,\cdots,\alpha_n\in A$, and
+    $U_{\alpha_1},\cdots,U_{\alpha_n}$ are open sets in $X_{\alpha_j}$,
+    $j=1,2,\cdots,n$, respectively, such that
+    \[
+        x \in 
+        \pi_{\alpha_1}^{-1}[U_{\alpha_1}]
+        \cap\pi_{\alpha_2}^{-1}[U_{\alpha_2}]
+        \cap\cdots\cap\pi_{\alpha_n}^{-1}[U_{\alpha_n}]
+        \subset N.
+    \]
+    Notice that $x_{\alpha_j}\in U_{\alpha_j}$ for $j=1,2,\cdots,n$.
+    This gives that $U_{\alpha_j}\in(\pi_\alpha)_*\Uc$, hence
+    \[
+        \pi_{\alpha_j}^{-1}[U_{\alpha_j}] \in \pi_\alpha^*(\pi_\alpha)_*\Uc
+        \subset\Uc.
+    \]
+    Thus,
+    \[
+        \pi_{\alpha_1}^{-1}[U_{\alpha_1}]
+        \cap\pi_{\alpha_2}^{-1}[U_{\alpha_2}]
+        \cap\cdots\cap\pi_{\alpha_n}^{-1}[U_{\alpha_n}] \in \Uc
+        \quad\Longrightarrow\quad N\in\Uc.
+    \]
+    Since $N$ is arbitrary open neighborhood of $x$, we have proved that $\Uc\to
+    x$. Therefore, $X$ is compact because of \Cref{thm:1.3.2}. \proved
+\end{thm}
+

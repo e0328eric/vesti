@@ -1,0 +1,71 @@
+{
+    #main;
+    #name: vesti;
+    #desc: A latex transpiler;
+}
+{
+    #name: compile;
+    #desc: Compile vesti into Latex file;
+
+    #arg;
+    meta: FILENAMES;
+    desc: filenames to compile;
+    type: strings;
+    default:;
+
+    #flag;
+    long: emit_tex;
+    short: e;
+    desc: compile vesti into tex file only (do nothing at this point);
+    type: bool;
+    default: false;
+
+    #flag;
+    long: no_color;
+    short: N;
+    desc: no color output on a terminal;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: watch;
+    short: W;
+    desc: watch vesti files when modified;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: latex;
+    short: L;
+    desc: compile vesti using latex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: pdflatex;
+    short: p;
+    desc: compile vesti using pdflatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: xelatex;
+    short: x;
+    desc: compile vesti using xelatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: lualatex;
+    short: l;
+    desc: compile vesti using lualatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: lim;
+    short:;
+    desc: set the number of the compile cycle;
+    type: number;
+    default: 3;
+}

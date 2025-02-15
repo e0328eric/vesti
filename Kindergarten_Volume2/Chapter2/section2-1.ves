@@ -1,0 +1,12 @@
+What is the definition of the \lq\lq area\rq\rq\ of some figures?
+In the \it{real} kindergarten, the reader is taught about the area of a
+rectangle is calculated by a multiple of the width and the height of the
+rectangle. In the high school, the reader learn how to calculate the circle by
+approximating areas of rectangles which fill the whole circle from inside.
+Generally speaking, one can infer that every figure has an area and it can be
+calculated with similar mannar.
+
+In our intuition, a length ---an area in $\R$--- is translation invariant, and it
+should be in our real life. Let us denote $\ell$ a length of sets in $\R$ and
+assume that we can take a length from arbitrary sets in $\R$.
+For instance, $\ell([a,b])=b-a$ and such definition comes from our intuition.

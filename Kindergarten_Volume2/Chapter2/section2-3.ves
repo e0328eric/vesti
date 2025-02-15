@@ -1,0 +1,112 @@
+Now we are ready to define a Lebesgue integration. Everywhere in this section,
+$(X,\mu)$ denotes a measure space.
+
+useenv defin [Lebesgue Integration] { \label{defin:2.3.1}
+    Let $f:X->\R$ be a function such that one of those Riemann integrations
+    $$
+        \int_0^oo \mu\{f_+ > t\}dt,\quad
+        \int_0^oo \mu\{f_- > t\}dt
+    $$
+    exists and finite. Then we define a \it{Lebesgue integration} respect to
+    $\mu$ by
+    $$
+        \int_X f(x)\mu(dx) := \int_0^oo\mu\{f_+ > t\}dt - \int_0^oo\mu\{f_- >
+        t\}dt.
+    $$
+    If $E\subset X$, then we define
+    $$
+        \int_E f(x)\mu(dx) := \int_X 1_E(x)f(x)\mu(dx).
+    $$
+
+    Sometimes, we use the abbreviation of $\int_E f(x)\mu(dx)$ by $\int_E fd\mu$
+    if the variable of which is understood.
+}
+
+useenv remark { \label{remark:2.3.2}
+    We need to justify \Cref{defin:2.3.1}. For any $0<=s<=t$,
+    $$
+        \{f_+ > t\} \subset \{f_+ > s\},\quad
+        \{f_- > t\} \subset \{f_- > s\}.
+    $$
+    Since $\mu$ is a measure, $t|->\mu\{f_+ >t\}$ and $t|->\mu\{f_- > t\}$ are
+    decreasing functions, so they are Riemann integrable on $[\epsilon,N]$ for
+    every $0<\epsilon<N<oo$. Now we are understood Riemann integrations
+    described in \Cref{defin:2.3.1} by an improper integral, so
+    $$
+        \int_0^oo \mu\{f_+ > t\}dt
+        = \lim_{\scriptstyle N\uparrow oo\atop\scriptstyle\epsilon\downarrow 0}
+        \int_\epsilon^N \mu\{f_+ > t\}dt,
+    $$
+    and similar for $f_-$.
+}
+
+Notice that if $f$ is nonnegative, then $\mu\{f_- > t\}=0$ for every $t>0$.
+Thus as we discuss the Riemann integration of $\mu\{f_- > t\}$ in
+\Cref{remark:2.3.2}, one can obtain
+$$
+    \int_X f(x)\mu(dx) = \int_0^oo \mu\{f > t\}dt.
+$$
+
+Although we define a Lebesgue integral for arbitrary function $f$, we need some
+\lq\lq good\rq\rq\ functions to obtain more useful properties for Lebesgue
+integral. Below definition says about what is a \lq\lq good\rq\rq\ function.
+
+useenv defin { \label{defin:measurable-fnt}
+    Let $Y$ be a topological space and $f:X->Y$ a function. We say that $f$ is
+    \it{$\mu$-measurable} if $f^{-1}[E]$ is $\mu$-measurable for every Borel set
+    $E\subset Y$.
+}
+
+If $f:X->\R$ is $\mu$-measurable, then clearly both $\{f_+ > t\}$ and $\{f_- >
+t\}$ are $\mu$-measurable for every $t>=0$. Therefore we have the following
+important facts for Lebesgue integral.
+
+useenv thm { \label{thm:props-of-int}
+    useenv enumerate [label = (\roman*)] {
+        \item If $f<=g$, then $\int_X fd\mu <= \int_X gd\mu$.
+        \item Let $f:X->\R$ be a $\mu$-measurable function. Then
+        $$
+            ?|\int_X f(x)\mu(dx)|? <= \int_X |f(x)|\mu(dx),
+        $$
+        \item If $A_1,A_2,...,A_n\in\Mf_\mu$, and $c_1,...,c_n>=0$,
+        $$
+            \int_X \sum_{j=1}^n c_j1_{A_j}\mu(dx)
+            = \sum_{j=1}^n c_j\mu(A_j).
+        $$
+    }
+}
+
+Now we are going to study very important limit theorems.
+
+useenv thm { \label{thm:limit-thms}
+    useenv enumerate [label = (\roman*)] {
+        \item(Fatou's lemma) Let $f_n$ are nonnegative $\mu$-measurable
+        functions. Then
+        $$
+            \int_X \liminf_{n->oo} f_n(x)\mu(dx) <=
+            \liminf_{n->oo}\int_X f_n(x)\mu(dx).
+        $$
+        \item(Monotone convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
+        functions such that $0<=f_1<=f_2<=...<=f$ and $f_n\uparrow f$ as
+        $n->oo$, then
+        $$
+            \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+        $$
+        \item(Dominated convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
+        functions such that $f_n->f$ as $n->oo$ and $|f_n|<=g$ for some
+        $\mu$-measurable function $g$ such that $\int_X g d\mu<oo$. Then
+        $$
+            \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+        $$
+    }
+}
+
+There is the generalized version of \Cref{thm:limit-thms} (iii).
+useenv exec* { \label{exe:generalized-DCT}
+    Let $f$, $f_n$, $g$, $g_n$ are $\mu$-measurable functions such that
+    $f_n->f$, $g_n->g$ as $n->oo$, $|f_n|<=g_n$ for every $n$, and $\int_X
+    g_nd\mu -> \int_X gd\mu < oo$ as $n->oo$. Then the below relation holds.
+    $$
+        \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+    $$
+}

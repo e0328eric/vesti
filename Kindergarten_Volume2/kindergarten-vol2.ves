@@ -1,0 +1,93 @@
+importmod(coprime)
+docclass memoir (b5paper, 9pt, openright, final)
+
+importpkg {
+    anyfontsize,
+    caption,
+    coprime-math,
+    fontawesome,
+    fontenc (T1),
+    graphicx,
+    helvet,
+    lipsum,
+    mathtools,
+    tikz,
+    tikz-3dplot,
+    tikz-cd,
+    pgfplots,
+    tcolorbox (many),
+    aliascnt,
+    enumitem,
+    xparse,
+    cleveref,
+}
+
+\makeindex
+\makeindex[symbols]
+
+\usetikzlibrary{3d,intersections,calc,shadings,arrows.meta,decorations.pathreplacing}
+\pgfplotsset{compat=1.8}
+
+\allowdisplaybreaks
+
+\input{getfilepath(Settings/settings.tex)}
+
+makeatletter
+\@namedef{thecoprimeDefinition}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
+\@namedef{thecoprimeTheorem}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
+\@namedef{thecoprimeLemma}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
+\@namedef{thecoprimeProposition}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
+\@namedef{thecoprimeCorollary}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
+makeatother
+
+startdoc
+
+\frontmatter
+\thispagestyle{empty}
+\hbox to\hsize{\hss\bf{\Huge Kindergarten}\hss}
+\vfill
+\hbox to\hsize{\hss\bf{\huge Volume II: Real Analysis}\hss}
+\vfill
+\hbox to\hsize{\hss\bf{\Large Sungbae Jeong}\hss}
+\vskip 0pt plus 24fill
+\hbox{}
+
+\clearpage
+
+\chapter{Preface}
+\lipsum[1]
+
+\chapter{How to Read?}
+
+\cleardoublepage
+
+\renewcommand*{\preindexhook}{}
+\renewcommand*{\indexname}{Index of Symbols}
+\printindex[symbols]
+
+\clearpage
+\mainmatter
+
+\setcounter{chapter}{-1}
+\chapter{Preliminaries}
+\section{Ordering}
+
+\chapter{User Guides for General Topology}
+\section{Basic terminologies related to the topology}
+importves(Chapter1/section1-1.ves)
+
+\section{Filters and ultrafilters}
+importves(Chapter1/section1-2.ves)
+
+\section{Compact Sets}
+importves(Chapter1/section1-3.ves)
+
+\chapter{Measures and Integrations}
+\section{Introduction}
+importves(Chapter2/section2-1.ves)
+
+\section{Measures and measurable sets}
+importves(Chapter2/section2-2.ves)
+
+\section{Integrations}
+importves(Chapter2/section2-3.ves)

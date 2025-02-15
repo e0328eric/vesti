@@ -1,0 +1,19 @@
+.{
+    .name = "vesti",
+    .version = "0.16.0",
+    .dependencies = .{
+        .zg = .{
+            .url = "https://codeberg.org/e0328eric/zg/archive/ba5c8afa1b3fe10eb4c626201dde2dc9e1196ec7.tar.gz",
+            .hash = "1220f3e29bc40856bfc06e0ee133f814b0011c76de987d8a6a458c2f34d82708899a",
+        },
+        .zlap = .{
+            .url = "https://github.com/e0328eric/zlap/archive/refs/tags/v0.6.1.tar.gz",
+            .hash = "1220a731040da73f0b7ab8abbce4a0f6f5e84b078dc4adc8344b0476dbb342975a46",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

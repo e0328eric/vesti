@@ -1,0 +1,88 @@
+In this section, we will learn about measures and their properties.
+First two definitions introduce what is a measure and what is a measurable set.
+
+useenv defin [Measures and measure spaces] { \label{defin:measure}
+    Let $X$ be a set. A \it{measure} is a function $\mu:\Pc(X)->[0,oo]$
+    such that
+    useenv enumerate [label=(\roman*)] {
+        \item $\mu(\emptyset)=0$;
+        \item $\mu(A)<=\mu(B)$ if $A\subset B$;
+        \item $\mu(\bigcup_{j=1}^oo A_j) <= \sum_{j=1}^oo \mu(A_j)$.
+    }
+
+    We say the pair $(X,\mu)$ a \it{measure space}.
+}
+useenv defin [Measurable sets] {
+    Let $(X,\mu)$ be a measure space. A set $A\subset X$ is called
+    \it{$\mu$-measurable} if for every set $E\subset X$, the following relation
+    holds.
+    $$
+        \mu(E) = \mu(E\cap A) + \mu(E--A).
+    $$
+    Define $\Mf_\mu$ the collection of all $\mu$-measurable sets.
+}
+
+useenv remark { \label{remark:2.2.2}
+    Actually, upper definition is so called an \it{outer measure} in several
+    references, and reserve the term \it{measure} for different manner.
+    Furthermore, the term \it{measure space} stands for a triple $(X,\Mf,\mu)$
+    where $\Mf$ is so-called $\sigma$-field (definition of which is introduced
+    in \Cref{defin:sigma-field}) and $\mu$ a measure (not an outer measure).
+    Although there is some confusion while reading this textbook, it has some
+    benefits when we define terms \it{measure} and \it{measure space} by
+    \Cref{defin:measure}. So reader sould beware from misunderstanding.
+}
+
+So far we have defined a measure $\mu$ and the collection of $\mu$-measurable sets
+$\Mf_\mu$ on a set $X$. Below theorem gives a property of the collection
+$\Mf_\mu$.
+
+useenv thm [Carath\'eodory's Theorem] { \label{thm:carathedory}
+    Let $X$ be a set, $\mu$ a measure in $X$. Then
+    useenv enumerate [label=(\roman*)] {
+        \item $\emptyset,X\in\Mf_\mu$.
+        \item If $A\in\Mf_\mu$, then $X--A\in\Mf_\mu$.
+        \item If $\Fs\subset\Mf_\mu$ is a \it{mutually disjoint} countable
+        subcollection, then $\bigcup\Fs\in\Mf_\mu$. Furthermore, we have
+        $$
+            \mu?(\bigcup\Fs)? = \sum_{F\in\Fs}\mu(F).
+        $$
+        \item If $A\in\Mf_\mu$ such that $\mu(A)=0$, then $B\in\Mf_\mu$ for
+        every $B\subset A$.
+    }
+    \proof
+    (i) is obvious. If $A\in\Mf_\mu$, then for every $E\subset X$, we have
+    $$
+        \mu(E\cap (X--A)) + \mu(E--(X--A))
+        = \mu(E--A) + \mu(E\cap A) = \mu(E),
+    $$
+    so $X--A\in\Mf_\mu$, so we proved (ii).
+}
+
+There is a term for a subcollection $\Mf\subset\Pc(X)$ satisfies (i), (ii), and
+the first half of (iii) in \Cref{thm:carathedory}.
+
+useenv defin { \label{defin:sigma-field}
+    A subcollection $\Mf\subset\Pb(X)$ is called a \it{$\sigma$-field} if
+    useenv enumerate [label=(\roman*)] {
+        \item $\emptyset,X\in\Mf_\mu$.
+        \item If $A\in\Mf_\mu$, then $X--A\in\Mf_\mu$.
+        \item If $\Fs\subset\Mf_\mu$ is a countable subcollection, then
+        $\bigcup\Fs\in\Mf_\mu$. Notice that $\Fs$ need not to be mutually
+        disjoint.
+    }
+
+    If the condition \it{countable} is replaced by \it{finite} in (iii), then
+    the collection $\Mf$ is called by a \it{field}.
+}
+
+useenv remark {
+    Terms \it{field} and \it{$\sigma$-field} are usually called by probabilists.
+    In other people who study analysis, \it{algebra} and \it{$\sigma$-algebra}
+    is used, repectively.
+
+    However, personally, the former terms is the \it{right} term in the sense
+    that \it{fields} (resp. \it{$\sigma$-fields}) are closed under all set
+    theoretical operations $\cup$, $\cap$, $--$, and the complement $\cdot^c$.
+}
+
