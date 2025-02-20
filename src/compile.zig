@@ -3,25 +3,30 @@ const mem = std.mem;
 const fs = std.fs;
 const path = fs.path;
 const time = std.time;
+const diag = @import("./diagnostic.zig");
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const StringArrayHashMap = std.StringArrayHashMap;
 const Child = std.process.Child;
-const Diagnostic = @import("./Diagnostic.zig");
 const Parser = @import("./parser/Parser.zig");
 
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
 const VESTI_VERSION = @import("./vesti_version.zig").VESTI_VERSION;
 
+pub const CompileAttribute = packed struct {
+    compile_all: bool,
+    watch: bool,
+};
+
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
-    diagnostic: *Diagnostic,
+    diagnostic: *diag.Diagnostic,
     engine: []const u8,
     compile_limit: usize,
     prev_mtime: *?i128,
-    watch: bool,
+    attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
     fs.cwd().makeDir(VESTI_LOCAL_DUMMY_DIR) catch |err| switch (err) {
@@ -31,46 +36,51 @@ pub fn compile(
     var vesti_dummy = try fs.cwd().openDir(VESTI_LOCAL_DUMMY_DIR, .{});
     defer vesti_dummy.close();
 
-    var walk_dir = try fs.cwd().openDir(".", .{ .iterate = true });
-    defer walk_dir.close();
-    var walker = try walk_dir.walk(allocator);
-    defer walker.deinit();
-
     // store "absolute paths" for vesti files
-    var main_vesti_files = StringArrayHashMap(void).init(allocator);
+    var main_vesti_files = StringArrayHashMap(bool).init(allocator);
     defer {
         for (main_vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
         main_vesti_files.deinit();
     }
     for (main_filenames) |filename| {
-        const real_filename = try fs.cwd().realpathAlloc(allocator, filename);
+        const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch |err| {
+            const io_diag = try diag.IODiagnostic.init(
+                diagnostic.allocator,
+                null,
+                "failed to open file `{s}`",
+                .{filename},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return err;
+        };
         errdefer allocator.free(real_filename);
-        try main_vesti_files.put(real_filename, {});
+        try main_vesti_files.put(real_filename, true);
     }
 
-    var vesti_files = StringArrayHashMap(bool).init(allocator);
+    var vesti_files = if (attr.compile_all)
+        StringArrayHashMap(bool).init(allocator)
+    else
+        main_vesti_files;
     defer {
-        for (vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
-        vesti_files.deinit();
-    }
-
-    while (try walker.next()) |entry| {
-        if (entry.kind != .file) continue;
-        if (!mem.eql(u8, path.extension(entry.basename), ".ves")) continue;
-
-        const real_filename = try entry.dir.realpathAlloc(allocator, entry.basename);
-        errdefer allocator.free(real_filename);
-
-        // check whether "real_filename" is a "main file"
-        if (main_vesti_files.get(real_filename) != null) {
-            try vesti_files.put(real_filename, true);
-        } else {
-            try vesti_files.put(real_filename, false);
+        if (attr.compile_all) {
+            for (vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
+            vesti_files.deinit();
         }
     }
 
+    var walk_dir = try fs.cwd().openDir(".", .{ .iterate = true });
+    defer walk_dir.close();
+
     var is_compiled = false;
-    while (watch) {
+    while (attr.watch) {
+        try updateVesFiles(
+            allocator,
+            &walk_dir,
+            attr.compile_all,
+            &main_vesti_files,
+            &vesti_files,
+        );
+
         // vesti -> latex
         for (vesti_files.keys()) |vesti_file| {
             if (prev_mtime.*) |pmtime| {
@@ -117,6 +127,14 @@ pub fn compile(
         prev_mtime.* = std.time.nanoTimestamp();
         time.sleep(200 * time.ns_per_ms);
     } else {
+        try updateVesFiles(
+            allocator,
+            &walk_dir,
+            attr.compile_all,
+            &main_vesti_files,
+            &vesti_files,
+        );
+
         // vesti -> latex
         for (vesti_files.keys()) |vesti_file| {
             try vestiToLatex(
@@ -147,7 +165,7 @@ pub fn compile(
 pub fn vestiToLatex(
     allocator: Allocator,
     filename: []const u8,
-    diagnostic: *Diagnostic,
+    diagnostic: *diag.Diagnostic,
     vesti_dummy_dir: *fs.Dir,
     engine: []const u8,
     is_main: bool,
@@ -158,10 +176,28 @@ pub fn vestiToLatex(
     var vesti_file_dir = try fs.openDirAbsolute(dir_path, .{});
     defer vesti_file_dir.close();
 
-    var vesti_file = try fs.cwd().openFile(filename, .{});
+    var vesti_file = fs.cwd().openFile(filename, .{}) catch |err| {
+        const io_diag = try diag.IODiagnostic.init(
+            diagnostic.allocator,
+            null,
+            "failed to open file `{s}`",
+            .{filename},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return err;
+    };
     defer vesti_file.close();
 
-    const source = try vesti_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const source = vesti_file.readToEndAlloc(allocator, std.math.maxInt(usize)) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            diagnostic.allocator,
+            null,
+            "failed to read from {s}",
+            .{filename},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.CompileVesFailed;
+    };
     defer allocator.free(source);
 
     var parser = try Parser.init(allocator, source, &vesti_file_dir, diagnostic);
@@ -169,7 +205,7 @@ pub fn vestiToLatex(
 
     const ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
-            try diagnostic.prettyPrint(allocator, filename, source);
+            try diagnostic.initMetadata(filename, source);
             return err;
         },
         else => return err,
@@ -262,6 +298,40 @@ fn compileLatex(
     const pdf_context = try from.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
+}
+
+fn updateVesFiles(
+    allocator: Allocator,
+    root_dir: *fs.Dir,
+    compile_all: bool,
+    main_vesti_files: *const StringArrayHashMap(bool),
+    vesti_files: *StringArrayHashMap(bool),
+) !void {
+    // if compile_all is false, just do nothing
+    if (!compile_all) return;
+
+    var walker = try root_dir.walk(allocator);
+    defer walker.deinit();
+
+    while (try walker.next()) |entry| {
+        if (entry.kind != .file) continue;
+        if (!mem.eql(u8, path.extension(entry.basename), ".ves")) continue;
+
+        const real_filename = try entry.dir.realpathAlloc(allocator, entry.basename);
+        errdefer allocator.free(real_filename);
+
+        if (vesti_files.get(real_filename) == null) {
+            // check whether "real_filename" is a "main file"
+            if (main_vesti_files.get(real_filename) != null) {
+                try vesti_files.put(real_filename, true);
+            } else {
+                try vesti_files.put(real_filename, false);
+            }
+        } else {
+            // we don't need this resource. Deallocate it
+            allocator.free(real_filename);
+        }
+    }
 }
 
 // filename should be absolute

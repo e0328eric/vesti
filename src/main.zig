@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const time = std.time;
 const compile = @import("./compile.zig");
 
@@ -6,15 +7,32 @@ const c = @cImport({
     @cInclude("signal.h");
 });
 
+const lua = @cImport({
+    @cInclude("lua.h");
+    @cInclude("lauxlib.h");
+});
+
+const jl = @cImport({
+    @cInclude("julia.h");
+});
+
+const win = if (builtin.os.tag == .windows) @cImport({
+    @cDefine("WIN32_LEAN_AND_MEAN", {});
+    @cInclude("windows.h");
+}) else {};
+
 const assert = std.debug.assert;
 
 const ArrayList = std.ArrayList;
-const Diagnostic = @import("./Diagnostic.zig");
+const Diagnostic = @import("./diagnostic.zig").Diagnostic;
 const Parser = @import("./parser/Parser.zig");
 
 fn signalHandler(signal: c_int) callconv(.C) noreturn {
     _ = signal;
     std.debug.print("bye!\n", .{});
+
+    // cleanup julia resources
+    _ = jl.jl_atexit_hook(0);
     std.process.exit(0);
 }
 
@@ -23,6 +41,11 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    // init julia
+    jl.jl_init();
+    defer _ = jl.jl_atexit_hook(0);
+
+    // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
 
     var zlap = try @import("zlap").Zlap(@embedFile("./commands.zlap")).init(allocator);
@@ -41,7 +64,9 @@ pub fn main() !void {
         break :blk @intCast(tmp);
     };
 
+    const compile_all = compile_subcmd.flags.get("all").?.value.bool;
     const watch = compile_subcmd.flags.get("watch").?.value.bool;
+    const no_color = compile_subcmd.flags.get("no_color").?.value.bool;
 
     const is_latex = compile_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
@@ -50,19 +75,35 @@ pub fn main() !void {
 
     const engine = try getEngine(is_latex, is_pdflatex, is_xelatex, is_lualatex);
 
-    var diagnostic = Diagnostic{};
+    var diagnostic = Diagnostic{
+        .allocator = allocator,
+    };
     defer diagnostic.deinit();
 
     var prev_mtime: ?i128 = null;
-    try compile.compile(
+    compile.compile(
         allocator,
         main_filenames.value.strings.items,
         &diagnostic,
         engine,
         compile_lim,
         &prev_mtime,
-        watch,
-    );
+        .{
+            .compile_all = compile_all,
+            .watch = watch,
+        },
+    ) catch |err| {
+        if (builtin.os.tag == .windows) {
+            _ = win.MessageBoxA(
+                null,
+                "vesti compilation error occurs. See the console for more information",
+                "vesti compile failed",
+                win.MB_OK | win.MB_ICONEXCLAMATION,
+            );
+        }
+        try diagnostic.prettyPrint(no_color);
+        return err;
+    };
 }
 
 fn getEngine(

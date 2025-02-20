@@ -28,6 +28,13 @@
     default: false;
 
     #flag;
+    long: all;
+    short: a;
+    desc: compile all vesti files in the subdirectories;
+    type: bool;
+    default: false;
+
+    #flag;
     long: watch;
     short: W;
     desc: watch vesti files when modified;

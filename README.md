@@ -65,3 +65,9 @@ $ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
 
 This language is in beta version, so future break changes can be exist. Beware to use in the large
 projects.
+
+## Note
+vesti repository contains entire [lua](https://www.lua.org/home.html) source
+code. Below link is the license of lua language
+
+- https://www.lua.org/license.html

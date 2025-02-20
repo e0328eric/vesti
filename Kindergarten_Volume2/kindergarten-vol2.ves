@@ -30,7 +30,7 @@ importpkg {
 
 \allowdisplaybreaks
 
-\input{getfilepath(Settings/settings.tex)}
+\input{getfp(Settings/settings.tex)}
 
 makeatletter
 \@namedef{thecoprimeDefinition}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}

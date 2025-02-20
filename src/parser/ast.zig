@@ -26,6 +26,11 @@ pub const TrimWhitespace = struct {
     end: bool = true,
 };
 
+pub const Language = enum(u1) {
+    Lua,
+    Julia,
+};
+
 pub const MathState = enum(u1) {
     Inline,
     Display,
@@ -104,6 +109,13 @@ pub const Stmt = union(enum(u8)) {
     },
     EndPhantomEnviron: CowStr,
     FilePath: CowStr,
+    CodeBlock: struct {
+        lang: Language,
+        code_span: Span,
+        code_import: ?[]const []const u8,
+        code_export: ?[]const u8,
+        code: []const u8,
+    },
 
     pub fn deinit(self: @This()) void {
         switch (self) {

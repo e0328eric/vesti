@@ -132,6 +132,7 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
         .EndPhantomEnviron => |name| try writer.print("\\end{{{cows}}}\n", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{cows}", .{name}),
+        .CodeBlock => undefined,
         .Int, .Float => undefined, // TODO: deprecated
     }
 }
