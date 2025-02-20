@@ -26,16 +26,6 @@ const ZG_COMPOMENTS = .{
     "PropsData",
 };
 
-const LUA_SRCS = .{
-    "lapi.c",     "lauxlib.c", "lbaselib.c", "lcode.c",   "lcorolib.c",
-    "lctype.c",   "ldblib.c",  "ldebug.c",   "ldo.c",     "ldump.c",
-    "lfunc.c",    "lgc.c",     "linit.c",    "liolib.c",  "llex.c",
-    "lmathlib.c", "lmem.c",    "loadlib.c",  "lobject.c", "lopcodes.c",
-    "loslib.c",   "lparser.c", "lstate.c",   "lstring.c", "lstrlib.c",
-    "ltable.c",   "ltablib.c", "ltm.c",      "lundump.c", "lutf8lib.c",
-    "lvm.c",      "lzio.c",
-};
-
 pub fn build(b: *Build) !void {
     const allocator = std.heap.page_allocator;
 
@@ -76,13 +66,6 @@ pub fn build(b: *Build) !void {
     inline for (ZG_COMPOMENTS) |component| {
         exe_mod.addImport("zg_" ++ component, zg.module(component));
     }
-    exe_mod.addIncludePath(b.path("./libs/lua-5.4.7/src"));
-    exe_mod.addCSourceFiles(.{
-        .root = b.path("./libs/lua-5.4.7/src"),
-        .files = &LUA_SRCS,
-        .flags = &.{ "-std=gnu99", "-O2", "-Wall", "-DLUA_COMPAT_5_3" },
-        .language = .c,
-    });
     exe_mod.addIncludePath(.{ .cwd_relative = julia_include_dir });
     exe_mod.addLibraryPath(.{ .cwd_relative = julia_dll_dir });
 

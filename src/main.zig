@@ -7,11 +7,6 @@ const c = @cImport({
     @cInclude("signal.h");
 });
 
-const lua = @cImport({
-    @cInclude("lua.h");
-    @cInclude("lauxlib.h");
-});
-
 const jl = @cImport({
     @cInclude("julia.h");
 });
