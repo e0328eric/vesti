@@ -7,10 +7,6 @@ const c = @cImport({
     @cInclude("signal.h");
 });
 
-const jl = @cImport({
-    @cInclude("julia.h");
-});
-
 const win = if (builtin.os.tag == .windows) @cImport({
     @cDefine("WIN32_LEAN_AND_MEAN", {});
     @cInclude("windows.h");
@@ -25,9 +21,6 @@ const Parser = @import("./parser/Parser.zig");
 fn signalHandler(signal: c_int) callconv(.C) noreturn {
     _ = signal;
     std.debug.print("bye!\n", .{});
-
-    // cleanup julia resources
-    _ = jl.jl_atexit_hook(0);
     std.process.exit(0);
 }
 
@@ -35,10 +28,6 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-
-    // init julia
-    jl.jl_init();
-    defer _ = jl.jl_atexit_hook(0);
 
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);

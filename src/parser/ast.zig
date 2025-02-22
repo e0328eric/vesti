@@ -26,11 +26,6 @@ pub const TrimWhitespace = struct {
     end: bool = true,
 };
 
-pub const Language = enum(u1) {
-    Lua,
-    Julia,
-};
-
 pub const MathState = enum(u1) {
     Inline,
     Display,
@@ -109,10 +104,9 @@ pub const Stmt = union(enum(u8)) {
     },
     EndPhantomEnviron: CowStr,
     FilePath: CowStr,
-    CodeBlock: struct {
-        lang: Language,
+    LuaCode: struct {
         code_span: Span,
-        code_import: ?[]const []const u8,
+        code_import: ?ArrayList([]const u8),
         code_export: ?[]const u8,
         code: []const u8,
     },
@@ -164,6 +158,7 @@ pub const Stmt = union(enum(u8)) {
                 ctx.args.deinit();
             },
             .FilePath => |ctx| ctx.deinit(),
+            .LuaCode => |cb| if (cb.code_import) |imports| imports.deinit(),
             else => {},
         }
     }

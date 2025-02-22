@@ -1,17 +1,91 @@
 const std = @import("std");
-
+const diag = @import("./diagnostic.zig");
 const ast = @import("./parser/ast.zig");
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+const StringArrayHashMap = std.StringArrayHashMap;
+const Lua = @import("./Lua.zig");
 
-pub fn codegen(stmts: ArrayList(ast.Stmt), writer: anytype) anyerror!void {
-    for (stmts.items) |stmt| {
-        try codegenStmt(stmt, writer);
+const Error = Allocator.Error || Lua.Error || error{
+    LuaInitFailed,
+    LuaLabelNotFound,
+    DuplicatedLuaLabel,
+    LuaEvalFailed,
+};
+
+allocator: Allocator,
+source: []const u8,
+stmts: []const ast.Stmt,
+diagnostic: *diag.Diagnostic,
+luacode_exports: StringArrayHashMap(ArrayList(u8)),
+lua: Lua,
+
+const Self = @This();
+
+pub fn init(
+    allocator: Allocator,
+    source: []const u8,
+    stmts: []const ast.Stmt,
+    diagnostic: *diag.Diagnostic,
+) !Self {
+    const lua = Lua.init(allocator) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            allocator,
+            null,
+            "failed to initialize lua vm",
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.LuaInitFailed;
+    };
+    errdefer lua.deinit();
+
+    const luacode_exports = StringArrayHashMap(ArrayList(u8)).init(allocator);
+    errdefer luacode_exports.deinit();
+
+    return Self{
+        .allocator = allocator,
+        .source = source,
+        .stmts = stmts,
+        .diagnostic = diagnostic,
+        .luacode_exports = luacode_exports,
+        .lua = lua,
+    };
+}
+
+pub fn deinit(self: *Self) void {
+    for (self.luacode_exports.values()) |code| {
+        code.deinit();
+    }
+    self.luacode_exports.deinit();
+    self.lua.deinit();
+}
+
+pub fn codegen(
+    self: *Self,
+    writer: anytype,
+) Error!void {
+    for (self.stmts) |stmt| {
+        try self.codegenStmt(stmt, writer);
     }
 }
 
-fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
+fn codegenStmts(
+    self: *Self,
+    stmts: ArrayList(ast.Stmt),
+    writer: anytype,
+) Error!void {
+    for (stmts.items) |stmt| {
+        try self.codegenStmt(stmt, writer);
+    }
+}
+
+fn codegenStmt(
+    self: *Self,
+    stmt: ast.Stmt,
+    writer: anytype,
+) Error!void {
     switch (stmt) {
         .NopStmt => {},
         .NonStopMode => try writer.writeAll("\n\\nonstopmode\n"),
@@ -27,19 +101,19 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
                 .Display => .{ "\\[", "\\]" },
             };
             try writer.writeAll(delimiter[0]);
-            try codegen(math_ctx.ctx, writer);
+            try self.codegenStmts(math_ctx.ctx, writer);
             try writer.writeAll(delimiter[1]);
         },
         .Braced => |inner_stmts| {
             try writer.writeByte('{');
-            try codegen(inner_stmts, writer);
+            try self.codegenStmts(inner_stmts, writer);
             try writer.writeByte('}');
         },
         .Fraction => |fraction| {
             try writer.writeAll("\\frac{");
-            try codegen(fraction.numerator, writer);
+            try self.codegenStmts(fraction.numerator, writer);
             try writer.writeAll("}{");
-            try codegen(fraction.denominator, writer);
+            try self.codegenStmts(fraction.denominator, writer);
             try writer.writeByte('}');
         },
         .DocumentStart => try writer.writeAll("\n\\begin{document}"),
@@ -72,12 +146,12 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
         },
         .ImportMultiplePkgs => |usepkgs| {
             for (usepkgs.items) |usepkg|
-                try codegenStmt(ast.Stmt{ .ImportSinglePkg = usepkg }, writer);
+                try self.codegenStmt(ast.Stmt{ .ImportSinglePkg = usepkg }, writer);
         },
         .PlainTextInMath => |info| {
             try writer.writeAll("\\text{");
             if (info.add_front_space) try writer.writeByte(' ');
-            try codegen(info.inner, writer);
+            try self.codegenStmts(info.inner, writer);
             if (info.add_back_space) try writer.writeByte(' ');
             try writer.writeByte('}');
         },
@@ -94,18 +168,18 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try codegen(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try codegen(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
                 }
             }
-            try codegen(info.inner, writer);
+            try self.codegenStmts(info.inner, writer);
             try writer.print("\\end{{{cows}}}", .{info.name});
         },
         .BeginPhantomEnviron => |info| {
@@ -114,12 +188,12 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try codegen(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try codegen(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -132,7 +206,66 @@ fn codegenStmt(stmt: ast.Stmt, writer: anytype) anyerror!void {
         .EndPhantomEnviron => |name| try writer.print("\\end{{{cows}}}\n", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{cows}", .{name}),
-        .CodeBlock => undefined,
+        .LuaCode => |cb| {
+            var new_code = try ArrayList(u8).initCapacity(
+                self.allocator,
+                cb.code.len,
+            );
+            errdefer new_code.deinit();
+
+            if (cb.code_import) |import_arr_list| {
+                for (import_arr_list.items) |import_label| {
+                    if (self.luacode_exports.get(import_label)) |import_code| {
+                        try new_code.appendSlice(import_code.items);
+                        try new_code.append('\n');
+                    } else {
+                        const label_not_found = try diag.ParseDiagnostic.luaLabelNotFound(
+                            self.diagnostic.allocator,
+                            cb.code_span,
+                            import_label,
+                        );
+                        self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
+                        return error.LuaLabelNotFound;
+                    }
+                }
+            }
+
+            if (cb.code_export) |export_label| {
+                if (self.luacode_exports.get(export_label) != null) {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{ .DuplicatedLuaLabel = export_label },
+                        .span = cb.code_span,
+                    } });
+                    return error.DuplicatedLuaLabel;
+                }
+                try new_code.appendSlice(cb.code);
+                try self.luacode_exports.put(export_label, new_code);
+                return;
+            }
+
+            try new_code.appendSlice(cb.code);
+            try new_code.append(0);
+
+            // TODO: print appropriate error message
+            self.lua.evalCode(@ptrCast(new_code.items)) catch |err| {
+                // the very top element is an "error" string
+                const err_str = self.lua.lua.toString(-1) catch unreachable;
+                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+                    self.diagnostic.allocator,
+                    cb.code_span,
+                    "{}",
+                    .{err},
+                    err_str,
+                );
+                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
+                return error.LuaEvalFailed;
+            };
+            const ves_output = self.lua.getVestiOutputStr();
+            try writer.writeAll(ves_output);
+
+            self.lua.clearVestiOutputStr();
+            new_code.deinit();
+        },
         .Int, .Float => undefined, // TODO: deprecated
     }
 }

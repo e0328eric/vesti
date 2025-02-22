@@ -182,8 +182,10 @@ pub const ParseDiagnostic = struct {
         IsNotOpened,
         IsNotClosed,
         IllegalUseErr,
-        EmptyCodeBlock,
         Deprecated,
+        LuaLabelNotFound,
+        DuplicatedLuaLabel,
+        LuaEvalFailed,
         VestiInternal,
     };
 
@@ -205,17 +207,68 @@ pub const ParseDiagnostic = struct {
             close: TokenType,
         },
         IllegalUseErr: []const u8,
-        EmptyCodeBlock,
         Deprecated: []const u8,
+        LuaLabelNotFound: ArrayList(u8),
+        DuplicatedLuaLabel: []const u8,
+        LuaEvalFailed: struct {
+            err_msg: ArrayList(u8),
+            err_detail: ArrayList(u8),
+        },
         VestiInternal: []const u8,
 
         fn deinit(self: @This()) void {
-            _ = self;
+            switch (self) {
+                .LuaLabelNotFound => |label| label.deinit(),
+                .LuaEvalFailed => |inner| {
+                    inner.err_msg.deinit();
+                    inner.err_detail.deinit();
+                },
+                else => {},
+            }
         }
     };
 
+    pub fn luaLabelNotFound(
+        allocator: Allocator,
+        span: Span,
+        label_str: []const u8,
+    ) !Self {
+        var label = try ArrayList(u8).initCapacity(allocator, label_str.len);
+        errdefer label.deinit();
+        try label.appendSlice(label_str);
+
+        return Self{
+            .err_info = ParseErrorInfo{ .LuaLabelNotFound = label },
+            .span = span,
+        };
+    }
+
+    pub fn luaEvalFailed(
+        allocator: Allocator,
+        span: Span,
+        comptime fmt_str: []const u8,
+        args: anytype,
+        err_detail_str: [:0]const u8,
+    ) !Self {
+        var err_msg = try ArrayList(u8).initCapacity(allocator, 30);
+        errdefer err_msg.deinit();
+        try err_msg.writer().print(fmt_str, args);
+
+        var err_detail = try ArrayList(u8).initCapacity(allocator, err_detail_str.len);
+        errdefer err_detail.deinit();
+        try err_detail.appendSlice(err_detail_str);
+
+        return Self{
+            .err_info = ParseErrorInfo{ .LuaEvalFailed = .{
+                .err_msg = err_msg,
+                .err_detail = err_detail,
+            } },
+            .span = span,
+        };
+    }
+
     pub inline fn deinit(self: Self) void {
-        _ = self;
+        self.err_info.deinit();
     }
 
     fn errorMsg(
@@ -246,7 +299,6 @@ pub const ParseDiagnostic = struct {
                 "either {any} was not closed with {}",
                 .{ info.open, info.close },
             ),
-            .EmptyCodeBlock => try writer.writeAll("empty code block (luacode or jlcode) was found"),
             .Deprecated => |info| try writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
@@ -254,9 +306,46 @@ pub const ParseDiagnostic = struct {
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try writer.writeAll(info),
+            .LuaLabelNotFound => |label| try writer.print(
+                "label `{s}` is not found",
+                .{label.items},
+            ),
+            .DuplicatedLuaLabel => |label| try writer.print(
+                "label `{s}` is duplicated",
+                .{label},
+            ),
+            .LuaEvalFailed => |inner| try writer.print(
+                "lua exception occured: {s}",
+                .{inner.err_msg.items},
+            ),
         }
 
         return output;
+    }
+
+    fn noteMsg(
+        self: Self,
+        allocator: Allocator,
+    ) !?ArrayList(u8) {
+        return switch (self.err_info) {
+            .LuaLabelNotFound => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit();
+                const writer = output.writer();
+
+                try writer.writeAll("labels should be declared before it is used");
+                break :blk output;
+            },
+            .LuaEvalFailed => |inner| blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit();
+                const writer = output.writer();
+
+                try writer.writeAll(inner.err_detail.items);
+                break :blk output;
+            },
+            else => null,
+        };
     }
 
     fn prettyPrint(
@@ -315,6 +404,14 @@ pub const ParseDiagnostic = struct {
                     err_msg.items, source_trim,         underline,
                 },
             );
+
+            if (try self.noteMsg(allocator)) |note_msg| {
+                try stderr.print(
+                    ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
+                    .{note_msg.items},
+                );
+                note_msg.deinit();
+            }
         } else {
             try stderr.print(
                 \\{s}:{}:{}: error: {s}
@@ -325,6 +422,10 @@ pub const ParseDiagnostic = struct {
                 filename,      self.span.start.row, self.span.start.col,
                 err_msg.items, source_trim,         underline,
             });
+            if (try self.noteMsg(allocator)) |note_msg| {
+                try stderr.print("note: {s}\n", .{note_msg.items});
+                note_msg.deinit();
+            }
         }
 
         try stderr_buf.flush();

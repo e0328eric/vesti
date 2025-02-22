@@ -10,6 +10,10 @@
             .url = "https://github.com/e0328eric/zlap/archive/refs/tags/v0.6.1.tar.gz",
             .hash = "1220a731040da73f0b7ab8abbce4a0f6f5e84b078dc4adc8344b0476dbb342975a46",
         },
+        .ziglua = .{
+            .url = "git+https://github.com/natecraddock/ziglua#00a3c39c587b1b853748c05b5f5c1dc68f5f3683",
+            .hash = "1220ee6d36df8c7847234ff5212eb7fc857d284b0d2eccb47cb9ba04ce089d4d1472",
+        },
     },
     .paths = .{
         "build.zig",

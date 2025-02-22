@@ -8,6 +8,7 @@ const diag = @import("./diagnostic.zig");
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const StringArrayHashMap = std.StringArrayHashMap;
+const Codegen = @import("./Codegen.zig");
 const Child = std.process.Child;
 const Parser = @import("./parser/Parser.zig");
 
@@ -219,7 +220,12 @@ pub fn vestiToLatex(
     defer content.deinit();
 
     const writer = content.writer();
-    try @import("codegen.zig").codegen(ast, writer);
+    var codegen = try Codegen.init(allocator, source, ast.items, diagnostic);
+    defer codegen.deinit();
+    codegen.codegen(writer) catch |err| {
+        try diagnostic.initMetadata(filename, source);
+        return err;
+    };
 
     const output_filename = try getTexFilename(allocator, filename, is_main);
     defer allocator.free(output_filename);

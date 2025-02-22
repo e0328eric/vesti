@@ -59,7 +59,6 @@ pub const TokenType = union(enum(u8)) {
     Latex3Off,
     NonStopMode,
     LuaCode,
-    JuliaCode,
     __end_keywords, // NOTE: this is a meta token type, not in actual usage
 
     // Symbols
@@ -159,7 +158,6 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "ltx3off", TokenType.Latex3Off },
     .{ "nonstopmode", TokenType.NonStopMode },
     .{ "luacode", TokenType.LuaCode },
-    .{ "jlcode", TokenType.JuliaCode },
     .{ "getfilepath", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "getfp" } } },
     .{ "defenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },
     .{ "redefenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },

@@ -4,7 +4,7 @@ const path = std.fs.path;
 
 const vesti_version = @import("./src/vesti_version.zig").VESTI_VERSION;
 
-const min_zig_string = "0.14.0-dev.3213+53216d2f2";
+const min_zig_string = "0.14.0-dev.3286+05d8b565a";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -26,35 +26,23 @@ const ZG_COMPOMENTS = .{
     "PropsData",
 };
 
-pub fn build(b: *Build) !void {
-    const allocator = std.heap.page_allocator;
-
+pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const zlap = b.dependency("zlap", .{});
-    const zg = b.dependency("zg", .{});
-
-    const julia_dir = std.process.getEnvVarOwned(allocator, "JULIA_DIR") catch |err|
-        switch (err) {
-        error.EnvironmentVariableNotFound => {
-            std.debug.print("`JULIA_DIR` should be specified\n", .{});
-            return error.NeedJuliaDirEnv;
-        },
-        else => return err,
-    };
-    defer allocator.free(julia_dir);
-    const julia_include_dir = try path.join(allocator, &.{
-        julia_dir,
-        "include",
-        "julia",
+    const zlap = b.dependency("zlap", .{
+        .target = target,
+        .optimize = optimize,
     });
-    defer allocator.free(julia_include_dir);
-    const julia_dll_dir = try path.join(allocator, &.{
-        julia_dir,
-        "bin",
+    const ziglua = b.dependency("ziglua", .{
+        .target = target,
+        .optimize = optimize,
+        .lang = .lua54,
     });
-    defer allocator.free(julia_dll_dir);
+    const zg = b.dependency("zg", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -63,22 +51,16 @@ pub fn build(b: *Build) !void {
         .link_libc = true,
     });
     exe_mod.addImport("zlap", zlap.module("zlap"));
+    exe_mod.addImport("ziglua", ziglua.module("ziglua"));
     inline for (ZG_COMPOMENTS) |component| {
         exe_mod.addImport("zg_" ++ component, zg.module(component));
     }
-    exe_mod.addIncludePath(.{ .cwd_relative = julia_include_dir });
-    exe_mod.addLibraryPath(.{ .cwd_relative = julia_dll_dir });
 
     const exe = b.addExecutable(.{
         .name = "vesti",
         .version = vesti_version,
         .root_module = exe_mod,
     });
-    if (builtin.os.tag == .windows) {
-        exe.linkSystemLibrary("libjulia");
-    } else {
-        exe.linkSystemLibrary("julia");
-    }
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

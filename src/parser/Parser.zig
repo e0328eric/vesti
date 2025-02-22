@@ -44,7 +44,7 @@ const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
-    error{ ParseFailed, ParseZon, NameMangle };
+    error{ ParseFailed, ParseZon, NameMangle, LuaInitFailed };
 
 pub const VestiModule = struct {
     name: []const u8,
@@ -282,8 +282,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .ImportVesti => try self.parseImportVesti(),
         .ImportFile => try self.parseImportFile(),
         .ImportModule => try self.parseImportModule(),
-        .LuaCode => try self.parseCodeBlock(.Lua),
-        .JuliaCode => try self.parseCodeBlock(.Julia),
+        .LuaCode => try self.parseLuaCode(),
         .Deprecated => |info| {
             if (info.valid_in_text) return self.parseLiteral();
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -293,113 +292,6 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         },
         else => self.parseLiteral(),
-    };
-}
-
-fn parseCodeBlock(self: *Self, comptime lang: ast.Language) ParseError!Stmt {
-    const code_keyword_ty: TokenType = switch (lang) {
-        .Lua => .LuaCode,
-        .Julia => .JuliaCode,
-    };
-
-    const codeblock_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{code_keyword_ty})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{code_keyword_ty},
-                .obtained = self.currToktype(),
-            } },
-            .span = codeblock_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lbrace, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
-
-    if (!self.expect(.current, &.{.Lbrace})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lbrace},
-                .obtained = self.currToktype(),
-            } },
-            .span = codeblock_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    const start = self.lexer.chr0_idx;
-    while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
-        const chr = self.peek_tok.toktype.RawChar;
-
-        if (chr == '}') {
-            break;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = codeblock_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-    }
-    const end = self.lexer.chr0_idx;
-    self.nextToken();
-
-    var code_export: ?[]const u8 = null;
-    if (self.expect(.peek, &.{.Less})) {
-        self.nextToken(); // skip '}' token
-
-        const codeblock_tag_loc = self.curr_tok.span;
-        self.nextToken(); // skip '<' token
-
-        if (!self.expect(.current, &.{.Text})) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .TokenExpected = .{
-                    .expected = &.{.Text},
-                    .obtained = self.currToktype(),
-                } },
-                .span = codeblock_tag_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-        code_export = self.curr_tok.lit.in_text;
-        self.nextToken();
-
-        if (!self.expect(.current, &.{.Great})) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .TokenExpected = .{
-                    .expected = &.{.Great},
-                    .obtained = self.currToktype(),
-                } },
-                .span = codeblock_tag_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-    }
-
-    if (start == end) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .EmptyCodeBlock,
-            .span = codeblock_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    return Stmt{
-        .CodeBlock = .{
-            .lang = lang,
-            .code_span = codeblock_loc,
-            .code_import = null,
-            .code_export = code_export,
-            .code = self.lexer.source[start .. end - 1],
-        },
     };
 }
 
@@ -1559,6 +1451,152 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     }
 
     return Stmt{ .EndPhantomEnviron = name };
+}
+
+fn parseLuaCode(self: *Self) ParseError!Stmt {
+    const codeblock_loc = self.curr_tok.span;
+    if (!self.expect(.current, &.{.LuaCode})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.LuaCode},
+                .obtained = self.currToktype(),
+            } },
+            .span = codeblock_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+
+    while (self.expect(.current, &.{ .Space, .Tab }) and
+        !self.expect(.peek, &.{ .Lbrace, .Eof }))
+    {
+        self.nextToken();
+    } else {
+        self.nextRawToken();
+    }
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = codeblock_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    const start = self.lexer.chr0_idx;
+    while (true) : (self.nextRawToken()) {
+        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
+        const chr = self.peek_tok.toktype.RawChar;
+
+        if (chr == '}') {
+            break;
+        } else if (chr == 0) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .EofErr,
+                .span = codeblock_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+    }
+    const end = self.lexer.chr0_idx;
+    self.nextToken();
+
+    var code_import: ?ArrayList([]const u8) = null;
+    errdefer {
+        if (code_import) |imports| imports.deinit();
+    }
+    if (self.expect(.peek, &.{.Lsqbrace})) {
+        code_import = try ArrayList([]const u8).initCapacity(
+            self.allocator,
+            10,
+        );
+
+        self.nextToken(); // skip '}' token
+        self.nextToken(); // skip '[' token
+
+        while (true) : (self.nextToken()) {
+            self.eatWhitespaces(true);
+            if (self.expect(.current, &.{.Rsqbrace})) break;
+            if (!self.expect(.current, &.{.Text})) {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .TokenExpected = .{
+                        .expected = &.{.Text},
+                        .obtained = self.currToktype(),
+                    } },
+                    .span = self.curr_tok.span,
+                } });
+                return ParseError.ParseFailed;
+            }
+
+            try code_import.?.append(self.curr_tok.lit.in_text);
+            self.nextToken();
+            self.eatWhitespaces(true);
+
+            switch (self.currToktype()) {
+                .Comma => continue,
+                .Rsqbrace => break,
+                else => {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{ .TokenExpected = .{
+                            .expected = &.{ .Comma, .Rsqbrace },
+                            .obtained = self.currToktype(),
+                        } },
+                        .span = self.curr_tok.span,
+                    } });
+                    return ParseError.ParseFailed;
+                },
+            }
+        }
+    }
+
+    var code_export: ?[]const u8 = null;
+    if (self.expect(.peek, &.{.Less})) {
+        self.nextToken(); // skip '}' or ']' token
+
+        const codeblock_tag_loc = self.curr_tok.span;
+        self.nextToken(); // skip '<' token
+
+        if (!self.expect(.current, &.{.Text})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Text},
+                    .obtained = self.currToktype(),
+                } },
+                .span = codeblock_tag_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+        code_export = self.curr_tok.lit.in_text;
+        self.nextToken();
+
+        if (!self.expect(.current, &.{.Great})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Great},
+                    .obtained = self.currToktype(),
+                } },
+                .span = codeblock_tag_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+    }
+
+    const code = if (start != end)
+        self.lexer.source[start .. end - 1]
+    else
+        "";
+
+    return Stmt{
+        .LuaCode = .{
+            .code_span = codeblock_loc,
+            .code_import = code_import,
+            .code_export = code_export,
+            .code = code,
+        },
+    };
 }
 
 fn parseFunctionArgs(
