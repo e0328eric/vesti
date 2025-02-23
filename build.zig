@@ -78,6 +78,7 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe_unit_tests.root_module.addImport("ziglua", ziglua.module("ziglua"));
     inline for (ZG_COMPOMENTS) |component| {
         exe_unit_tests.root_module.addImport("zg_" ++ component, zg.module(component));
     }

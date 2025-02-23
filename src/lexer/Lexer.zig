@@ -139,15 +139,15 @@ pub fn nextRaw(self: *Self) Token {
 
     const start_location = self.location;
     const chr = self.getChar(.current);
-    const chr0_idx = self.chr0_idx;
+    const start = self.chr0_idx;
     const len =
         unicode.utf8CodepointSequenceLength(self.getChar(.current)) catch unreachable;
 
     self.nextChar(1);
     token.init(
-        self.source[chr0_idx .. chr0_idx + len],
+        self.source[start .. start + len],
         null,
-        .{ .RawChar = chr },
+        .{ .RawChar = .{ .start = start, .end = start + len, .chr = chr } },
         start_location,
         self.location,
     );

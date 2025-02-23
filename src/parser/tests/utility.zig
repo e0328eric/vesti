@@ -10,17 +10,14 @@ const Parser = @import("../Parser.zig");
 const Stmt = @import("../ast.zig").Stmt;
 
 const allocator = std.testing.allocator;
-const codegen = @import("../../codegen.zig").codegen;
+const Codegen = @import("../../Codegen.zig");
 
 pub fn expect(
     source: []const u8,
     expected: []const u8,
     output_modifier: ?fn ([]const u8) []const u8,
 ) !void {
-    var diagnostic = diag.Diagnostic{
-        .absolute_filename = "<test>",
-        .source = source,
-    };
+    var diagnostic = diag.Diagnostic{ .allocator = allocator };
     defer diagnostic.deinit();
 
     var parser = try Parser.init(allocator, source, undefined, &diagnostic);
@@ -28,7 +25,7 @@ pub fn expect(
 
     const ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
-            try diagnostic.prettyPrint(allocator, true);
+            try diagnostic.prettyPrint(true);
             return err;
         },
         else => return err,
@@ -40,7 +37,9 @@ pub fn expect(
 
     var output = try ArrayList(u8).initCapacity(allocator, 100);
     defer output.deinit();
-    try codegen(ast, output.writer());
+    var codegen = try Codegen.init(allocator, source, ast.items, &diagnostic);
+    defer codegen.deinit();
+    try codegen.codegen(output.writer());
 
     if (output_modifier) |f| {
         if (!mem.eql(u8, f(output.items), expected)) {

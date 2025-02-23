@@ -835,8 +835,10 @@ fn parseFilepathHelper(
     var parse_very_first_chr = false;
 
     while (true) {
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
-        const chr = self.peek_tok.toktype.RawChar;
+        std.debug.assert(self.expect(.peek, &.{
+            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+        }));
+        const chr = self.peek_tok.toktype.RawChar.chr;
         const chr_str = self.peek_tok.lit.in_text;
 
         if (chr == ')') {
@@ -848,7 +850,7 @@ fn parseFilepathHelper(
             inside_config_dir = true;
             self.nextRawToken();
 
-            if (self.peek_tok.toktype.RawChar != '/') {
+            if (self.peek_tok.toktype.RawChar.chr != '/') {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .{
                         .IllegalUseErr = "The next token for `@` should be `/`",
@@ -1072,8 +1074,10 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     defer mod_dir_path.deinit();
 
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
-        const chr = self.peek_tok.toktype.RawChar;
+        std.debug.assert(self.expect(.peek, &.{
+            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+        }));
+        const chr = self.peek_tok.toktype.RawChar.chr;
         const chr_str = self.peek_tok.lit.in_text;
 
         if (chr == ')') {
@@ -1232,8 +1236,10 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
     defer file_path_str.deinit();
 
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
-        const chr = self.peek_tok.toktype.RawChar;
+        std.debug.assert(self.expect(.peek, &.{
+            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+        }));
+        const chr = self.peek_tok.toktype.RawChar.chr;
         const chr_str = self.peek_tok.lit.in_text;
 
         if (chr == ')') {
@@ -1486,10 +1492,15 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    const start = self.lexer.chr0_idx;
+    std.debug.assert(self.expect(.peek, &.{
+        .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+    }));
+    const start = self.peek_tok.toktype.RawChar.start;
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = 0 }}));
-        const chr = self.peek_tok.toktype.RawChar;
+        std.debug.assert(self.expect(.peek, &.{
+            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+        }));
+        const chr = self.peek_tok.toktype.RawChar.chr;
 
         if (chr == '}') {
             break;
@@ -1501,7 +1512,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
     }
-    const end = self.lexer.chr0_idx;
+    const end = self.peek_tok.toktype.RawChar.start;
     self.nextToken();
 
     var code_import: ?ArrayList([]const u8) = null;
@@ -1584,17 +1595,12 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         }
     }
 
-    const code = if (start != end)
-        self.lexer.source[start .. end - 1]
-    else
-        "";
-
     return Stmt{
         .LuaCode = .{
             .code_span = codeblock_loc,
             .code_import = code_import,
             .code_export = code_export,
-            .code = code,
+            .code = self.lexer.source[start..end],
         },
     };
 }

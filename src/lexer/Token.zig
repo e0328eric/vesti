@@ -38,10 +38,13 @@ pub const TokenType = union(enum(u8)) {
     Latex3Fnt,
     RawLatex,
     OtherChar,
-    RawChar: u21,
+    RawChar: struct {
+        start: usize,
+        end: usize,
+        chr: u21,
+    },
 
     // Keywords
-    __begin_keywords, // NOTE: this is a meta token type, not the actual one.
     Docclass,
     ImportPkg,
     ImportVesti,
@@ -59,7 +62,6 @@ pub const TokenType = union(enum(u8)) {
     Latex3Off,
     NonStopMode,
     LuaCode,
-    __end_keywords, // NOTE: this is a meta token type, not in actual usage
 
     // Symbols
     Plus, // +
