@@ -284,19 +284,19 @@ pub const ParseDiagnostic = struct {
             .EofErr => try writer.print("EOF character was found", .{}),
             .PremiereErr => try writer.print("PremiereErr\n", .{}),
             .TokenExpected => |info| try writer.print(
-                "{any} was expected but got {?}",
+                "{any} was expected but got {?tok}",
                 .{ info.expected, info.obtained },
             ),
             .NameMissErr => |toktype| try writer.print(
-                "{} should have a name",
+                "{tok} should have a name",
                 .{toktype},
             ),
             .IsNotOpened => |info| try writer.print(
-                "either {} was not opened with {any}",
+                "either {tok} was not opened with {any}",
                 .{ info.close, info.open },
             ),
             .IsNotClosed => |info| try writer.print(
-                "either {any} was not closed with {}",
+                "either {any} was not closed with {tok}",
                 .{ info.open, info.close },
             ),
             .Deprecated => |info| try writer.print(
@@ -361,7 +361,7 @@ pub const ParseDiagnostic = struct {
         var stderr_buf = io.bufferedWriter(stderr_handle.writer());
         const stderr = stderr_buf.writer();
 
-        var line_iter = mem.tokenizeScalar(u8, source.?, '\n');
+        var line_iter = mem.splitScalar(u8, source.?, '\n');
         const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
         defer allocator.free(current_dir);
         const filename = try std.fs.path.relative(

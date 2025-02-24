@@ -83,7 +83,6 @@ pub const TokenType = union(enum(u8)) {
     LongLeftArrow, // <--
     LongRightArrow, // -->
     LongLeftRightArrow, // <-->
-    DoubleLeftArrow, // =<
     DoubleRightArrow, // =>
     DoubleLeftRightArrow, // <=>
     LongDoubleLeftArrow, // <==
@@ -140,6 +139,124 @@ pub const TokenType = union(enum(u8)) {
         valid_in_text: bool,
         instead: []const u8,
     },
+
+    pub fn format(
+        self: @This(),
+        comptime fmt_str: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+
+        if (comptime std.mem.eql(u8, fmt_str, "tok") or fmt_str.len == 0) {
+            switch (self) {
+                // zig fmt: off
+                .Eof =>                      try writer.writeAll("`<EOF>`"),
+                .Space =>                    try writer.writeAll("`<space>`"),
+                .Tab =>                      try writer.writeAll("`<tab>`"),
+                .Newline =>                  try writer.writeAll("`<newline>`"),
+                .MathSmallSpace =>           try writer.writeAll("`<mathsmallspace>`"),
+                .MathLargeSpace =>           try writer.writeAll("`<mathlargespace>`"),
+                .Integer =>                  try writer.writeAll("`<integer>`"), 
+                .Float =>                    try writer.writeAll("`<float>`"),
+                .Text =>                     try writer.writeAll("`<text>`"),
+                .LatexFunction =>            try writer.writeAll("`<ltxfnt>`"),
+                .MakeAtLetterFnt =>          try writer.writeAll("`<makeatletterfnt>`"),
+                .Latex3Fnt =>                try writer.writeAll("`<ltx3fnt>`"),
+                .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
+                .OtherChar =>                try writer.writeAll("`<otherchr>`"),
+                .RawChar => |info|           try writer.print("`<rawchr {u}>`", .{info.chr}),
+                .Docclass =>                 try writer.writeAll("`docclass`"),
+                .ImportPkg =>                try writer.writeAll("`importpkg`"),
+                .ImportVesti =>              try writer.writeAll("`importves`"),
+                .ImportFile =>               try writer.writeAll("`importfile`"),
+                .ImportModule =>             try writer.writeAll("`importmod`"),
+                .ImportLatex3 =>             try writer.writeAll("`useltx3`"),
+                .GetFilePath =>              try writer.writeAll("`getfp`"),
+                .StartDoc =>                 try writer.writeAll("`startdoc`"),
+                .Useenv =>                   try writer.writeAll("`useenv`"),
+                .Begenv =>                   try writer.writeAll("`begenv`"),
+                .Endenv =>                   try writer.writeAll("`endenv`"),
+                .MakeAtLetter =>             try writer.writeAll("`makeatletter`"),
+                .MakeAtOther =>              try writer.writeAll("`makeatother`"),
+                .Latex3On =>                 try writer.writeAll("`ltx3on`"),
+                .Latex3Off =>                try writer.writeAll("`ltx3off`"),
+                .NonStopMode =>              try writer.writeAll("`nonstopmode`"),
+                .LuaCode =>                  try writer.writeAll("`luacode`"),
+                .Plus =>                     try writer.writeAll("`+`"),
+                .Minus =>                    try writer.writeAll("`-`"),
+                .SetMinus =>                 try writer.writeAll("`--`"),
+                .Star =>                     try writer.writeAll("`*`"),
+                .Slash =>                    try writer.writeAll("`/`"),
+                .FracDefiner =>              try writer.writeAll("`//`"),
+                .Equal =>                    try writer.writeAll("`=`"),
+                .EqEq =>                     try writer.writeAll("`==`"),
+                .NotEqual =>                 try writer.writeAll("`!=`"),
+                .Less =>                     try writer.writeAll("`<`"),
+                .Great =>                    try writer.writeAll("`>`"),
+                .LessEq =>                   try writer.writeAll("`<=`"),
+                .GreatEq =>                  try writer.writeAll("`>=`"),
+                .LeftArrow =>                try writer.writeAll("`<-`"),
+                .RightArrow =>               try writer.writeAll("`->`"),
+                .LeftRightArrow =>           try writer.writeAll("`<->`"),
+                .LongLeftArrow =>            try writer.writeAll("`<--`"),
+                .LongRightArrow =>           try writer.writeAll("`-->`"),
+                .LongLeftRightArrow =>       try writer.writeAll("`<-->`"),
+                .DoubleRightArrow =>         try writer.writeAll("`=>`"),
+                .DoubleLeftRightArrow =>     try writer.writeAll("`<=>`"),
+                .LongDoubleLeftArrow =>      try writer.writeAll("`<==`"),
+                .LongDoubleRightArrow =>     try writer.writeAll("`==>`"),
+                .LongDoubleLeftRightArrow => try writer.writeAll("`<==>`"),
+                .MapsTo =>                   try writer.writeAll("`|->`"),
+                .Bang =>                     try writer.writeAll("`!`"),
+                .Question =>                 try writer.writeAll("`?`"),
+                .LatexComment =>             try writer.writeAll("`%!`"),
+                .TextPercent =>              try writer.writeAll("`\\%`"),
+                .RawPercent =>               try writer.writeAll("`%!`"),
+                .TextSharp =>                try writer.writeAll("`\\#`"),
+                .RawSharp =>                 try writer.writeAll("`#`"),
+                .TextDollar =>               try writer.writeAll("`\\$`"),
+                .RawDollar =>                try writer.writeAll("`$!`"),
+                .At =>                       try writer.writeAll("`@`"),
+                .Superscript =>              try writer.writeAll("`^`"),
+                .Subscript =>                try writer.writeAll("`_`"),
+                .Ampersand =>                try writer.writeAll("`&`"),
+                .BackSlash =>                try writer.writeAll("`\\\\`"),
+                .ShortBackSlash =>           try writer.writeAll("`\\`"),
+                .Vert =>                     try writer.writeAll("`|`"),
+                .Norm =>                     try writer.writeAll("`||`"),
+                .Period =>                   try writer.writeAll("`.`"),
+                .Comma =>                    try writer.writeAll("`,`"),
+                .Colon =>                    try writer.writeAll("`:`"),
+                .Semicolon =>                try writer.writeAll("`;`"),
+                .Tilde =>                    try writer.writeAll("`~`"),
+                .LeftQuote =>                try writer.writeAll("`'`"),
+                .RightQuote =>               try writer.writeAll("```"),
+                .DoubleQuote =>              try writer.writeAll("`\"`"),
+                .CenterDots =>               try writer.writeAll("`...`"),
+                .InfinitySym =>              try writer.writeAll("`oo`"),
+                .Lbrace =>                   try writer.writeAll("`{`"),
+                .Rbrace =>                   try writer.writeAll("`}`"),
+                .Lparen =>                   try writer.writeAll("`(`"),
+                .Rparen =>                   try writer.writeAll("`)`"),
+                .Lsqbrace =>                 try writer.writeAll("`[`"),
+                .Rsqbrace =>                 try writer.writeAll("`]`"),
+                .Langle =>                   try writer.writeAll("`{<`"),
+                .Rangle =>                   try writer.writeAll("`>}`"),
+                .MathLbrace =>               try writer.writeAll("`\\{`"),
+                .MathRbrace =>               try writer.writeAll("`\\}`"),
+                .InlineMathSwitch =>         try writer.writeAll("`$`"),
+                .DisplayMathSwitch =>        try writer.writeAll("`$$`"),
+                .DisplayMathStart =>         try writer.writeAll("`\\[`"),
+                .DisplayMathEnd =>           try writer.writeAll("`\\]`"),
+                .Illegal =>                  try writer.writeAll("`<illegal>`"),
+                .Deprecated =>               try writer.writeAll("`<deprecated>`"),
+                // zig fmt: on
+            }
+        } else {
+            try writer.print("{any}", .{self});
+        }
+    }
 };
 
 pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
