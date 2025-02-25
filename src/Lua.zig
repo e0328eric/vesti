@@ -68,10 +68,8 @@ pub fn getVestiOutputStr(self: Self) [:0]const u8 {
 fn sprint(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
-    lua.pushNil();
-    lua.rotate(1, 1);
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
-    lua.replace(1);
+    lua.rotate(1, 1);
     lua.concat(lua.getTop());
     lua.setGlobal(VESTI_OUTPUT_STR);
 
@@ -81,10 +79,8 @@ fn sprint(lua: *ZigLua) i32 {
 fn sprintn(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
-    lua.pushNil();
-    lua.rotate(1, 1);
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
-    lua.replace(1);
+    lua.rotate(1, 1);
     _ = lua.pushString("\n");
     lua.concat(lua.getTop());
     lua.setGlobal(VESTI_OUTPUT_STR);
@@ -95,10 +91,8 @@ fn sprintn(lua: *ZigLua) i32 {
 fn sprintln(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
-    lua.pushNil();
-    lua.rotate(1, 1);
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
-    lua.replace(1);
+    lua.rotate(1, 1);
     _ = lua.pushString("\n\n");
     lua.concat(lua.getTop());
     lua.setGlobal(VESTI_OUTPUT_STR);

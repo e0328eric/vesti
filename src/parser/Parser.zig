@@ -1496,20 +1496,28 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
     }));
     const start = self.peek_tok.toktype.RawChar.start;
+
+    var bracket_open: usize = 0;
     while (true) : (self.nextRawToken()) {
         std.debug.assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
         }));
         const chr = self.peek_tok.toktype.RawChar.chr;
 
-        if (chr == '}') {
-            break;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = codeblock_loc,
-            } });
-            return ParseError.ParseFailed;
+        switch (chr) {
+            '{' => bracket_open += 1,
+            '}' => {
+                if (bracket_open == 0) break;
+                bracket_open -= 1;
+            },
+            0 => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = codeblock_loc,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {},
         }
     }
     const end = self.peek_tok.toktype.RawChar.start;
