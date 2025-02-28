@@ -1650,8 +1650,6 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         }
     }
 
-    std.debug.print("{s}\n", .{self.lexer.source[start..end]});
-
     return Stmt{
         .LuaCode = .{
             .code_span = codeblock_loc,
