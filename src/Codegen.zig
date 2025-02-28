@@ -260,6 +260,17 @@ fn codegenStmt(
                 self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
                 return error.LuaEvalFailed;
             };
+            if (self.lua.getError()) |err_str| {
+                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+                    self.diagnostic.allocator,
+                    cb.code_span,
+                    "vesti library in lua emits an error",
+                    .{},
+                    err_str,
+                );
+                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
+                return error.LuaEvalFailed;
+            }
             const ves_output = self.lua.getVestiOutputStr();
             try writer.writeAll(ves_output);
 

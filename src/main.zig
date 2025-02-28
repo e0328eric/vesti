@@ -1,16 +1,10 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const time = std.time;
 const compile = @import("./compile.zig");
 
 const c = @cImport({
     @cInclude("signal.h");
 });
-
-const win = if (builtin.os.tag == .windows) @cImport({
-    @cDefine("WIN32_LEAN_AND_MEAN", {});
-    @cInclude("windows.h");
-}) else {};
 
 const assert = std.debug.assert;
 
@@ -51,6 +45,7 @@ pub fn main() !void {
     const compile_all = compile_subcmd.flags.get("all").?.value.bool;
     const watch = compile_subcmd.flags.get("watch").?.value.bool;
     const no_color = compile_subcmd.flags.get("no_color").?.value.bool;
+    const no_exit_err = compile_subcmd.flags.get("no_exit_err").?.value.bool;
 
     const is_latex = compile_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
@@ -65,7 +60,7 @@ pub fn main() !void {
     defer diagnostic.deinit();
 
     var prev_mtime: ?i128 = null;
-    compile.compile(
+    try compile.compile(
         allocator,
         main_filenames.value.strings.items,
         &diagnostic,
@@ -75,19 +70,10 @@ pub fn main() !void {
         .{
             .compile_all = compile_all,
             .watch = watch,
+            .no_color = no_color,
+            .no_exit_err = no_exit_err,
         },
-    ) catch |err| {
-        if (builtin.os.tag == .windows) {
-            _ = win.MessageBoxA(
-                null,
-                "vesti compilation error occurs. See the console for more information",
-                "vesti compile failed",
-                win.MB_OK | win.MB_ICONEXCLAMATION,
-            );
-        }
-        try diagnostic.prettyPrint(no_color);
-        return err;
-    };
+    );
 }
 
 fn getEngine(
@@ -104,7 +90,7 @@ fn getEngine(
 
     switch (engine_num) {
         // TODO: read config file and replace with it
-        0 => return "lualatex",
+        0 => return "pdflatex",
         1 << 0 => return "latex",
         1 << 1 => return "pdflatex",
         1 << 2 => return "xelatex",

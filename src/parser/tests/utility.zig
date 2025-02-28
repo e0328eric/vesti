@@ -20,7 +20,13 @@ pub fn expect(
     var diagnostic = diag.Diagnostic{ .allocator = allocator };
     defer diagnostic.deinit();
 
-    var parser = try Parser.init(allocator, source, undefined, &diagnostic);
+    var parser = try Parser.init(
+        allocator,
+        source,
+        undefined,
+        &diagnostic,
+        false, // disallow luacode for testing
+    );
     defer parser.deinit();
 
     const ast = parser.parse() catch |err| switch (err) {

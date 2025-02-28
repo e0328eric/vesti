@@ -8,16 +8,45 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Span = @import("./location.zig").Span;
 const TokenType = @import("./lexer/Token.zig").TokenType;
+const CowStr = @import("./CowStr.zig").CowStr;
 
 pub const Diagnostic = struct {
     allocator: Allocator,
-    absolute_filename: ?[]const u8 = null,
-    source: ?[]const u8 = null,
+    absolute_filename: ?CowStr = null,
+    source: ?CowStr = null,
     inner: ?DiagnosticInner = null,
 
     const Self = @This();
 
+    /// This function takes ownerships of CowStrs.
     pub fn initMetadata(
+        self: *Self,
+        absolute_filename: ?CowStr,
+        source: ?CowStr,
+    ) void {
+        if (absolute_filename) |af| {
+            if (self.absolute_filename != null) {
+                @panic(
+                    \\Diagnostic.initMetadata is intended to be initialize it once.
+                    \\If this error occurs, then add an issue for it.
+                );
+            }
+
+            self.absolute_filename = af;
+        }
+        if (source) |s| {
+            if (self.source != null) {
+                @panic(
+                    \\Diagnostic.initMetadata is intended to be initialize it once.
+                    \\If this error occurs, then add an issue for it.
+                );
+            }
+
+            self.source = s;
+        }
+    }
+
+    pub fn initMetadataAlloc(
         self: *Self,
         absolute_filename: ?[]const u8,
         source: ?[]const u8,
@@ -30,10 +59,10 @@ pub const Diagnostic = struct {
                 );
             }
 
-            const af_copy = try self.allocator.alloc(u8, af.len);
-            errdefer self.allocator.free(af_copy);
-            @memcpy(af_copy, af);
-            self.absolute_filename = af_copy;
+            self.absolute_filename = try CowStr.init(.Owned, .{
+                self.allocator,
+                af,
+            });
         }
         if (source) |s| {
             if (self.source != null) {
@@ -43,10 +72,10 @@ pub const Diagnostic = struct {
                 );
             }
 
-            const source_copy = try self.allocator.alloc(u8, s.len);
-            errdefer self.allocator.free(source_copy);
-            @memcpy(source_copy, s);
-            self.source = source_copy;
+            self.source = try CowStr.init(.Owned, .{
+                self.allocator,
+                s,
+            });
         }
     }
 
@@ -62,8 +91,8 @@ pub const Diagnostic = struct {
     }
 
     pub fn deinit(self: Self) void {
-        if (self.absolute_filename) |af| self.allocator.free(af);
-        if (self.source) |source| self.allocator.free(source);
+        if (self.absolute_filename) |af| af.deinit();
+        if (self.source) |source| source.deinit();
         if (self.inner) |inner| inner.deinit();
     }
 
@@ -100,8 +129,8 @@ pub const DiagnosticInner = union(DiagnosticKind) {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
-        absolute_filename: ?[]const u8,
-        source: ?[]const u8,
+        absolute_filename: ?CowStr,
+        source: ?CowStr,
         no_color: bool,
     ) !void {
         switch (self) {
@@ -142,8 +171,8 @@ pub const IODiagnostic = struct {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
-        absolute_filename: ?[]const u8,
-        source: ?[]const u8,
+        absolute_filename: ?CowStr,
+        source: ?CowStr,
         no_color: bool,
     ) !void {
         _ = allocator;
@@ -185,6 +214,7 @@ pub const ParseDiagnostic = struct {
         Deprecated,
         LuaLabelNotFound,
         DuplicatedLuaLabel,
+        DisallowLuacode,
         LuaEvalFailed,
         VestiInternal,
     };
@@ -210,6 +240,7 @@ pub const ParseDiagnostic = struct {
         Deprecated: []const u8,
         LuaLabelNotFound: ArrayList(u8),
         DuplicatedLuaLabel: []const u8,
+        DisallowLuacode,
         LuaEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
@@ -306,6 +337,7 @@ pub const ParseDiagnostic = struct {
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try writer.writeAll(info),
+            .DisallowLuacode => try writer.writeAll("nested luacode is not allowed"),
             .LuaLabelNotFound => |label| try writer.print(
                 "label `{s}` is not found",
                 .{label.items},
@@ -351,8 +383,8 @@ pub const ParseDiagnostic = struct {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
-        absolute_filename: ?[]const u8,
-        source: ?[]const u8,
+        absolute_filename: ?CowStr,
+        source: ?CowStr,
         no_color: bool,
     ) !void {
         std.debug.assert(absolute_filename != null and source != null);
@@ -361,13 +393,13 @@ pub const ParseDiagnostic = struct {
         var stderr_buf = io.bufferedWriter(stderr_handle.writer());
         const stderr = stderr_buf.writer();
 
-        var line_iter = mem.splitScalar(u8, source.?, '\n');
+        var line_iter = mem.splitScalar(u8, source.?.toStr(), '\n');
         const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
         defer allocator.free(current_dir);
         const filename = try std.fs.path.relative(
             allocator,
             current_dir,
-            absolute_filename.?,
+            absolute_filename.?.toStr(),
         );
         defer allocator.free(filename);
 

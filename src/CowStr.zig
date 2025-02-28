@@ -96,6 +96,14 @@ pub const CowStr = union(CowStrState) {
         };
     }
 
+    pub fn toStr(self: Self) []const u8 {
+        return switch (self) {
+            .Empty => "",
+            .Borrowed => |inner| inner,
+            .Owned => |inner| inner.items,
+        };
+    }
+
     pub fn format(
         self: Self,
         comptime fmt: []const u8,

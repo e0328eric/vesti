@@ -28,6 +28,13 @@
     default: false;
 
     #flag;
+    long: no_exit_err;
+    short: E;
+    desc: on watch mode, supress exit when error occurs;
+    type: bool;
+    default: false;
+
+    #flag;
     long: all;
     short: a;
     desc: compile all vesti files in the subdirectories;

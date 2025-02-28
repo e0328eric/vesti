@@ -1,9 +1,15 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const mem = std.mem;
 const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("./diagnostic.zig");
+
+const win = if (builtin.os.tag == .windows) @cImport({
+    @cDefine("WIN32_LEAN_AND_MEAN", {});
+    @cInclude("windows.h");
+}) else {};
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -18,9 +24,54 @@ const VESTI_VERSION = @import("./vesti_version.zig").VESTI_VERSION;
 pub const CompileAttribute = packed struct {
     compile_all: bool,
     watch: bool,
+    no_color: bool,
+    no_exit_err: bool,
 };
 
 pub fn compile(
+    allocator: Allocator,
+    main_filenames: []const []const u8,
+    diagnostic: *diag.Diagnostic,
+    engine: []const u8,
+    compile_limit: usize,
+    prev_mtime: *?i128,
+    attr: CompileAttribute,
+) !void {
+    while (true) {
+        compileInner(
+            allocator,
+            main_filenames,
+            diagnostic,
+            engine,
+            compile_limit,
+            prev_mtime,
+            attr,
+        ) catch |err| {
+            if (builtin.os.tag == .windows) {
+                _ = win.MessageBoxA(
+                    null,
+                    "vesti compilation error occurs. See the console for more information",
+                    "vesti compile failed",
+                    win.MB_OK | win.MB_ICONEXCLAMATION,
+                );
+            }
+            try diagnostic.prettyPrint(attr.no_color);
+
+            if (attr.no_exit_err) {
+                std.debug.print("Ctrl+C to quit...\n", .{});
+                prev_mtime.* = std.time.nanoTimestamp();
+                time.sleep(200 * time.ns_per_ms);
+                continue;
+            } else {
+                return err;
+            }
+        };
+
+        if (!attr.watch) break;
+    }
+}
+
+fn compileInner(
     allocator: Allocator,
     main_filenames: []const []const u8,
     diagnostic: *diag.Diagnostic,
@@ -201,12 +252,18 @@ pub fn vestiToLatex(
     };
     defer allocator.free(source);
 
-    var parser = try Parser.init(allocator, source, &vesti_file_dir, diagnostic);
+    var parser = try Parser.init(
+        allocator,
+        source,
+        &vesti_file_dir,
+        diagnostic,
+        true,
+    );
     defer parser.deinit();
 
     const ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
-            try diagnostic.initMetadata(filename, source);
+            try diagnostic.initMetadataAlloc(filename, source);
             return err;
         },
         else => return err,
@@ -223,7 +280,7 @@ pub fn vestiToLatex(
     var codegen = try Codegen.init(allocator, source, ast.items, diagnostic);
     defer codegen.deinit();
     codegen.codegen(writer) catch |err| {
-        try diagnostic.initMetadata(filename, source);
+        try diagnostic.initMetadataAlloc(filename, source);
         return err;
     };
 

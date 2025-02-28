@@ -28,6 +28,7 @@ peek_tok: Token,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
+allow_luacode: bool,
 
 const Self = @This();
 
@@ -65,6 +66,7 @@ pub fn init(
     source: []const u8,
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
+    allow_luacode: bool,
 ) !Self {
     var self: Self = undefined;
     self.lexer = try Lexer.init(allocator, source);
@@ -76,6 +78,7 @@ pub fn init(
     self.doc_state = DocState{};
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
+    self.allow_luacode = allow_luacode;
 
     return self;
 }
@@ -282,7 +285,15 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .ImportVesti => try self.parseImportVesti(),
         .ImportFile => try self.parseImportFile(),
         .ImportModule => try self.parseImportModule(),
-        .LuaCode => try self.parseLuaCode(),
+        .LuaCode => if (self.allow_luacode)
+            try self.parseLuaCode()
+        else {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .DisallowLuacode,
+                .span = self.curr_tok.span,
+            } });
+            return ParseError.ParseFailed;
+        },
         .Deprecated => |info| {
             if (info.valid_in_text) return self.parseLiteral();
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1498,6 +1509,9 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
     const start = self.peek_tok.toktype.RawChar.start;
 
     var bracket_open: usize = 0;
+    var is_escaped = false;
+    var pass_counting_bracket = false;
+    var maybe_multiline_string = false;
     while (true) : (self.nextRawToken()) {
         std.debug.assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
@@ -1505,10 +1519,40 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         const chr = self.peek_tok.toktype.RawChar.chr;
 
         switch (chr) {
-            '{' => bracket_open += 1,
+            '{' => if (!pass_counting_bracket) {
+                bracket_open += 1;
+            },
             '}' => {
-                if (bracket_open == 0) break;
-                bracket_open -= 1;
+                if (!pass_counting_bracket) {
+                    if (bracket_open == 0) break;
+                    bracket_open -= 1;
+                }
+            },
+            '[' => {
+                if (maybe_multiline_string) {
+                    pass_counting_bracket = true;
+                    maybe_multiline_string = false;
+                } else if (!is_escaped) {
+                    maybe_multiline_string = true;
+                }
+            },
+            ']' => {
+                if (maybe_multiline_string) {
+                    pass_counting_bracket = false;
+                    maybe_multiline_string = false;
+                } else if (!is_escaped) {
+                    maybe_multiline_string = true;
+                }
+            },
+            '=' => if (maybe_multiline_string) {
+                maybe_multiline_string = true;
+            },
+            '\\' => is_escaped = true,
+            '\'', '"' => {
+                if (!is_escaped) {
+                    pass_counting_bracket = !pass_counting_bracket;
+                }
+                is_escaped = false;
             },
             0 => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1517,7 +1561,10 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
                 } });
                 return ParseError.ParseFailed;
             },
-            else => {},
+            else => {
+                is_escaped = false;
+                if (maybe_multiline_string) maybe_multiline_string = false;
+            },
         }
     }
     const end = self.peek_tok.toktype.RawChar.start;
@@ -1602,6 +1649,8 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
     }
+
+    std.debug.print("{s}\n", .{self.lexer.source[start..end]});
 
     return Stmt{
         .LuaCode = .{
