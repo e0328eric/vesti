@@ -1,6 +1,6 @@
 .{
     .name = .vesti,
-    .version = "0.16.1",
+    .version = "0.0.31-beta.20250302",
     .fingerprint = 0x95c25644562f92c1,
     .minimum_zig_version = "0.14.0-dev.3445+6c3cbb0c8",
     .dependencies = .{
