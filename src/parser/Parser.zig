@@ -1384,7 +1384,19 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         } };
     }
 
-    if (args.items.len > 0 and self.expect(.peek, &.{ .Space, .Tab })) {
+    if (args.items.len > 0) {
+        if (!self.expect(.current, &.{.Rparen}) and
+            !self.expect(.current, &.{.Rsqbrace}))
+        {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{ .Rparen, .Rsqbrace },
+                    .obtained = self.currToktype(),
+                } },
+                .span = self.curr_tok.span,
+            } });
+            return ParseError.ParseFailed;
+        }
         self.nextToken();
         self.eatWhitespaces(false);
     }
