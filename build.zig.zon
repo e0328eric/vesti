@@ -1,8 +1,8 @@
 .{
     .name = .vesti,
-    .version = "0.0.31-beta.20250302",
+    .version = "0.0.31-beta.20250306",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.14.0-dev.3445+6c3cbb0c8",
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .zg = .{
             .url = "https://codeberg.org/e0328eric/zg/archive/ba5c8afa1b3fe10eb4c626201dde2dc9e1196ec7.tar.gz",
