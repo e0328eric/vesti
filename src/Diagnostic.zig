@@ -25,24 +25,20 @@ pub const Diagnostic = struct {
         source: ?CowStr,
     ) void {
         if (absolute_filename) |af| {
-            if (self.absolute_filename != null) {
-                @panic(
-                    \\Diagnostic.initMetadata is intended to be initialize it once.
-                    \\If this error occurs, then add an issue for it.
-                );
+            if (self.absolute_filename) |*old_af| {
+                old_af.deinit();
+                old_af.* = af;
+            } else {
+                self.absolute_filename = af;
             }
-
-            self.absolute_filename = af;
         }
         if (source) |s| {
-            if (self.source != null) {
-                @panic(
-                    \\Diagnostic.initMetadata is intended to be initialize it once.
-                    \\If this error occurs, then add an issue for it.
-                );
+            if (self.source) |*old_s| {
+                old_s.deinit();
+                old_s.* = s;
+            } else {
+                self.source = s;
             }
-
-            self.source = s;
         }
     }
 
@@ -52,41 +48,39 @@ pub const Diagnostic = struct {
         source: ?[]const u8,
     ) !void {
         if (absolute_filename) |af| {
-            if (self.absolute_filename != null) {
-                @panic(
-                    \\Diagnostic.initMetadata is intended to be initialize it once.
-                    \\If this error occurs, then add an issue for it.
-                );
-            }
-
-            self.absolute_filename = try CowStr.init(.Owned, .{
+            const new_af = try CowStr.init(.Owned, .{
                 self.allocator,
                 af,
             });
-        }
-        if (source) |s| {
-            if (self.source != null) {
-                @panic(
-                    \\Diagnostic.initMetadata is intended to be initialize it once.
-                    \\If this error occurs, then add an issue for it.
-                );
+            if (self.absolute_filename) |*old_af| {
+                old_af.deinit();
+                old_af.* = new_af;
+            } else {
+                self.absolute_filename = new_af;
             }
+        }
+        errdefer if (self.absolute_filename) |af| af.deinit();
 
-            self.source = try CowStr.init(.Owned, .{
+        if (source) |s| {
+            const new_s = try CowStr.init(.Owned, .{
                 self.allocator,
                 s,
             });
+            if (self.source) |*old_s| {
+                old_s.deinit();
+                old_s.* = new_s;
+            } else {
+                self.source = new_s;
+            }
         }
     }
 
     pub fn initDiagInner(self: *Self, diag_inner: DiagnosticInner) void {
-        if (self.inner == null) {
-            self.inner = diag_inner;
+        if (self.inner) |*old_inner| {
+            old_inner.deinit();
+            old_inner.* = diag_inner;
         } else {
-            @panic(
-                \\Diagnostic.initDiagInner is intended to be initialize it once.
-                \\If this error occurs, then add an issue for it.
-            );
+            self.inner = diag_inner;
         }
     }
 
