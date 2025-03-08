@@ -101,6 +101,11 @@ pub const Diagnostic = struct {
             no_color,
         );
     }
+
+    pub fn reset(self: *Self) void {
+        self.deinit();
+        self.* = .{};
+    }
 };
 
 pub const DiagnosticKind = enum {
@@ -140,6 +145,7 @@ pub const DiagnosticInner = union(DiagnosticKind) {
 
 pub const IODiagnostic = struct {
     msg: ArrayList(u8),
+    note_msg: ?ArrayList(u8) = null,
     span: ?Span,
 
     const Self = @This();
@@ -158,8 +164,28 @@ pub const IODiagnostic = struct {
         return Self{ .msg = io_err_msg, .span = span };
     }
 
-    pub inline fn deinit(self: Self) void {
+    pub fn initWithNote(
+        allocator: Allocator,
+        span: ?Span,
+        comptime fmt_str: []const u8,
+        args: anytype,
+        comptime fmt_note_str: []const u8,
+        note_args: anytype,
+    ) !Self {
+        var io_err_msg = try ArrayList(u8).initCapacity(allocator, 30);
+        errdefer io_err_msg.deinit();
+        var io_note_msg = try ArrayList(u8).initCapacity(allocator, 30);
+        errdefer io_note_msg.deinit();
+
+        try io_err_msg.writer().print(fmt_str, args);
+        try io_note_msg.writer().print(fmt_note_str, note_args);
+
+        return Self{ .msg = io_err_msg, .note_msg = io_note_msg, .span = span };
+    }
+
+    pub fn deinit(self: Self) void {
         self.msg.deinit();
+        if (self.note_msg) |note_msg| note_msg.deinit();
     }
 
     fn prettyPrint(
@@ -182,8 +208,19 @@ pub const IODiagnostic = struct {
                 ansi.@"error" ++ "error: " ++ ansi.reset ++ "{s}\n",
                 .{self.msg.items},
             );
+            if (self.note_msg) |note_msg| {
+                try stderr.print(
+                    ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
+                    .{note_msg.items},
+                );
+                note_msg.deinit();
+            }
         } else {
             try stderr.print("error: {s}\n", .{self.msg.items});
+            if (self.note_msg) |note_msg| {
+                try stderr.print("note: {s}\n", .{note_msg.items});
+                note_msg.deinit();
+            }
         }
 
         try stderr_buf.flush();

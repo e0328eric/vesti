@@ -56,6 +56,7 @@ pub fn compile(
                 );
             }
             try diagnostic.prettyPrint(attr.no_color);
+            //diagnostic.reset();
 
             if (attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
@@ -167,6 +168,7 @@ fn compileInner(
                 try compileLatex(
                     allocator,
                     filename,
+                    diagnostic,
                     engine,
                     &vesti_dummy,
                     compile_limit,
@@ -204,6 +206,7 @@ fn compileInner(
             try compileLatex(
                 allocator,
                 filename,
+                diagnostic,
                 engine,
                 &vesti_dummy,
                 compile_limit,
@@ -309,6 +312,7 @@ pub fn vestiToLatex(
 fn compileLatex(
     allocator: Allocator,
     filename: []const u8,
+    diagnostic: *diag.Diagnostic,
     engine: []const u8,
     vesti_dummy: *fs.Dir,
     compile_limit: usize,
@@ -343,7 +347,18 @@ fn compileLatex(
         });
 
         switch (result.term) {
-            .Exited => |errcode| if (errcode != 0) return error.CompileLatexFailed,
+            .Exited => |errcode| if (errcode != 0) {
+                const io_diag = try diag.IODiagnostic.initWithNote(
+                    diagnostic.allocator,
+                    null,
+                    "{s} gaves an error while processing",
+                    .{engine},
+                    "see stdout.txt in {s} for more information",
+                    .{VESTI_LOCAL_DUMMY_DIR},
+                );
+                diagnostic.initDiagInner(.{ .IOError = io_diag });
+                return error.CompileLatexFailed;
+            },
             else => return error.CompileLatexFailed,
         }
 
