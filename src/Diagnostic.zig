@@ -213,13 +213,11 @@ pub const IODiagnostic = struct {
                     ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
                     .{note_msg.items},
                 );
-                note_msg.deinit();
             }
         } else {
             try stderr.print("error: {s}\n", .{self.msg.items});
             if (self.note_msg) |note_msg| {
                 try stderr.print("note: {s}\n", .{note_msg.items});
-                note_msg.deinit();
             }
         }
 
