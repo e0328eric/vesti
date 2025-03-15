@@ -411,10 +411,15 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .multiline_comment;
             },
-            '-' => if (self.getChar(.peek1) == '#') {
-                self.nextChar(2);
+            '#' => {
+                self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
                 continue :tokenize .line_verbatim;
+            },
+            '-' => if (self.getChar(.peek1) == '#') {
+                self.nextChar(2);
+                self.str2Token("%-#", &token, start_location);
+                break :tokenize;
             } else {
                 self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
@@ -780,6 +785,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "\"", .{ "\"", null, .DoubleQuote } },
     .{ "...", .{ "...", "\\cdots ", .CenterDots } },
     .{ "oo", .{ "oo", "\\infty ", .InfinitySym } },
+    .{ "%-#", .{ "", "", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "%#" } } } }, // TODO: remove this in the stable version
 });
 
 fn str2Token(self: Self, comptime str: []const u8, token: *Token, loc: Location) void {
