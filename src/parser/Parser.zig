@@ -40,7 +40,6 @@ const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
     .{"eqnarray"},
     .{"gather"},
     .{"multline"},
-    //.{"luacode"}, NOTE: `luacode` is now reserved as a keyword
 });
 
 pub const ParseError = Allocator.Error ||
