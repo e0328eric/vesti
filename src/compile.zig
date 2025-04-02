@@ -56,8 +56,8 @@ pub fn compile(
                 );
             }
             try diagnostic.prettyPrint(attr.no_color);
-            //diagnostic.reset();
 
+            if (err == error.FailedToOpenFile) return err;
             if (attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
                 prev_mtime.* = std.time.nanoTimestamp();
@@ -96,7 +96,7 @@ fn compileInner(
         main_vesti_files.deinit();
     }
     for (main_filenames) |filename| {
-        const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch |err| {
+        const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch {
             const io_diag = try diag.IODiagnostic.init(
                 diagnostic.allocator,
                 null,
@@ -104,7 +104,7 @@ fn compileInner(
                 .{filename},
             );
             diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return err;
+            return error.FailedToOpenFile;
         };
         errdefer allocator.free(real_filename);
         try main_vesti_files.put(real_filename, true);
