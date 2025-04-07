@@ -17,6 +17,7 @@ const StringArrayHashMap = std.StringArrayHashMap;
 const Codegen = @import("./Codegen.zig");
 const Child = std.process.Child;
 const Parser = @import("./parser/Parser.zig");
+const Lua = @import("./Lua.zig");
 
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
 const VESTI_VERSION = @import("./vesti_version.zig").VESTI_VERSION;
@@ -28,6 +29,26 @@ pub const CompileAttribute = packed struct {
     no_exit_err: bool,
 };
 
+pub fn runLuacode(
+    allocator: Allocator,
+    diagnostic: *diag.Diagnostic,
+    luacode_contents: [:0]const u8,
+) !void {
+    const lua = Lua.init(allocator) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            allocator,
+            null,
+            "failed to initialize lua vm",
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.LuaInitFailed;
+    };
+    defer lua.deinit();
+
+    try lua.evalCode(luacode_contents);
+}
+
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
@@ -35,8 +56,21 @@ pub fn compile(
     engine: []const u8,
     compile_limit: usize,
     prev_mtime: *?i128,
+    luacode_path: []const u8,
     attr: CompileAttribute,
 ) !void {
+    var luacode_file = try fs.cwd().openFile(luacode_path, .{});
+    defer luacode_file.close();
+
+    const luacode_contents = try luacode_file.readToEndAllocOptions(
+        allocator,
+        std.math.maxInt(usize),
+        null,
+        @alignOf(u8),
+        0,
+    );
+    defer allocator.free(luacode_contents);
+
     while (true) {
         compileInner(
             allocator,
@@ -45,6 +79,7 @@ pub fn compile(
             engine,
             compile_limit,
             prev_mtime,
+            luacode_contents,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -79,6 +114,7 @@ fn compileInner(
     engine: []const u8,
     compile_limit: usize,
     prev_mtime: *?i128,
+    luacode_contents: [:0]const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -171,6 +207,7 @@ fn compileInner(
                     diagnostic,
                     engine,
                     &vesti_dummy,
+                    luacode_contents,
                     compile_limit,
                 );
             }
@@ -209,6 +246,7 @@ fn compileInner(
                 diagnostic,
                 engine,
                 &vesti_dummy,
+                luacode_contents,
                 compile_limit,
             );
         }
@@ -314,6 +352,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: []const u8,
     vesti_dummy: *fs.Dir,
+    luacode_contents: [:0]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -361,10 +400,9 @@ fn compileLatex(
             else => return error.CompileLatexFailed,
         }
 
-        std.debug.print("[compiled]\n", .{});
+        try runLuacode(allocator, diagnostic, luacode_contents);
 
-        try compileMetadatas(.bibtex, allocator, diagnostic, vesti_dummy);
-        try compileMetadatas(.index, allocator, diagnostic, vesti_dummy);
+        std.debug.print("[compiled]\n", .{});
     }
 
     const main_pdf_file = try changeExtension(allocator, filename, "pdf");
@@ -378,78 +416,6 @@ fn compileLatex(
     const pdf_context = try from.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
-}
-
-const Metadata = enum(u1) {
-    bibtex,
-    index,
-};
-
-fn compileMetadatas(
-    comptime metadata: Metadata,
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    vesti_dummy: *fs.Dir,
-) !void {
-    const metadatas = try getMetadataFilename(metadata, allocator, vesti_dummy);
-    defer {
-        for (metadatas.items) |fname| allocator.free(fname);
-        metadatas.deinit();
-    }
-
-    const begin_msg = switch (metadata) {
-        .bibtex => "[run bibtex for {s}]\n",
-        .index => "[run makeindex for {s}]\n",
-    };
-    const prog_name = switch (metadata) {
-        .bibtex => "bibtex",
-        .index => "makeindex",
-    };
-
-    for (metadatas.items) |fname| {
-        std.debug.print(begin_msg, .{fs.path.basename(fname)});
-
-        const result = try Child.run(.{
-            .allocator = allocator,
-            .argv = &.{ prog_name, fname },
-            .cwd = VESTI_LOCAL_DUMMY_DIR,
-            .max_output_bytes = std.math.maxInt(usize),
-            // XXX: https://github.com/ziglang/zig/issues/5190
-            //.cwd_dir = vesti_dummy,
-        });
-        defer {
-            allocator.free(result.stdout);
-            allocator.free(result.stderr);
-        }
-
-        // write stdout and stderr in .vesti_dummy
-        try vesti_dummy.writeFile(.{
-            .sub_path = "stdout.txt",
-            .data = result.stdout,
-        });
-        try vesti_dummy.writeFile(.{
-            .sub_path = "stderr.txt",
-            .data = result.stderr,
-        });
-
-        switch (result.term) {
-            .Exited => |errcode| if (errcode != 0) {
-                const io_diag = try diag.IODiagnostic.initWithNote(
-                    diagnostic.allocator,
-                    null,
-                    prog_name ++ " gaves an error while processing",
-                    .{},
-                    "see stderr.txt in {s} for more information",
-                    .{VESTI_LOCAL_DUMMY_DIR},
-                );
-                diagnostic.initDiagInner(.{ .IOError = io_diag });
-                return error.CompileLatexFailed;
-            },
-            else => return error.CompileLatexFailed,
-        }
-
-        std.debug.print("[finished]\n", .{});
-    }
 }
 
 fn updateVesFiles(
@@ -506,34 +472,6 @@ fn getTexFilename(allocator: Allocator, filename: []const u8, is_main: bool) ![]
         errdefer output.deinit();
         return try output.toOwnedSlice();
     }
-}
-
-// inner strings are allocated. Must deallocate
-fn getMetadataFilename(
-    comptime metadata: Metadata,
-    allocator: Allocator,
-    vesti_dummy: *fs.Dir,
-) !ArrayList([]const u8) {
-    const extension = switch (metadata) {
-        .bibtex => ".aux",
-        .index => ".idx",
-    };
-    var output = ArrayList([]const u8).init(allocator);
-
-    var walk_dir = try vesti_dummy.openDir(".", .{ .iterate = true });
-    defer walk_dir.close();
-    var walker = try walk_dir.walk(allocator);
-    defer walker.deinit();
-
-    while (try walker.next()) |entry| {
-        if (entry.kind != .file) continue;
-        if (!mem.eql(u8, path.extension(entry.basename), extension)) continue;
-        const dup = try allocator.dupe(u8, entry.basename);
-        errdefer allocator.free(dup);
-        try output.append(dup);
-    }
-
-    return output;
 }
 
 fn changeExtension(

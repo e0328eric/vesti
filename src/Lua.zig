@@ -127,7 +127,10 @@ fn parse(lua: *ZigLua) i32 {
         lua.pop(1);
         var err_msg = ArrayList(u8).initCapacity(allocator, 100) catch @panic("OOM");
         defer err_msg.deinit();
-        err_msg.writer().print("expected string, but got {s}", .{luaType2Str(lua_ty)}) catch @panic("OOM");
+        err_msg.writer().print(
+            "expected string, but got {s}",
+            .{luaType2Str(lua_ty)},
+        ) catch @panic("OOM");
         err_msg.append(0) catch @panic("OOM");
         _ = lua.pushString(@ptrCast(err_msg.items));
         lua.setGlobal(VESTI_ERROR_STR);

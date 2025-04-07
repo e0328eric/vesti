@@ -6,6 +6,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.StringArrayHashMap;
 const Lua = @import("./Lua.zig");
+const Span = @import("./location.zig").Span;
 
 const Error = Allocator.Error || Lua.Error || error{
     LuaInitFailed,
@@ -41,7 +42,7 @@ pub fn init(
     };
     errdefer lua.deinit();
 
-    const luacode_exports = StringArrayHashMap(ArrayList(u8)).init(allocator);
+    var luacode_exports = StringArrayHashMap(ArrayList(u8)).init(allocator);
     errdefer luacode_exports.deinit();
 
     return Self{
@@ -280,3 +281,50 @@ fn codegenStmt(
         .Int, .Float => undefined, // TODO: deprecated
     }
 }
+
+pub const LazyLuacode = struct {
+    lazy_luacode: ArrayList(struct { ArrayList(u8), Span }),
+
+    pub fn deinit(self: @This()) void {
+        for (self.lazy_luacode.items) |code| {
+            code[0].deinit();
+        }
+        self.lazy_luacode.deinit();
+    }
+
+    pub fn run(self: *@This(), writer: anytype) !void {
+        // execute lazy luacodes
+        // TODO: print appropriate error message
+        for (self.lazy_luacode.items) |code| {
+            self.lua.evalCode(@ptrCast(code[0].items)) catch |err| {
+                // the very top element is an "error" string
+                const err_str = self.lua.lua.toString(-1) catch unreachable;
+                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+                    self.diagnostic.allocator,
+                    code[1],
+                    "{}",
+                    .{err},
+                    err_str,
+                );
+                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
+                return error.LuaEvalFailed;
+            };
+            if (self.lua.getError()) |err_str| {
+                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+                    self.diagnostic.allocator,
+                    code[1],
+                    "vesti library in lua emits an error",
+                    .{},
+                    err_str,
+                );
+                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
+                return error.LuaEvalFailed;
+            }
+            const ves_output = self.lua.getVestiOutputStr();
+            try writer.writeAll(ves_output);
+
+            self.lua.clearVestiOutputStr();
+        }
+        self.lazy_luacode.clearRetainingCapacity();
+    }
+};

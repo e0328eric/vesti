@@ -52,6 +52,8 @@ pub fn main() !void {
     const is_xelatex = compile_subcmd.flags.get("xelatex").?.value.bool;
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
 
+    const luacode_path = compile_subcmd.flags.get("luacode").?.value.string;
+
     const engine = try getEngine(is_latex, is_pdflatex, is_xelatex, is_lualatex);
 
     var diagnostic = Diagnostic{
@@ -67,6 +69,7 @@ pub fn main() !void {
         engine,
         compile_lim,
         &prev_mtime,
+        luacode_path,
         .{
             .compile_all = compile_all,
             .watch = watch,

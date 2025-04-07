@@ -82,4 +82,11 @@
     desc: set the number of the compile cycle;
     type: number;
     default: 3;
+
+    #flag;
+    long: luacode;
+    short:;
+    desc: custom luacode to execute;
+    type: string;
+    default: build.lua;
 }
