@@ -1,12 +1,13 @@
 .{
     .name = .vesti,
-    .version = "0.0.32-beta.20250308",
+    .version = "0.0.34-beta.20250407",
     .fingerprint = 0x95c25644562f92c1,
     .minimum_zig_version = "0.14.0",
     .dependencies = .{
-        .zg = .{
-            .url = "https://codeberg.org/e0328eric/zg/archive/ba5c8afa1b3fe10eb4c626201dde2dc9e1196ec7.tar.gz",
-            .hash = "1220f3e29bc40856bfc06e0ee133f814b0011c76de987d8a6a458c2f34d82708899a",
+        .ziglyph = .{
+            .url = "https://deps.files.ghostty.org/ziglyph-b89d43d1e3fb01b6074bc1f7fc980324b04d26a5.tar.gz",
+            .hash = "ziglyph-0.11.2-AAAAAHPtHwB4Mbzn1KvOV7Wpjo82NYEc_v0WC8oCLrkf",
+            //.lazy = true,
         },
         .zlap = .{
             .url = "https://github.com/e0328eric/zlap/archive/refs/tags/v0.6.1.tar.gz",

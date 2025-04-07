@@ -157,7 +157,6 @@ fn parse(lua: *ZigLua) i32 {
         lua.setGlobal(VESTI_ERROR_STR);
         return 0;
     };
-    defer parser.deinit();
 
     const ast = parser.parse() catch |err| {
         switch (err) {

@@ -21,11 +21,6 @@ const Build = blk: {
     break :blk std.Build;
 };
 
-const ZG_COMPOMENTS = .{
-    "DisplayWidth",
-    "PropsData",
-};
-
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -39,7 +34,7 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
         .lang = .lua54,
     });
-    const zg = b.dependency("zg", .{
+    const ziglyph = b.dependency("ziglyph", .{
         .target = target,
         .optimize = optimize,
     });
@@ -52,9 +47,7 @@ pub fn build(b: *Build) void {
     });
     exe_mod.addImport("zlap", zlap.module("zlap"));
     exe_mod.addImport("ziglua", ziglua.module("ziglua"));
-    inline for (ZG_COMPOMENTS) |component| {
-        exe_mod.addImport("zg_" ++ component, zg.module(component));
-    }
+    exe_mod.addImport("ziglyph", ziglyph.module("ziglyph"));
 
     const exe = b.addExecutable(.{
         .name = "vesti",
@@ -79,9 +72,7 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
     });
     exe_unit_tests.root_module.addImport("ziglua", ziglua.module("ziglua"));
-    inline for (ZG_COMPOMENTS) |component| {
-        exe_unit_tests.root_module.addImport("zg_" ++ component, zg.module(component));
-    }
+    exe_unit_tests.root_module.addImport("ziglyph", ziglyph.module("ziglyph"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

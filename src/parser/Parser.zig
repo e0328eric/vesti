@@ -68,8 +68,7 @@ pub fn init(
     allow_luacode: bool,
 ) !Self {
     var self: Self = undefined;
-    self.lexer = try Lexer.init(allocator, source);
-    errdefer self.lexer.deinit();
+    self.lexer = Lexer.init(source);
 
     self.allocator = allocator;
     self.curr_tok = self.lexer.next();
@@ -80,10 +79,6 @@ pub fn init(
     self.allow_luacode = allow_luacode;
 
     return self;
-}
-
-pub fn deinit(self: Self) void {
-    self.lexer.deinit();
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
@@ -282,7 +277,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             self.parseLiteral(),
         .GetFilePath => try self.parseFilepath(),
         .ImportVesti => try self.parseImportVesti(),
-        .ImportFile => try self.parseImportFile(),
+        .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .LuaCode => if (self.allow_luacode)
             try self.parseLuaCode()
@@ -980,12 +975,12 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
     };
 }
 
-fn parseImportFile(self: *Self) ParseError!Stmt {
+fn parseCopyFile(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.ImportFile})) {
+    if (!self.expect(.current, &.{.CopyFile})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.ImportFile},
+                .expected = &.{.CopyFile},
                 .obtained = self.currToktype(),
             } },
             .span = import_file_loc,
