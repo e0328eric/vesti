@@ -515,7 +515,7 @@ fn getMetadataFilename(
     vesti_dummy: *fs.Dir,
 ) !ArrayList([]const u8) {
     const extension = switch (metadata) {
-        .bibtex => ".bib",
+        .bibtex => ".aux",
         .index => ".idx",
     };
     var output = ArrayList([]const u8).init(allocator);
