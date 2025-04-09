@@ -29,26 +29,6 @@ pub const CompileAttribute = packed struct {
     no_exit_err: bool,
 };
 
-pub fn runLuacode(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    luacode_contents: [:0]const u8,
-) !void {
-    const lua = Lua.init(allocator) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            allocator,
-            null,
-            "failed to initialize lua vm",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.LuaInitFailed;
-    };
-    defer lua.deinit();
-
-    try lua.evalCode(luacode_contents);
-}
-
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
@@ -59,17 +39,29 @@ pub fn compile(
     luacode_path: []const u8,
     attr: CompileAttribute,
 ) !void {
-    var luacode_file = try fs.cwd().openFile(luacode_path, .{});
-    defer luacode_file.close();
+    const luacode_file = fs.cwd().openFile(luacode_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => null,
+        else => {
+            const io_diag = try diag.IODiagnostic.init(
+                diagnostic.allocator,
+                null,
+                "failed to read {s}",
+                .{luacode_path},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileVesFailed;
+        },
+    };
+    defer if (luacode_file) |lf| lf.close();
 
-    const luacode_contents = try luacode_file.readToEndAllocOptions(
+    const luacode_contents = if (luacode_file) |lf| try lf.readToEndAllocOptions(
         allocator,
         std.math.maxInt(usize),
         null,
         @alignOf(u8),
         0,
-    );
-    defer allocator.free(luacode_contents);
+    ) else null;
+    defer if (luacode_contents) |lc| allocator.free(lc);
 
     while (true) {
         compileInner(
@@ -114,7 +106,7 @@ fn compileInner(
     engine: []const u8,
     compile_limit: usize,
     prev_mtime: *?i128,
-    luacode_contents: [:0]const u8,
+    luacode_contents: ?[:0]const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -352,7 +344,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: []const u8,
     vesti_dummy: *fs.Dir,
-    luacode_contents: [:0]const u8,
+    luacode_contents: ?[:0]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -400,7 +392,9 @@ fn compileLatex(
             else => return error.CompileLatexFailed,
         }
 
-        try runLuacode(allocator, diagnostic, luacode_contents);
+        if (luacode_contents) |lc| {
+            try runLuacode(allocator, diagnostic, lc);
+        }
 
         std.debug.print("[compiled]\n", .{});
     }
@@ -488,4 +482,24 @@ fn changeExtension(
     output[idx] = '.';
     @memcpy(output[idx + 1 .. idx + 1 + into.len], into);
     return output;
+}
+
+fn runLuacode(
+    allocator: Allocator,
+    diagnostic: *diag.Diagnostic,
+    luacode_contents: [:0]const u8,
+) !void {
+    const lua = Lua.init(allocator) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            allocator,
+            null,
+            "failed to initialize lua vm",
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.LuaInitFailed;
+    };
+    defer lua.deinit();
+
+    try lua.evalCode(luacode_contents);
 }

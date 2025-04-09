@@ -90,3 +90,7 @@
     type: string;
     default: build.lua;
 }
+{
+    #name: clear;
+    #desc: Remove .vesti-dummy directory
+}
