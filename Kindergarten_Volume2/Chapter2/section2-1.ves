@@ -10,3 +10,6 @@ In our intuition, a length ---an area in $\R$--- is translation invariant, and i
 should be in our real life. Let us denote $\ell$ a length of sets in $\R$ and
 assume that we can take a length from arbitrary sets in $\R$.
 For instance, $\ell([a,b])=b-a$ and such definition comes from our intuition.
+
+
+The Entire settings of this chapter is heavly inspired from \cite{Evans-measure}.

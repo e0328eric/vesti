@@ -3,14 +3,15 @@ spaces.
 
 \begin{defin}[Compact sets]
     Let $X$ be a topological space. Then a set $X$ is said to be
-    \it{compact} if for every collection $\Us$ of open sets which cover $X$, we
-    can find a finite subcollection $\Fs\subset\Us$ such that $\bigcup\Fs\supset
-    X$.
+    \it{compact}\index{set!compact} if for every collection $\Us$ of open sets
+    which cover $X$, we can find a finite subcollection $\Fs\subset\Us$ such
+    that $\bigcup\Fs\supset X$.
     The collection of type $\Us$ described in above is called an \it{open cover
-    of $X$}.
+    of $X$}\index{open cover}.
     A subset $K\subset X$ is said to be compact if $K$ is compact within the
     subspace topology.
-    A set is said to be \it{precompact} if the closure of which is compact.
+    A set is said to be \it{precompact}\index{set!precompact} if the closure of
+    which is compact.
 \end{defin}
 
 We can show that the space is compact by using filters. Here is the theorem
@@ -52,10 +53,10 @@ about.
 \begin{coro} \label{coro:1.3.3}
     Let $X$ be a topological space. Then $\emptyset\neq K\subset X$ is compact
     if and only if every ultrafilter $\Uc$ in $X$ containing $K$ converges to
-    some point $x\in K$.
+    some point in $K$. Notice that the convergent point can differ.
     \proof
-    If $K\subset X$ is compact and fix an ultrafilter $\Uc$ that contains $K$.
-    Then the set
+    Suppose that $K\subset X$ is compact, and fix an ultrafilter $\Uc$ that
+    contains $K$. Then the set
     \begin{equation}
         \Uc' := \{F\cap K : F\in\Uc\} \label{eq:1.3.3.1}
     \end{equation}
@@ -65,12 +66,29 @@ about.
     This implies $N\in\Uc$ by the definition of $\Uc'$, proving that $\Uc\to x$
     since $N$ is arbitrary.
 
-    To prove the sufficency, fix an ultrafilter $\Uc$ in $X$ such that $\Uc\ni
-    K$ and $\Uc\to x\in K$. Notice that the ultrafilter $\Uc'$ defined in
-    \cref{eq:1.3.3.1} also converges to $x$ in $K$. Indeed, if $N$ is a
-    neighborhood of $x$ in $K$ then we can take an open set $U$ in $X$ satisfies
-    $N = U\cap K$. Since $U\in\Uc$, we have $N = U\cap K \in \Uc'$.
-    This proves the corollary. \proved
+    To prove the sufficency, claim that if $\Uc'$ is any ultrafilter in $K$,
+    then there exists an ultrafilter $\Uc$ in $X$ such that both $\Uc$ and
+    $\Uc'$ satisfies \cref{eq:1.3.3.1}. But indeed $\Uc'$ is a filter in $X$.
+    By \Cref{prop:1.2.2}, there exists an ultrafilter $\Uc$ which contains
+    $\Uc'$.
+    The one side of \cref{eq:1.3.3.1} is clear. Take any $F\in\Uc$.
+    Since $\Uc'\subset\Uc$, $F$ and $K$ are intersect. In addition, as $\Uc'$ is
+    an ultrafilter in $K$, either $F\cap K$ or $K--F$ belongs to $\Uc'$ by
+    \Cref{prop:1.2.4}.
+    However if $K--F\in\Uc'$, we have
+    $$
+        \emptyset = (K -- F)\cap F \in \Uc,
+    $$
+    which is a contradiction. This shows that $F\cap K\in\Uc'$, so both $\Uc$
+    and $\Uc'$ satisfies \cref{eq:1.3.3.1}.
+
+    From this fact, we are ready to prove that $K$ is compact provided that
+    every ultrafilter in $X$ containing $K$ converges to some point in $K$.
+    Fix any ultrafilter $\Uc'$ in $K$ and take an ultrafilter $\Uc$ in $X$
+    satisfies \cref{eq:1.3.3.1}. By our assumption, $\Uc$ converges to some
+    $x\in K$. By \cref{eq:1.3.3.1} and the definition of the subspace topology,
+    it is easy to verify that $\Uc'->x$. Therefore, $K$ is compact because of
+    \Cref{thm:1.3.2}. \proved
 \end{coro}
 
 Below propositions can be proved without using any filter theory. In here,
@@ -122,53 +140,4 @@ prove several compactness properties. One may solve \Cref{exe:1.3.5}.
 useenv exec { \label{exe:1.3.5}
     Prove \Cref{prop:1.3.4} \it{without using any filter theories}.
 }
-
-We end this section by proving the Tychonoff's theorem. It can be proved with
-several ways, but in here, obviously, we will use filters to prove it.
-
-\begin{thm}[Tychonoff's Theorem]
-    Let $\{X_\alpha\}_{\alpha\in A}$ be a collection of compact topological
-    spaces where $A$ is an index set.
-    Then the space $X = \prod_{\alpha\in A} X_\alpha$ equipped with the product
-    topology is compact.
-    \proof
-    Let us define a projection $\pi_\alpha : X \to X_\alpha$ for each $\alpha\in
-    A$, and fix an ultrafilter $\Uc$ in $X$. By \Cref{thm:1.2.10},
-    $(\pi_\alpha)_*\Uc$ is an ultrafilter in $X_\alpha$, so we can take
-    a point $x_\alpha\in X_\alpha$ such that $(\pi_\alpha)_*\Uc\to
-    x_\alpha$. Such points exists because $X_\alpha$ is compact and recall
-    \Cref{thm:1.3.2}. Finally, take the point $x\in X$ such that
-    $\pi_\alpha(x)=x_\alpha$ for every $\alpha\in A$. Claim that $\Uc\to x$.
-
-    To prove this, fix an open neighborhood $N$ of $x$ in $X$.
-    Since
-    \[
-        \{\pi_\alpha^{-1}[U] : \alpha\in A,\ U\in X_\alpha\}
-    \]
-    forms a subbasis of $X$, there exists $\alpha_1,\cdots,\alpha_n\in A$, and
-    $U_{\alpha_1},\cdots,U_{\alpha_n}$ are open sets in $X_{\alpha_j}$,
-    $j=1,2,\cdots,n$, respectively, such that
-    \[
-        x \in 
-        \pi_{\alpha_1}^{-1}[U_{\alpha_1}]
-        \cap\pi_{\alpha_2}^{-1}[U_{\alpha_2}]
-        \cap\cdots\cap\pi_{\alpha_n}^{-1}[U_{\alpha_n}]
-        \subset N.
-    \]
-    Notice that $x_{\alpha_j}\in U_{\alpha_j}$ for $j=1,2,\cdots,n$.
-    This gives that $U_{\alpha_j}\in(\pi_\alpha)_*\Uc$, hence
-    \[
-        \pi_{\alpha_j}^{-1}[U_{\alpha_j}] \in \pi_\alpha^*(\pi_\alpha)_*\Uc
-        \subset\Uc.
-    \]
-    Thus,
-    \[
-        \pi_{\alpha_1}^{-1}[U_{\alpha_1}]
-        \cap\pi_{\alpha_2}^{-1}[U_{\alpha_2}]
-        \cap\cdots\cap\pi_{\alpha_n}^{-1}[U_{\alpha_n}] \in \Uc
-        \quad\Longrightarrow\quad N\in\Uc.
-    \]
-    Since $N$ is arbitrary open neighborhood of $x$, we have proved that $\Uc\to
-    x$. Therefore, $X$ is compact because of \Cref{thm:1.3.2}. \proved
-\end{thm}
 

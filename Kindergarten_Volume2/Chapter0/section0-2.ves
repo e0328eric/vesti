@@ -1,0 +1,21 @@
+useenv defin [Product set] { \index{set!product}
+    Let $A$ be a nonempty set and for each $\alpha\in A$ consider some
+    \it{nonempty} set $X_\alpha$. Then define a \it{product} $\prod_{\alpha\in
+    A}X_\alpha$ of sets $\{X_\alpha\}_{\alpha\in A}$ by a collection of all
+    functions $f:A -> \bigcup_{\alpha\in A}X_\alpha$ such that $f(\alpha)\in
+    X_\alpha$ for each $\alpha\in A$.
+
+    If at least one set $X_\alpha$ is empty or $A=\emptyset$, define
+    $\prod_{\alpha\in A}X_\alpha := \emptyset$.
+}
+
+In mathematics, if every sets are nonempty, their product is also not empty and
+such fact is an axiom. Formally,
+
+useenv axiom [Axiom of choice] { \index{axiom of choice}
+    Let $A$ be a nonempty set and for each $\alpha\in A$ consider some
+    \it{nonempty} set $X_\alpha$. Then
+    $$
+        \prod_{\alpha\in A}X_\alpha != \emptyset.
+    $$
+}

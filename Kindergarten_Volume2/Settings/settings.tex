@@ -4,7 +4,7 @@
 \setlength{\trimedge}{\stockwidth}
 \addtolength{\trimedge}{-\paperwidth}
 \setlrmarginsandblock{2.4cm}{2.4cm}{*}
-\setulmarginsandblock{2.5cm}{2.5cm}{*}
+\setulmarginsandblock{2.5cm}{2.2cm}{*}
 \setheadfoot{23pt}{16.5pt}
 \checkandfixthelayout
 
@@ -47,6 +47,24 @@
 
 \makechapterstyle{almagest}{%
 \renewcommand{\@chapapp}{Chapter}
+\renewcommand{\chapterheadstart}{\vspace*{\beforechapskip}}
+\renewcommand{\printchaptername}{}
+\renewcommand{\chapternamenum}{}
+\renewcommand{\printchapternum}{\sbox{\Almagest}{\ChapBlack{\chapnamefont \@chapapp}{\chapnumfont \thechapter}}\usebox{\Almagest}}
+\renewcommand{\afterchapternum}{\par\nobreak\vskip \midchapskip}
+\renewcommand{\printchapternonum}{}
+\renewcommand{\printchaptertitle}[1]{\null\hfill\chaptitlefont ##1}
+\renewcommand{\afterchaptertitle}{\par\nobreak\vskip \afterchapskip}
+\renewcommand{\chapnamefont}{\Huge\sffamily\bfseries}
+\renewcommand{\chapnumfont}{\Huge\sffamily\bfseries}
+\renewcommand{\chaptitlefont}{\fontsize{20pt}{5.5ex}\selectfont\sffamily\bfseries}
+\setlength{\beforechapskip}{0pt}
+\setlength{\midchapskip}{0pt}
+\setlength{\afterchapskip}{40pt}
+}
+\makechapterstyle{almagestAppendix}{%
+\renewcommand{\@chapapp}{Appendix}
+\renewcommand{\thechapter}{\Alph{chapter}}
 \renewcommand{\chapterheadstart}{\vspace*{\beforechapskip}}
 \renewcommand{\printchaptername}{}
 \renewcommand{\chapternamenum}{}
@@ -325,6 +343,34 @@
 \crefname{thmnum}{Theorem}{Theorem}
 \Crefname{thmnum}{Theorem}{Theorem}
 
+\newaliascnt{lemmanum}{thmboxcnt}
+\def\thelemmanum{\arabic{chapter}.\arabic{section}.\arabic{lemmanum}}
+\NewDocumentEnvironment{lemma}{o}
+{%
+    \refstepcounter{lemmanum}
+	\RenewDocumentCommand{\@proof}{O{}}{%
+		\@isprovedtrue
+		\begin{pf}[##1]
+	}
+	\let\proof\@proof
+    \begin{tcolorbox}[breakable, empty, colback=white, arc=0mm, left = 5pt,
+      top=0pt, bottom=0pt, width=1.04\textwidth,
+      borderline west = {1pt}{0pt}{black},
+      borderline north = {0pt}{0pt}{white},
+      borderline south = {0pt}{0pt}{white},
+      borderline east = {0pt}{0pt}{white}]
+	\IfNoValueTF{#1}{\noindent{\bfseries Lemma \thethmnum}\par}
+    {\noindent{\bfseries Lemma \thethmnum\ (#1)}\par}
+}
+{%
+	\if@isproved
+		\end{pf}
+	\fi
+    \end{tcolorbox}
+}
+\crefname{lemmanum}{Lemma}{Lemma}
+\Crefname{lemmanum}{Lemma}{Lemma}
+
 \newaliascnt{coronum}{thmboxcnt}
 \def\thecoronum{\arabic{chapter}.\arabic{section}.\arabic{coronum}}
 \NewDocumentEnvironment{coro}{o}
@@ -353,6 +399,34 @@
 \crefname{coronum}{Corollary}{Corollary}
 \Crefname{coronum}{Corollary}{Corollary}
 
+\newaliascnt{axiomnum}{thmboxcnt}
+\def\theaxiomnum{\arabic{chapter}.\arabic{section}.\arabic{axiomnum}}
+\NewDocumentEnvironment{axiom}{o}
+{%
+    \refstepcounter{axiomnum}
+	\RenewDocumentCommand{\@proof}{O{}}{%
+		\@isprovedtrue
+		\begin{pf}[##1]
+	}
+	\let\proof\@proof
+    \begin{tcolorbox}[breakable, empty, colback=white, arc=0mm, left = 5pt,
+      top=0pt, bottom=0pt, width=1.04\textwidth,
+      borderline west = {1pt}{0pt}{black},
+      borderline north = {0pt}{0pt}{white},
+      borderline south = {0pt}{0pt}{white},
+      borderline east = {0pt}{0pt}{white}]
+	\IfNoValueTF{#1}{\noindent{\bfseries Axiom \theaxiomnum}\par}
+    {\noindent{\bfseries Axiom \theaxiomnum\ (#1)}\par}
+}
+{%
+	\if@isproved
+		\end{pf}
+	\fi
+    \end{tcolorbox}
+}
+\crefname{axiomnum}{Axiom}{Axiom}
+\Crefname{axiomnum}{Axiom}{Axiom}
+
 \NewDocumentEnvironment{pf}{O{}}{%
     \par\hbox to\hsize{\xleaders\hbox to.8em{\hss-\hss}\hfill}
 	\begin{@pf}[#1]
@@ -360,6 +434,5 @@
 {%
 	\end{@pf}\par
 }
-
 
 \makeatother

@@ -1,5 +1,6 @@
 Now we are ready to define a Lebesgue integration. Everywhere in this section,
-$(X,\mu)$ denotes a measure space.
+$(X,\mu)$ denotes a measure space. We are going to define an integration using a
+measure. This section is inspired from \cite{Krylov-diffusion}.
 
 useenv defin [Lebesgue Integration] { \label{defin:2.3.1}
     Let $f:X->\R$ be a function such that one of those Riemann integrations
@@ -7,7 +8,8 @@ useenv defin [Lebesgue Integration] { \label{defin:2.3.1}
         \int_0^oo \mu\{f_+ > t\}dt,\quad
         \int_0^oo \mu\{f_- > t\}dt
     $$
-    exists and finite. Then we define a \it{Lebesgue integration} respect to
+    exists and finite. Then we define a \it{Lebesgue integration}\index{Lebesgue
+    integration} respect to
     $\mu$ by
     $$
         \int_X f(x)\mu(dx) := \int_0^oo\mu\{f_+ > t\}dt - \int_0^oo\mu\{f_- >
@@ -53,8 +55,8 @@ integral. Below definition says about what is a \lq\lq good\rq\rq\ function.
 
 useenv defin { \label{defin:measurable-fnt}
     Let $Y$ be a topological space and $f:X->Y$ a function. We say that $f$ is
-    \it{$\mu$-measurable} if $f^{-1}[E]$ is $\mu$-measurable for every Borel set
-    $E\subset Y$.
+    \it{$\mu$-measurable}\index{function!$\mu$-measurable} if $f^{-1}[E]$ is
+    $\mu$-measurable for every Borel set $E\subset Y$.
 }
 
 If $f:X->\R$ is $\mu$-measurable, then clearly both $\{f_+ > t\}$ and $\{f_- >
@@ -80,29 +82,29 @@ Now we are going to study very important limit theorems.
 
 useenv thm { \label{thm:limit-thms}
     useenv enumerate [label = (\roman*)] {
-        \item(Fatou's lemma) Let $f_n$ are nonnegative $\mu$-measurable
-        functions. Then
-        $$
-            \int_X \liminf_{n->oo} f_n(x)\mu(dx) <=
-            \liminf_{n->oo}\int_X f_n(x)\mu(dx).
-        $$
         \item(Monotone convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
         functions such that $0<=f_1<=f_2<=...<=f$ and $f_n\uparrow f$ as
         $n->oo$, then
         $$
             \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+        $$ \index{Monotone convergence theorem}
+        \item(Fatou's lemma) Let $f_n$ are nonnegative $\mu$-measurable
+        functions. Then
         $$
+            \int_X \liminf_{n->oo} f_n(x)\mu(dx) <=
+            \liminf_{n->oo}\int_X f_n(x)\mu(dx).
+        $$ \index{Fatou's lemma}
         \item(Dominated convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
         functions such that $f_n->f$ as $n->oo$ and $|f_n|<=g$ for some
         $\mu$-measurable function $g$ such that $\int_X g d\mu<oo$. Then
         $$
             \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
-        $$
+        $$ \index{Dominated convergence theorem}
     }
 }
 
 There is the generalized version of \Cref{thm:limit-thms} (iii).
-useenv exec* { \label{exe:generalized-DCT}
+useenv exec* { \label{exe:generalized-DCT}\index{Generalized DCT}
     Let $f$, $f_n$, $g$, $g_n$ are $\mu$-measurable functions such that
     $f_n->f$, $g_n->g$ as $n->oo$, $|f_n|<=g_n$ for every $n$, and $\int_X
     g_nd\mu -> \int_X gd\mu < oo$ as $n->oo$. Then the below relation holds.
