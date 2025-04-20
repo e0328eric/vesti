@@ -4,7 +4,7 @@ const path = std.fs.path;
 
 const vesti_version = @import("./src/vesti_version.zig").VESTI_VERSION;
 
-const min_zig_string = "0.14.0";
+const min_zig_string = "0.15.0-dev.375+8f8f37fb0";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -24,12 +24,16 @@ const Build = blk: {
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const strip = switch (optimize) {
+        .ReleaseFast, .ReleaseSmall => true,
+        else => false,
+    };
 
     const zlap = b.dependency("zlap", .{
         .target = target,
         .optimize = optimize,
     });
-    const ziglua = b.dependency("ziglua", .{
+    const zlua = b.dependency("zlua", .{
         .target = target,
         .optimize = optimize,
         .lang = .lua54,
@@ -46,13 +50,14 @@ pub fn build(b: *Build) void {
         .link_libc = true,
     });
     exe_mod.addImport("zlap", zlap.module("zlap"));
-    exe_mod.addImport("ziglua", ziglua.module("ziglua"));
+    exe_mod.addImport("zlua", zlua.module("zlua"));
     exe_mod.addImport("ziglyph", ziglyph.module("ziglyph"));
 
     const exe = b.addExecutable(.{
         .name = "vesti",
         .version = vesti_version,
         .root_module = exe_mod,
+        .strip = strip,
     });
     b.installArtifact(exe);
 
@@ -71,7 +76,7 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe_unit_tests.root_module.addImport("ziglua", ziglua.module("ziglua"));
+    exe_unit_tests.root_module.addImport("zlua", zlua.module("zlua"));
     exe_unit_tests.root_module.addImport("ziglyph", ziglyph.module("ziglyph"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);

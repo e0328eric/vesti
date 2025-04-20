@@ -58,7 +58,7 @@ pub fn compile(
         allocator,
         std.math.maxInt(usize),
         null,
-        @alignOf(u8),
+        .of(u8),
         0,
     ) else null;
     defer if (luacode_contents) |lc| allocator.free(lc);
