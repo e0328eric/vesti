@@ -14,7 +14,7 @@
             .hash = "1220a731040da73f0b7ab8abbce4a0f6f5e84b078dc4adc8344b0476dbb342975a46",
         },
         .zlua = .{
-            .url = "git+https://github.com/e0328eric/ziglua.git?ref=main#cf20488ce61fdf1a695ce487432c6759a4dde06e",
+            .url = "git+https://github.com/e0328eric/ziglua.git?ref=main#6b1fabed9b1fecf628b940c1e6bfc4cea9710522",
             .hash = "zlua-0.1.0-hGRpC3rgBACHi6V9yf591eExsYJVgqR9E3sat-sJzKCG",
         },
     },
