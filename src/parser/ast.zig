@@ -69,7 +69,10 @@ pub const Stmt = union(enum(u8)) {
         state: MathState,
         ctx: ArrayList(Stmt),
     },
-    Braced: ArrayList(Stmt),
+    Braced: struct {
+        unwrap_brace: bool = false,
+        inner: ArrayList(Stmt),
+    },
     Fraction: struct {
         numerator: ArrayList(Stmt),
         denominator: ArrayList(Stmt),
@@ -135,9 +138,9 @@ pub const Stmt = union(enum(u8)) {
                 for (math_ctx.ctx.items) |stmt| stmt.deinit();
                 math_ctx.ctx.deinit();
             },
-            .Braced => |inner| {
-                for (inner.items) |stmt| stmt.deinit();
-                inner.deinit();
+            .Braced => |bs| {
+                for (bs.inner.items) |stmt| stmt.deinit();
+                bs.inner.deinit();
             },
             .Fraction => |ctx| {
                 for (ctx.numerator.items) |c| c.deinit();

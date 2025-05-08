@@ -62,6 +62,7 @@ pub const TokenType = union(enum(u8)) {
     Latex3Off,
     NonStopMode,
     LuaCode,
+    MathMode,
 
     // Symbols
     Plus, // +
@@ -183,6 +184,7 @@ pub const TokenType = union(enum(u8)) {
                 .Latex3Off =>                try writer.writeAll("`ltx3off`"),
                 .NonStopMode =>              try writer.writeAll("`nonstopmode`"),
                 .LuaCode =>                  try writer.writeAll("`luacode`"),
+                .MathMode=>                  try writer.writeAll("`luacode`"),
                 .Plus =>                     try writer.writeAll("`+`"),
                 .Minus =>                    try writer.writeAll("`-`"),
                 .SetMinus =>                 try writer.writeAll("`--`"),
@@ -277,6 +279,7 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "ltx3off", TokenType.Latex3Off },
     .{ "nonstopmode", TokenType.NonStopMode },
     .{ "luacode", TokenType.LuaCode },
+    .{ "mathmode", TokenType.MathMode },
     .{ "importfile", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "cpfile" } } },
     .{ "getfilepath", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "getfp" } } },
     .{ "defenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },

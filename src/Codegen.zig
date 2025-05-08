@@ -105,10 +105,10 @@ fn codegenStmt(
             try self.codegenStmts(math_ctx.ctx, writer);
             try writer.writeAll(delimiter[1]);
         },
-        .Braced => |inner_stmts| {
-            try writer.writeByte('{');
-            try self.codegenStmts(inner_stmts, writer);
-            try writer.writeByte('}');
+        .Braced => |bs| {
+            if (!bs.unwrap_brace) try writer.writeByte('{');
+            try self.codegenStmts(bs.inner, writer);
+            if (!bs.unwrap_brace) try writer.writeByte('}');
         },
         .Fraction => |fraction| {
             try writer.writeAll("\\frac{");

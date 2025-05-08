@@ -267,6 +267,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Useenv => try self.parseEnvironment(true),
         .Begenv => try self.parseEnvironment(false),
         .Endenv => try self.parseEndPhantomEnvironment(),
+        .MathMode => try self.parseMathMode(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
         else
@@ -823,7 +824,7 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
         // So we should deallocate denominator only
         if (frac_enable) denominator.deinit();
         return Stmt{
-            .Braced = numerator,
+            .Braced = .{ .inner = numerator },
         };
     }
 }
@@ -1415,7 +1416,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     return Stmt{ .Environment = .{
         .name = name,
         .args = args,
-        .inner = inner.Braced,
+        .inner = inner.Braced.inner,
     } };
 }
 
@@ -1664,6 +1665,40 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             .code = self.lexer.source[start..end],
         },
     };
+}
+
+fn parseMathMode(self: *Self) ParseError!Stmt {
+    const mathmode_block_loc = self.curr_tok.span;
+    if (!self.expect(.current, &.{.MathMode})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.MathMode},
+                .obtained = self.currToktype(),
+            } },
+            .span = mathmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.doc_state.math_mode = true;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = false;
+
+    inner.Braced.unwrap_brace = true;
+    return inner;
 }
 
 fn parseFunctionArgs(

@@ -4,7 +4,7 @@ const path = std.fs.path;
 
 const vesti_version = @import("./src/vesti_version.zig").VESTI_VERSION;
 
-const min_zig_string = "0.15.0-dev.441+c1649d586";
+const min_zig_string = "0.15.0-dev.471+369177f0b";
 const program_name = "vesti";
 
 // NOTE: This code came from

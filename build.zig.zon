@@ -1,8 +1,8 @@
 .{
     .name = .vesti,
-    .version = "0.0.35-beta.20250420",
+    .version = "0.0.36-beta.20250508",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0-dev.471+369177f0b",
     .dependencies = .{
         .ziglyph = .{
             .url = "https://deps.files.ghostty.org/ziglyph-b89d43d1e3fb01b6074bc1f7fc980324b04d26a5.tar.gz",
