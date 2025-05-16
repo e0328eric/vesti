@@ -227,7 +227,7 @@ pub const IODiagnostic = struct {
 
 pub const ParseDiagnostic = struct {
     err_info: ParseErrorInfo = .None,
-    span: Span = Span{},
+    span: ?Span = null,
 
     const Self = @This();
 
@@ -305,7 +305,7 @@ pub const ParseDiagnostic = struct {
 
     pub fn luaEvalFailed(
         allocator: Allocator,
-        span: Span,
+        span: ?Span,
         comptime fmt_str: []const u8,
         args: anytype,
         err_detail_str: [:0]const u8,
@@ -422,7 +422,6 @@ pub const ParseDiagnostic = struct {
         var stderr_buf = io.bufferedWriter(stderr_handle.writer());
         const stderr = stderr_buf.writer();
 
-        var line_iter = mem.splitScalar(u8, source.?.toStr(), '\n');
         const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
         defer allocator.free(current_dir);
         const filename = try std.fs.path.relative(
@@ -432,60 +431,90 @@ pub const ParseDiagnostic = struct {
         );
         defer allocator.free(filename);
 
-        for (1..self.span.start.row) |_| _ = line_iter.next();
-        const line = line_iter.next() orelse @panic("span.start.row is invalid");
         const err_msg = try self.errorMsg(allocator);
         defer err_msg.deinit();
 
-        const source_trim = mem.trimRight(u8, line, "\r");
-        const underline = if (self.span.start.row == self.span.end.row) blk: {
-            @branchHint(.likely);
-            break :blk try allocator.alloc(u8, self.span.end.col - 1);
-        } else blk: {
-            break :blk try allocator.alloc(u8, source_trim.len);
-        };
-        defer allocator.free(underline);
+        if (self.span) |span| {
+            var line_iter = mem.splitScalar(u8, source.?.toStr(), '\n');
 
-        @memset(underline[0 .. self.span.start.col - 1], ' ');
-        if (self.span.start.row == self.span.end.row) {
-            @branchHint(.likely);
-            @memset(underline[self.span.start.col - 1 .. self.span.end.col - 1], '^');
-        } else {
-            @memset(underline[self.span.start.col - 1 ..], '^');
-        }
+            for (1..span.start.row) |_| _ = line_iter.next();
+            const line = line_iter.next() orelse @panic("span.start.row is invalid");
 
-        if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
-            try stderr.print(
-                ansi.makeAnsi(null, .Bold) ++ "{s}:{}:{}: " ++ ansi.@"error" ++
-                    "error: " ++ ansi.reset ++ "{s}\n" ++
-                    "    {s}\n" ++
-                    ansi.makeAnsi(.BrightGreen, null) ++ "    {s}\n" ++ ansi.reset,
-                .{
-                    filename,      self.span.start.row, self.span.start.col,
-                    err_msg.items, source_trim,         underline,
-                },
-            );
+            const source_trim = mem.trimRight(u8, line, "\r");
+            const underline = if (span.start.row == span.end.row) blk: {
+                @branchHint(.likely);
+                break :blk try allocator.alloc(u8, span.end.col - 1);
+            } else blk: {
+                break :blk try allocator.alloc(u8, source_trim.len);
+            };
+            defer allocator.free(underline);
 
-            if (try self.noteMsg(allocator)) |note_msg| {
+            @memset(underline[0 .. span.start.col - 1], ' ');
+            if (span.start.row == span.end.row) {
+                @branchHint(.likely);
+                @memset(underline[span.start.col - 1 .. span.end.col - 1], '^');
+            } else {
+                @memset(underline[span.start.col - 1 ..], '^');
+            }
+
+            if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
                 try stderr.print(
-                    ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
-                    .{note_msg.items},
+                    ansi.makeAnsi(null, .Bold) ++ "{s}:{}:{}: " ++ ansi.@"error" ++
+                        "error: " ++ ansi.reset ++ "{s}\n" ++
+                        "    {s}\n" ++
+                        ansi.makeAnsi(.BrightGreen, null) ++ "    {s}\n" ++ ansi.reset,
+                    .{
+                        filename,      span.start.row, span.start.col,
+                        err_msg.items, source_trim,    underline,
+                    },
                 );
-                note_msg.deinit();
+
+                if (try self.noteMsg(allocator)) |note_msg| {
+                    try stderr.print(
+                        ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
+                        .{note_msg.items},
+                    );
+                    note_msg.deinit();
+                }
+            } else {
+                try stderr.print(
+                    \\{s}:{}:{}: error: {s}
+                    \\    {s}
+                    \\    {s}
+                    \\
+                , .{
+                    filename,      span.start.row, span.start.col,
+                    err_msg.items, source_trim,    underline,
+                });
+                if (try self.noteMsg(allocator)) |note_msg| {
+                    try stderr.print("note: {s}\n", .{note_msg.items});
+                    note_msg.deinit();
+                }
             }
         } else {
-            try stderr.print(
-                \\{s}:{}:{}: error: {s}
-                \\    {s}
-                \\    {s}
-                \\
-            , .{
-                filename,      self.span.start.row, self.span.start.col,
-                err_msg.items, source_trim,         underline,
-            });
-            if (try self.noteMsg(allocator)) |note_msg| {
-                try stderr.print("note: {s}\n", .{note_msg.items});
-                note_msg.deinit();
+            if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
+                try stderr.print(
+                    ansi.makeAnsi(null, .Bold) ++ "{s}: " ++ ansi.@"error" ++
+                        "error: " ++ ansi.reset ++ "{s}\n" ++ ansi.reset,
+                    .{ filename, err_msg.items },
+                );
+
+                if (try self.noteMsg(allocator)) |note_msg| {
+                    try stderr.print(
+                        ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
+                        .{note_msg.items},
+                    );
+                    note_msg.deinit();
+                }
+            } else {
+                try stderr.print(
+                    \\{s}: error: {s}
+                    \\
+                , .{ filename, err_msg.items });
+                if (try self.noteMsg(allocator)) |note_msg| {
+                    try stderr.print("note: {s}\n", .{note_msg.items});
+                    note_msg.deinit();
+                }
             }
         }
 

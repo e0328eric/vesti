@@ -1,6 +1,7 @@
 const std = @import("std");
 const zlua = @import("zlua");
 const diag = @import("./diagnostic.zig");
+const ansi = @import("./ansi.zig");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -17,7 +18,7 @@ pub const Error = Allocator.Error || zlua.Error;
 const VESTI_OUTPUT_STR: [:0]const u8 = "__VESTI_OUTPUT_STR__";
 const VESTI_ERROR_STR: [:0]const u8 = "__VESTI_ERROR_STR__";
 
-const VESTI_LUA_FUNCTIONS_BUILTINS: [4]struct {
+const VESTI_LUA_FUNCTIONS_BUILTINS: [7]struct {
     name: []const u8,
     val: fn (lua: *ZigLua) i32,
 } = .{
@@ -25,6 +26,9 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [4]struct {
     .{ .name = "sprintn", .val = sprintn },
     .{ .name = "sprintln", .val = sprintln },
     .{ .name = "parse", .val = parse },
+    .{ .name = "setCurrentDir", .val = setCurrentDir },
+    .{ .name = "getManifestDir", .val = getManifestDir },
+    .{ .name = "printError", .val = printError },
 };
 
 pub fn init(allocator: Allocator) Error!Self {
@@ -249,4 +253,72 @@ fn luaType2Str(ty: zlua.LuaType) []const u8 {
         .userdata => "userdata",
         .thread => "thread",
     };
+}
+
+fn getManifestDir(lua: *ZigLua) i32 {
+    _ = lua.pushString(Parser.VESTI_LOCAL_DUMMY_DIR);
+    return 1;
+}
+
+fn setCurrentDir(lua: *ZigLua) i32 {
+    if (lua.getTop() == 0) {
+        _ = lua.pushString("there is no path given");
+        return 1;
+    }
+
+    const dir_path = lua.toString(-1) catch {
+        _ = lua.pushString("failed to get a path");
+        return 1;
+    };
+    var dir = std.fs.cwd().openDirZ(dir_path.ptr, .{}) catch {
+        var err_msg = ArrayList(u8).initCapacity(lua.allocator(), 120) catch @panic("OOM");
+        errdefer err_msg.deinit();
+        err_msg.writer().print("failed to open {s}", .{dir_path}) catch @panic("OOM");
+        err_msg.append(0) catch @panic("OOM");
+        _ = lua.pushString(@ptrCast(err_msg.items));
+        return 1;
+    };
+    dir.setAsCwd() catch {
+        var err_msg = ArrayList(u8).initCapacity(lua.allocator(), 120) catch @panic("OOM");
+        errdefer err_msg.deinit();
+        err_msg.writer().print("failed to change directory into {s}", .{dir_path}) catch @panic("OOM");
+        err_msg.append(0) catch @panic("OOM");
+        _ = lua.pushString(@ptrCast(err_msg.items));
+        return 1;
+    };
+
+    return 0;
+}
+
+fn printError(lua: *ZigLua) i32 {
+    if (lua.getTop() == 0) return 0;
+
+    const stderr_handle = std.io.getStdErr();
+    var stderr_buf = std.io.bufferedWriter(stderr_handle.writer());
+    const stderr = stderr_buf.writer();
+
+    const msg = lua.toString(-1) catch return 0;
+
+    if (stderr_handle.supportsAnsiEscapeCodes()) {
+        stderr.print(ansi.@"error" ++ "error: " ++ ansi.makeAnsi(null, .Bold) ++
+            "{s}" ++ ansi.reset ++ "\n", .{msg}) catch @panic("IOErr");
+
+        //if (try self.noteMsg(allocator)) |note_msg| {
+        //    try stderr.print(
+        //        ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
+        //        .{note_msg.items},
+        //    );
+        //    note_msg.deinit();
+        //}
+    } else {
+        stderr.print("error: {s}\n", .{msg}) catch @panic("IOErr");
+        //if (try self.noteMsg(allocator)) |note_msg| {
+        //    try stderr.print("note: {s}\n", .{note_msg.items});
+        //    note_msg.deinit();
+        //}
+    }
+
+    stderr_buf.flush() catch @panic("IOErr");
+
+    return 0;
 }
