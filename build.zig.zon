@@ -2,7 +2,7 @@
     .name = .vesti,
     .version = "0.0.37-beta.20250515",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.15.0-dev.471+369177f0b",
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .ziglyph = .{
             .url = "https://deps.files.ghostty.org/ziglyph-b89d43d1e3fb01b6074bc1f7fc980324b04d26a5.tar.gz",

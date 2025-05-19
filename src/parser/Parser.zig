@@ -1138,7 +1138,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.allocator,
         4 * 1024 * 1024,
         null,
-        .of(u8),
+        @alignOf(u8),
         0,
     ) catch {
         const io_diag = try diag.IODiagnostic.init(
