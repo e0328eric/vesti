@@ -47,7 +47,6 @@ pub fn build(b: *Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = true,
     });
     exe_mod.addImport("zlap", zlap.module("zlap"));
     exe_mod.addImport("zlua", zlua.module("zlua"));

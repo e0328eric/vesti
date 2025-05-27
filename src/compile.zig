@@ -6,11 +6,6 @@ const path = fs.path;
 const time = std.time;
 const diag = @import("./diagnostic.zig");
 
-const win = if (builtin.os.tag == .windows) @cImport({
-    @cDefine("WIN32_LEAN_AND_MEAN", {});
-    @cInclude("windows.h");
-}) else {};
-
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const StringArrayHashMap = std.StringArrayHashMap;
@@ -74,14 +69,6 @@ pub fn compile(
             luacode_contents,
             attr,
         ) catch |err| {
-            if (builtin.os.tag == .windows) {
-                _ = win.MessageBoxA(
-                    null,
-                    "vesti compilation error occurs. See the console for more information",
-                    "vesti compile failed",
-                    win.MB_OK | win.MB_ICONEXCLAMATION,
-                );
-            }
             try diagnostic.prettyPrint(attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;
