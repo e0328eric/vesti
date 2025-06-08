@@ -5,6 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("./diagnostic.zig");
+const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -15,7 +16,7 @@ const Parser = @import("./parser/Parser.zig");
 const Lua = @import("./Lua.zig");
 
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
-const VESTI_VERSION = @import("./vesti_version.zig").VESTI_VERSION;
+const VESTI_VERSION = @import("vesti-version").VESTI_VERSION;
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -53,7 +54,7 @@ pub fn compile(
         allocator,
         std.math.maxInt(usize),
         null,
-        @alignOf(u8),
+        .of(u8),
         0,
     ) else null;
     defer if (luacode_contents) |lc| allocator.free(lc);
@@ -69,6 +70,14 @@ pub fn compile(
             luacode_contents,
             attr,
         ) catch |err| {
+            if (builtin.os.tag == .windows) {
+                _ = win.MessageBoxA(
+                    null,
+                    "vesti compilation error occurs. See the console for more information",
+                    "vesti compile failed",
+                    win.MB_OK | win.MB_ICONEXCLAMATION,
+                );
+            }
             try diagnostic.prettyPrint(attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;

@@ -2,9 +2,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const path = std.fs.path;
 
-const vesti_version = @import("./src/vesti_version.zig").VESTI_VERSION;
+const VESTI_VERSION_STR = @import("./build.zig.zon").version;
+const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
-const min_zig_string = "0.14.0";
+const min_zig_string = "0.15.0-dev.736+b6d904624";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -43,18 +44,33 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
     });
 
+    const vesti_c_header = b.addTranslateC(.{
+        .root_source_file = b.path("./src/vesti_c.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const vesti_c = b.addModule("vesti-c", .{
+        .root_source_file = vesti_c_header.getOutput(),
+        .target = target,
+        .optimize = optimize,
+    });
+    const vesti_opt = b.addOptions();
+    vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
+
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+    exe_mod.addOptions("vesti-version", vesti_opt);
     exe_mod.addImport("zlap", zlap.module("zlap"));
     exe_mod.addImport("zlua", zlua.module("zlua"));
     exe_mod.addImport("ziglyph", ziglyph.module("ziglyph"));
+    exe_mod.addImport("c", vesti_c);
 
     const exe = b.addExecutable(.{
         .name = "vesti",
-        .version = vesti_version,
+        .version = VESTI_VERSION,
         .root_module = exe_mod,
         .strip = strip,
     });
