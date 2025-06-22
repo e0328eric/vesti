@@ -22,9 +22,9 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [7]struct {
     name: []const u8,
     val: fn (lua: *ZigLua) i32,
 } = .{
-    .{ .name = "sprint", .val = sprint },
-    .{ .name = "sprintn", .val = sprintn },
-    .{ .name = "sprintln", .val = sprintln },
+    .{ .name = "print", .val = print },
+    .{ .name = "printn", .val = printn },
+    .{ .name = "println", .val = println },
     .{ .name = "parse", .val = parse },
     .{ .name = "setCurrentDir", .val = setCurrentDir },
     .{ .name = "getManifestDir", .val = getManifestDir },
@@ -83,7 +83,7 @@ pub fn getVestiOutputStr(self: Self) [:0]const u8 {
     return self.lua.toString(-1) catch unreachable;
 }
 
-fn sprint(lua: *ZigLua) i32 {
+fn print(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
@@ -94,7 +94,7 @@ fn sprint(lua: *ZigLua) i32 {
     return 0;
 }
 
-fn sprintn(lua: *ZigLua) i32 {
+fn printn(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
@@ -106,7 +106,7 @@ fn sprintn(lua: *ZigLua) i32 {
     return 0;
 }
 
-fn sprintln(lua: *ZigLua) i32 {
+fn println(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
     _ = lua.getGlobal(VESTI_OUTPUT_STR) catch unreachable;
