@@ -54,7 +54,7 @@ pub fn compile(
         allocator,
         std.math.maxInt(usize),
         null,
-        .of(u8),
+        @alignOf(u8),
         0,
     ) else null;
     defer if (luacode_contents) |lc| allocator.free(lc);
@@ -288,6 +288,7 @@ pub fn vestiToLatex(
         diagnostic,
         true,
     );
+    defer parser.deinit();
 
     const ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {

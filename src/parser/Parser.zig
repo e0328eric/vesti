@@ -68,9 +68,9 @@ pub fn init(
     allow_luacode: bool,
 ) !Self {
     var self: Self = undefined;
-    self.lexer = Lexer.init(source);
 
     self.allocator = allocator;
+    self.lexer = try Lexer.init(allocator, source);
     self.curr_tok = self.lexer.next();
     self.peek_tok = self.lexer.next();
     self.doc_state = DocState{};
@@ -79,6 +79,10 @@ pub fn init(
     self.allow_luacode = allow_luacode;
 
     return self;
+}
+
+pub fn deinit(self: Self) void {
+    self.lexer.deinit(self.allocator);
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
@@ -1138,7 +1142,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.allocator,
         4 * 1024 * 1024,
         null,
-        .of(u8),
+        @alignOf(u8),
         0,
     ) catch {
         const io_diag = try diag.IODiagnostic.init(

@@ -1,10 +1,7 @@
 const std = @import("std");
 const time = std.time;
 const compile = @import("./compile.zig");
-
-const c = @cImport({
-    @cInclude("signal.h");
-});
+const c = @import("c");
 
 const assert = std.debug.assert;
 

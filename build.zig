@@ -2,10 +2,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const path = std.fs.path;
 
-const VESTI_VERSION_STR = @import("./build.zig.zon").version;
+const VESTI_VERSION_STR = "0.0.39-beta.20250626";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
-const min_zig_string = "0.15.0-dev.736+b6d904624";
+const min_zig_string = "0.14.1";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -39,7 +39,7 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
         .lang = .lua54,
     });
-    const ziglyph = b.dependency("ziglyph", .{
+    const zg = b.dependency("zg", .{
         .target = target,
         .optimize = optimize,
     });
@@ -61,12 +61,15 @@ pub fn build(b: *Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zlap", .module = zlap.module("zlap") },
+            .{ .name = "zlua", .module = zlua.module("zlua") },
+            .{ .name = "zg_Properties", .module = zg.module("Properties") },
+            .{ .name = "zg_DisplayWidth", .module = zg.module("DisplayWidth") },
+            .{ .name = "c", .module = vesti_c },
+        },
     });
     exe_mod.addOptions("vesti-version", vesti_opt);
-    exe_mod.addImport("zlap", zlap.module("zlap"));
-    exe_mod.addImport("zlua", zlua.module("zlua"));
-    exe_mod.addImport("ziglyph", ziglyph.module("ziglyph"));
-    exe_mod.addImport("c", vesti_c);
 
     const exe = b.addExecutable(.{
         .name = "vesti",
@@ -92,7 +95,8 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
     });
     exe_unit_tests.root_module.addImport("zlua", zlua.module("zlua"));
-    exe_unit_tests.root_module.addImport("ziglyph", ziglyph.module("ziglyph"));
+    exe_unit_tests.root_module.addImport("zg_Properties", zg.module("Properties"));
+    exe_unit_tests.root_module.addImport("zg_DisplayWidth", zg.module("DisplayWidth"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

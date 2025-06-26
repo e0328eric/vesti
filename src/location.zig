@@ -1,12 +1,12 @@
 const std = @import("std");
 const unicode = std.unicode;
-const ziglyph = @import("ziglyph");
+const DisplayWidth = @import("zg_DisplayWidth");
 
 pub const Location = struct {
     row: usize = 1,
     col: usize = 1,
 
-    pub fn move(self: *@This(), chr: u21) void {
+    pub fn move(self: *@This(), chr: u21, dw: DisplayWidth) void {
         if (chr == '\n') {
             self.row += 1;
             self.col = 1;
@@ -15,7 +15,7 @@ pub const Location = struct {
 
         // codePointWidth can return -1 only if chr is either a backspace or DEL.
         // but these are special character, so in this case, I will ignore it.
-        self.col += @intCast(@max(0, ziglyph.display_width.codePointWidth(chr, .half)));
+        self.col += @intCast(@max(0, dw.codePointWidth(chr)));
     }
 };
 
