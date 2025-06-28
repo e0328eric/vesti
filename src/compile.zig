@@ -380,8 +380,8 @@ fn compileLatex(
                     null,
                     "{s} gaves an error while processing",
                     .{engine},
-                    "see stdout.txt in {s} for more information",
-                    .{VESTI_LOCAL_DUMMY_DIR},
+                    "<Latex Engine Log>\n{s}",
+                    .{result.stdout},
                 );
                 diagnostic.initDiagInner(.{ .IOError = io_diag });
                 return error.CompileLatexFailed;
