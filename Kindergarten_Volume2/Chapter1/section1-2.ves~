@@ -1,0 +1,328 @@
+In the basis analysis, one is taught that if $X$ is a metric space and $A$ is a
+subset of $X$ then $x\in\overline{A}$ if and only if there is a sequence
+$(x_n)_n$ in $A$ that converges to $x$. However, such fact does not hold for
+general topological spaces. Actually, several properties of sequences in metric
+spaces break when we generalize those in the arbitrary topological spaces.
+This makes a reason introducing an object which acts like a sequence more
+general sense. There are two things that generalize sequences: filters, and nets.
+In here, we are going to study about filters. Net theory is introduced in the
+appendix.
+
+First, we need to see what are filters. Note that filters are defined even if
+$X$ has no topology.
+useenv defin [Definition of filters] {
+    Let $X$ be a nonempty set. A {\itshape filter} $\Fc$ is a nonempty
+    collection of some subsets of $X$ satisfies the following conditions.
+    useenv enumerate [label = (\roman*)] {
+        \item $\emptyset\notin\Fc$;
+        \item If $A\in\Fc$, then $B\in\Fc$ for every $B\supset A$;
+        \item If $A,B\in\Fc$, then $A\cap B\in\Fc$.
+    }
+}
+Clearly $\{X\}$ is a filter in $X$, so there exists a filter for any $X$.
+In addition, $\{X\}$ is the smallest filter we can ever make. Then, is there
+exists a maximal filter in $X$ with respect to the set theoretical inclusion?
+Below proposition shows that indeed such filter exists, so this proposition
+justifies that \cref{defin:1.2.3} is well-defined.
+
+useenv prop { \label{prop:1.2.2}
+    Let $X$ be a nonempty set and $\Fc$ be a filter in $X$. Then there exists a maximal
+    filter $\Uc\supset\Fc$ in $X$ meaning that there is no filter $\Gc$ in $X$
+    which contains $\Uc$.
+    \proof
+    Fix a filter $\Fc$ in $X$ and define an ordered set
+    $$
+        \Cs := \{\Bc \supset \Fc : \Bc \text{ is a filter in } X\}
+    $$
+    with an inclusion order. Then by the Hausdorff maximal theorem, there exists
+    a maximal total ordered subset $\Ds$ of $\Cs$. Claim that $\bigcup\Ds$ is a
+    filter and $\bigcup\Ds\supset\Fc$. Notice that the second one is trivial, so
+    we are going to focus the first assertion.
+
+    Clearly $\emptyset\notin\bigcup\Ds$ and if $E\in\bigcup\Ds$ and $F\supset
+    E$, then $F\in\bigcup\Ds$. If $E_1,E_2\in\bigcup\Ds$, we can two filters
+    $\Fc_1,\Fc_2\in\Ds$ such that $E_1\in\Fc_1$ and $E_2\in\Fc_2$, respectively.
+    Since $\Ds$ is a chain, it suffices to assume that $\Fc_1\subset\Fc_2$. In
+    this case, we have $E_1\cap E_2\in\Fc_2\subset\bigcup\Ds$, proving that
+    $\bigcup\Ds$ is a filter.
+
+    Notice that $\bigcup\Ds\in\Cs$ so $\bigcup\Ds$ is the desired one, otherwise
+    we can take a filter $\Gc\supset\bigcup\Ds$ but this makes a contradiction
+    of the maximality of $\Ds$. \proved
+}
+useenv defin [Definition of ultrafilters] { \label{defin:1.2.3}
+    Let $X$ be a set. An {\itshape ultrafilter} $\Uc$ in $X$ is a maximal
+    filter.
+}
+
+As we know that such definition is quite difficult to draw some image what
+ultrafilters look like. There is a equivalent statement that describes
+ultrafilters.
+
+useenv prop { \label{prop:1.2.4}
+    Let $X$ be a nonempty set and $\Uc$ be a filter in $X$. Then $\Uc$ is an ultrafilter
+    if and only if for any $A\subset X$, either $A$ or $X\setminus A$ belongs to $\Uc$.
+    \proof
+    To prove the necessity, assume that there exists a subset $A\subset X$
+    such that both $A$ and $X\setminus A$ are not in $\Uc$. Then the collection
+    $$
+        \Uc' := \Uc \cup \{A\cap E : E\in\Uc\}
+    $$
+    is a filter which contains $\Uc$ by \Cref{exec:1.2.5}. This makes a
+    contradiction because $\Uc$ is an ultrafilter.
+
+    Conversely, suppose that $\Uc$ is a filter which satisfies the property in
+    above. If $\Uc$ is not maximal, then there exists an ultrafilter
+    $\Uc'\supset \Uc$ by \Cref{prop:1.2.4}. We are going to finish the proof
+    by showing that $\Uc=\Uc'$.
+
+    Fix $A\in\Uc'$. By the property of $\Uc$, either $A$ or $X\setminus A$ is contained
+    in $\Uc$. In here, if $X\setminus A\in\Uc$ then since $\Uc\subset\Uc'$, we have
+    $X\setminus A\in\Uc'$ hence
+    $$
+        \emptyset = A\cap(X\setminus A) \in \Uc'
+    $$
+    because $\Uc'$ is a filter, but this is nonsense. This derives to have
+    $A\in\Uc$, therefore $\Uc'\subset\Uc$. This finishes the proof. \proved
+}
+
+useenv exec* { \label{exec:1.2.5}
+    Prove that the collection $\Uc'$ defined in \Cref{prop:1.2.4} is a filter.
+}
+
+\begin{remark}
+    If $\Uc$ is an ultrafilter in $X$ for some nonempty set $X$, clearly both
+    $A$ and $X\setminus A$ do not lie in $\Uc$ for any $A\subset X$, otherwise by the
+    definition of the filter,
+    \[
+        \emptyset = A\cap(X\setminus A) \in \Uc,
+    \]
+    which is a contradiction.
+\end{remark}
+
+We have learned what is a filter and what is an ultrafilter. To deal with
+filters, we need to know how we can make some appropriate filter.
+If $X$ be a nonempty set and $\Cc$ a some collection of subsets of $X$, then we
+can generate a filter $\Fc$ in $X$ which contains $\Cc$.
+
+\begin{defin}[Finite intersection property]
+    Let $X$ be a set. A collection $\Cc$ of subsets of $X$ has a
+    \it{finite intersection property} if for any finite set $\Fc\subset\Cc$,
+    the intersection $\bigcap\Fc$ is not empty.
+    We also use the abbriviation FIP for the term \lq\lq finite intersection
+    property\rq\rq.
+\end{defin}
+
+\begin{prop} \label{prop:1.2.7}
+    Let $X$ be a nonempty set and $\Cc$ a collection of subsets of $X$ that has
+    FIP. Then there exists a filter $\Fc\supset\Cc$ in $X$.
+    \proof
+    We can find one of such filter explicitly:
+    \[
+        \Fc = \left\{ E\subset X : E\supset \bigcap\Dc,\;\Dc \text{ a finite subset of }
+        \Cc\right\}.
+    \]
+    Since $\Cc$ has FIP, the emptyset does not contained in $\Fc$.
+    It is clear that both $E\subset\Fc$ and $F\supset E$ imply $F\in\Fc$ by the
+    definition of $\Fc$.
+
+    Fix $E_1,E_2\in\Fc$ and take finite subsets $\Dc_1,\Dc_2\subset\Cc$ such
+    that $\bigcap\Dc_1\subset E_1$ and $\bigcap\Dc_2\subset E_2$, respectively.
+    By the basic set theory knowledge, we obtain $E_1\cap
+    E_2\supset\bigcap(\Dc_1\cup\Dc_2)$ and notice that $\Dc_1\cup\Dc_2$ is a
+    finite subset of $\Cc$, implying that $E_1\cap E_2\in\Fc$. Therefore, $\Fc$
+    is a filter. It is clear by definition that $\Fc\supset\Cc$. \proved
+\end{prop}
+
+Sometimes, we will deal with not only filters but their subsets which acts like
+a filter. Thanks to \Cref{prop:1.2.7} we can consider the following objects.
+
+useenv defin [Filter base] {
+    Let $X$ be a set. A \it{filter base} $\Bc$ is a nonempty collection of
+    subsets of $X$ such that
+    useenv enumerate [label=(\alph*)] {
+        \item If $A,B\in\Bc$, then $A\cap B\in\Bc$.
+        \item $\Bc$ satisfies FIP. In particular, $\emptyset\notin\Bc$.
+    }
+}
+
+By \CreF{prop:1.2.7}, every filter base is contained in some filter.
+
+After this definition, we will see why sequences can replaced into filters in
+the general topology theories. This definition explains the way how filters are
+transformed by functions.
+
+\begin{defin}[Pushforward and pullback of filters] \label{defin:1.2.8}
+    Let $X$ and $Y$ be nonempty sets and $f:X\rightarrow Y$ a function. If $\Fc$
+    is a filter in $X$, the filter
+    \[
+        f_*\Fc := \{E\supset f[F] : F\in\Fc\}
+    \]
+    is called a \it{pushforward of a filter $\Fc$}. If $\Bc$ is a filter base
+    in $X$, then the filter base
+    \[
+        f_*\Bc := \{f[F] : F\in\Bc\}
+    \]
+    is called a \it{pushforward of a filter base $\Bc$}.
+
+    If $f$ is surjective and $\Fc$ is a filter in $Y$, the filter
+    \[
+        f^*\Fc := \{E\supset f^{-1}[F] : F\in\Fc\}
+    \]
+    is called a \it{pullback of a filter $\Fc$}. If $\Bc$ is a filter base and
+    the surjectivity of $f$ may drop, then the filter base
+    \[
+        f^*\Bc := \{f^{-1}[F] : F\in\Bc\}
+    \]
+    is called a \it{pullback of a filter base $\Bc$}.
+\end{defin}
+
+useenv exec {
+    Prove that $f_*\Fc$ and $f^*\Gc$ defined in \Cref{defin:1.2.8} are really a
+    filter, respectively.
+}
+
+The reader should check that \Cref{defin:1.2.8} makes sense (see Exercise
+1.2.2).
+
+\begin{remark}
+    If the surjectivity is dropped, then $f^*\Fc$ might not be a filter if $\Fc$
+    is a filter in $Y$.
+\end{remark}
+
+The pushforward of a filter has a remarkable property: every pushforward of
+ultrafilters is again an ultrafilter. Notice that such property does not hold
+for pullbacks in general.
+
+\begin{thm} \label{thm:1.2.10}
+    Let $X$, $Y$ be nonempty sets, $f:X\rightarrow Y$ a function, and $\Uc$ an ultrafilter
+    in $X$. Then $f_*\Uc$ is an ultrafilter in $Y$.
+    \proof
+    Since $f_*\Uc$ is a filter, it suffices that it satisfies the sufficiency
+    condition of \Cref{prop:1.2.4}. Let $A\subset Y$ be fixed.
+    Since $\Uc$ is an ultrafilter, by \Cref{prop:1.2.4}, either
+    $f^{-1}[A]\in\Uc$ or $X\setminus  f^{-1}[A]\in\Uc$ holds. As
+    $X\setminus f^{-1}[A]=f^{-1}[Y\setminus A]$, we can assume that $f^{-1}[A]\in\Uc$.
+    In this case, since $A\supset f[f^{-1}[A]]$ and $f[f^{-1}[A]]\in f_*\Uc$,
+    we therefore have $A\in f_*\Uc$. The proof of this theorem is now completed
+    by applying \Cref{prop:1.2.4}. \proved
+\end{thm}
+
+Now let $X$ be a topological space. Then we can define a convergence of filters.
+Here is the definition.
+
+\begin{defin}[Convergence of filters]
+    Let $X$ be a topological space. A filter $\Fc$ in $X$ \it{converges} to
+    $x\in X$ if every open neighborhood of $x$ belongs to $\Fc$. In this case,
+    we write $\Fc\rightarrow x$.
+\end{defin}
+
+\begin{remark} \label{remark:1.2.12}
+    One can ask about that if $x\in X$ is fixed then does there exist a filter
+    converges to $x$. Let $\Nc$ be a collection of all open neighborhoods of
+    $x$. Then clearly $\Nc$ satisfies FIP. Therefore, we can apply
+    \Cref{prop:1.2.7} to take a filter $\Fc\supset\Nc$.
+    Then by the definition of the convergence of filters, one can easily find
+    that $\Fc\rightarrow x$.
+\end{remark}
+
+We are ready to see that why filters can be used instead of sequences in
+arbitrary topological spaces.
+
+\begin{thm} \label{thm:1.2.13}
+    Let $X$, $Y$ be topological spaces. Then
+    \begin{enumerate}[label=(\alph*)]
+        \item For any nonempty set $A\subset X$, $x\in\cl A$ if and only if
+        there is a filter $\Fc$ such that $A\in\Fc$ and $\Fc\rightarrow x$.
+        \item Let $f:X\rightarrow Y$ be a function. Then $f$ is continuous at $x\in X$ if
+        and only if for every filter $\Fc$ in $X$ with $\Fc\rightarrow x$, $f_*\Fc\rightarrow f(x)$
+        holds.
+    \end{enumerate}
+    \proof
+    \begin{enumerate}[label=(\alph*)]
+        \item If $x\in\cl A$, then $N\cap A\neq \emptyset$ for every open
+        neighborhood $N$ of $x$. Now think
+        \[
+            \Cc := \{A\} \cup \{N : N \text{ is an open neighborhood of } x\}.
+        \]
+        Then notice that $\Cc$ satisfies FIP because every finite intersection
+        of open sets is also open. Thus \Cref{prop:1.2.7} gives a filter $\Fc$
+        that contains $\Cc$. Observe that by the definition of $\Cc$, $A\in\Fc$
+        and $\Fc\rightarrow x$.
+
+        Conversely, suppose that there is a point $x\in X$ and a filter $\Fc$ in
+        $X$ such that $A\in\Fc$ and $\Fc\rightarrow x$. In order to show $x\in\cl A$, it
+        suffices to show that $N\cap A$ is not empty for every open neighborhood
+        $N$ of $x$. But notice that $\Fc\rightarrow x$ implies that every open
+        neighborhood of $x$ belongs to $\Fc$. Since $A\in\Fc$, intersection of
+        $N$ and $A$ cannot be empty by the definition of a filter. This proves
+        $x\in\cl A$.
+
+        \item Let $f$ be continuous at $x\in X$ and $\Fc$ a filter in $X$ that
+        converges to $x$.
+        Fix any open neighborhood $N$ of $f(x)$. Being continuous, there exists
+        an open set $U$ containing $x$ such that $f[U]\subset N$.
+        Notice that $U\in\Fc$ because $\Fc$ converges to $x$.
+        Then we have
+        \[
+            f[U]\in f_*\Fc \quad \Longrightarrow \quad N\in f_*\Fc,
+        \]
+        proving that $f_*\Fc\rightarrow f(x)$.
+
+        Conversely, suppose that $f$ is not continuous at $x$.
+        Then there exists an open set $W\ni f(x)$ such that no open
+        neighborhood of $U$ of $x$ satisfies $f[U]\subset W$.
+        Then define $\Fc$ by
+        \[
+            \Fc := \{E\subset X : E \supset U,\;U\text{ is an open neighborhood of }
+            x\}.
+        \]
+        It is easy to check that $\Fc$ is a filter in $X$. Also by its
+        definition, $\Fc$ converges to $x$.
+        However, to be $f_*\Fc\rightarrow f(x)$, at least $W$ must lie in $f_*\Fc$. In
+        other words, there must exist $E\in\Fc$ such that $f[E]\subset W$, but
+        in this case, there must exist an open neighborhood $U$ of $x$ that is
+        contained in $E$ and this gives $f[U]\subset W$, a contradiction.
+        This proves that the filter $f_*\Fc$ does not converges to $f(x)$.
+        \proved
+    \end{enumerate}
+\end{thm}
+
+If $X$ is a metric space and $A\subset X$, then we know that $x\in\cl A$ if and
+only if there exists a sequence $(x_n)_n$ in $A$ that converges to $x$ as
+discussed in the introduction of this section. In \Cref{thm:1.2.13}, $A\in\Fc$
+corresponds to the sentence $(x_n)_n\subset A$, and clearly $\Fc\to x$ means
+$x_n\to x$ as $n\to\infty$.
+In addition, statement \Cref{thm:1.2.13} (ii) is quite clear to explain whether
+a function is continuous at $x$ by considering the assertion related to a
+sequence.
+
+Furthermore, note that on a Hausdorff space, every sequence converges at most
+one point. This is also true for filters, and we can say more.
+
+\begin{thm} \label{thm:1.2.14}
+    Let $X$ be a topological space. Then $X$ is Hausdorff if and only
+    if every filter converges at most one point. That is, if a filter $\Fc$ in
+    $X$ converges in both $x\in X$ and $y\in X$, then $x=y$.
+    \proof
+    Let $X$ be Hausdorff and assume that there exists a filter $\Fc$ converges
+    to different points $x$ and $y$. Take two disjoint open sets $U$ and $V$
+    such that $x\in U$ and $y\in V$. Since $\Fc\to x$, $U\in\Fc$ is true. Same
+    for $V\in\Fc$ since $y\in\Fc$. However, in this case, $\emptyset\in U\cap
+    V\in\Fc$ must be true, which is a contradiction. Hence, there is no such
+    filter if $X$ is Hausdorff.
+
+    Conversely, if $X$ is not Hausdorff, then we can take two distict points $x$
+    and $y$ such that there is no pair $(U,V)$ of open sets such that $x\in U$,
+    $y\in V$, and $U\cap V=\emptyset$. Then define
+    \[
+        \Fc := \{E\supset F\cap G : F \in \Nc_x,\ G\in\Nc_y\}
+    \]
+    where $\Nc_x$, $\Nc_y$ is a collection of all open neighborhoods of $x$ and
+    $y$, respectively. By the choice of $x$ and $y$, $\Fc$ does not have an
+    emptyset as its element, so it is easy to show that $\Fc$ is a filter.
+    Notice by the definition of $\Fc$ that $\Fc\to x$ and $\Fc\to y$.
+    This proves the theorem. \proved
+\end{thm}
+
+

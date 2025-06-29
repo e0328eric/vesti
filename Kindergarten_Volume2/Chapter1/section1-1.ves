@@ -57,3 +57,4 @@ useenv defin [Neighborhoods] {
   $x$. That is, $x \in "int"N$. For each $x\in X$, define \index[sym]{$\Nc_x$} a
   collection of all \it{open} neighborhoods of $x$.
 }
+

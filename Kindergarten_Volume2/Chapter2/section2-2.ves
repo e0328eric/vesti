@@ -35,13 +35,12 @@ useenv defin [Measurable sets] {
     $$
         \mu(E) = \mu(E\cap A) + \mu(E--A).
     $$
-    Define $\Mf_\mu$ the collection of all $\mu$-measurable sets.
+    Define $\Mf_\mu$\index[sym]{$\Mf_\mu$} the collection of all $\mu$-measurable sets.
 }
 
 useenv defin [Null set] {
     Let $(X,\mu)$ be a measure space. A subset $E\subset X$ is called a $\mu$-null
-    set or just null set in short if $\mu(E) =
-    0$.\index{set!null}\index{set!$\mu$-null}
+    set or just null set in short if $\mu(E) = 0$.\index{set!null}\index{set!$\mu$-null}
 }
 
 useenv exec* { \label{exe:mble-set}
@@ -108,7 +107,7 @@ useenv exec* { \label{exe:sigma-field}
     Then prove that $\Mf$ is a $\sigma$-field.
 }
 
-useenv thm [Carath\'eodory's Theorem] { \label{thm:carathedory}
+useenv thm [Carath\'eodory's Theorem] { \label{thm:caratheodory}
     \index{Carath\'eodory's Theorem}
     Let $(X,\mu)$ be a measure space. Then $\Mf_\mu$ is a $\sigma$-field.
     Furthermore, if $\{A_n\}_{n=1}^oo\subset\Mf_\mu$ is a \it{mutually disjoint}
@@ -127,7 +126,7 @@ useenv thm [Carath\'eodory's Theorem] { \label{thm:carathedory}
 
     Now, we are going to prove the following: For $A,B\in\Mf_\mu$ with $A\cap
     B=\emptyset$, then $A\cup B = \Mf_\mu$ and for any $E\subset X$,
-    useenv equation { \label{eq:carathedory.1}
+    useenv equation { \label{eq:caratheodory.1}
         \mu(E\cap (A\cup B)) = \mu(E\cap A) + \mu(E\cap B).
     }
     Since $A\in\Mf_\mu$ and both $A,B$ are disjoint, by the definition of
@@ -188,7 +187,7 @@ useenv thm [Carath\'eodory's Theorem] { \label{thm:carathedory}
     This shows that $\bigcup_1^oo A_n\in\Mf_\mu$, and therefore $\Mf_\mu$ is a
     $\sigma$-field by \Cref{exe:sigma-field}.
 
-    Notice that \cref{eq:2.2.9.2} can be obtained without the constraint
+    Observe that \cref{eq:2.2.9.2} can be obtained without the constraint
     $\mu(E)<oo$. This yields the last equality by replacing $E$ into $X$.
     \proved
 }
@@ -215,7 +214,7 @@ useenv coro { \label{coro:2.2.10}
     Define $A_0 = \emptyset$ and $B_n = A_n -- A_{n-1}$ for $n=1,2,3,...$.
     Then $\bigcup_{1}^oo B_n = \bigcup_{1}^oo A_n$ and the collection
     $\{B_n\}_1^oo$ is mutually disjoint. Thus by applying
-    \cref{thm:carathedory},
+    \cref{thm:caratheodory},
     useenv align* {
         \mu?(\bigcup_{n=1}^oo A_n)?
         = \mu?(\bigcup_{n=1}^oo B_n)?
@@ -239,7 +238,7 @@ useenv coro { \label{coro:2.2.10}
     $$
     and since $\mu(A_1)<oo$, we can apply (i) and this yields (iii).
 
-    (i) is trivial from \cref{thm:carathedory} with the simple
+    (i) is trivial from \cref{thm:caratheodory} with the simple
     identity
     $$
         B = A \cup (B -- A).
@@ -274,17 +273,25 @@ We will end this section for more informations about $\sigma$-fields.
 First of all, if $\Cc$ is a collection of some subsets of $X$ we can generate a
 $\sigma$-field from it.
 
-useenv defin {
+useenv defin { \label{defin:sigma-field-generate}
     Let $X$ be a set and $\Cc$ be a subset of $\Pc(X)$.
     Then the $\sigma$-field $\sigma(\Cc)$ generated from $\Cc$ is defined by
     $$
         \sigma(\Cc) := \bigcap\{\Mf \subset \Pc(X) : \Mf \supset \Cc,\ \Mf #"is
         a"# \sigma"-field"\}.
     $$
+    \index[sym]{$\sigma(\Cc)$}
     That is, $\sigma(\Cc)$ is the smallest $\sigma$-field which contains $\Cc$.
 }
 
-useenv exec* { \label{exe:2.2.14}
+useenv exec* { \label{exe:sigma-field-generate-1}
+    Let $X$ be a nonempty set and $\Mc$ be a collection of some $\sigma$-fields
+    on $X$. Then the intersection $\bigcap\Mc$ is also a $\sigma$-field.
+    From this fact, $\sigma(\Cc)$ defined in \Cref{defin:sigma-field-generate}
+    is really a $\sigma$-field.
+}
+
+useenv exec* { \label{exe:sigma-field-generate-2}
     Let $X$ be a set, $\Cc$ be some collection of subsets of $X$ and $\Mf$ a
     $\sigma$-field such that $\Cc\subset\Mf$. Prove that
     $\sigma(\Cc)\subset\Mf$.
@@ -296,7 +303,7 @@ useenv exec {
     $$
         f^{-1}[\Mf] := \{f^{-1}[E] : E\in\Mf\}
     $$
-    is a $\sigma$-field on $X$.
+    is a $\sigma$-field on $X$.\index[sym]{$f^{-1}[\Mf]$}
 }
 
 useenv exec { \label{exe:2.2.16}

@@ -1,0 +1,197 @@
+If $X$ is a topological space, the topology $\tau$ of $X$ is one of subsets of
+$\Pc(X)$. This means we can consider the $\sigma$-field $\sigma(\tau)$. Such
+$\sigma$-field has a special name and used in serveral places in measure theory.
+
+useenv defin [Borel $\sigma$-fields, Borel measure] {
+    \label{defin:borel-measure}
+    Let $X$ be a topological space and $\tau$ be its topology.
+    Then the $\sigma$-field $\sigma(\tau)$ is called the \it{Borel
+    $\sigma$-field}\index{field (measure theory)!Borel} and denoted by $\Bf(X)$.
+
+    Every set belongs to the Borel $\sigma$-field is called by a \it{Borel
+    set}\index{set!Borel}.
+
+    If $X$ has a measure $\mu$ such that all Borel sets are $\mu$-measurable,
+    then we say that $\mu$ is a \it{Borel measure}\index{measure!Borel}, or
+    $\mu$ is \it{Borel} in short.
+}
+
+useenv lemma { \label{lemma:borel-measurable}
+    Let $X$ be a topological space and $\mu$ is a measure on $X$. The $\mu$ is
+    Borel if and only if every open set is $\mu$-measurable if and only if every
+    closed set is $\mu$-measurable.
+    \proof
+    By \Cref{thm:carathedory}, $\Mf_\mu$ is a $\sigma$-field.
+    Hence, every open set is $\mu$-measurable means that every open set belongs
+    to $\Mf_\mu$, so $\Bf(X)\subset\Mf_\mu$ because of \Cref{exe:2.2.14}.
+    In addition, the fact that $\Mf_\mu$ is a $\sigma$-field clearly implies
+    that every open set is $\mu$-measurable if and only if every closed set is
+    $\mu$-measurable.
+    Finally, if $\mu$ is Borel measurable, then $\Bf(X)$ is contained in
+    $\Mf_\mu$. By the definition of the Borel $\sigma$-field, clearly every open
+    set is then $\mu$-measurable. \proved
+}
+
+Checking whether a measure is Borel is difficult. However if the space has a
+metric, then there is an easy way to verify it. The statement of the theorem and
+its proof can be found also in \cite{Evans-measure}.
+
+useenv thm { \label{thm:borel-measure-criterion}
+    Let $X$ be a metric space with a metric $d$, and $\mu$ be a measure on $X$.
+    For any $x\in X$ and subsets $A$ and $B$ of $X$, define
+    $$
+        d(x,B) := \inf\{d(x,y) : y\in B\},\quad
+        d(A,B) := \inf\{d(x,B) : y\in B\}\quad (\inf\emptyset := oo).
+    $$\index[sym]{$d(x,B)$}\index[sym]{$d(A,B)$}
+    If $\mu(A\cup B) = \mu(A) + \mu(B)$ whenever $d(A,B)>0$, then $\mu$
+    is a Borel measure.
+    \proof
+    By \Cref{lemma:borel-measurable} it suffices to show that every closed set
+    is $\mu$-measurable.
+    Fix any closed set $C$ in $X$ and any subset $A\subset X$. By
+    \Cref{exe:mble-set}, we can further assume that $\mu(A) < oo$.
+    For each $n=1,2,3,...$, consider
+    $$
+        C_n := \{x\in X : d(x,C) <= 2^{-n}\}.
+    $$
+    One can easily show that $C_n$ is closed because the function $d(\cdot,C)$
+    is continuous, and $\bigcap_{n=1}^oo C_n=C$ because $C$ is closed. First of
+    all, observe that $d(A--C_n,A\cap C)>0$ for all $n$. Indeed, for any $x\in A
+    -- C_n$, we have
+    $$
+        d(x,A\cap C) >= d(x,C) > {1//2^n}.
+    $$
+    Thus, taking an infimum over $x$, we obtain $d(A--C_n,A\cap C) >= 2^{-n} > 0$.
+    Then our assumption about $\mu$ gives
+    useenv equation { \label{eq:thm:borel-measure-criterion:1}
+        \mu(A) >= \mu((A -- C_n) \cup (A\cap C)) = \mu(A -- C_n) + \mu(A\cap C).
+    }
+
+    Claim that $\mu(A--C_n)->\mu(A--C)$ as $n->oo$. Beware that we cannot use
+    \Cref{coro:2.2.10} because we do not know their measurability.
+    Define $E_n$ for $n=1,2,...$ by
+    $$
+        E_n := A\cap (C_n -- C_{n+1}) = \{x \in A : 2^{-n-1} < d(x,C) <= 2^{-n}\}.
+    $$
+    First of all, observe that $d(E_{n},E_{n+2})>0$ for each $n=1,2,...$.
+    Indeed, for any $x\in E_n$, $y\in E_{n+2}$, and $c\in C$,
+    $$
+        {1//2^{n+1}} < d(x,c) <= d(x,y) + d(y,c).
+    $$
+    Taking an infimum over extreme parts of the inequality, we obtain
+    $$
+        {1//2^{n+1}} <= d(x,y) + d(y,C) <= d(x,y) + {1//2^{n+2}},
+    $$
+    and thus $d(x,y) >= 2^{-n-2}$. Taking infimums over $x$ and $y$ therefore
+    gives $d(E_n,E_{n+2}) >= 2^{-n-2} > 0$. Such fact and our assumption gives
+    $$
+        \sum_{n=1}^N \mu(E_{2n}) + \mu(E_{2n-1})
+        = \mu?(\bigcup_{n=1}^N E_{2n})? + \mu?(\bigcup_{n=1}^N E_{2n-1})?
+        <= 2\mu(A).
+    $$
+    Letting $N->oo$ gives $\sum_{n=1}^oo \mu(E_n) <= 2\mu(A)$. Recall that we
+    assumed that $\mu(A)$ is finite. From this fact and since $C =
+    \bigcap_{n=1}^oo C_n$, we can now show our claim by
+    useenv align* {
+        \limsup_{n->oo}\mu(A -- C_n)
+        &<= \mu(A -- C) \\
+        &<= \liminf_{n->oo}?[\mu(A -- C_n) + \sum_{m=n}^oo \mu(E_m)]?\\
+        &= \liminf_{n->oo}\mu(A -- C_n) + \lim_{n->oo}\sum_{m=n}^oo \mu(E_m)\\
+        &= \liminf_{n->oo}\mu(A -- C_n).
+    }
+    Therefore, letting $n->oo$ on \cref{eq:thm:borel-measure-criterion:1} gives
+    $$
+        \mu(A) >= \mu(A -- C) + \mu(A\cup C),
+    $$
+    hence $C$ is $\mu$-measurable because of \Cref{exe:mble-set}. This finishes
+    the proof. \proved
+}
+
+From \Cref{thm:borel-measure-criterion} we can construct a canonical Borel
+measure on any metric spaces.
+
+useenv thm { \label{thm:canonical-borel-measure}
+    Let $(X,d)$ be a metric space and $f:(0,oo)->[0,oo)$ be a (monotonically)
+    increasing function such that $f(0+) = 0$. Then the function
+    $\ell_{X,f}:\Pc(X)->[0,oo]$ defined by
+    $$
+        \ell_{X,f}(E) := \inf?\{\sum_{n=1}^oo f(r_n) 
+            : E\subset \bigcup_{n=1}^oo B(a_n,r_n),\ a_n\in X,\ r_n > 0\}?
+        \quad (\inf\emptyset := oo)
+    $$
+    is a Borel measure on $X$. 
+    \proof
+    By \Cref{exe:canonical-borel-measure}, $\ell_{X,f}$ is a measure.
+
+    To show that $\ell_{X,f}$ is a Borel measure, we are going to use
+    \Cref{thm:borel-measure-criterion}. 
+    Fix two subsets $A$ and $B$ such that $d(A,B)>0$. If $\ell_{X,f}(A\cup
+    B)=oo$, there is nothing to prove, so assume that $\ell_{X,f}(A\cup B)<oo$.
+    Put $\delta = d(A,B)/4$ and take a sequence $(B(a_n,r_n))_1^oo$ of open
+    balls such that $A\cup B \subset \bigcup_{n=1}^oo B(a_n,r_n)$. Define
+    $$
+        \Ac := \{n : A\cap B(a_n,r_n) != \emptyset\},\quad
+        \Bc := \{n : B\cap B(a_n,r_n) != \emptyset\}.
+    $$
+    Observe that $\Ac$ and $\Bc$ are disjoint. Indeed, if there exists
+    $N\in\Ac\cap\Bc$, we can take $a \in A\cap B(a_N,r_N)$ and $b\in B\cap
+    B(a_N,r_N)$. Then we have
+    $$
+        4\delta = d(A,B) <= d(a,b) <= 2r_N <= 2\delta,
+    $$
+    which makes a contradiction.
+
+    Now we have
+    $$
+        A\subset \bigcup_{n\in\Ac}B(a_n,r_n),\quad
+        B\subset \bigcup_{n\in\Bc}B(a_n,r_n),
+    $$
+    and
+    $$
+        \sum_{n=1}^oo f(r_n)
+        = \sum_{n\in\Ac} f(r_n) + \sum_{n\in\Bc} f(r_n)
+        >= \ell_{X,f}(A) + \ell_{X,f}(B).
+    $$
+    Since $f$ is increasing, taking an infimum over sequence of such open balls,
+    we obtain $\ell_{X,f}(A\cup B) >= \ell_{X,f}(A) + \ell_{X,f}(B)$. Therefore
+    $\ell_{X,f}$ is a Borel measure because of
+    \Cref{thm:borel-measure-criterion}. \proved
+}
+
+useenv exec* { \label{exe:canonical-borel-measure}
+    Prove that $\ell_{X,f}$ defined in \Cref{thm:canonical-borel-measure} is a
+    measure on $X$.
+}
+
+useenv defin { \label{defin:canonical-borel-measure}
+    Let $(X,d)$ be a metric space. We call $\ell_{X,f}$\index[sym]{$\ell_{X,f}$}
+    defined in \Cref{thm:canonical-borel-measure} by the \it{canonical Borel
+    measure on $X$ generated by $f$}.\index{measure!canonical Borel}
+}
+
+Now we are going to look the specific measure on $\R$ in daily use, the Lebesgue
+measure. If $\ell$ denotes the Lebesgue measure on $\R$ whose definition is
+presented in later, then we obtain $\Bf(\R)\subset\Mf_\ell$ because of
+\Cref{thm:borel-measure-criterion}. However both $\sigma$-fields are not equal.
+Furthermore, we also going to prove that $\Mf_\ell != \Pc(\R)$ at the end of
+this section.
+First of all, we should learn what is the Lebesgue measure on $\R$.
+
+useenv defin [Lebesgue measure on $\R$] { \label{defin:lebesgue-measure-1}
+    The \it{Lebesgue measure}\index{measure!Lebesgue} on $\R$ is denoted by
+    $\ell_1$\index[sym]{$\ell_1$} defined by $\ell_1 := \ell_{\R,f}$ where
+    $f(x) = x$.
+}
+
+useenv remark {
+    Later, we will define the Lebesgue measure on $\R^d$ by $\ell_d$.
+    Like the Lebesgue measure on $\R$, we can define the Lebesgue measure on
+    $\R^d$ by a canonical Borel measure generated by an appropriate function.
+    But we postpone to introduce such function because at the first glance it is
+    totally unnatural to think of.
+}
+
+For some simplicity, we denote $\ell$ for an one dimensional Lebesgue measure
+instead of $\ell_1$ in this entire section. By
+\Cref{thm:canonical-borel-measure} $\Bf(\R)\subset\Mf_\ell$ is automatically
+proved.

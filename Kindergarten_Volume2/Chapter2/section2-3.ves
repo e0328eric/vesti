@@ -1,114 +1,150 @@
-Now we are ready to define a Lebesgue integration. Everywhere in this section,
-$(X,\mu)$ denotes a measure space. We are going to define an integration using a
-measure. This section is inspired from \cite{Krylov-diffusion}.
+Before defining an integration, we need to say that what kind of functions are
+``measurable to integrate''. There is a general way to define it, but we first
+focus for real-valued functions.
+Everywhere in this section, $(X,\mu)$ denotes a measure space.
+Furthermore, after this moment, we use the fact that $\Mf_\mu$ is $\sigma$-field
+(because of \Cref{thm:caratheodory}) without any mention.
 
-useenv defin [Lebesgue Integration] { \label{defin:2.3.1}
-    Let $f:X->\R$ be a function such that one of those Riemann integrations
-    $$
-        \int_0^oo \mu\{f_+ > t\}dt,\quad
-        \int_0^oo \mu\{f_- > t\}dt
-    $$
-    exists and finite. Then we define a \it{Lebesgue integration}\index{Lebesgue
-    integration} respect to
-    $\mu$ by
-    $$
-        \int_X f(x)\mu(dx) := \int_0^oo\mu\{f_+ > t\}dt - \int_0^oo\mu\{f_- >
-        t\}dt.
-    $$
-    If $E\subset X$, then we define
-    $$
-        \int_E f(x)\mu(dx) := \int_X 1_E(x)f(x)\mu(dx).
-    $$
-
-    Sometimes, we use the abbreviation of $\int_E f(x)\mu(dx)$ by $\int_E fd\mu$
-    if the variable of which is understood.
+useenv defin [Measurable functions] { \label{defin:measurable-fnt}
+    Let $Y$ be a topological space. We say that a function $f:X->Y$ is
+    \it{$\mu$-measurable}\index{function!$\mu$-measurable} if $\{f\in V\}$
+    is $\mu$-measurable for every open set $V$ in $Y$. Recall that $\{f\in V\}$
+    is an abbriviation of $\{x : f(x) \in V\}$.
 }
 
-useenv remark { \label{remark:2.3.2}
-    We need to justify \Cref{defin:2.3.1}. For any $0<=s<=t$,
-    $$
-        \{f_+ > t\} \subset \{f_+ > s\},\quad
-        \{f_- > t\} \subset \{f_- > s\}.
-    $$
-    Since $\mu$ is a measure, $t|->\mu\{f_+ >t\}$ and $t|->\mu\{f_- > t\}$ are
-    decreasing functions, so they are Riemann integrable on $[\epsilon,N]$ for
-    every $0<\epsilon<N<oo$. Now we are understood Riemann integrations
-    described in \Cref{defin:2.3.1} by an improper integral, so
-    $$
-        \int_0^oo \mu\{f_+ > t\}dt
-        = \lim_{\scriptstyle N\uparrow oo\atop\scriptstyle\epsilon\downarrow 0}
-        \int_\epsilon^N \mu\{f_+ > t\}dt,
-    $$
-    and similar for $f_-$.
-}
+Below proposition gives an equivalent statement of $\mu$-measurable functions.
 
-Notice that if $f$ is nonnegative, then $\mu\{f_- > t\}=0$ for every $t>0$.
-Thus as we discuss the Riemann integration of $\mu\{f_- > t\}$ in
-\Cref{remark:2.3.2}, one can obtain
-$$
-    \int_X f(x)\mu(dx) = \int_0^oo \mu\{f > t\}dt.
-$$
-
-Although we define a Lebesgue integral for arbitrary function $f$, we need some
-\lq\lq good\rq\rq\ functions to obtain more useful properties for Lebesgue
-integral. Below definition says about what is a \lq\lq good\rq\rq\ function.
-
-useenv defin { \label{defin:measurable-fnt}
-    Let $Y$ be a topological space and $f:X->Y$ a function. We say that $f$ is
-    \it{$\mu$-measurable}\index{function!$\mu$-measurable} if $f^{-1}[E]$ is
-    $\mu$-measurable for every Borel set $E\subset Y$.
-}
-
-If $f:X->\R$ is $\mu$-measurable, then clearly both $\{f_+ > t\}$ and $\{f_- >
-t\}$ are $\mu$-measurable for every $t>=0$. Therefore we have the following
-important facts for Lebesgue integral.
-
-useenv thm { \label{thm:props-of-int}
-    useenv enumerate [label = (\roman*)] {
-        \item If $f<=g$, then $\int_X fd\mu <= \int_X gd\mu$.
-        \item Let $f:X->\R$ be a $\mu$-measurable function. Then
-        $$
-            ?|\int_X f(x)\mu(dx)|? <= \int_X |f(x)|\mu(dx),
-        $$
-        \item If $A_1,A_2,...,A_n\in\Mf_\mu$, and $c_1,...,c_n>=0$,
-        $$
-            \int_X \sum_{j=1}^n c_j1_{A_j}\mu(dx)
-            = \sum_{j=1}^n c_j\mu(A_j).
-        $$
+useenv prop { \label{prop:measurable-fnt}
+    Let $f:X->\R$ be a function, Then the followings are equivalent.
+    useenv enumerate [label=(\roman*)] {
+        \item $f$ is $\mu$-measurable.
+        \item $\{f \in F\}$ is $\mu$-measurable for every closed subset $F$ of $\R$.
+        \item $\{f > a\}$ is $\mu$-measurable for every $a\in\R$.
+        \item $\{f <= a\}$ is $\mu$-measurable for every $a\in\R$.
+        \item $\{f < a\}$ is $\mu$-measurable for every $a\in\R$.
+        \item $\{f >= a\}$ is $\mu$-measurable for every $a\in\R$.
+        \item $\{f \in I\}$ is $\mu$-measurable for every interval $I\subset\R$.
+        \item $\{f \in I\}$ is $\mu$-measurable for every open interval $I\subset\R$.
+        \item $\{f \in I\}$ is $\mu$-measurable for every closed interval $I\subset\R$.
     }
+    \proof
+    Since $\Mf_\mu$ is a $\sigma$-field, (iii) and (iv), (v) and (vi) are
+    automatically equivalent, respectively. Now observe that
+    $$
+        \{f >= a\} = \bigcap_{n=1}^oo \{f > a - n^{-1}\},\quad
+        \{f > a\} = \bigcup_{n=1}^oo \{f >= a + n^{-1}\}.
+    $$
+    As $\Mf_\mu$ is a $\sigma$-field, upper relation yields that (iii) and (vi)
+    are equivalent. Hence, (iii)-(vi) are all equivalent.
+
+    Notice that clearly all (iii)-(vi) imply (vii), and (vii) implies (viii) and
+    (ix).
+    In addition, since
+    $$
+        \{f > a\} = \bigcup_{n=1}^oo \{a < f < n\},\quad
+        \{f >= a\} = \bigcup_{n=1}^oo \{a <= f <= n\},
+    $$
+    (viii) implies (iii), and (ix) implies (vi). 
+
+    Every open set in $\R$ can be expressed by a countable union of
+    open intervals in $\R$. Thus (viii) implies (i). Also, clearly (i)
+    implies (viii).
+    Finally, observe that clearly (i) and (ii) are equivalent. This finishes
+    the proof. \proved
 }
 
-Now we are going to study very important limit theorems.
+\Cref{exe:measurable-fnt} is clear since $\Mf_\mu$ is a $\sigma$-field. From
+\Cref{prop:measurable-fnt} and \Cref{exe:measurable-fnt}, we obtain the
+analogous statement when the codomain is $[-oo,oo]$.
 
-useenv thm { \label{thm:limit-thms}
-    useenv enumerate [label = (\roman*)] {
-        \item(Monotone convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
-        functions such that $0<=f_1<=f_2<=...<=f$ and $f_n\uparrow f$ as
-        $n->oo$, then
-        $$
-            \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
-        $$ \index{Monotone convergence theorem}
-        \item(Fatou's lemma) Let $f_n$ are nonnegative $\mu$-measurable
-        functions. Then
-        $$
-            \int_X \liminf_{n->oo} f_n(x)\mu(dx) <=
-            \liminf_{n->oo}\int_X f_n(x)\mu(dx).
-        $$ \index{Fatou's lemma}
-        \item(Dominated convergence theorem) Let $f$, $f_n$ are $\mu$-measurable
-        functions such that $f_n->f$ as $n->oo$ and $|f_n|<=g$ for some
-        $\mu$-measurable function $g$ such that $\int_X g d\mu<oo$. Then
-        $$
-            \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
-        $$ \index{Dominated convergence theorem}
+useenv prop { \label{prop:measurable-fnt-extended-real}
+    Let $f:X->[-oo,oo]$ be a function, Then the followings are equivalent.
+    useenv enumerate [label=(\roman*)] {
+        \item $f$ is $\mu$-measurable.
+        \item $\{f <= a\}$ is $\mu$-measurable for every $a\in[-oo,oo]$.
+        \item $\{f < a\}$ is $\mu$-measurable for every $a\in(-oo,oo]$.
+        \item $\{f >= a\}$ is $\mu$-measurable for every $a\in[-oo,oo]$.
+        \item $\{f \in I\}$ is $\mu$-measurable for every interval
+        $I\subset[-oo,oo]$.
+        \item $\{f \in I\}$ is $\mu$-measurable for every open interval
+        $I\subset[-oo,oo]$, and both $\{f=-oo\}$ and $\{f=oo\}$ are
+        $\mu$-measurable.
+        \item $\{f \in I\}$ is $\mu$-measurable for every closed interval
+        $I\subset[-oo,oo]$.
     }
+    \proof
+    See \Cref{exe:measurable-fnt-extended-real}. \proved
 }
 
-There is the generalized version of \Cref{thm:limit-thms} (iii).
-useenv exec* { \label{exe:generalized-DCT}\index{Generalized DCT}
-    Let $f$, $f_n$, $g$, $g_n$ are $\mu$-measurable functions such that
-    $f_n->f$, $g_n->g$ as $n->oo$, $|f_n|<=g_n$ for every $n$, and $\int_X
-    g_nd\mu -> \int_X gd\mu < oo$ as $n->oo$. Then the below relation holds.
+useenv exec* { \label{exe:measurable-fnt}
+    A function $f:X->[-oo,oo]$ is $\mu$-measurable if and only if $\{f>a\}$ is
+    $\mu$-measurable for every $a\in\R$ and $\{f=-oo\}$ is $\mu$-measurable.
+}
+
+useenv exec* { \label{exe:measurable-fnt-extended-real}
+    Prove \Cref{prop:measurable-fnt-extended-real}.
+}
+
+We already know that if $f$ and $g$ are real-valued continuous function on the
+real line, then both $f+g$ and $fg$ are also continuous. Then one can question
+about for measurability. Similar for continuity, if $f$ and $g$ are real-valued
+$\mu$-measurable functions, then both $f+g$ and $fg$ are $\mu$-measurable.
+
+useenv prop { \label{prop:mble-product-fnts-1}
+    Let $f,g : X -> \R$ are $\mu$-measurable functions. Then $-f$, $f+g$ and $fg$
+    are $\mu$-measurable.
+    \proof
+    The measurability of $-f$ is immediately follows from
+    \Cref{prop:measurable-fnt}. Fix $a\in\R$. Then observe that
     $$
-        \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+        \{f + g > a\} = \{f > a - g\}
+        = \bigcup_{q\in\Q}\{f > q\}\cap\{g > a - q\}.
     $$
+    Since $f$ and $g$ are $\mu$-measurable, and $\Mf_\mu$ is a $\sigma$-field,
+    that identity implies that $\{f + g > a\}$ is $\mu$ measurable.
+    As $a\in\R$ is arbitrary, we can conclude that $f+g$ is $\mu$-measurable.
+
+    To prove that $fg$ is $\mu$-measurable, we use the following formula
+    $$
+        fg = {1//4}(f+g)^2 - {1//4}(f-g)^2.
+    $$
+    Hence, it suffices to show that $f^2$ is $\mu$-measurable.
+    Fix $a\in\R$. If $a < 0$ then clearly $\{f^2 > a\} = X$, so we can further
+    assume that $a>=0$. In this case,
+    $$
+        \{f^2 > a\}
+        = \{|f| > \sqrt{a}\}
+        = \{f >= 0, f > \sqrt{a}\} \cup \{f < 0, f < -\sqrt{a}\},
+    $$
+    and the right hand side set is indeed $\mu$-measurable by
+    \Cref{prop:measurable-fnt}. \proved
+}
+
+In the proof of \Cref{prop:mble-product-fnts-1}, we actually proved that $f^2$
+and $|f|$ are $\mu$-measurable provided that $f$ is $\mu$-measurable.
+One can notice that from \Cref{prop:measurable-fnt}, we can prove the following
+result.
+
+useenv prop {
+    Let $Y$ and $Z$ are topological spaces, $f:X->Y$ be $\mu$-measurable
+    function, and $\phi:Y->Z$ be a continuous function. Then $\phi\circ f$ is
+    $\mu$-measurable.
+    \proof
+    Fix any open set $U$ in $Z$. Being continuous, $\phi^{-1}[U]$ is also open
+    in $Y$. Therefore, since
+    $$
+        \{\phi\circ f \in U\} = \{f \in \phi^{-1}[U]\},
+    $$
+    we can conclude that $\phi\circ f$ is $\mu$-measurable. \proved
+}
+
+We have been studied the definition of $\mu$-measurable functions.
+We end this section by showing one of the most important theorem about
+$\mu$-measurable functions. Before that we need a definition.
+useenv defin [Simple functions] { \label{defin:simple-functions}
+    We say that \it{simple functions} $s:X->\R$ is the type
+    $$
+        s = \sum_{j=1}^n c_j 1_{A_j},
+    $$
+    where $c_j\in\R$ and $A_j$ are $\mu$-measurable sets for $j=1,...,n$.
 }

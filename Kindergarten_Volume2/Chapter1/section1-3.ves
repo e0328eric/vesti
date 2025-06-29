@@ -1,143 +1,371 @@
-In this section, we will learn about compact sets in arbitrary topological
-spaces.
+In the basis analysis, one is taught that if $X$ is a metric space and $A$ is a
+subset of $X$ then $x\in\overline{A}$ if and only if there is a sequence
+$(x_n)_n$ in $A$ that converges to $x$. However, such fact does not hold for
+general topological spaces. Actually, several properties of sequences in metric
+spaces break when we generalize those in the arbitrary topological spaces.
+This makes a reason introducing an object which acts like a sequence more
+general sense. There are two things that generalize sequences: filters, and nets.
+In here, we are going to study about filters. Net theory is introduced in the
+appendix. Also, one can see the filter theory at \cite{Bourbaki-topology}
 
-\begin{defin}[Compact sets]
-    Let $X$ be a topological space. Then a set $X$ is said to be
-    \it{compact}\index{set!compact} if for every collection $\Us$ of open sets
-    which cover $X$, we can find a finite subcollection $\Fs\subset\Us$ such
-    that $\bigcup\Fs\supset X$.
-    The collection of type $\Us$ described in above is called an \it{open cover
-    of $X$}\index{open cover}.
-    A subset $K\subset X$ is said to be compact if $K$ is compact within the
-    subspace topology.
-    A set is said to be \it{precompact}\index{set!precompact} if the closure of
-    which is compact.
-\end{defin}
-
-We can show that the space is compact by using filters. Here is the theorem
-about.
-\begin{thm} \label{thm:1.3.2}
-    Let $X$ be a topological space. Then $X$ is compact if and only if every
-    ultrafilter in $X$ converges.
-    \proof
-    Suppose that there is an ultrafilter $\Uc$ that converges nowhere in $X$.
-    For each $x\in X$, take an open set $U_x$ which is not contained in $\Uc$.
-    Note that clearly $\{U_x\}_{x\in X}$ is an open cover of $X$.
-    If $X$ were compact, there are finitely many points $x_1,\cdots ,x_n$ such that
-    useenv equation { \label{eq:1.3.2.1}
-        U_{x_1}\cup U_{x_2} \cup ... \cup U_{x_n} \supset X.
+First, we need to see what are filters. Note that filters are defined even if
+$X$ has no topology.
+useenv defin [Definition of filters] {
+    Let $X$ be a nonempty set. A {\itshape filter}\index{filter} $\Fc$ is a
+    nonempty collection of some subsets of $X$ satisfies the following conditions.
+    useenv enumerate [label = (\roman*)] {
+        \item $\emptyset\notin\Fc$;
+        \item If $A\in\Fc$, then $B\in\Fc$ for every $B\supset A$;
+        \item If $A,B\in\Fc$, then $A\cap B\in\Fc$.
     }
-    However as $\Uc$ is an ultrafilter, $X\setminus U_x\in\Uc$ holds for each $x\in X$
-    by \Cref{prop:1.2.4}. This and \cref{eq:1.3.2.1} gives
-    \[
-        \emptyset = (X\setminus U_{x_1})\cap 
-        (X\setminus U_{x_2}) \cap ... \cap (X\setminus U_{x_n}) \in \Uc,
-    \]
-    which is a contradiction. Such contradiction occurs as we assumed that $X$ is
-    compact. Hence $X$ cannot be compact.
+}
+Clearly $\{X\}$ is a filter in $X$, so there exists a filter for any $X$.
+In addition, $\{X\}$ is the smallest filter we can ever make. Then, is there
+exists a maximal filter in $X$ with respect to the set theoretical inclusion?
+Below proposition shows that indeed such filter exists, so this proposition
+justifies that \cref{defin:ultrafilters} is well-defined.
 
-    Conversely, suppose that $X$ is not compact. Then there is an open cover
-    $\Us$ which does not have a finite subset of $\Us$ that covers $X$.
-    Put
-    \[
-        \Vs := \{X \setminus  E : E\in\Us\}.
-    \]
-    Observe that $\Vs$ satisfies FIP. Take an ultrafilter $\Uc$ which is a
-    superset of $\Vs$ by \Cref{prop:1.2.2} and \Cref{prop:1.2.7}.
-    Since $\Vs\subset\Uc$ and $\Us$ is an open cover of $X$, there is no $x\in
-    X$ such that $\Uc\rightarrow x$. Indeed, if $x\in X$ then there is $U\in\Us$ that
-    contains $x$. Since $X\setminus U\in\Uc$, $U$ does not belong to $\Uc$ and this
-    implies that $\Uc$ does not converges to $x$. \proved
-\end{thm}
-
-\begin{coro} \label{coro:1.3.3}
-    Let $X$ be a topological space. Then $\emptyset\neq K\subset X$ is compact
-    if and only if every ultrafilter $\Uc$ in $X$ containing $K$ converges to
-    some point in $K$. Notice that the convergent point can differ.
+useenv prop { \label{prop:existence-ultrafilters}
+    Let $X$ be a nonempty set and $\Fc$ be a filter in $X$. Then there exists a
+    maximal filter $\Uc\supset\Fc$ in $X$ meaning that there is no filter $\Gc$
+    in $X$ which contains $\Uc$.
     \proof
-    Suppose that $K\subset X$ is compact, and fix an ultrafilter $\Uc$ that
-    contains $K$. Then the set
-    \begin{equation}
-        \Uc' := \{F\cap K : F\in\Uc\} \label{eq:1.3.3.1}
-    \end{equation}
-    is an ultrafilter in $K$. Being compact, $\Uc'\to x\in K$ by
-    \Cref{thm:1.3.2}. Now fix an open set $N$ that contains $x$.
-    Since $N\cap K$ is open in $K$ and $x\in N\cap K$, we have $N\cap K\in\Uc'$.
-    This implies $N\in\Uc$ by the definition of $\Uc'$, proving that $\Uc\to x$
-    since $N$ is arbitrary.
-
-    To prove the sufficency, claim that if $\Uc'$ is any ultrafilter in $K$,
-    then there exists an ultrafilter $\Uc$ in $X$ such that both $\Uc$ and
-    $\Uc'$ satisfies \cref{eq:1.3.3.1}. But indeed $\Uc'$ is a filter in $X$.
-    By \Cref{prop:1.2.2}, there exists an ultrafilter $\Uc$ which contains
-    $\Uc'$.
-    The one side of \cref{eq:1.3.3.1} is clear. Take any $F\in\Uc$.
-    Since $\Uc'\subset\Uc$, $F$ and $K$ are intersect. In addition, as $\Uc'$ is
-    an ultrafilter in $K$, either $F\cap K$ or $K--F$ belongs to $\Uc'$ by
-    \Cref{prop:1.2.4}.
-    However if $K--F\in\Uc'$, we have
+    Fix a filter $\Fc$ in $X$ and define an ordered set
     $$
-        \emptyset = (K -- F)\cap F \in \Uc,
+        \Cs := \{\Bc \supset \Fc : \Bc \text{ is a filter in } X\}
     $$
-    which is a contradiction. This shows that $F\cap K\in\Uc'$, so both $\Uc$
-    and $\Uc'$ satisfies \cref{eq:1.3.3.1}.
+    with an inclusion order. Then by the Hausdorff maximal theorem, there exists
+    a maximal total ordered subset $\Ds$ of $\Cs$. Claim that $\bigcup\Ds$ is a
+    filter and $\bigcup\Ds\supset\Fc$. Notice that the second one is trivial, so
+    we are going to focus the first assertion.
 
-    From this fact, we are ready to prove that $K$ is compact provided that
-    every ultrafilter in $X$ containing $K$ converges to some point in $K$.
-    Fix any ultrafilter $\Uc'$ in $K$ and take an ultrafilter $\Uc$ in $X$
-    satisfies \cref{eq:1.3.3.1}. By our assumption, $\Uc$ converges to some
-    $x\in K$. By \cref{eq:1.3.3.1} and the definition of the subspace topology,
-    it is easy to verify that $\Uc'->x$. Therefore, $K$ is compact because of
-    \Cref{thm:1.3.2}. \proved
-\end{coro}
+    Clearly $\emptyset\notin\bigcup\Ds$ and if $E\in\bigcup\Ds$ and $F\supset
+    E$, then $F\in\bigcup\Ds$. If $E_1,E_2\in\bigcup\Ds$, we can two filters
+    $\Fc_1,\Fc_2\in\Ds$ such that $E_1\in\Fc_1$ and $E_2\in\Fc_2$, respectively.
+    Since $\Ds$ is a chain, it suffices to assume that $\Fc_1\subset\Fc_2$. In
+    this case, we have $E_1\cap E_2\in\Fc_2\subset\bigcup\Ds$, proving that
+    $\bigcup\Ds$ is a filter.
 
-Below propositions can be proved without using any filter theory. In here,
-however, we will see how \Cref{thm:1.3.2} (and \Cref{coro:1.3.3}) can be used to
-prove several compactness properties. One may solve \Cref{exe:1.3.5}.
-\begin{prop} \label{prop:1.3.4}
-    Let $X$ be a topological space and $K\subset X$ be a nonempty set.
-    \begin{enumerate}[label = (\alph*)]
-        \item If $X$ is Hausdorff and $K$ is compact, then $K$ is closed.
-        \item If $X$ is compact and $K$ is closed, then $K$ is compact.
-        \item Let $Y$ be another topological space and $f:X\to Y$ a continuous
-            map, then $f[K]$ is compact in $Y$ whenever $K$ is compact in $X$.
-    \end{enumerate}
+    Notice that $\bigcup\Ds\in\Cs$ so $\bigcup\Ds$ is the desired one, otherwise
+    we can take a filter $\Gc\supset\bigcup\Ds$ but this makes a contradiction
+    of the maximality of $\Ds$. \proved
+}
+useenv defin [Definition of ultrafilters] { \label{defin:ultrafilters}
+    Let $X$ be a set. An {\itshape ultrafilter}\label{ultrafilter} $\Uc$ in $X$
+    is a maximal filter.
+}
+
+As we know that such definition is quite difficult to draw some image what
+ultrafilters look like. There is a equivalent statement that describes
+ultrafilters.
+
+useenv prop { \label{prop:equiv-ultrafilters}
+    Let $X$ be a nonempty set and $\Uc$ be a filter in $X$. Then $\Uc$ is an
+    ultrafilter if and only if for any $A\subset X$, either $A$ or $X\setminus
+    A$ belongs to $\Uc$.
     \proof
-    \begin{enumerate}[label = (\alph*)]
-        \item Fix $x\in\cl K$ and take a filter $\Fc$ in $X$ such that $K\in\Fc$
-            and $\Fc\to x$ by \Cref{thm:1.2.13}. Then take an ultrafilter
-            $\Uc\supset\Fc$ by \Cref{prop:1.2.2}, and finally, consider
-            \[
-                \Uc' := \{F\cap K : F\in\Uc\}.
-            \]
-            Since $\Uc'$ is an ultrafilter in $K$, there is a point $y\in K$
-            such that $\Uc'\to y$ by \Cref{coro:1.3.3}.
-            Fix any open set $N$ in $X$ that contains $y$. Then $N\cap K$ is
-            open in $K$, we have $N\cap K\in\Uc'$ as $\Uc'\to y$. Then the
-            definition of $\Uc'$ and \Cref{prop:1.2.4} imply $N\in\Uc$
-            (otherwise, $X\setminus N$ must be in $\Uc$. This makes a contradiction),
-            hence $\Uc\to y$.
+    To prove the necessity, assume that there exists a subset $A\subset X$
+    such that both $A$ and $X\setminus A$ are not in $\Uc$. Then the collection
+    $$
+        \Uc' := \Uc \cup \{A\cap E : E\in\Uc\}
+    $$
+    is a filter which contains $\Uc$ by \Cref{exec:equiv-ultrafilters}. This makes a
+    contradiction because $\Uc$ is an ultrafilter.
 
-            What we have is that the ultrafilter $\Uc$ converges in both $x$ and
-            $y$ where $x\in\cl K$ and $y\in K$. Since $X$ is Hausdorff, $x = y$
-            by \Cref{thm:1.2.14}, proving that $x = y \in K$. Hence, $K$ is
-            closed because $K=\cl K$ which is what we proved in here.
-        \item Fix an ultrafilter $\Uc$ in $X$ which contains $K$. Being compact,
-            $\Uc$ converges to some point $x\in X$. By \Cref{thm:1.2.13}, $x\in
-            \cl K = K$. Hence, $K$ is compact because of \Cref{coro:1.3.3} as
-            $\Uc$ is arbitrary.
-        \item Fix an ultrafilter $\Uc$ in $f[K]$. Then take an ultrafilter
-            $\Uc'$ in $K$ such that $f^*\Uc \subset \Uc'$. Being compact, we can
-            take a point $x\in K$ such that $\Uc'\to x$ by \Cref{thm:1.3.2}.
-            Since $f$ is continuous, $f_*\Uc'\to f(x)$ because of
-            \Cref{thm:1.2.13}. Observe that $\Uc\subset f_*\Uc'$, hence both
-            should be same since $\Uc$ is an ultrafilter. Therefore, $\Uc$
-            converges to $f(x)$, and we proved that $f[K]$ is compact by
-            \Cref{thm:1.3.2} as $\Uc$ is arbitrary. \proved
-    \end{enumerate}
-\end{prop}
+    Conversely, suppose that $\Uc$ is a filter which satisfies the property in
+    above. If $\Uc$ is not maximal, then there exists an ultrafilter
+    $\Uc'\supset \Uc$ by \Cref{prop:existence-ultrafilters}. We are going to
+    finish the proof by showing that $\Uc=\Uc'$.
 
-useenv exec { \label{exe:1.3.5}
-    Prove \Cref{prop:1.3.4} \it{without using any filter theories}.
+    Fix $A\in\Uc'$. By the property of $\Uc$, either $A$ or $X\setminus A$ is
+    contained in $\Uc$. In here, if $X\setminus A\in\Uc$ then since
+    $\Uc\subset\Uc'$, we have $X\setminus A\in\Uc'$ hence
+    $$
+        \emptyset = A\cap(X\setminus A) \in \Uc'
+    $$
+    because $\Uc'$ is a filter, but this is nonsense. This derives to have
+    $A\in\Uc$, therefore $\Uc'\subset\Uc$. This finishes the proof. \proved
+}
+
+useenv exec* { \label{exec:equiv-ultrafilters}
+    Prove that the collection $\Uc'$ defined in \Cref{prop:equiv-ultrafilters}
+    is a filter.
+}
+
+useenv remark {
+    If $\Uc$ is an ultrafilter in $X$ for some nonempty set $X$, clearly both
+    $A$ and $X\setminus A$ do not lie in $\Uc$ for any $A\subset X$, otherwise
+    by the definition of the filter,
+    \[
+        \emptyset = A\cap(X\setminus A) \in \Uc,
+    \]
+    which is a contradiction.
+}
+
+We have learned what is a filter and what is an ultrafilter. To deal with
+filters, we need to know how we can make some appropriate filter.
+If $X$ be a nonempty set and $\Cc$ a some collection of subsets of $X$, then we
+can generate a filter $\Fc$ in $X$ which contains $\Cc$.
+
+useenv defin [Finite intersection property] {
+    Let $X$ be a set. A collection $\Cc$ of subsets of $X$ has a
+    \it{finite intersection property}\index{finite intersection property} if for
+    any finite set $\Fc\subset\Cc$, the intersection $\bigcap\Fc$ is not empty.
+    We also use the abbriviation FIP for the term \lq\lq finite intersection
+    property\rq\rq.
+}
+
+useenv prop { \label{prop:generate-filter-fip}
+    Let $X$ be a nonempty set and $\Cc$ a collection of subsets of $X$ that has
+    FIP. Then there exists a filter $\Fc\supset\Cc$ in $X$.
+    \proof
+    We can find one of such filter explicitly:
+    useenv equation { \label{eq:generate-filter-fip:1}
+        \Fc = \left\{ E\subset X : E\supset \bigcap\Dc,\;\Dc #"a finite
+        subset of"# \Cc\right\}.
+    }
+    Since $\Cc$ has FIP, the emptyset does not contained in $\Fc$.
+    It is clear that both $E\subset\Fc$ and $F\supset E$ imply $F\in\Fc$ by the
+    definition of $\Fc$.
+
+    Fix $E_1,E_2\in\Fc$ and take finite subsets $\Dc_1,\Dc_2\subset\Cc$ such
+    that $\bigcap\Dc_1\subset E_1$ and $\bigcap\Dc_2\subset E_2$, respectively.
+    By the basic set theory knowledge, we obtain $E_1\cap
+    E_2\supset\bigcap(\Dc_1\cup\Dc_2)$ and notice that $\Dc_1\cup\Dc_2$ is a
+    finite subset of $\Cc$, implying that $E_1\cap E_2\in\Fc$. Therefore, $\Fc$
+    is a filter. It is clear by definition that $\Fc\supset\Cc$. \proved
+}
+
+Sometimes, we will deal with not only filters but their subsets which acts like
+a filter. Thanks to \Cref{prop:generate-filter-fip} we can consider the following objects.
+
+useenv defin [Filter base] { \label{def:filter-base}
+    Let $X$ be a set. A \it{filter base}\index{filter!base} $\Bc$ is a nonempty
+    collection of subsets of $X$ such that
+    useenv enumerate [label=(\alph*)] {
+        \item If $A,B\in\Bc$, then there exists $N\in\Bc$ such that $N\subset
+        A\cap B$.
+        \item $\emptyset\notin\Bc$.
+    }
+
+    If $\Bc$ is a filter base, then the filter $\Fc$ generated by
+    \cref{eq:generate-filter-fip:1} substituted of $\Bc$ for $\Cc$ is called \it{generated
+    filter}\index{filter!generated} from $\Bc$.
+}
+useenv remark {
+    Clearly every filter base satisfies FIP, so the generated filter is
+    well-defined by \Cref{prop:generate-filter-fip}.
+    Every filter is clearly a filter base and the generated filter is itself.
+    By the property (a) in \Cref{def:filter-base},
+    \cref{eq:generate-filter-fip:1} and the below filter are identical.
+    $$
+        \Fc = \{E\subset X : E\supset F,\ F\in \Bc\}.
+    $$
+}
+
+After this definition, we will see why sequences can replaced into filters in
+the general topology theories. This definition explains the way how filters are
+transformed by functions.
+
+useenv defin [Pushforward and pullback of filters] { \label{defin:pushforward-filters}
+    Let $X$ and $Y$ be nonempty sets and $f:X\rightarrow Y$ a function. If $\Fc$
+    is a filter in $X$, the filter
+    \[
+        f_*\Fc := \{E\supset f[F] : F\in\Fc\}
+    \]
+    \index[sym]{$f_*\Fc$}
+    is called a \it{pushforward of a filter $\Fc$}\index{filter!pushforward}.
+    If $\Bc$ is a filter base in $X$, then the filter base
+    \[
+        f_*\Bc := \{f[F] : F\in\Bc\}
+    \]
+    is called a \it{pushforward of a filter base $\Bc$}.
+
+    If $f$ is surjective and $\Fc$ is a filter in $Y$, the filter
+    \[
+        f^*\Fc := \{E\supset f^{-1}[F] : F\in\Fc\}
+    \]
+    \index[sym]{$f^*\Fc$}
+    is called a \it{pullback of a filter $\Fc$}\index{filter!pullback}. If $\Bc$
+    is a filter base and the surjectivity of $f$ may drop, then the filter base
+    \[
+        f^*\Bc := \{f^{-1}[F] : F\in\Bc\}
+    \]
+    is called a \it{pullback of a filter base $\Bc$}.
+}
+
+The reader should check that \Cref{defin:pushforward-filters} makes sense.
+useenv exec {
+    Prove that $f_*\Fc$ and $f^*\Fc$ defined in \Cref{defin:pushforward-filters}
+    are really a filter, respectively. Furthermore, show that $f_*\Bc$ and
+    $f^*\Bc$ are really a filter base, respectively.
+}
+
+useenv remark {
+    If the surjectivity is dropped, then $f^*\Fc$ might not be a filter if $\Fc$
+    is a filter in $Y$.
+}
+
+The pushforward of a filter has a remarkable property: every pushforward of
+ultrafilters is again an ultrafilter. Notice that such property does not hold
+for pullbacks in general.
+
+useenv prop { \label{prop:pushforward-ultrafilters}
+    Let $X$, $Y$ be nonempty sets, $f:X\rightarrow Y$ a function, and $\Uc$ an
+    ultrafilter in $X$. Then $f_*\Uc$ is an ultrafilter in $Y$.
+    \proof
+    Since $f_*\Uc$ is a filter, it suffices that it satisfies the sufficiency
+    condition of \Cref{prop:equiv-ultrafilters}. Let $A\subset Y$ be fixed.
+    Since $\Uc$ is an ultrafilter, by \Cref{prop:equiv-ultrafilters}, either
+    $f^{-1}[A]\in\Uc$ or $X\setminus  f^{-1}[A]\in\Uc$ holds. As
+    $X\setminus f^{-1}[A]=f^{-1}[Y\setminus A]$, we can assume that $f^{-1}[A]\in\Uc$.
+    In this case, since $A\supset f[f^{-1}[A]]$ and $f[f^{-1}[A]]\in f_*\Uc$,
+    we therefore have $A\in f_*\Uc$. The proof of this theorem is now completed
+    by applying \Cref{prop:equiv-ultrafilters}. \proved
+}
+
+Now let $X$ be a topological space. Then we can define a convergence of filters.
+Here is the definition.
+
+useenv defin [Convergence of filters] {
+    Let $X$ be a topological space. A filter $\Fc$ in $X$
+    \it{converges}\index{filter!convergence} to $x\in X$ if every open
+    neighborhood of $x$ belongs to $\Fc$. In this case, we write $\Fc\rightarrow
+    x$.\index[sym]{$\Fc->x$}
+    A filter base $\Bc$ in $X$ \it{converges} to $x\in X$ if the generated
+    filter converges to $x$. In this case, we write $\Bc->x$.
+}
+
+Below lemma tells us the equivalent statement of the convergence of a filter
+base. It will be useful to test the convergence.
+
+useenv lemma { \label{lemma:conv-filter-base}
+    Let $X$ be a topological space and $\Bc$ is a filter base in $X$.
+    Then $\Bc -> x\in X$ if and only if for every open neighborhood $U$ of $x$,
+    there exists $V\subset\Bc$ such that $V\subset U$.
+    \proof
+    If $\Bc->x$, then by the definition the generated filter $\Fc$ converges to
+    $x$, and this means $\Nc_x$ is contained in $\Fc$. Then each $U\in\Nc_x$
+    associates an element $V\subset\Bc$ such that $V\subset U$ by the definition
+    of the generated filter.
+
+    Conversely, if $\Bc\not->x$ and $\Fc$ a generated filter of $\Bc$, there
+    is an open neighborhood $U$ of $x$ that does not belongs to $\Fc$.
+    Again, by the definition of the generated filter, this implies that
+    $V\not\subset U$ for every $V\in\Bc$. \proved
+}
+
+useenv remark {
+    One can ask about that if $x\in X$ is fixed then does there exist a filter
+    converges to $x$. Let $\Nc$ be a collection of all open neighborhoods of
+    $x$. Then one can easily checked that $\Nc$ is a filter base and $\Nc->x$.
+}
+
+We are ready to see that why filters can be used instead of sequences in
+arbitrary topological spaces. The theorem uses a filter bases instead of
+filters. But recall that every filter is a filter base.
+
+useenv thm { \label{thm:prop-conv-filters}
+    Let $X$, $Y$ be topological spaces. Then
+    useenv enumerate [label=(\alph*)] {
+        \item For any nonempty set $A\subset X$, $x\in "cl"A$ if and only if
+        there is a filter base $\Bc$ such that $A\in\Bc$ and $\Bc\rightarrow x$.
+        \item Let $f:X\rightarrow Y$ be a function. Then $f$ is continuous at
+        $x\in X$ if and only if for every filter base $\Bc$ in $X$ with
+        $\Bc\rightarrow x$, $f_*\Bc\rightarrow f(x)$ holds.
+    }
+    \proof
+    useenv enumerate [label=(\alph*)] {
+        \item If $x\in "cl"A$, then $N\cap A\neq \emptyset$ for every open
+        neighborhood $N$ of $x$. Now consider
+        \[
+            \Cc := \{A\} \cup \Nc_x.
+        \]
+        Then notice that $\Cc$ satisfies FIP because every finite intersection
+        of open sets is also open. Thus \Cref{prop:generate-filter-fip} gives a
+        filter $\Fc$ that contains $\Cc$. Observe that by the definition of
+        $\Cc$, $A\in\Fc$ and $\Fc\rightarrow x$. Finally, recall that $\Fc$ is
+        clearly a filter base.
+
+        Conversely, suppose that there is a point $x\in X$ and a filter base $\Bc$ in
+        $X$ such that $A\in\Bc$ and $\Bc\rightarrow x$. In order to show
+        $x\in"cl"A$, it suffices to show that $N\cap A$ is not empty for every
+        open neighborhood $N$ of $x$. For fixed $N\in\Nc_x$,
+        \Cref{lemma:conv-filter-base} gives a set $V\in\Bc$ such that $V\subset N$.
+        Since $\Bc$ is a filter base and $A\in\Bc$, we have
+        $$
+            \emptyset != A\cap V \subset A\cap N.
+        $$
+        This proves $x\in"cl"A$ as $N$ can be any open neighborhood of $x$.
+
+        \item Let $f$ be continuous at $x\in X$ and $\Bc$ a filter base in $X$
+        that converges to $x$. Fix any open neighborhood $N$ of $f(x)$. Being
+        continuous, there exists an open set $U$ containing $x$ such that
+        $f[U]\subset N$. Notice that there exists $V\in\Bc$ such that $V\subset
+        U$ by \Cref{lemma:conv-filter-base}. Then we have
+        \[
+            N \supset f[U] \supset f[V].
+        \]
+        By the definition of the pushforward of a filter base, $f[V]\in f_*\Bc$.
+        Hence \Cref{lemma:conv-filter-base} shows that $f_*\Bc -> f(x)$.
+
+        Conversely, suppose that $f$ is not continuous at $x$.
+        Then there exists an open set $W\ni f(x)$ such that no open
+        neighborhood of $U$ of $x$ satisfies $f[U]\subset W$.
+        Claim that $f_*\Nc_x\not->f(x)$. Since clearly $\Nc_x->x$, it suffices
+        to prove the claim to finish the proof.
+
+        By \Cref{lemma:conv-filter-base}, in order that $f_*\Nc_x -> f(x)$,
+        there should exist an element $E\in f_*\Nc_x$ such that $E\subset W$.
+        Notice that every element of $f_*\Nc_x$ is the type
+        $$
+            f[U],\quad\forall U\in\Nc_x.
+        $$
+        However we just take an open set $W$ such that no open neighborhood $U$
+        of $x$ satisfies $f[U]\subset W$. This proves the claim and therefore
+        the theorem. \proved
+    }
+}
+
+If $X$ is a metric space and $A\subset X$, then we know that $x\in"cl"A$ if and
+only if there exists a sequence $(x_n)_n$ in $A$ that converges to $x$ as
+discussed in the introduction of this section. In \Cref{thm:prop-conv-filters},
+$A\in\Fc$ corresponds to the sentence $(x_n)_n\subset A$, and clearly $\Fc\to x$
+means $x_n\to x$ as $n\to\infty$.
+In addition, statement \Cref{thm:prop-conv-filters} (ii) is quite clear to
+explain whether a function is continuous at $x$ by considering the assertion
+related to a sequence.
+
+Furthermore, note that on a Hausdorff space, every sequence converges at most
+one point. This is also true for filters, and we can say more.
+
+useenv thm { \label{thm:hausdorff-and-filter}
+    Let $X$ be a topological space. Then $X$ is Hausdorff if and only
+    if every filter base converges at most one point. That is, if a filter base
+    $\Bc$ in $X$ converges in both $x\in X$ and $y\in X$, then $x=y$.
+    \proof
+    Let $X$ be Hausdorff and assume that there exists a filter base $\Bc$ converges
+    to different points $x$ and $y$. Take two disjoint open sets $U$ and $V$
+    such that $x\in U$ and $y\in V$. Since $\Bc\to x$, by \Cref{lemma:conv-filter-base},
+    there exists $W_1\in\Bc$ such that $W_1\subset U$.
+    Similarly, as $\Bc->y$, we can take $W_2\in\Bc$ satisfies $W_2\subset V$.
+    Since $\Bc$ is a filter base, $W_1\cap W_2$ cannot be empty. However, we
+    find
+    $$
+        W_1\cap W_2 \subset U\cap V = \emptyset,
+    $$
+    which is a contradiction. Hence, there is no such filter base if $X$ is
+    Hausdorff.
+
+    Conversely, if $X$ is not Hausdorff, then we can take two distict points $x$
+    and $y$ such that there is no pair $(U,V)$ of open sets such that $x\in U$,
+    $y\in V$, and $U\cap V=\emptyset$. Then define
+    \[
+        \Bc := \{F\cap G : F \in \Nc_x,\ G\in\Nc_y\}
+    \]
+    By the choice of $x$ and $y$, $\Bc$ does not have an emptyset as its
+    element, so it is easy to show that $\Bc$ is a filter base. Notice by the
+    definition of $\Bc$ that $\Bc\to x$ and $\Bc\to y$. This proves the theorem.
+    \proved
 }
 

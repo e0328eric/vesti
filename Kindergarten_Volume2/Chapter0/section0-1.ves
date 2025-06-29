@@ -1,0 +1,13 @@
+Let $X$ be a set and $\bf{P}_j(x)$, $j=1,2,...,n$ propositions constraint to
+$x\in X$, then we sometimes simply write $\{\bf{P}_1(x),...,\bf{P}_n(x)\}$
+instead of $\{x : \bf{P}_1(x),...,\bf{P}_n(x)\}$. If a proposition $\bf{P}(x)$
+is $x\in A$ for some subset $A\in X$, then we write
+$\{A,\bf{P}_1(x),...,\bf{P}_n(x)\}$ simply instead of $\{x:x\in
+A,\bf{P}_1(x),...,\bf{P}_n(x)\}$, and so on. For example, if $f:X->\R$ is a
+function then $\{f > a\}$ means $\{x : f(x) > a\}$, and $\{A, B, f <= b\}$ means
+$\{x : x\in A, x\in B, f(x) <= b\}$.
+
+However, if we write $\{A,B\}$ then it can be interpret either a doubleton
+containing sets $A$ and $B$, or the set $\{x : x\in A,x\in B\}$.
+If there is no additional proposition that makes the context clear, then we
+always consider such case by the former one.

@@ -31,7 +31,7 @@ importpkg {
 
 \allowdisplaybreaks
 
-\input{getfp(Settings/settings.tex)}
+\input{getfp(./Settings/settings.tex)}
 
 makeatletter
 \@namedef{thecoprimeDefinition}{\arabic{chapter}.\arabic{section}.\arabic{coprimeThmboxcnt}}
@@ -70,36 +70,48 @@ startdoc
 
 \setcounter{chapter}{-1}
 \chapter{Preliminaries}
-\section{Ordering}
+\section{Basic notations}
+importves(./Chapter0/section0-1.ves)
+
+\section{Orderings}
+importves(./Chapter0/section0-2.ves)
 
 \section{Product of sets}
-importves(Chapter0/section0-2.ves)
+importves(./Chapter0/section0-3.ves)
 
 \chapter{User Guides for General Topology}
 \section{Basic terminologies related to the topology}
-importves(Chapter1/section1-1.ves)
+importves(./Chapter1/section1-1.ves)
+
+\section{Separation Axioms}
+importves(./Chapter1/section1-2.ves)
 
 \section{Filters and ultrafilters}
-importves(Chapter1/section1-2.ves)
+importves(./Chapter1/section1-3.ves)
 
 \section{Compact sets}
-importves(Chapter1/section1-3.ves)
+importves(./Chapter1/section1-4.ves)
 
 \section{Product spaces}
-importves(Chapter1/section1-4.ves)
+importves(./Chapter1/section1-5.ves)
 
 \chapter{Measures and Integrations}
 \section{Introduction}
-importves(Chapter2/section2-1.ves)
+importves(./Chapter2/section2-1.ves)
 
 \section{Measures and measurable sets}
-importves(Chapter2/section2-2.ves)
+importves(./Chapter2/section2-2.ves)
+
+\section{Measurable functions}
+importves(./Chapter2/section2-3.ves)
 
 \section{Integrations}
-importves(Chapter2/section2-3.ves)
+importves(./Chapter2/section2-4.ves)
 
 \section{Borel sets and Borel measures}
-importves(Chapter2/section2-4.ves)
+importves(./Chapter2/section2-5.ves)
+
+\chapter{The Fubini-Tonelli's theorem} \label{chap:fubini-tonelli}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,17 +132,17 @@ importves(Chapter2/section2-4.ves)
 
 \chapter{Nets}
 \section{Some properties about nets}
-importves(Appendix/A/appendixA-1.ves)
+importves(./Appendix/A/appendixA-1.ves)
 
 \section{Compact sets}
-importves(Appendix/A/appendixA-2.ves)
+importves(./Appendix/A/appendixA-2.ves)
 
 \section{Relation between nets and filters}
 importves(Appendix/A/appendixA-3.ves)
 
 \chapter{Proofs of several difficult theorems}
 \section{foo}
-importves(Appendix/B/appendixB-1.ves)
+importves(./Appendix/B/appendixB-1.ves)
 
 \clearpage
 \renewcommand*{\indexname}{Index of Symbols}

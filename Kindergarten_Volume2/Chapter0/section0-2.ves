@@ -1,21 +1,40 @@
-useenv defin [Product set] { \index{set!product}
-    Let $A$ be a nonempty set and for each $\alpha\in A$ consider some
-    \it{nonempty} set $X_\alpha$. Then define a \it{product} $\prod_{\alpha\in
-    A}X_\alpha$ of sets $\{X_\alpha\}_{\alpha\in A}$ by a collection of all
-    functions $f:A -> \bigcup_{\alpha\in A}X_\alpha$ such that $f(\alpha)\in
-    X_\alpha$ for each $\alpha\in A$.
+useenv defin {
+    Let $X$ be a nonempty set. An \it{(partial)
+    ordering}\index{ordering!partial} is a relation $<=$ satisfies the following
+    properties.
+    useenv enumerate [label=(\roman*)] {
+        \item $a <= a$ for every $a\in X$.
+        \item For $a,b\in X$, if $a <= b$ and $b <= a$, then $a = b$.
+        \item For $a,b,c\in X$, if $a <= b$ and $b <= c$, then $a <= c$.
+    }
+    Then we say $(X,<=)$ an \it{ordered set}.\index{set!ordered}
+    We write $b >= a$ if $a <= b$, $a < b$ if $a <= b$ and $a!=b$, and $b > a$
+    if $b >= a$ and $a != b$.
 
-    If at least one set $X_\alpha$ is empty or $A=\emptyset$, define
-    $\prod_{\alpha\in A}X_\alpha := \emptyset$.
+    If an ordering is called by \it{totally ordered}\index{ordering!totally
+    ordered} if
+    useenv enumerate [label=(\roman*)] {
+        \setcounter{enumi}{3}
+        \item For $a,b\in X$, either $a < b$, $a = b$, or $a > b$ is satisfied.
+    }
+    In this case, we say that an ordered set as a \it{totally ordered
+    set}.\index{set!totally ordered}
 }
 
-In mathematics, if every sets are nonempty, their product is also not empty and
-such fact is an axiom. Formally,
-
-useenv axiom [Axiom of choice] { \index{axiom of choice}
-    Let $A$ be a nonempty set and for each $\alpha\in A$ consider some
-    \it{nonempty} set $X_\alpha$. Then
-    $$
-        \prod_{\alpha\in A}X_\alpha != \emptyset.
-    $$
+useenv defin {
+    Let $(X,<=)$ be an ordered set. Then we define
+    \vskip1em
+    %-
+    \hbox to\textwidth{\hss\vbox{\halign{&\tabskip=3pt$#$&$:=$#&$#$\tabskip=0pt&#\cr
+        (a,b) && \{x : a < x < b\} &,\kern2em&
+        [a,b] && \{x : a \leq x \leq b\}&,\cr
+        \noalign{\vskip0.3em}
+        (a,b] && \{x : a < x \leq b\} &,\kern2em&
+        [a,b) && \{x : a \leq x < b\} &.\cr
+    }}\hss}
+    -%
+    \vskip1em
+    All of four sets are called an \it{interval}\index{interval}.
+    Especially, $(a,b)$ is called an \it{open inverval}\index{interval!open} and
+    $[a,b]$ is called a \it{closed interval}\index{interval!closed}.
 }

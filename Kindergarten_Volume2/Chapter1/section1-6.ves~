@@ -1,0 +1,71 @@
+If the reader knows what is a metric space, then one can skip whole of this
+section.
+
+useenv defin [Metric, Open ball, Closed ball] {
+    Let $X$ be a nonempty set. A \it{metric}\index{metric} is a function
+    $d:X\times X->[0,oo)$ satisfies
+    useenv enumerate [label=(\roman*)] {
+        \item $d(x,y) = 0$ if and only if $x=y$.
+        \item for $x,y\in X$, $d(x,y) = d(y,x)$.
+        \item for $x,y,z\in X$, $d(x,y) <= d(x,z) + d(z,y)$.
+    }
+    
+    We define an \it{open ball}\index{ball!open} centered at $x\in X$ with the radius $r>0$ by
+    $$
+        B(x,r) := \{y\in X : d(x,y) < r\}.
+    $$ \index[sym]{$B(x,r)$}
+    Similarly, we define an \it{closed ball}\index{ball!closed} centered at $x\in
+    X$ with the radius
+    $r>0$ by \index[sym]{$B[x,r]$}
+    $$
+        B[x,r] := \{y\in X : d(x,y) <= r\}.
+    $$
+}
+
+useenv defin [Metric space] { \label{def:metric-space}
+    Let $X$ be a nonempty set and $d:X\times X->[0,oo)$ a metric.
+    Then we say that the pair $(X,d)$ a
+    \it{metric space}\index{space!metric}\index[sym]{$(X,d)$}.
+
+    A set $U\subset X$ is called to be open if for every $x\in U$ there exists
+    $r>0$ such that $B(x,r)\subset U$.
+}
+
+useenv exec {
+    Prove that the collection of such ``open" sets is a topology. From this, the
+    definition of open sets in \Cref{def:metric-space} makes sense.
+}
+
+useenv exec {
+    Let $(X,d)$ be a metric space. Prove that $d$ is continuous where $X\times
+    X$ equipped the product topology and $[0,oo)$ equipped the subspace topology
+    of the standard topology of $\R$.
+}
+
+useenv defin {
+    Let $(X,d)$ be a metric space. Then define
+    $$
+        d(x,A) := \inf\{d(x,y) : y\in A\},\quad
+        d(A,B) := \inf\{d(x,B) : x\in A\}
+    $$\index[sym]{$d(x,A)$}\index[sym]{$d(A,B)$}
+    for $x\in X$ and $A,B\subset X$ with the convension $\inf\emptyset = oo$.
+}
+
+useenv exec {
+    Let $(X,d)$ be a metric space. Prove that if $C\subset X$ is closed then
+    $d(x,C) = 0$ implies $x\in C$.
+}
+
+useenv exec {
+    Let $(X,d)$ be a metric space and $A$ be any subset of $X$. Prove that a
+    function $f:X->\R$ defined by $f(x)=d(x,A)$ is continuous.
+}
+
+useenv prop { \label{prop:criterion-separation}
+    Let $(X,d)$ be a metric space. Then two subsets $A$ and $B$ of $X$ are
+    separated if and only if $d(A,B)>0$.
+}
+
+useenv thm { \label{thm:metric-completely-normal}
+    Every metric space is completely normal.
+}
