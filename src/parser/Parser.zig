@@ -836,7 +836,7 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
 // <return>[1] points <return>[0]
 fn parseFilepathHelper(
     self: *Self,
-    import_file_loc: Span,
+    left_parn_loc: Span,
 ) ParseError!struct { ArrayList(u8), []const u8 } {
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
     errdefer file_path_str.deinit();
@@ -865,15 +865,18 @@ fn parseFilepathHelper(
                     .err_info = .{
                         .IllegalUseErr = "The next token for `@` should be `/`",
                     },
-                    .span = import_file_loc,
+                    .span = left_parn_loc,
                 } });
                 return ParseError.ParseFailed;
             }
             continue;
         } else if (chr == 0) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = import_file_loc,
+                .err_info = .{ .IsNotClosed = .{
+                    .open = &.{.Lparen},
+                    .close = .Rparen,
+                } },
+                .span = left_parn_loc,
             } });
             return ParseError.ParseFailed;
         } else {
@@ -909,6 +912,14 @@ fn parseFilepathHelper(
     return .{ file_path_str, fs.path.basename(file_path_str.items) };
 }
 
+// TODO: This special function is need because of following zig compiler bug:
+// - https://github.com/ziglang/zig/issues/5973
+// - https://github.com/ziglang/zig/issues/24324
+// After these are resolved, remove this function
+fn preventBug(s: *const volatile Span) void {
+    _ = s;
+}
+
 fn parseFilepath(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
     if (!self.expect(.current, &.{.GetFilePath})) {
@@ -942,7 +953,9 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    const file_name_str, _ = try self.parseFilepathHelper(import_file_loc);
+    const left_parn_loc = self.curr_tok.span;
+    preventBug(&left_parn_loc);
+    const file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
     defer file_name_str.deinit();
 
     const filepath_diff = path.relative(
@@ -1013,7 +1026,9 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    const file_name, const raw_filename = try self.parseFilepathHelper(import_file_loc);
+    const left_parn_loc = self.curr_tok.span;
+    preventBug(&left_parn_loc);
+    const file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
     defer file_name.deinit();
 
     var into_copy_filename = try ArrayList(u8).initCapacity(

@@ -351,14 +351,32 @@ pub const ParseDiagnostic = struct {
                 "{tok} should have a name",
                 .{toktype},
             ),
-            .IsNotOpened => |info| try writer.print(
-                "either {tok} was not opened with {any}",
-                .{ info.close, info.open },
-            ),
-            .IsNotClosed => |info| try writer.print(
-                "either {any} was not closed with {tok}",
-                .{ info.open, info.close },
-            ),
+            .IsNotOpened => |info| {
+                if (info.open.len == 1) {
+                    try writer.print(
+                        "either {tok} was not opened with {tok}",
+                        .{ info.close, info.open[0] },
+                    );
+                } else {
+                    try writer.print(
+                        "either {tok} was not opened with {any}",
+                        .{ info.close, info.open },
+                    );
+                }
+            },
+            .IsNotClosed => |info| {
+                if (info.open.len == 1) {
+                    try writer.print(
+                        "{tok} was not closed with {tok}",
+                        .{ info.open[0], info.close },
+                    );
+                } else {
+                    try writer.print(
+                        "either {any} was not closed with {tok}",
+                        .{ info.open, info.close },
+                    );
+                }
+            },
             .Deprecated => |info| try writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
