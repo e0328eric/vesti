@@ -45,7 +45,7 @@ pub fn init(allocator: Allocator) Error!Self {
     lua.setGlobal(VESTI_ERROR_STR);
 
     // declare vesti table
-    lua.pushGlobalTable();
+    lua.newTable();
     lua.setGlobal("vesti");
 
     // this function throws error only if there is no global variable `vesti`.
@@ -75,7 +75,11 @@ pub fn clearVestiOutputStr(self: Self) void {
 }
 
 pub fn evalCode(self: Self, code: [:0]const u8) !void {
-    try self.lua.doString(code);
+    self.lua.doString(code) catch {
+        const err = self.lua.toString(-1) catch unreachable;
+        std.debug.print("{s}\n", .{err});
+        return error.LuaError;
+    };
 }
 
 pub fn getVestiOutputStr(self: Self) [:0]const u8 {
@@ -153,6 +157,7 @@ fn parse(lua: *ZigLua) i32 {
         &cwd_dir,
         &diagnostic,
         false, // disallow nested luacode
+        null, // disallow changing engine type
     ) catch |err| {
         // pop vesti_code
         lua.pop(1);

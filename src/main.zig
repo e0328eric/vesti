@@ -1,6 +1,7 @@
 const std = @import("std");
 const time = std.time;
 const compile = @import("./compile.zig");
+const run_script = @import("./run_script.zig");
 const c = @import("c");
 
 const assert = std.debug.assert;
@@ -8,6 +9,7 @@ const assert = std.debug.assert;
 const ArrayList = std.ArrayList;
 const Diagnostic = @import("./diagnostic.zig").Diagnostic;
 const Parser = @import("./parser/Parser.zig");
+const LatexEngine = Parser.LatexEngine;
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
 
 fn signalHandler(signal: c_int) callconv(.C) noreturn {
@@ -31,7 +33,9 @@ pub fn main() !void {
         try std.fs.cwd().deleteTree(VESTI_LOCAL_DUMMY_DIR);
         std.debug.print("[successively remove {s}]", .{VESTI_LOCAL_DUMMY_DIR});
         return;
-    } else if (zlap.is_help or !zlap.isSubcmdActive("compile")) {
+    } else if (zlap.is_help or
+        (!zlap.isSubcmdActive("compile") and !zlap.isSubcmdActive("run")))
+    {
         std.debug.print("{s}\n", .{zlap.help_msg});
         return;
     }
@@ -63,6 +67,20 @@ pub fn main() !void {
     };
     defer diagnostic.deinit();
 
+    if (zlap.isSubcmdActive("run")) {
+        const lua_contents = (try run_script.getBuildLuaContents(
+            allocator,
+            luacode_path,
+            &diagnostic,
+        )) orelse return error.BuildFileNotFound; // TODO: make a diagnostic
+        defer allocator.free(lua_contents);
+
+        run_script.runLuacode(allocator, &diagnostic, lua_contents) catch |err| {
+            try diagnostic.prettyPrint(no_color);
+            return err;
+        };
+    }
+
     var prev_mtime: ?i128 = null;
     try compile.compile(
         allocator,
@@ -86,7 +104,7 @@ fn getEngine(
     is_pdflatex: bool,
     is_xelatex: bool,
     is_lualatex: bool,
-) ![]const u8 {
+) !LatexEngine {
     const is_latex_num = @as(u8, @intCast(@intFromBool(is_latex))) << 0;
     const is_pdflatex_num = @as(u8, @intCast(@intFromBool(is_pdflatex))) << 1;
     const is_xelatex_num = @as(u8, @intCast(@intFromBool(is_xelatex))) << 2;
@@ -95,11 +113,11 @@ fn getEngine(
 
     switch (engine_num) {
         // TODO: read config file and replace with it
-        0 => return "pdflatex",
-        1 << 0 => return "latex",
-        1 << 1 => return "pdflatex",
-        1 << 2 => return "xelatex",
-        1 << 3 => return "lualatex",
+        0 => return .pdflatex,
+        1 << 0 => return .latex,
+        1 << 1 => return .pdflatex,
+        1 << 2 => return .xelatex,
+        1 << 3 => return .lualatex,
         else => return error.InvalidEngineFlag,
     }
 }

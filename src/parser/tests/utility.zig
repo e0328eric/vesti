@@ -26,6 +26,7 @@ pub fn expect(
         undefined,
         &diagnostic,
         false, // disallow luacode for testing
+        null, // disallow changing latex engine type
     );
     defer parser.deinit();
 

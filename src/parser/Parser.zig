@@ -29,8 +29,25 @@ doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
 allow_luacode: bool,
+engine: ?*LatexEngine,
 
 const Self = @This();
+
+pub const LatexEngine = enum(u2) {
+    latex,
+    pdflatex,
+    xelatex,
+    lualatex,
+
+    pub fn toStr(self: @This()) []const u8 {
+        return switch (self) {
+            .latex => "latex",
+            .pdflatex => "pdflatex",
+            .xelatex => "xelatex",
+            .lualatex => "lualatex",
+        };
+    }
+};
 
 pub const VESTI_LOCAL_DUMMY_DIR = "./.vesti-dummy";
 const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
@@ -40,6 +57,12 @@ const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
     .{"eqnarray"},
     .{"gather"},
     .{"multline"},
+});
+const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
+    .{ "plain", LatexEngine.latex },
+    .{ "pdf", LatexEngine.pdflatex },
+    .{ "xe", LatexEngine.xelatex },
+    .{ "lua", LatexEngine.lualatex },
 });
 
 pub const ParseError = Allocator.Error ||
@@ -66,6 +89,7 @@ pub fn init(
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
     allow_luacode: bool,
+    engine: ?*LatexEngine,
 ) !Self {
     var self: Self = undefined;
 
@@ -77,6 +101,7 @@ pub fn init(
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
     self.allow_luacode = allow_luacode;
+    self.engine = engine;
 
     return self;
 }
@@ -284,6 +309,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .ImportVesti => try self.parseImportVesti(),
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
+        .CompileType => try self.parseCompileType(),
         .LuaCode => if (self.allow_luacode)
             try self.parseLuaCode()
         else {
@@ -912,7 +938,7 @@ fn parseFilepathHelper(
     return .{ file_path_str, fs.path.basename(file_path_str.items) };
 }
 
-// TODO: This special function is need because of following zig compiler bug:
+// TODO: This special function is needed because of following zig compiler bug:
 // - https://github.com/ziglang/zig/issues/5973
 // - https://github.com/ziglang/zig/issues/24324
 // After these are resolved, remove this function
@@ -1718,6 +1744,93 @@ fn parseMathMode(self: *Self) ParseError!Stmt {
 
     inner.Braced.unwrap_brace = true;
     return inner;
+}
+
+fn parseCompileType(self: *Self) ParseError!Stmt {
+    const comp_ty_loc = self.curr_tok.span;
+    if (comp_ty_loc.start.row != 1) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .NotLocatedInVeryFirst = .CompileType },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    if (!self.expect(.current, &.{.CompileType})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.CompileType},
+                .obtained = self.currToktype(),
+            } },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+
+    while (!self.expect(.peek, &.{ .Lparen, .Eof })) {
+        self.nextToken();
+    } else {
+        self.nextToken();
+    }
+
+    if (!self.expect(.current, &.{.Lparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.nextToken();
+    self.eatWhitespaces(true);
+    if (!self.expect(.current, &.{.Text})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Text},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const engine = COMPILE_TYPE.get(self.curr_tok.lit.in_text) orelse {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .InvalidLatexEngine = self.curr_tok.lit.in_text },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    };
+
+    self.nextToken();
+    self.eatWhitespaces(true);
+    if (!self.expect(.current, &.{.Rparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Rparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    if (self.engine) |e| {
+        e.* = engine;
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .DoubleUsed = .CompileType },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    // tells to parser that `compty` keyword is already used
+    self.engine = null;
+    return Stmt.NopStmt;
 }
 
 fn parseFunctionArgs(

@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const path = std.fs.path;
 
-const VESTI_VERSION_STR = "0.0.41-beta.20250703";
+const VESTI_VERSION_STR = "0.0.42-beta.20250704";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 const min_zig_string = "0.14.1";

@@ -5,6 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("./diagnostic.zig");
+const run_script = @import("./run_script.zig");
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
@@ -13,6 +14,7 @@ const StringArrayHashMap = std.StringArrayHashMap;
 const Codegen = @import("./Codegen.zig");
 const Child = std.process.Child;
 const Parser = @import("./parser/Parser.zig");
+const LatexEngine = Parser.LatexEngine;
 const Lua = @import("./Lua.zig");
 
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
@@ -29,35 +31,18 @@ pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
     diagnostic: *diag.Diagnostic,
-    engine: []const u8,
+    engine: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
     luacode_path: []const u8,
     attr: CompileAttribute,
 ) !void {
-    const luacode_file = fs.cwd().openFile(luacode_path, .{}) catch |err| switch (err) {
-        error.FileNotFound => null,
-        else => {
-            const io_diag = try diag.IODiagnostic.init(
-                diagnostic.allocator,
-                null,
-                "failed to read {s}",
-                .{luacode_path},
-            );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.CompileVesFailed;
-        },
-    };
-    defer if (luacode_file) |lf| lf.close();
-
-    const luacode_contents = if (luacode_file) |lf| try lf.readToEndAllocOptions(
+    const luacode_contents = try run_script.getBuildLuaContents(
         allocator,
-        std.math.maxInt(usize),
-        null,
-        @alignOf(u8),
-        0,
-    ) else null;
-    defer if (luacode_contents) |lc| allocator.free(lc);
+        luacode_path,
+        diagnostic,
+    );
+    defer if (luacode_contents) |lf| allocator.free(lf);
 
     while (true) {
         compileInner(
@@ -99,12 +84,16 @@ fn compileInner(
     allocator: Allocator,
     main_filenames: []const []const u8,
     diagnostic: *diag.Diagnostic,
-    engine: []const u8,
+    engine_: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
     luacode_contents: ?[:0]const u8,
     attr: CompileAttribute,
 ) !void {
+    // actually, one can change compile latex engine with `compty` keyword
+    // inside of vesti codes.
+    var engine = engine_;
+
     // make vesti-dummy directory
     fs.cwd().makeDir(VESTI_LOCAL_DUMMY_DIR) catch |err| switch (err) {
         error.PathAlreadyExists => {},
@@ -168,7 +157,7 @@ fn compileInner(
                         vesti_file,
                         diagnostic,
                         &vesti_dummy,
-                        engine,
+                        &engine,
                         vesti_files.get(vesti_file).?,
                     );
                     is_compiled = true;
@@ -179,7 +168,7 @@ fn compileInner(
                     vesti_file,
                     diagnostic,
                     &vesti_dummy,
-                    engine,
+                    &engine,
                     vesti_files.get(vesti_file).?,
                 );
                 is_compiled = true;
@@ -221,7 +210,7 @@ fn compileInner(
                 vesti_file,
                 diagnostic,
                 &vesti_dummy,
-                engine,
+                &engine,
                 vesti_files.get(vesti_file).?,
             );
         }
@@ -248,7 +237,7 @@ pub fn vestiToLatex(
     filename: []const u8,
     diagnostic: *diag.Diagnostic,
     vesti_dummy_dir: *fs.Dir,
-    engine: []const u8,
+    engine: *LatexEngine,
     is_main: bool,
 ) !void {
     // since filename is an absolute name and it is a FILE, so dirname
@@ -287,6 +276,7 @@ pub fn vestiToLatex(
         &vesti_file_dir,
         diagnostic,
         true,
+        engine,
     );
     defer parser.deinit();
 
@@ -328,7 +318,7 @@ pub fn vestiToLatex(
         \\%
         \\
     ,
-        .{ VESTI_VERSION, engine },
+        .{ VESTI_VERSION, engine.toStr() },
     );
 
     try output_file.writeAll(content.items);
@@ -339,7 +329,7 @@ fn compileLatex(
     allocator: Allocator,
     filename: []const u8,
     diagnostic: *diag.Diagnostic,
-    engine: []const u8,
+    engine: LatexEngine,
     vesti_dummy: *fs.Dir,
     luacode_contents: ?[:0]const u8,
     compile_limit: usize,
@@ -348,11 +338,14 @@ fn compileLatex(
     defer allocator.free(main_tex_file);
 
     for (0..compile_limit) |i| {
-        std.debug.print("[compile number {}, engine: {s}]\n", .{ i + 1, engine });
+        std.debug.print("[compile number {}, engine: {s}]\n", .{
+            i + 1,
+            engine.toStr(),
+        });
 
         const result = try Child.run(.{
             .allocator = allocator,
-            .argv = &.{ engine, main_tex_file },
+            .argv = &.{ engine.toStr(), main_tex_file },
             .cwd = VESTI_LOCAL_DUMMY_DIR,
             .max_output_bytes = std.math.maxInt(usize),
             // XXX: https://github.com/ziglang/zig/issues/5190
@@ -379,7 +372,7 @@ fn compileLatex(
                     diagnostic.allocator,
                     null,
                     "{s} gaves an error while processing",
-                    .{engine},
+                    .{engine.toStr()},
                     "<Latex Engine Log>\n{s}",
                     .{result.stdout},
                 );
@@ -390,7 +383,7 @@ fn compileLatex(
         }
 
         if (luacode_contents) |lc| {
-            try runLuacode(allocator, diagnostic, lc);
+            try run_script.runLuacode(allocator, diagnostic, lc);
         }
 
         std.debug.print("[compiled]\n", .{});
@@ -479,24 +472,4 @@ fn changeExtension(
     output[idx] = '.';
     @memcpy(output[idx + 1 .. idx + 1 + into.len], into);
     return output;
-}
-
-fn runLuacode(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    luacode_contents: [:0]const u8,
-) !void {
-    const lua = Lua.init(allocator) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            allocator,
-            null,
-            "failed to initialize lua vm",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.LuaInitFailed;
-    };
-    defer lua.deinit();
-
-    try lua.evalCode(luacode_contents);
 }

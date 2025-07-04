@@ -245,6 +245,9 @@ pub const ParseDiagnostic = struct {
         DuplicatedLuaLabel,
         DisallowLuacode,
         LuaEvalFailed,
+        NotLocatedInVeryFirst,
+        DoubleUsed,
+        InvalidLatexEngine,
         VestiInternal,
     };
 
@@ -274,6 +277,9 @@ pub const ParseDiagnostic = struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
         },
+        NotLocatedInVeryFirst: TokenType,
+        DoubleUsed: TokenType,
+        InvalidLatexEngine: []const u8,
         VestiInternal: []const u8,
 
         fn deinit(self: @This()) void {
@@ -343,10 +349,19 @@ pub const ParseDiagnostic = struct {
             .None => try writer.writeAll("<none>"), // TODO: is it the best?
             .EofErr => try writer.print("EOF character was found", .{}),
             .PremiereErr => try writer.print("PremiereErr\n", .{}),
-            .TokenExpected => |info| try writer.print(
-                "{any} was expected but got {?tok}",
-                .{ info.expected, info.obtained },
-            ),
+            .TokenExpected => |info| {
+                if (info.expected.len == 1) {
+                    try writer.print(
+                        "{tok} was expected but got {?tok}",
+                        .{ info.expected[0], info.obtained },
+                    );
+                } else {
+                    try writer.print(
+                        "{any} was expected but got {?tok}",
+                        .{ info.expected, info.obtained },
+                    );
+                }
+            },
             .NameMissErr => |toktype| try writer.print(
                 "{tok} should have a name",
                 .{toktype},
@@ -397,6 +412,18 @@ pub const ParseDiagnostic = struct {
                 "lua exception occured: {s}",
                 .{inner.err_msg.items},
             ),
+            .NotLocatedInVeryFirst => |tok| try writer.print(
+                "{tok} must located in the very first line of the vesti code",
+                .{tok},
+            ),
+            .DoubleUsed => |tok| try writer.print(
+                "{tok} must be used only once",
+                .{tok},
+            ),
+            .InvalidLatexEngine => |engine| try writer.print(
+                "invalid latex engine name {s} was found",
+                .{engine},
+            ),
         }
 
         return output;
@@ -421,6 +448,14 @@ pub const ParseDiagnostic = struct {
                 const writer = output.writer();
 
                 try writer.writeAll(inner.err_detail.items);
+                break :blk output;
+            },
+            .InvalidLatexEngine => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit();
+                const writer = output.writer();
+
+                try writer.writeAll("valid ones are `plain`, `pdf`, `xe`, and `lua`");
                 break :blk output;
             },
             else => null,
