@@ -1,0 +1,51 @@
+[package]
+name = "vesti-tectonic"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.dev]
+codegen-units = 1
+lto = true
+opt-level = 'z'
+panic = "abort"
+strip = true
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 'z'
+panic = "abort"
+strip = true
+
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "3bdaa9b42070c241c1bdb02b4cf01f90de579738"
+overlay-triplets-path = "dist/vcpkg-triplets"
+
+[package.metadata.vcpkg.target]
+x86_64-apple-darwin = { install = ["freetype", "harfbuzz[graphite2]", "icu"] }
+aarch64-apple-darwin = { triplet = "arm64-osx", install = [
+  "freetype",
+  "harfbuzz[graphite2]",
+  "icu",
+] }
+x86_64-unknown-linux-gnu = { install = [
+  "fontconfig",
+  "freetype",
+  "harfbuzz[graphite2]",
+  "icu",
+] }
+x86_64-pc-windows-msvc = { triplet = "x64-windows-static-release", install = [
+  "fontconfig",
+  "freetype",
+  "harfbuzz[graphite2]",
+  "icu",
+] }
+
+[dependencies]
+tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "fbfcb8e7e2c5416e59418e8fbf7c7ef444a06748", features = [
+  "external-harfbuzz",
+] }

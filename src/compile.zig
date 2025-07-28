@@ -10,15 +10,18 @@ const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
-const StringArrayHashMap = std.StringArrayHashMap;
-const Codegen = @import("./Codegen.zig");
 const Child = std.process.Child;
-const Parser = @import("./parser/Parser.zig");
+const Codegen = @import("./Codegen.zig");
+const Dynlib = std.DynLib;
 const LatexEngine = Parser.LatexEngine;
 const Lua = @import("./Lua.zig");
+const Parser = @import("./parser/Parser.zig");
+const StringArrayHashMap = std.StringArrayHashMap;
+
+const TectonicFnt = fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.C) bool;
 
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
-const VESTI_VERSION = @import("vesti-version").VESTI_VERSION;
+const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -337,56 +340,49 @@ fn compileLatex(
     const main_tex_file = try getTexFilename(allocator, filename, true);
     defer allocator.free(main_tex_file);
 
-    for (0..compile_limit) |i| {
-        std.debug.print("[compile number {}, engine: {s}]\n", .{
-            i + 1,
-            engine.toStr(),
-        });
+    if (engine == .tectonic) {
+        if (@import("vesti-info").use_tectonic) {
+            try compileLatexWithTectonic(
+                diagnostic,
+                main_tex_file,
+                compile_limit,
+            );
 
-        const result = try Child.run(.{
-            .allocator = allocator,
-            .argv = &.{ engine.toStr(), main_tex_file },
-            .cwd = VESTI_LOCAL_DUMMY_DIR,
-            .max_output_bytes = std.math.maxInt(usize),
-            // XXX: https://github.com/ziglang/zig/issues/5190
-            //.cwd_dir = vesti_dummy,
-        });
-        defer {
-            allocator.free(result.stdout);
-            allocator.free(result.stderr);
+            if (luacode_contents) |lc| {
+                try run_script.runLuacode(allocator, diagnostic, lc);
+            }
+        } else {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                diagnostic.allocator,
+                null,
+                "this vesti executable does not supports tectonic",
+                .{},
+                "build vesti again with tectonic support",
+                .{},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
         }
+    } else {
+        for (0..compile_limit) |i| {
+            std.debug.print("[compile number {}, engine: {s}]\n", .{
+                i + 1,
+                engine.toStr(),
+            });
 
-        // write stdout and stderr in .vesti_dummy
-        try vesti_dummy.writeFile(.{
-            .sub_path = "stdout.txt",
-            .data = result.stdout,
-        });
-        try vesti_dummy.writeFile(.{
-            .sub_path = "stderr.txt",
-            .data = result.stderr,
-        });
+            try compileLatexWithInner(
+                allocator,
+                diagnostic,
+                engine,
+                main_tex_file,
+                vesti_dummy,
+            );
+            if (luacode_contents) |lc| {
+                try run_script.runLuacode(allocator, diagnostic, lc);
+            }
 
-        switch (result.term) {
-            .Exited => |errcode| if (errcode != 0) {
-                const io_diag = try diag.IODiagnostic.initWithNote(
-                    diagnostic.allocator,
-                    null,
-                    "{s} gaves an error while processing",
-                    .{engine.toStr()},
-                    "<Latex Engine Log>\n{s}",
-                    .{result.stdout},
-                );
-                diagnostic.initDiagInner(.{ .IOError = io_diag });
-                return error.CompileLatexFailed;
-            },
-            else => return error.CompileLatexFailed,
+            std.debug.print("[compiled]\n", .{});
         }
-
-        if (luacode_contents) |lc| {
-            try run_script.runLuacode(allocator, diagnostic, lc);
-        }
-
-        std.debug.print("[compiled]\n", .{});
     }
 
     const main_pdf_file = try changeExtension(allocator, filename, "pdf");
@@ -400,6 +396,86 @@ fn compileLatex(
     const pdf_context = try from.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
+}
+
+fn compileLatexWithTectonic(
+    diagnostic: *diag.Diagnostic,
+    main_tex_file: []const u8,
+    compile_limit: usize,
+) !void {
+    var dll = try Dynlib.open("vesti_tectonic.dll");
+    defer dll.close();
+
+    if (dll.lookup(
+        *const TectonicFnt,
+        "compile_latex_with_tectonic",
+    )) |comp| {
+        if (!comp(
+            main_tex_file.ptr,
+            main_tex_file.len,
+            @ptrCast(VESTI_LOCAL_DUMMY_DIR),
+            VESTI_LOCAL_DUMMY_DIR.len,
+            compile_limit,
+        )) {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                diagnostic.allocator,
+                null,
+                "tectonic gaves an error while processing",
+                .{},
+                "",
+                .{},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
+        }
+    }
+}
+
+fn compileLatexWithInner(
+    allocator: Allocator,
+    diagnostic: *diag.Diagnostic,
+    engine: LatexEngine,
+    main_tex_file: []const u8,
+    vesti_dummy: *fs.Dir,
+) !void {
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ engine.toStr(), main_tex_file },
+        .cwd = VESTI_LOCAL_DUMMY_DIR,
+        .max_output_bytes = std.math.maxInt(usize),
+        // XXX: https://github.com/ziglang/zig/issues/5190
+        //.cwd_dir = vesti_dummy,
+    });
+    defer {
+        allocator.free(result.stdout);
+        allocator.free(result.stderr);
+    }
+
+    // write stdout and stderr in .vesti_dummy
+    try vesti_dummy.writeFile(.{
+        .sub_path = "stdout.txt",
+        .data = result.stdout,
+    });
+    try vesti_dummy.writeFile(.{
+        .sub_path = "stderr.txt",
+        .data = result.stderr,
+    });
+
+    switch (result.term) {
+        .Exited => |errcode| if (errcode != 0) {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                diagnostic.allocator,
+                null,
+                "{s} gaves an error while processing",
+                .{engine.toStr()},
+                "<Latex Engine Log>\n{s}",
+                .{result.stdout},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
+        },
+        else => return error.CompileLatexFailed,
+    }
 }
 
 fn updateVesFiles(

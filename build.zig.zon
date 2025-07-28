@@ -1,6 +1,6 @@
 .{
     .name = .vesti,
-    .version = "0.0.42-beta.20250704",
+    .version = "0.1.0",
     .fingerprint = 0x95c25644562f92c1,
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
@@ -13,8 +13,8 @@
             .hash = "zlua-0.1.0-hGRpC-IZBQDD9MfKTbeRE3z_Qg-kI2SqnT1JaRl9W9Sq",
         },
         .zg = .{
-            .url = "https://codeberg.org/atman/zg/archive/v0.14.0-rc1.tar.gz",
-            .hash = "zg-0.14.0-oGqU3IHfsgLJHaWhypIudHay22CCCvhgZ54ZF2a-YPX2",
+            .url = "git+https://codeberg.org/atman/zg#9427a9e53aaa29ee071f4dcb35b809a699d75aa9",
+            .hash = "zg-0.14.1-oGqU3IQ_tALZIiBN026_NTaPJqU-Upm8P_C7QED2Rzm8",
         },
     },
     .paths = .{

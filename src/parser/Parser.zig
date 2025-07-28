@@ -33,11 +33,12 @@ engine: ?*LatexEngine,
 
 const Self = @This();
 
-pub const LatexEngine = enum(u2) {
+pub const LatexEngine = enum(u3) {
     latex,
     pdflatex,
     xelatex,
     lualatex,
+    tectonic,
 
     pub fn toStr(self: @This()) []const u8 {
         return switch (self) {
@@ -45,6 +46,7 @@ pub const LatexEngine = enum(u2) {
             .pdflatex => "pdflatex",
             .xelatex => "xelatex",
             .lualatex => "lualatex",
+            .tectonic => "tectonic",
         };
     }
 };
@@ -63,6 +65,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
     .{ "pdf", LatexEngine.pdflatex },
     .{ "xe", LatexEngine.xelatex },
     .{ "lua", LatexEngine.lualatex },
+    .{ "tect", LatexEngine.tectonic },
 });
 
 pub const ParseError = Allocator.Error ||
@@ -940,7 +943,7 @@ fn parseFilepathHelper(
 
 // TODO: This special function is needed because of following zig compiler bug:
 // - https://github.com/ziglang/zig/issues/5973
-// - https://github.com/ziglang/zig/issues/24324
+// - https://github.com/ziglang/zig/issues/24324 [closed]
 // After these are resolved, remove this function
 fn preventBug(s: *const volatile Span) void {
     _ = s;

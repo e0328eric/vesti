@@ -81,6 +81,13 @@
     default: false;
 
     #flag;
+    long: tectonic;
+    short: T;
+    desc: compile vesti using tectonic (can be changed using `compty` keyword);
+    type: bool;
+    default: false;
+
+    #flag;
     long: lim;
     short:;
     desc: set the number of the compile cycle;

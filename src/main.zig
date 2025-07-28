@@ -57,10 +57,17 @@ pub fn main() !void {
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
     const is_xelatex = compile_subcmd.flags.get("xelatex").?.value.bool;
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
+    const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
     const luacode_path = compile_subcmd.flags.get("luacode").?.value.string;
 
-    const engine = try getEngine(is_latex, is_pdflatex, is_xelatex, is_lualatex);
+    const engine = try getEngine(.{
+        .is_latex = is_latex,
+        .is_pdflatex = is_pdflatex,
+        .is_xelatex = is_xelatex,
+        .is_lualatex = is_lualatex,
+        .is_tectonic = is_tectonic,
+    });
 
     var diagnostic = Diagnostic{
         .allocator = allocator,
@@ -99,17 +106,25 @@ pub fn main() !void {
     );
 }
 
-fn getEngine(
+const EngineTypeInput = packed struct {
     is_latex: bool,
     is_pdflatex: bool,
     is_xelatex: bool,
     is_lualatex: bool,
-) !LatexEngine {
-    const is_latex_num = @as(u8, @intCast(@intFromBool(is_latex))) << 0;
-    const is_pdflatex_num = @as(u8, @intCast(@intFromBool(is_pdflatex))) << 1;
-    const is_xelatex_num = @as(u8, @intCast(@intFromBool(is_xelatex))) << 2;
-    const is_lualatex_num = @as(u8, @intCast(@intFromBool(is_lualatex))) << 3;
-    const engine_num = is_latex_num | is_pdflatex_num | is_xelatex_num | is_lualatex_num;
+    is_tectonic: bool,
+};
+
+fn getEngine(ty: EngineTypeInput) !LatexEngine {
+    const is_latex_num = @as(u8, @intCast(@intFromBool(ty.is_latex))) << 0;
+    const is_pdflatex_num = @as(u8, @intCast(@intFromBool(ty.is_pdflatex))) << 1;
+    const is_xelatex_num = @as(u8, @intCast(@intFromBool(ty.is_xelatex))) << 2;
+    const is_lualatex_num = @as(u8, @intCast(@intFromBool(ty.is_lualatex))) << 3;
+    const is_tectonic_num = @as(u8, @intCast(@intFromBool(ty.is_tectonic))) << 4;
+    const engine_num = is_latex_num |
+        is_pdflatex_num |
+        is_xelatex_num |
+        is_lualatex_num |
+        is_tectonic_num;
 
     switch (engine_num) {
         // TODO: read config file and replace with it
@@ -118,6 +133,7 @@ fn getEngine(
         1 << 1 => return .pdflatex,
         1 << 2 => return .xelatex,
         1 << 3 => return .lualatex,
+        1 << 4 => return .tectonic,
         else => return error.InvalidEngineFlag,
     }
 }

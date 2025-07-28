@@ -1,0 +1,180 @@
+Now we are ready to define a Lebesgue integration. 
+We are going to define an integration using a measure. This section is inspired
+from \cite{Krylov-diffusion}.
+Everywhere in this section, $(X,\mu)$ denotes a measure space.
+
+First of all, we need to define the positive part and negative part of a
+function.
+
+useenv defin { \label{defin:positive-negative-part}
+    Let $f:X->\R$ be a function (here, $X$ need not to take a measure).
+    We define the \it{positive part} $f_+$ and \it{negative part} $f_-$ of a
+    function $f$ by \index[sym]{$f_+$}\index[sym]{$f_-$}\index{function!positive
+    part}\index{function!negative part}
+    $$
+        f_+ \defeq {|f| + f // 2},\quad f_- \defeq {|f| - f // 2}.
+    $$
+}
+
+useenv exec {
+    Let $f:X->\R$ be a $\mu$-measurable function. Then both $f_+$ and $f_-$ are
+    $\mu$-measurable.
+}
+
+Now we are ready to define the Lebesgue integration. Let us fix a function
+$f:X->[0,oo)$. We want to define $\int_X f(x)\mu(dx)$ by the ``area'' of the
+set
+$$
+    \Gamma_f \defeq \{(x,y) : y < f(x),\ x\in X\}.
+$$
+Fix some positive integers $n$, $k$ and consider a set $\{f > k2^{-n}\}$ where
+the set is nonempty. Observe that
+$$
+    \{f > k2^{-n}\} \times ((k-1)2^{-n},k2^{-n}] \subset \Gamma_f.
+$$
+
+useenv figure [t] {
+    \centering
+    useenv tikzpicture [xscale=4,yscale=14] {
+        \draw[thick] (-0.2,0) -- (1.2,0) node[right] {$X$};
+        \draw[thick] (0,0) -- (0,0.2) node[above] {$[0,oo)$};
+        \draw[densely dashed, name path=line1] (0,0.09) node[above left=-1mm]
+            {$k2^{-n}$} -- ++(1.2,0);
+        \draw[densely dashed, name path=line2] (0,0.08) node[below left=-1mm]
+            {$(k-1)2^{-n}$} -- ++(1.2,0);
+        \draw[domain=0:1,variable=\x,smooth,name path=foo] plot (\x, {-pow(\x,3)+pow(\x,2)});
+        \path[name intersections={of=line1 and foo, name=i}]
+            ($0.5*(i-1) + 0.5*(i-2) + (0,0.08)$) node {$y=f(x)$};
+        \path[thick,fill=black!10,name intersections={of=line1 and foo, name=i}];
+        \path[thick,fill=black!10,name intersections={of=line2 and foo, name=j}];
+        \draw[fill=black!20] ($(j-1)!(i-1)!(j-2)$) rectangle (i-2);
+    }
+    \caption{Definition of the Lebesgue integration}
+}
+Since $X$ equipped a measure, we can ``define'' the area of the rectangle-like
+shape $\{f>k2^{-n}\}\times ((k-1)2^{-n},k2^{-n}]$ by $2^{-n}\mu\{f>k2^{-n}\}$.
+Summing up all such rectangles over $k$ and taking a limit as $n->oo$, one can
+define the value of the integral $\int_X fd\mu$ as $\int_0^oo \mu\{f > t\}dt$.
+For this perspective, here is a definition of the Lebesgue integration.
+
+useenv defin [Lebesgue Integration] { \label{defin:lebesgue-integration}
+    Let $f:X->\R$ be a function such that one of those Riemann integrations
+    useenv equation { \label{eq:defin:lebesgue-integration}
+        \int_0^oo \mu\{f_+ > t\}dt,\quad
+        \int_0^oo \mu\{f_- > t\}dt
+    }
+    exists and finite. Then we define a \it{Lebesgue integration}\index{Lebesgue
+    integration} respect to
+    $\mu$ by
+    $$
+        \int_X f(x)\mu(dx) \defeq \int_0^oo\mu\{f_+ > t\}dt - \int_0^oo\mu\{f_- >
+        t\}dt.
+    $$
+    If $E\subset X$, then we define
+    $$
+        \int_E f(x)\mu(dx) \defeq \int_X 1_E(x)f(x)\mu(dx).
+    $$
+
+    Sometimes, we use the abbreviation of $\int_E f(x)\mu(dx)$ by $\int_E fd\mu$
+    if the variable of which is understood.
+}
+
+useenv remark { \label{remark:lebesgue-integration}
+    We need to justify \Cref{defin:lebesgue-integration}. For any $0<=s<=t$,
+    $$
+        \{f_+ > t\} \subset \{f_+ > s\},\quad
+        \{f_- > t\} \subset \{f_- > s\}.
+    $$
+    Since $\mu$ is a measure, $t|->\mu\{f_+ >t\}$ and $t|->\mu\{f_- > t\}$ are
+    decreasing functions, so they are Riemann integrable on $[\epsilon,N]$ for
+    every $0<\epsilon<N<oo$. Now we are understood Riemann integrations
+    described in \Cref{defin:lebesgue-integration} by an improper integral, so
+    $$
+        \int_0^oo \mu\{f_+ > t\}dt
+        = \lim_{\scriptstyle N\uparrow oo\atop\scriptstyle\epsilon\downarrow 0}
+        \int_\epsilon^N \mu\{f_+ > t\}dt,
+    $$
+    and similar for $f_-$.
+}
+
+useenv remark {
+    To explain the intuition of the Lebesgue integral, we introduce the set
+    $\Gamma_f$ and ``define'' its area by $\int_0^oo \mu\{f>t\}dt$.
+    However, the ``real'' definition for the area of $\Gamma_f$ is introduced in
+    \Cref{chap:fubini-tonelli}.
+}
+
+Below proposition gives some basic facts about integrations.
+
+useenv prop { \label{prop:props-of-int}
+    useenv enumerate [label = (\roman*)] {
+        \item Let $f$ and $g$ are nonnegative functions such that $f<=g$.
+			  Then $\int_X fd\mu <= \int_X gd\mu$.
+        \item If $A\in\Mf_\mu$, and $c>=0$,
+        $$
+            \int_X c1_Ad\mu = c\mu(A).
+        $$
+    }
+	\proof
+	Since $f<=g$, we have $\{f > a\} \subset \{g > a\}$ for every $a>=0$.
+	Also as $\mu$ is a measure, $\mu\{f > a\} <= \mu\{g > a\}$ holds.
+	Therefore by the property of the Riemann integral and the definition of the
+	Lebesgue integral, we obtain (i).
+
+	For (ii), by observing that
+    $$
+        \{c1_A > t\} = useenv cases {
+            \emptyset & "if"# t >= c, \\
+            A & "if"# t < c; \\
+        }
+    $$
+    we can obtain that
+    $$
+		\int_X c1_Ad\mu
+        = \int_0^oo \mu\{c1_A > t\}dt
+        = \int_0^c \mu(A)dt
+        = c\mu(A).
+    $$
+    This proves the proposition. \proved
+}
+
+useenv exec {
+    Let $A_1,A_2,...,A_n$ be $\mu$-measurable sets and $c_1,...,c_n>=0$,
+    then
+}
+
+Now we are going to study very important limit theorems.
+useenv thm [Monotone Convergence Theorem] { \label{thm:MCT} 
+    Let $f$, $f_n$ are $\mu$-measurable functions such that
+    $0<=f_1<=f_2<=...<=f$ and $f_n\uparrow f$ as $n->oo$, then
+    $$
+        \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+    $$
+}
+
+useenv thm [Fatou's Lemma] { \label{thm:Fatou-lemma} 
+    Let $f_n$ are nonnegative $\mu$-measurable functions. Then
+    $$
+        \int_X \liminf_{n->oo} f_n(x)\mu(dx) <=
+        \liminf_{n->oo}\int_X f_n(x)\mu(dx).
+    $$
+}
+
+useenv thm [Dominated Convergence Theorem] { \label{thm:DCT} 
+    Let $f$, $f_n$ are $\mu$-measurable functions such that $f_n->f$ as $n->oo$
+    and $|f_n|<=g$ for some $\mu$-measurable function $g$ such that $\int_X g
+    d\mu<oo$. Then
+    $$
+        \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+    $$
+}
+
+There is the generalized version of \Cref{thm:DCT}.
+useenv exec* { \label{exe:generalized-DCT}\index{Generalized DCT}
+    Let $f$, $f_n$, $g$, $g_n$ are $\mu$-measurable functions such that
+    $f_n->f$, $g_n->g$ as $n->oo$, $|f_n|<=g_n$ for every $n$, and $\int_X
+    g_nd\mu -> \int_X gd\mu < oo$ as $n->oo$. Then the below relation holds.
+    $$
+        \lim_{n->oo}\int_X f_n(x)\mu(dx) = \int_X f(x)\mu(dx).
+    $$
+}

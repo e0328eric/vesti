@@ -1,0 +1,30 @@
+useenv defin [Separation Axioms] {
+    Let $X$ be a topological space. We say that $X$ is
+    useenv enumerate [label=(\roman*)] {
+        \item T$_0$ space if $x,y\in X$ there exists an open set $U$
+        such that either $x\in U$ and $y\notin U$, or $y\in U$ and $x\notin U$.
+        \item T$_1$ space if $x,y\in X$ there exist open sets $U$ and
+        $V$ such that $x\in U$ and $y\notin U$, and $y\in V$ and $x\notin V$.
+        \item T$_2$ space if $x,y\in X$ there exist \it{disjoint} open
+        sets $U$ and $V$ such that $x\in U$ and $y\in V$.
+        \item T$_3$ space if $x\in X$ and a closed set $C$ in $X$ there
+        exist \it{disjoint} open sets $U$ and $V$ such that $x\in U$ and
+        $C\subset V$.
+        \item T$_4$ space if $C$ and $D$ are closed sets in $X$ there exist
+        \it{disjoint} open sets $U$ and $V$ such that $C\subset U$ and $D\subset
+        V$.
+        \item T$_5$ space if $C$ and $D$ are \it{separated} sets in $X$ there exist
+        \it{disjoint} open sets $U$ and $V$ such that $C\subset U$ and $D\subset
+        V$. Here, we say that two sets $C$ and $D$ are separated if $"cl"C\cap D =
+        C\cap "cl"D= \emptyset$.\index{set!separated}
+    }
+    \index{space!T$_0$} \index{space!T$_1$} \index{space!T$_2$} \index{space!T$_3$}
+    \index{space!T$_4$} \index{space!T$_5$} \index{space!Hausdorff}
+    \index{space!regular} \index{space!normal} \index{space!completely normal}
+
+    T$_2$ space is also called by \it{Hausdorff space}.
+    A \it{regular space} is both T$_1$ space and T$_3$ space, a \it{normal
+    space} is both T$_1$ and T$_4$ space, and a \it{completely normal} is
+    both T$_1$ and T$_5$ space.
+}
+
