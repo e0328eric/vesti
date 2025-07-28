@@ -57,12 +57,17 @@ Upper code is a figure using tikz.
 ```
 
 ## Installation
+If one does not want to compile tectonic backend, just run the following code
 ```console
 $ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
 ```
 
-## Warning
+Otherwise, run this
+```console
+$ zig build --prefix-exe-dir <path to install> -Dtectonic=true -Doptimize=ReleaseSafe
+```
 
-This language is in beta version, so future break changes can be exist. Beware to use in the large
-projects.
+## Warning
+This language is in beta version, so future break changes can be exist. Beware
+to use in the large projects.
 
