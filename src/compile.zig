@@ -415,7 +415,7 @@ fn compileLatexWithTectonic(
         // VESTI_LOCAL_DUMMY_DIR
         // if one store only fs.cwd(), then it breaks after `recovering` cwd, so
         // curr_dir should store fs.cwd().openDir(".").
-        var curr_dir = try fs.cwd().openDir(".");
+        var curr_dir = try fs.cwd().openDir(".", .{});
         defer curr_dir.close();
         try vesti_dummy.setAsCwd();
         defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");

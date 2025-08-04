@@ -1,4 +1,3 @@
-use std::env;
 use std::io::{self, IsTerminal};
 use std::time::SystemTime;
 
@@ -41,7 +40,6 @@ extern "C" fn compile_latex_with_tectonic(
     };
 
     println!("[Compile {}, engine: tectonic]", latex_filename);
-    unwrap!(env::set_current_dir(vesti_local_dummy_dir));
 
     let mut status: Box<dyn StatusBackend> = if io::stdout().is_terminal() {
         Box::new(status::termcolor::TermcolorStatusBackend::new(
