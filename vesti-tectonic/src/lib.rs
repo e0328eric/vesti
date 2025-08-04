@@ -40,8 +40,6 @@ extern "C" fn compile_latex_with_tectonic(
         ))
     };
 
-    let current_dir = unwrap!(env::current_dir());
-
     println!("[Compile {}, engine: tectonic]", latex_filename);
     unwrap!(env::set_current_dir(vesti_local_dummy_dir));
 
@@ -77,7 +75,6 @@ extern "C" fn compile_latex_with_tectonic(
     let mut sess = unwrap!(sb.create(&mut *status));
     unwrap!(sess.run(&mut *status));
 
-    unwrap!(env::set_current_dir(current_dir));
     println!("[Compile {} Done]", latex_filename);
 
     true

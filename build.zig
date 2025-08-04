@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
-const VESTI_VERSION_STR = "0.1.0";
+const VESTI_VERSION_STR = "0.1.1";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 const min_zig_string = "0.14.1";
@@ -70,6 +70,7 @@ pub fn build(b: *Build) !void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = strip,
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
             .{ .name = "zlua", .module = zlua.module("zlua") },
@@ -88,7 +89,6 @@ pub fn build(b: *Build) !void {
         .name = "vesti",
         .version = VESTI_VERSION,
         .root_module = exe_mod,
-        .strip = strip,
     });
     if (use_tectonic) {
         exe.addLibraryPath(.{
@@ -111,14 +111,21 @@ pub fn build(b: *Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const exe_unit_tests = b.addTest(.{
+    const test_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = strip,
+        .imports = &.{
+            .{ .name = "zlua", .module = zlua.module("zlua") },
+            .{ .name = "zg_Properties", .module = zg.module("Properties") },
+            .{ .name = "zg_DisplayWidth", .module = zg.module("DisplayWidth") },
+        },
     });
-    exe_unit_tests.root_module.addImport("zlua", zlua.module("zlua"));
-    exe_unit_tests.root_module.addImport("zg_Properties", zg.module("Properties"));
-    exe_unit_tests.root_module.addImport("zg_DisplayWidth", zg.module("DisplayWidth"));
+    const exe_unit_tests = b.addTest(.{
+        .name = "vesti-test",
+        .root_module = test_mod,
+    });
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

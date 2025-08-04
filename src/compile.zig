@@ -345,9 +345,9 @@ fn compileLatex(
             try compileLatexWithTectonic(
                 diagnostic,
                 main_tex_file,
+                vesti_dummy,
                 compile_limit,
             );
-
             if (luacode_contents) |lc| {
                 try run_script.runLuacode(allocator, diagnostic, lc);
             }
@@ -401,6 +401,7 @@ fn compileLatex(
 fn compileLatexWithTectonic(
     diagnostic: *diag.Diagnostic,
     main_tex_file: []const u8,
+    vesti_dummy: *fs.Dir,
     compile_limit: usize,
 ) !void {
     var dll = try Dynlib.open("vesti_tectonic.dll");
@@ -410,6 +411,15 @@ fn compileLatexWithTectonic(
         *const TectonicFnt,
         "compile_latex_with_tectonic",
     )) |comp| {
+        // compile_latex_with_tectonic requires to change the current directory into
+        // VESTI_LOCAL_DUMMY_DIR
+        // if one store only fs.cwd(), then it breaks after `recovering` cwd, so
+        // curr_dir should store fs.cwd().openDir(".").
+        var curr_dir = try fs.cwd().openDir(".");
+        defer curr_dir.close();
+        try vesti_dummy.setAsCwd();
+        defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
+
         if (!comp(
             main_tex_file.ptr,
             main_tex_file.len,

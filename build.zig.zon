@@ -1,19 +1,19 @@
 .{
     .name = .vesti,
-    .version = "0.1.0",
+    .version = "0.1.1",
     .fingerprint = 0x95c25644562f92c1,
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
         .zlap = .{
-            .url = "https://github.com/e0328eric/zlap/archive/refs/tags/v0.6.1.tar.gz",
-            .hash = "1220a731040da73f0b7ab8abbce4a0f6f5e84b078dc4adc8344b0476dbb342975a46",
+            .url = "git+https://github.com/e0328eric/zlap.git#f264a89c28cd680d83fe6a1cdad0af600e952f36",
+            .hash = "zlap-0.6.1-boKVXNicAABaUTeZTF-01K3mXYisNYQB38SfYPpl5ASp",
         },
         .zlua = .{
-            .url = "git+https://github.com/e0328eric/ziglua.git?ref=main#f4c9af2176b205183f6dff00d1e0a504b28316ed",
-            .hash = "zlua-0.1.0-hGRpC-IZBQDD9MfKTbeRE3z_Qg-kI2SqnT1JaRl9W9Sq",
+            .url = "git+https://github.com/natecraddock/ziglua.git#6889b2d90ee6ae96810a9f04ec7c62d9aa91d088",
+            .hash = "zlua-0.1.0-hGRpCxctBQDEQgDArJ0Kc4RDIsD-Hw3pw9pPPw_kGmmY",
         },
         .zg = .{
-            .url = "git+https://codeberg.org/atman/zg#9427a9e53aaa29ee071f4dcb35b809a699d75aa9",
+            .url = "https://codeberg.org/atman/zg/archive/v0.14.1.tar.gz",
             .hash = "zg-0.14.1-oGqU3IQ_tALZIiBN026_NTaPJqU-Upm8P_C7QED2Rzm8",
         },
     },
