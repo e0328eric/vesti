@@ -1567,6 +1567,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
     var is_escaped = false;
     var pass_counting_bracket = false;
     var maybe_multiline_string = false;
+    var multiline_string = false;
     while (true) : (self.nextRawToken()) {
         std.debug.assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
@@ -1587,6 +1588,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
                 if (maybe_multiline_string) {
                     pass_counting_bracket = true;
                     maybe_multiline_string = false;
+                    multiline_string = true;
                 } else if (!is_escaped) {
                     maybe_multiline_string = true;
                 }
@@ -1595,6 +1597,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
                 if (maybe_multiline_string) {
                     pass_counting_bracket = false;
                     maybe_multiline_string = false;
+                    multiline_string = false;
                 } else if (!is_escaped) {
                     maybe_multiline_string = true;
                 }
@@ -1604,7 +1607,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             },
             '\\' => is_escaped = true,
             '\'', '"' => {
-                if (!is_escaped) {
+                if (!multiline_string and !is_escaped) {
                     pass_counting_bracket = !pass_counting_bracket;
                 }
                 is_escaped = false;
