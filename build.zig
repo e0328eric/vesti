@@ -6,8 +6,9 @@ const path = fs.path;
 const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
+const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 
-const VESTI_VERSION_STR = "0.1.1";
+const VESTI_VERSION_STR = "0.1.2";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 const min_zig_string = "0.14.1";
@@ -62,9 +63,14 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (use_tectonic) {
+        try buildRust(b, alloc, target);
+    }
+
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
-    vesti_opt.addOption(bool, "use_tectonic", use_tectonic);
+    vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -80,10 +86,6 @@ pub fn build(b: *Build) !void {
         },
     });
     exe_mod.addOptions("vesti-info", vesti_opt);
-
-    if (use_tectonic) {
-        try buildRust(b, alloc, target);
-    }
 
     const exe = b.addExecutable(.{
         .name = "vesti",

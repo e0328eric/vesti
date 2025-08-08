@@ -341,7 +341,7 @@ fn compileLatex(
     defer allocator.free(main_tex_file);
 
     if (engine == .tectonic) {
-        if (@import("vesti-info").use_tectonic) {
+        if (@import("vesti-info").USE_TECTONIC) {
             try compileLatexWithTectonic(
                 diagnostic,
                 main_tex_file,

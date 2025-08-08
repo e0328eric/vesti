@@ -57,6 +57,11 @@ pub fn init(allocator: Allocator) Error!Self {
         lua.setTable(-3);
     }
 
+    // this is a another global container encapsulated in vesti table
+    _ = lua.pushString("g");
+    lua.newTable();
+    lua.setTable(-3);
+
     return Self{ .lua = lua };
 }
 
