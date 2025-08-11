@@ -192,8 +192,8 @@ fn buildRust(
 
     const dll_name = switch (target.result.os.tag) {
         .windows => "vesti_tectonic.dll",
-        .linux => "vesti_tectonic.so",
-        .macos => "vesti_tectonic.dylib",
+        .linux => "libvesti_tectonic.so",
+        .macos => "libvesti_tectonic.dylib",
         else => @panic("Not supported"),
     };
 
