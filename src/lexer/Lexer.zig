@@ -1,4 +1,5 @@
 const std = @import("std");
+const ziglyph = @import("ziglyph");
 const unicode = std.unicode;
 const fmt = std.fmt;
 const mem = std.mem;
@@ -6,15 +7,11 @@ const mem = std.mem;
 const assert = std.debug.assert;
 
 const Allocator = mem.Allocator;
-const DisplayWidth = @import("zg_DisplayWidth");
 const Location = @import("../location.zig").Location;
-const Properties = @import("zg_Properties");
 const Span = @import("../location.zig").Span;
 const Token = @import("./Token.zig");
 const TokenType = Token.TokenType;
 
-dw: DisplayWidth,
-props: Properties,
 source: []const u8,
 chr0_idx: usize,
 chr1_idx: usize,
@@ -26,14 +23,8 @@ lex_finished: bool,
 
 const Self = @This();
 
-pub fn init(allocator: Allocator, source: []const u8) !Self {
+pub fn init(source: []const u8) !Self {
     var self: Self = undefined;
-
-    self.dw = try DisplayWidth.init(allocator);
-    errdefer self.dw.deinit(allocator);
-
-    self.props = try Properties.init(allocator);
-    errdefer self.props.deinit(allocator);
 
     self.source = source;
     self.chr0_idx = 0;
@@ -48,11 +39,6 @@ pub fn init(allocator: Allocator, source: []const u8) !Self {
     self.location = Location{};
 
     return self;
-}
-
-pub fn deinit(self: Self, allocator: Allocator) void {
-    self.dw.deinit(allocator);
-    self.props.deinit(allocator);
 }
 
 fn nextChar(self: *Self, comptime amount: usize) void {
@@ -82,7 +68,7 @@ fn nextChar(self: *Self, comptime amount: usize) void {
             self.chr2_idx += chr2_len;
         }
 
-        self.location.move(chr, self.dw);
+        self.location.move(chr);
     }
 }
 
@@ -203,7 +189,7 @@ pub fn next(self: *Self) Token {
                     self.nextChar(1);
                     continue :tokenize .float;
                 },
-                else => |chr| if (self.props.isDecimal(chr)) {
+                else => |chr| if (ziglyph.isDecimal(chr)) {
                     start_chr0_idx = self.chr0_idx;
                     self.nextChar(1);
                     continue :tokenize .integer;
@@ -262,7 +248,7 @@ pub fn next(self: *Self) Token {
                 self.nextChar(3);
                 self.str2Token("...", &token, start_location);
                 break :tokenize;
-            } else if (self.props.isDecimal(self.getChar(.peek1))) {
+            } else if (ziglyph.isDecimal(self.getChar(.peek1))) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .float;
@@ -371,11 +357,11 @@ pub fn next(self: *Self) Token {
                 self.str2Token(&[1]u8{@intCast(chr)}, &token, start_location);
                 break :tokenize;
             },
-            else => |chr| if (self.props.isDecimal(chr)) {
+            else => |chr| if (ziglyph.isDecimal(chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .integer;
-            } else if (self.props.isAlphabetic(chr)) {
+            } else if (ziglyph.isAlphabetic(chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .text;
@@ -397,7 +383,7 @@ pub fn next(self: *Self) Token {
             },
         },
         .o_chr => if (self.getChar(.current) == 'o' and
-            !self.props.isAlphabetic(self.getChar(.peek1)))
+            !ziglyph.isAlphabetic(self.getChar(.peek1)))
         {
             self.nextChar(1);
             self.str2Token("oo", &token, start_location);
@@ -548,8 +534,8 @@ pub fn next(self: *Self) Token {
                 break :tokenize;
             },
         },
-        .text => if (self.props.isAlphabetic(self.getChar(.current)) or
-            self.props.isDecimal(self.getChar(.current)))
+        .text => if (ziglyph.isAlphabetic(self.getChar(.current)) or
+            ziglyph.isDecimal(self.getChar(.current)))
         {
             self.nextChar(1);
             continue :tokenize .text;
@@ -592,7 +578,7 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .integer => if (self.props.isDecimal(self.getChar(.current))) {
+        .integer => if (ziglyph.isDecimal(self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .integer;
         } else if (self.getChar(.current) == '.') {
@@ -608,7 +594,7 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .float => if (self.props.isDecimal(self.getChar(.current))) {
+        .float => if (ziglyph.isDecimal(self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .float;
         } else {

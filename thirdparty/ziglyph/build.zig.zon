@@ -1,0 +1,13 @@
+.{
+    .name = "ziglyph",
+    .version = "0.11.2",
+    .paths = .{
+        "src",
+	"build.zig",
+	"build.zig.zon",
+	"LICENSE",
+	"README.md",
+	"UNICODE_VERSION.txt",
+	"unicode_license",
+    },
+}

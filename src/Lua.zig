@@ -191,7 +191,7 @@ fn parse(lua: *ZigLua) i32 {
         lua.pop(1);
         var err_msg = ArrayList(u8).initCapacity(allocator, 100) catch @panic("OOM");
         defer err_msg.deinit();
-        err_msg.writer().print("parse failed. error: {!}", .{err}) catch @panic("OOM");
+        err_msg.writer().print("parse failed. error: {any}", .{err}) catch @panic("OOM");
         err_msg.append(0) catch @panic("OOM");
         _ = lua.pushString(@ptrCast(err_msg.items));
         lua.setGlobal(VESTI_ERROR_STR);
@@ -217,7 +217,7 @@ fn parse(lua: *ZigLua) i32 {
         lua.pop(1);
         var err_msg = ArrayList(u8).initCapacity(allocator, 100) catch @panic("OOM");
         defer err_msg.deinit();
-        err_msg.writer().print("parser init faield because of {!}", .{err}) catch @panic("OOM");
+        err_msg.writer().print("parser init faield because of {any}", .{err}) catch @panic("OOM");
         err_msg.append(0) catch @panic("OOM");
         _ = lua.pushString(@ptrCast(err_msg.items));
         lua.setGlobal(VESTI_ERROR_STR);
@@ -236,7 +236,7 @@ fn parse(lua: *ZigLua) i32 {
         lua.pop(1);
         var err_msg = ArrayList(u8).initCapacity(allocator, 100) catch @panic("OOM");
         defer err_msg.deinit();
-        err_msg.writer().print("parser init faield because of {!}", .{err}) catch @panic("OOM");
+        err_msg.writer().print("parser init faield because of {any}", .{err}) catch @panic("OOM");
         err_msg.append(0) catch @panic("OOM");
         _ = lua.pushString(@ptrCast(err_msg.items));
         lua.setGlobal(VESTI_ERROR_STR);
@@ -303,14 +303,15 @@ fn setCurrentDir(lua: *ZigLua) i32 {
 fn printError(lua: *ZigLua) i32 {
     if (lua.getTop() == 0) return 0;
 
-    const stderr_handle = std.io.getStdErr();
-    var stderr_buf = std.io.bufferedWriter(stderr_handle.writer());
-    const stderr = stderr_buf.writer();
+    const stderr_handle = std.fs.File.stderr();
+    var stderr_buf: [4096]u8 = undefined;
+    var stderr = stderr_handle.writer(&stderr_buf);
+    defer stderr.end() catch @panic("IOErr");
 
     const msg = lua.toString(-1) catch return 0;
 
     if (stderr_handle.supportsAnsiEscapeCodes()) {
-        stderr.print(ansi.@"error" ++ "error: " ++ ansi.makeAnsi(null, .Bold) ++
+        stderr.interface.print(ansi.@"error" ++ "error: " ++ ansi.makeAnsi(null, .Bold) ++
             "{s}" ++ ansi.reset ++ "\n", .{msg}) catch @panic("IOErr");
 
         //if (try self.noteMsg(allocator)) |note_msg| {
@@ -321,14 +322,12 @@ fn printError(lua: *ZigLua) i32 {
         //    note_msg.deinit();
         //}
     } else {
-        stderr.print("error: {s}\n", .{msg}) catch @panic("IOErr");
+        stderr.interface.print("error: {s}\n", .{msg}) catch @panic("IOErr");
         //if (try self.noteMsg(allocator)) |note_msg| {
         //    try stderr.print("note: {s}\n", .{note_msg.items});
         //    note_msg.deinit();
         //}
     }
-
-    stderr_buf.flush() catch @panic("IOErr");
 
     return 0;
 }

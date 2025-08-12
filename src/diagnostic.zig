@@ -199,29 +199,29 @@ pub const IODiagnostic = struct {
         _ = absolute_filename;
         _ = source;
 
-        const stderr_handle = io.getStdErr();
-        var stderr_buf = io.bufferedWriter(stderr_handle.writer());
-        const stderr = stderr_buf.writer();
+        const stderr_handle = std.fs.File.stderr();
+        var stderr_buf: [4096]u8 = undefined;
+        var stderr = stderr_handle.writer(&stderr_buf);
 
         if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
-            try stderr.print(
+            try stderr.interface.print(
                 ansi.@"error" ++ "error: " ++ ansi.reset ++ "{s}\n",
                 .{self.msg.items},
             );
             if (self.note_msg) |note_msg| {
-                try stderr.print(
+                try stderr.interface.print(
                     ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
                     .{note_msg.items},
                 );
             }
         } else {
-            try stderr.print("error: {s}\n", .{self.msg.items});
+            try stderr.interface.print("error: {s}\n", .{self.msg.items});
             if (self.note_msg) |note_msg| {
-                try stderr.print("note: {s}\n", .{note_msg.items});
+                try stderr.interface.print("note: {s}\n", .{note_msg.items});
             }
         }
 
-        try stderr_buf.flush();
+        try stderr.end();
     }
 };
 
@@ -352,29 +352,29 @@ pub const ParseDiagnostic = struct {
             .TokenExpected => |info| {
                 if (info.expected.len == 1) {
                     try writer.print(
-                        "{tok} was expected but got {?tok}",
+                        "{f} was expected but got {?f}",
                         .{ info.expected[0], info.obtained },
                     );
                 } else {
                     try writer.print(
-                        "{any} was expected but got {?tok}",
+                        "{any} was expected but got {?f}",
                         .{ info.expected, info.obtained },
                     );
                 }
             },
             .NameMissErr => |toktype| try writer.print(
-                "{tok} should have a name",
+                "{f} should have a name",
                 .{toktype},
             ),
             .IsNotOpened => |info| {
                 if (info.open.len == 1) {
                     try writer.print(
-                        "either {tok} was not opened with {tok}",
+                        "either {f} was not opened with {f}",
                         .{ info.close, info.open[0] },
                     );
                 } else {
                     try writer.print(
-                        "either {tok} was not opened with {any}",
+                        "either {f} was not opened with {any}",
                         .{ info.close, info.open },
                     );
                 }
@@ -382,12 +382,12 @@ pub const ParseDiagnostic = struct {
             .IsNotClosed => |info| {
                 if (info.open.len == 1) {
                     try writer.print(
-                        "{tok} was not closed with {tok}",
+                        "{f} was not closed with {f}",
                         .{ info.open[0], info.close },
                     );
                 } else {
                     try writer.print(
-                        "either {any} was not closed with {tok}",
+                        "either {any} was not closed with {f}",
                         .{ info.open, info.close },
                     );
                 }
@@ -413,11 +413,11 @@ pub const ParseDiagnostic = struct {
                 .{inner.err_msg.items},
             ),
             .NotLocatedInVeryFirst => |tok| try writer.print(
-                "{tok} must located in the very first line of the vesti code",
+                "{f} must located in the very first line of the vesti code",
                 .{tok},
             ),
             .DoubleUsed => |tok| try writer.print(
-                "{tok} must be used only once",
+                "{f} must be used only once",
                 .{tok},
             ),
             .InvalidLatexEngine => |engine| try writer.print(
@@ -471,9 +471,9 @@ pub const ParseDiagnostic = struct {
     ) !void {
         std.debug.assert(absolute_filename != null and source != null);
 
-        const stderr_handle = io.getStdErr();
-        var stderr_buf = io.bufferedWriter(stderr_handle.writer());
-        const stderr = stderr_buf.writer();
+        const stderr_handle = std.fs.File.stderr();
+        var stderr_buf: [4096]u8 = undefined;
+        var stderr = stderr_handle.writer(&stderr_buf);
 
         const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
         defer allocator.free(current_dir);
@@ -511,7 +511,7 @@ pub const ParseDiagnostic = struct {
             }
 
             if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
-                try stderr.print(
+                try stderr.interface.print(
                     ansi.makeAnsi(null, .Bold) ++ "{s}:{}:{}: " ++ ansi.@"error" ++
                         "error: " ++ ansi.reset ++ "{s}\n" ++
                         "    {s}\n" ++
@@ -523,14 +523,14 @@ pub const ParseDiagnostic = struct {
                 );
 
                 if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.print(
+                    try stderr.interface.print(
                         ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
                         .{note_msg.items},
                     );
                     note_msg.deinit();
                 }
             } else {
-                try stderr.print(
+                try stderr.interface.print(
                     \\{s}:{}:{}: error: {s}
                     \\    {s}
                     \\    {s}
@@ -540,37 +540,37 @@ pub const ParseDiagnostic = struct {
                     err_msg.items, source_trim,    underline,
                 });
                 if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.print("note: {s}\n", .{note_msg.items});
+                    try stderr.interface.print("note: {s}\n", .{note_msg.items});
                     note_msg.deinit();
                 }
             }
         } else {
             if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
-                try stderr.print(
+                try stderr.interface.print(
                     ansi.makeAnsi(null, .Bold) ++ "{s}: " ++ ansi.@"error" ++
                         "error: " ++ ansi.reset ++ "{s}\n" ++ ansi.reset,
                     .{ filename, err_msg.items },
                 );
 
                 if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.print(
+                    try stderr.interface.print(
                         ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
                         .{note_msg.items},
                     );
                     note_msg.deinit();
                 }
             } else {
-                try stderr.print(
+                try stderr.interface.print(
                     \\{s}: error: {s}
                     \\
                 , .{ filename, err_msg.items });
                 if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.print("note: {s}\n", .{note_msg.items});
+                    try stderr.interface.print("note: {s}\n", .{note_msg.items});
                     note_msg.deinit();
                 }
             }
         }
 
-        try stderr_buf.flush();
+        try stderr.end();
     }
 };

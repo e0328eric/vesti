@@ -106,29 +106,12 @@ pub const CowStr = union(CowStrState) {
 
     pub fn format(
         self: Self,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
+        writer: *std.Io.Writer,
     ) !void {
-        _ = options;
-
-        if (comptime std.mem.eql(u8, fmt, "cows") or fmt.len == 0) {
-            switch (self) {
-                .Empty => try writer.writeAll(""),
-                .Borrowed => |inner| try writer.print("{s}", .{inner}),
-                .Owned => |inner| try writer.print("{s}", .{inner.items}),
-            }
-        } else if (comptime std.mem.eql(u8, fmt, "cowt")) {
-            switch (self) {
-                .Empty => try writer.writeAll("<empty>"),
-                .Borrowed => try writer.writeAll("<borrowed>"),
-                .Owned => try writer.writeAll("<owned>"),
-            }
-        } else {
-            @compileError(std.fmt.comptimePrint(
-                "`{s}` is not supported format string for CowStr",
-                .{fmt},
-            ));
+        switch (self) {
+            .Empty => try writer.writeAll(""),
+            .Borrowed => |inner| try writer.print("{s}", .{inner}),
+            .Owned => |inner| try writer.print("{s}", .{inner.items}),
         }
     }
 };

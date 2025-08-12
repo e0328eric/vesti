@@ -97,7 +97,7 @@ pub fn init(
     var self: Self = undefined;
 
     self.allocator = allocator;
-    self.lexer = try Lexer.init(allocator, source);
+    self.lexer = try Lexer.init(source);
     self.curr_tok = self.lexer.next();
     self.peek_tok = self.lexer.next();
     self.doc_state = DocState{};
@@ -107,10 +107,6 @@ pub fn init(
     self.engine = engine;
 
     return self;
-}
-
-pub fn deinit(self: Self) void {
-    self.lexer.deinit(self.allocator);
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
@@ -1186,7 +1182,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.allocator,
         4 * 1024 * 1024,
         null,
-        @alignOf(u8),
+        .of(u8),
         0,
     ) catch {
         const io_diag = try diag.IODiagnostic.init(

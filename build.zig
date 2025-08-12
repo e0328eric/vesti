@@ -11,7 +11,7 @@ const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 const VESTI_VERSION_STR = "0.1.2";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
-const min_zig_string = "0.14.1";
+const min_zig_string = "0.15.0-dev.1474+3ea015db9";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -48,7 +48,7 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
         .lang = .lua54,
     });
-    const zg = b.dependency("zg", .{
+    const ziglyph = b.dependency("ziglyph", .{
         .target = target,
         .optimize = optimize,
     });
@@ -80,8 +80,7 @@ pub fn build(b: *Build) !void {
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
             .{ .name = "zlua", .module = zlua.module("zlua") },
-            .{ .name = "zg_Properties", .module = zg.module("Properties") },
-            .{ .name = "zg_DisplayWidth", .module = zg.module("DisplayWidth") },
+            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
             .{ .name = "c", .module = vesti_c },
         },
     });
@@ -120,8 +119,7 @@ pub fn build(b: *Build) !void {
         .strip = strip,
         .imports = &.{
             .{ .name = "zlua", .module = zlua.module("zlua") },
-            .{ .name = "zg_Properties", .module = zg.module("Properties") },
-            .{ .name = "zg_DisplayWidth", .module = zg.module("DisplayWidth") },
+            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
         },
     });
     const exe_unit_tests = b.addTest(.{

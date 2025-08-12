@@ -28,7 +28,6 @@ pub fn expect(
         false, // disallow luacode for testing
         null, // disallow changing latex engine type
     );
-    defer parser.deinit();
 
     const ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {

@@ -12,7 +12,7 @@ const Parser = @import("./parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
 
-fn signalHandler(signal: c_int) callconv(.C) noreturn {
+fn signalHandler(signal: c_int) callconv(.c) noreturn {
     _ = signal;
     std.debug.print("bye!\n", .{});
     std.process.exit(0);

@@ -29,7 +29,7 @@ pub fn getBuildLuaContents(
         allocator,
         std.math.maxInt(usize),
         null,
-        @alignOf(u8),
+        .of(u8),
         0,
     );
 

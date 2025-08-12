@@ -125,12 +125,12 @@ fn codegenStmt(
                 try writer.writeByte('[');
                 var i: usize = 0;
                 while (i + 1 < options.items.len) : (i += 1) {
-                    try writer.print("{cows},", .{options.items[i]});
+                    try writer.print("{f},", .{options.items[i]});
                 } else {
-                    try writer.print("{cows}]", .{options.items[i]});
+                    try writer.print("{f}]", .{options.items[i]});
                 }
             }
-            try writer.print("{{{cows}}}\n", .{docclass.name});
+            try writer.print("{{{f}}}\n", .{docclass.name});
         },
         .ImportSinglePkg => |usepkg| {
             try writer.writeAll("\\usepackage");
@@ -138,12 +138,12 @@ fn codegenStmt(
                 try writer.writeByte('[');
                 var i: usize = 0;
                 while (i + 1 < options.items.len) : (i += 1) {
-                    try writer.print("{cows},", .{options.items[i]});
+                    try writer.print("{f},", .{options.items[i]});
                 } else {
-                    try writer.print("{cows}]", .{options.items[i]});
+                    try writer.print("{f}]", .{options.items[i]});
                 }
             }
-            try writer.print("{{{cows}}}\n", .{usepkg.name});
+            try writer.print("{{{f}}}\n", .{usepkg.name});
         },
         .ImportMultiplePkgs => |usepkgs| {
             for (usepkgs.items) |usepkg|
@@ -164,7 +164,7 @@ fn codegenStmt(
             }
         },
         .Environment => |info| {
-            try writer.print("\\begin{{{cows}}}", .{info.name});
+            try writer.print("\\begin{{{f}}}", .{info.name});
             for (info.args.items) |arg| {
                 switch (arg.needed) {
                     .MainArg => {
@@ -181,10 +181,10 @@ fn codegenStmt(
                 }
             }
             try self.codegenStmts(info.inner, writer);
-            try writer.print("\\end{{{cows}}}", .{info.name});
+            try writer.print("\\end{{{f}}}", .{info.name});
         },
         .BeginPhantomEnviron => |info| {
-            try writer.print("\\begin{{{cows}}}", .{info.name});
+            try writer.print("\\begin{{{f}}}", .{info.name});
             for (info.args.items) |arg| {
                 switch (arg.needed) {
                     .MainArg => {
@@ -204,9 +204,9 @@ fn codegenStmt(
                 try writer.writeByte('\n');
             }
         },
-        .EndPhantomEnviron => |name| try writer.print("\\end{{{cows}}}\n", .{name}),
+        .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}\n", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
-        .FilePath => |name| try writer.print("{cows}", .{name}),
+        .FilePath => |name| try writer.print("{f}", .{name}),
         .LuaCode => |cb| {
             var new_code = try ArrayList(u8).initCapacity(
                 self.allocator,
