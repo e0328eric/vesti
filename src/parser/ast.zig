@@ -9,13 +9,13 @@ pub const UsePackage = struct {
     name: CowStr,
     options: ?ArrayList(CowStr),
 
-    pub fn deinit(self: @This()) void {
-        self.name.deinit();
-        if (self.options) |options| {
-            for (options.items) |option| {
-                option.deinit();
+    pub fn deinit(self: *@This(), allocator: Allocator) void {
+        self.name.deinit(allocator);
+        if (self.options) |*options| {
+            for (options.items) |*option| {
+                option.deinit(allocator);
             }
-            options.deinit();
+            options.deinit(allocator);
         }
     }
 };
@@ -47,9 +47,9 @@ pub const Arg = struct {
     needed: ArgNeed,
     ctx: ArrayList(Stmt),
 
-    pub fn deinit(self: @This()) void {
-        for (self.ctx.items) |c| c.deinit();
-        self.ctx.deinit();
+    pub fn deinit(self: *@This(), allocator: Allocator) void {
+        for (self.ctx.items) |*c| c.deinit(allocator);
+        self.ctx.deinit(allocator);
     }
 };
 
@@ -114,54 +114,54 @@ pub const Stmt = union(enum(u8)) {
         code: []const u8,
     },
 
-    pub fn deinit(self: @This()) void {
-        switch (self) {
-            .DocumentClass => |inner| {
-                inner.name.deinit();
-                if (inner.options) |options| {
-                    for (options.items) |option| option.deinit();
-                    options.deinit();
+    pub fn deinit(self: *@This(), allocator: Allocator) void {
+        switch (self.*) {
+            .DocumentClass => |*inner| {
+                inner.name.deinit(allocator);
+                if (inner.options) |*options| {
+                    for (options.items) |*option| option.deinit(allocator);
+                    options.deinit(allocator);
                 }
             },
-            .ImportSinglePkg => |pkg| pkg.deinit(),
-            .ImportMultiplePkgs => |pkgs| {
-                for (pkgs.items) |pkg| pkg.deinit();
-                pkgs.deinit();
+            .ImportSinglePkg => |*pkg| pkg.deinit(allocator),
+            .ImportMultiplePkgs => |*pkgs| {
+                for (pkgs.items) |*pkg| pkg.deinit(allocator);
+                pkgs.deinit(allocator);
             },
-            .ImportVesti => |str| str.deinit(),
-            .PlainTextInMath => |inner| {
-                for (inner.inner.items) |stmt| stmt.deinit();
-                inner.inner.deinit();
+            .ImportVesti => |*str| str.deinit(allocator),
+            .PlainTextInMath => |*inner| {
+                for (inner.inner.items) |*stmt| stmt.deinit(allocator);
+                inner.inner.deinit(allocator);
             },
-            .EndPhantomEnviron => |name| name.deinit(),
-            .MathCtx => |math_ctx| {
-                for (math_ctx.ctx.items) |stmt| stmt.deinit();
-                math_ctx.ctx.deinit();
+            .EndPhantomEnviron => |*name| name.deinit(allocator),
+            .MathCtx => |*math_ctx| {
+                for (math_ctx.ctx.items) |*stmt| stmt.deinit(allocator);
+                math_ctx.ctx.deinit(allocator);
             },
-            .Braced => |bs| {
-                for (bs.inner.items) |stmt| stmt.deinit();
-                bs.inner.deinit();
+            .Braced => |*bs| {
+                for (bs.inner.items) |*stmt| stmt.deinit(allocator);
+                bs.inner.deinit(allocator);
             },
-            .Fraction => |ctx| {
-                for (ctx.numerator.items) |c| c.deinit();
-                for (ctx.denominator.items) |c| c.deinit();
-                ctx.numerator.deinit();
-                ctx.denominator.deinit();
+            .Fraction => |*ctx| {
+                for (ctx.numerator.items) |*c| c.deinit(allocator);
+                for (ctx.denominator.items) |*c| c.deinit(allocator);
+                ctx.numerator.deinit(allocator);
+                ctx.denominator.deinit(allocator);
             },
-            .Environment => |ctx| {
-                ctx.name.deinit();
-                for (ctx.args.items) |arg| arg.deinit();
-                for (ctx.inner.items) |expr| expr.deinit();
-                ctx.args.deinit();
-                ctx.inner.deinit();
+            .Environment => |*ctx| {
+                ctx.name.deinit(allocator);
+                for (ctx.args.items) |*arg| arg.deinit(allocator);
+                for (ctx.inner.items) |*expr| expr.deinit(allocator);
+                ctx.args.deinit(allocator);
+                ctx.inner.deinit(allocator);
             },
-            .BeginPhantomEnviron => |ctx| {
-                ctx.name.deinit();
-                for (ctx.args.items) |arg| arg.deinit();
-                ctx.args.deinit();
+            .BeginPhantomEnviron => |*ctx| {
+                ctx.name.deinit(allocator);
+                for (ctx.args.items) |*arg| arg.deinit(allocator);
+                ctx.args.deinit(allocator);
             },
-            .FilePath => |ctx| ctx.deinit(),
-            .LuaCode => |cb| if (cb.code_import) |imports| imports.deinit(),
+            .FilePath => |*ctx| ctx.deinit(allocator),
+            .LuaCode => |*cb| if (cb.code_import) |*imports| imports.deinit(allocator),
             else => {},
         }
     }

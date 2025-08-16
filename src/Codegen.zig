@@ -4,11 +4,12 @@ const ast = @import("./parser/ast.zig");
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
-const StringArrayHashMap = std.StringArrayHashMap;
+const Io = std.Io;
+const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Lua = @import("./Lua.zig");
 const Span = @import("./location.zig").Span;
 
-const Error = Allocator.Error || Lua.Error || error{
+const Error = Allocator.Error || Io.Writer.Error || Lua.Error || error{
     LuaInitFailed,
     LuaLabelNotFound,
     DuplicatedLuaLabel,
@@ -42,30 +43,27 @@ pub fn init(
     };
     errdefer lua.deinit();
 
-    var luacode_exports = StringArrayHashMap(ArrayList(u8)).init(allocator);
-    errdefer luacode_exports.deinit();
-
     return Self{
         .allocator = allocator,
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
-        .luacode_exports = luacode_exports,
+        .luacode_exports = .{},
         .lua = lua,
     };
 }
 
-pub fn deinit(self: *Self) void {
-    for (self.luacode_exports.values()) |code| {
-        code.deinit();
+pub fn deinit(self: *Self, allocator: Allocator) void {
+    for (self.luacode_exports.values()) |*code| {
+        code.deinit(allocator);
     }
-    self.luacode_exports.deinit();
+    self.luacode_exports.deinit(allocator);
     self.lua.deinit();
 }
 
 pub fn codegen(
     self: *Self,
-    writer: anytype,
+    writer: *Io.Writer,
 ) Error!void {
     for (self.stmts) |stmt| {
         try self.codegenStmt(stmt, writer);
@@ -75,7 +73,7 @@ pub fn codegen(
 fn codegenStmts(
     self: *Self,
     stmts: ArrayList(ast.Stmt),
-    writer: anytype,
+    writer: *Io.Writer,
 ) Error!void {
     for (stmts.items) |stmt| {
         try self.codegenStmt(stmt, writer);
@@ -85,7 +83,7 @@ fn codegenStmts(
 fn codegenStmt(
     self: *Self,
     stmt: ast.Stmt,
-    writer: anytype,
+    writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
         .NopStmt => {},
@@ -212,13 +210,13 @@ fn codegenStmt(
                 self.allocator,
                 cb.code.len,
             );
-            errdefer new_code.deinit();
+            errdefer new_code.deinit(self.allocator);
 
             if (cb.code_import) |import_arr_list| {
                 for (import_arr_list.items) |import_label| {
                     if (self.luacode_exports.get(import_label)) |import_code| {
-                        try new_code.appendSlice(import_code.items);
-                        try new_code.append('\n');
+                        try new_code.appendSlice(self.allocator, import_code.items);
+                        try new_code.append(self.allocator, '\n');
                     } else {
                         const label_not_found = try diag.ParseDiagnostic.luaLabelNotFound(
                             self.diagnostic.allocator,
@@ -239,13 +237,13 @@ fn codegenStmt(
                     } });
                     return error.DuplicatedLuaLabel;
                 }
-                try new_code.appendSlice(cb.code);
-                try self.luacode_exports.put(export_label, new_code);
+                try new_code.appendSlice(self.allocator, cb.code);
+                try self.luacode_exports.put(self.allocator, export_label, new_code);
                 return;
             }
 
-            try new_code.appendSlice(cb.code);
-            try new_code.append(0);
+            try new_code.appendSlice(self.allocator, cb.code);
+            try new_code.append(self.allocator, 0);
 
             // TODO: print appropriate error message
             self.lua.evalCode(@ptrCast(new_code.items)) catch |err| {
@@ -276,7 +274,7 @@ fn codegenStmt(
             try writer.writeAll(ves_output);
 
             self.lua.clearVestiOutputStr();
-            new_code.deinit();
+            new_code.deinit(self.allocator);
         },
         .Int, .Float => undefined, // TODO: deprecated
     }

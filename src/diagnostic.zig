@@ -1,11 +1,11 @@
 const std = @import("std");
 const fmt = std.fmt;
-const io = std.io;
 const mem = std.mem;
 const ansi = @import("./ansi.zig");
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 const Span = @import("./location.zig").Span;
 const TokenType = @import("./lexer/Token.zig").TokenType;
 const CowStr = @import("./CowStr.zig").CowStr;
@@ -26,7 +26,7 @@ pub const Diagnostic = struct {
     ) void {
         if (absolute_filename) |af| {
             if (self.absolute_filename) |*old_af| {
-                old_af.deinit();
+                old_af.deinit(self.allocator);
                 old_af.* = af;
             } else {
                 self.absolute_filename = af;
@@ -34,7 +34,7 @@ pub const Diagnostic = struct {
         }
         if (source) |s| {
             if (self.source) |*old_s| {
-                old_s.deinit();
+                old_s.deinit(self.allocator);
                 old_s.* = s;
             } else {
                 self.source = s;
@@ -53,13 +53,13 @@ pub const Diagnostic = struct {
                 af,
             });
             if (self.absolute_filename) |*old_af| {
-                old_af.deinit();
+                old_af.deinit(self.allocator);
                 old_af.* = new_af;
             } else {
                 self.absolute_filename = new_af;
             }
         }
-        errdefer if (self.absolute_filename) |af| af.deinit();
+        errdefer if (self.absolute_filename) |*af| af.deinit(self.allocator);
 
         if (source) |s| {
             const new_s = try CowStr.init(.Owned, .{
@@ -67,7 +67,7 @@ pub const Diagnostic = struct {
                 s,
             });
             if (self.source) |*old_s| {
-                old_s.deinit();
+                old_s.deinit(self.allocator);
                 old_s.* = new_s;
             } else {
                 self.source = new_s;
@@ -77,17 +77,17 @@ pub const Diagnostic = struct {
 
     pub fn initDiagInner(self: *Self, diag_inner: DiagnosticInner) void {
         if (self.inner) |*old_inner| {
-            old_inner.deinit();
+            old_inner.deinit(self.allocator);
             old_inner.* = diag_inner;
         } else {
             self.inner = diag_inner;
         }
     }
 
-    pub fn deinit(self: Self) void {
-        if (self.absolute_filename) |af| af.deinit();
-        if (self.source) |source| source.deinit();
-        if (self.inner) |inner| inner.deinit();
+    pub fn deinit(self: *Self) void {
+        if (self.absolute_filename) |*af| af.deinit(self.allocator);
+        if (self.source) |*source| source.deinit(self.allocator);
+        if (self.inner) |*inner| inner.deinit(self.allocator);
     }
 
     pub fn prettyPrint(
@@ -119,9 +119,9 @@ pub const DiagnosticInner = union(DiagnosticKind) {
 
     const Self = @This();
 
-    pub fn deinit(self: Self) void {
-        switch (self) {
-            inline else => |inner| inner.deinit(),
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        switch (self.*) {
+            inline else => |*inner| inner.deinit(allocator),
         }
     }
 
@@ -157,9 +157,9 @@ pub const IODiagnostic = struct {
         args: anytype,
     ) !Self {
         var io_err_msg = try ArrayList(u8).initCapacity(allocator, 30);
-        errdefer io_err_msg.deinit();
+        errdefer io_err_msg.deinit(allocator);
 
-        try io_err_msg.writer().print(fmt_str, args);
+        try io_err_msg.print(allocator, fmt_str, args);
 
         return Self{ .msg = io_err_msg, .span = span };
     }
@@ -173,19 +173,19 @@ pub const IODiagnostic = struct {
         note_args: anytype,
     ) !Self {
         var io_err_msg = try ArrayList(u8).initCapacity(allocator, 30);
-        errdefer io_err_msg.deinit();
+        errdefer io_err_msg.deinit(allocator);
         var io_note_msg = try ArrayList(u8).initCapacity(allocator, 30);
-        errdefer io_note_msg.deinit();
+        errdefer io_note_msg.deinit(allocator);
 
-        try io_err_msg.writer().print(fmt_str, args);
-        try io_note_msg.writer().print(fmt_note_str, note_args);
+        try io_err_msg.print(allocator, fmt_str, args);
+        try io_note_msg.print(allocator, fmt_note_str, note_args);
 
         return Self{ .msg = io_err_msg, .note_msg = io_note_msg, .span = span };
     }
 
-    pub fn deinit(self: Self) void {
-        self.msg.deinit();
-        if (self.note_msg) |note_msg| note_msg.deinit();
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.msg.deinit(allocator);
+        if (self.note_msg) |*note_msg| note_msg.deinit(allocator);
     }
 
     fn prettyPrint(
@@ -282,12 +282,12 @@ pub const ParseDiagnostic = struct {
         InvalidLatexEngine: []const u8,
         VestiInternal: []const u8,
 
-        fn deinit(self: @This()) void {
-            switch (self) {
-                .LuaLabelNotFound => |label| label.deinit(),
-                .LuaEvalFailed => |inner| {
-                    inner.err_msg.deinit();
-                    inner.err_detail.deinit();
+        fn deinit(self: *@This(), allocator: Allocator) void {
+            switch (self.*) {
+                .LuaLabelNotFound => |*label| label.deinit(allocator),
+                .LuaEvalFailed => |*inner| {
+                    inner.err_msg.deinit(allocator);
+                    inner.err_detail.deinit(allocator);
                 },
                 else => {},
             }
@@ -300,8 +300,8 @@ pub const ParseDiagnostic = struct {
         label_str: []const u8,
     ) !Self {
         var label = try ArrayList(u8).initCapacity(allocator, label_str.len);
-        errdefer label.deinit();
-        try label.appendSlice(label_str);
+        errdefer label.deinit(allocator);
+        try label.appendSlice(allocator, label_str);
 
         return Self{
             .err_info = ParseErrorInfo{ .LuaLabelNotFound = label },
@@ -317,12 +317,12 @@ pub const ParseDiagnostic = struct {
         err_detail_str: [:0]const u8,
     ) !Self {
         var err_msg = try ArrayList(u8).initCapacity(allocator, 30);
-        errdefer err_msg.deinit();
-        try err_msg.writer().print(fmt_str, args);
+        errdefer err_msg.deinit(allocator);
+        try err_msg.print(allocator, fmt_str, args);
 
         var err_detail = try ArrayList(u8).initCapacity(allocator, err_detail_str.len);
-        errdefer err_detail.deinit();
-        try err_detail.appendSlice(err_detail_str);
+        errdefer err_detail.deinit(allocator);
+        try err_detail.appendSlice(allocator, err_detail_str);
 
         return Self{
             .err_info = ParseErrorInfo{ .LuaEvalFailed = .{
@@ -333,8 +333,8 @@ pub const ParseDiagnostic = struct {
         };
     }
 
-    pub inline fn deinit(self: Self) void {
-        self.err_info.deinit();
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.err_info.deinit(allocator);
     }
 
     fn errorMsg(
@@ -342,38 +342,39 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !ArrayList(u8) {
         var output = try ArrayList(u8).initCapacity(allocator, 50);
-        errdefer output.deinit();
-        const writer = output.writer();
+        errdefer output.deinit(allocator);
+        var aw: Io.Writer.Allocating = .fromArrayList(allocator, &output);
+        errdefer aw.deinit();
 
         switch (self.err_info) {
-            .None => try writer.writeAll("<none>"), // TODO: is it the best?
-            .EofErr => try writer.print("EOF character was found", .{}),
-            .PremiereErr => try writer.print("PremiereErr\n", .{}),
+            .None => try aw.writer.writeAll("<none>"), // TODO: is it the best?
+            .EofErr => try aw.writer.print("EOF character was found", .{}),
+            .PremiereErr => try aw.writer.print("PremiereErr\n", .{}),
             .TokenExpected => |info| {
                 if (info.expected.len == 1) {
-                    try writer.print(
+                    try aw.writer.print(
                         "{f} was expected but got {?f}",
                         .{ info.expected[0], info.obtained },
                     );
                 } else {
-                    try writer.print(
+                    try aw.writer.print(
                         "{any} was expected but got {?f}",
                         .{ info.expected, info.obtained },
                     );
                 }
             },
-            .NameMissErr => |toktype| try writer.print(
+            .NameMissErr => |toktype| try aw.writer.print(
                 "{f} should have a name",
                 .{toktype},
             ),
             .IsNotOpened => |info| {
                 if (info.open.len == 1) {
-                    try writer.print(
+                    try aw.writer.print(
                         "either {f} was not opened with {f}",
                         .{ info.close, info.open[0] },
                     );
                 } else {
-                    try writer.print(
+                    try aw.writer.print(
                         "either {f} was not opened with {any}",
                         .{ info.close, info.open },
                     );
@@ -381,52 +382,52 @@ pub const ParseDiagnostic = struct {
             },
             .IsNotClosed => |info| {
                 if (info.open.len == 1) {
-                    try writer.print(
+                    try aw.writer.print(
                         "{f} was not closed with {f}",
                         .{ info.open[0], info.close },
                     );
                 } else {
-                    try writer.print(
+                    try aw.writer.print(
                         "either {any} was not closed with {f}",
                         .{ info.open, info.close },
                     );
                 }
             },
-            .Deprecated => |info| try writer.print(
+            .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
             ),
             inline .IllegalUseErr,
             .VestiInternal,
-            => |info| try writer.writeAll(info),
-            .DisallowLuacode => try writer.writeAll("nested luacode is not allowed"),
-            .LuaLabelNotFound => |label| try writer.print(
+            => |info| try aw.writer.writeAll(info),
+            .DisallowLuacode => try aw.writer.writeAll("nested luacode is not allowed"),
+            .LuaLabelNotFound => |label| try aw.writer.print(
                 "label `{s}` is not found",
                 .{label.items},
             ),
-            .DuplicatedLuaLabel => |label| try writer.print(
+            .DuplicatedLuaLabel => |label| try aw.writer.print(
                 "label `{s}` is duplicated",
                 .{label},
             ),
-            .LuaEvalFailed => |inner| try writer.print(
+            .LuaEvalFailed => |inner| try aw.writer.print(
                 "lua exception occured: {s}",
                 .{inner.err_msg.items},
             ),
-            .NotLocatedInVeryFirst => |tok| try writer.print(
+            .NotLocatedInVeryFirst => |tok| try aw.writer.print(
                 "{f} must located in the very first line of the vesti code",
                 .{tok},
             ),
-            .DoubleUsed => |tok| try writer.print(
+            .DoubleUsed => |tok| try aw.writer.print(
                 "{f} must be used only once",
                 .{tok},
             ),
-            .InvalidLatexEngine => |engine| try writer.print(
+            .InvalidLatexEngine => |engine| try aw.writer.print(
                 "invalid latex engine name {s} was found",
                 .{engine},
             ),
         }
 
-        return output;
+        return aw.toArrayList();
     }
 
     fn noteMsg(
@@ -436,26 +437,31 @@ pub const ParseDiagnostic = struct {
         return switch (self.err_info) {
             .LuaLabelNotFound => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
-                errdefer output.deinit();
-                const writer = output.writer();
+                errdefer output.deinit(allocator);
 
-                try writer.writeAll("labels should be declared before it is used");
+                try output.print(
+                    allocator,
+                    "labels should be declared before it is used",
+                    .{},
+                );
                 break :blk output;
             },
             .LuaEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
-                errdefer output.deinit();
-                const writer = output.writer();
+                errdefer output.deinit(allocator);
 
-                try writer.writeAll(inner.err_detail.items);
+                try output.print(allocator, "{s}", .{inner.err_detail.items});
                 break :blk output;
             },
             .InvalidLatexEngine => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
-                errdefer output.deinit();
-                const writer = output.writer();
+                errdefer output.deinit(allocator);
 
-                try writer.writeAll("valid ones are `plain`, `pdf`, `xe`, and `lua`");
+                try output.print(
+                    allocator,
+                    "valid ones are `plain`, `pdf`, `xe`, and `lua`",
+                    .{},
+                );
                 break :blk output;
             },
             else => null,
@@ -484,8 +490,8 @@ pub const ParseDiagnostic = struct {
         );
         defer allocator.free(filename);
 
-        const err_msg = try self.errorMsg(allocator);
-        defer err_msg.deinit();
+        var err_msg = try self.errorMsg(allocator);
+        defer err_msg.deinit(allocator);
 
         if (self.span) |span| {
             var line_iter = mem.splitScalar(u8, source.?.toStr(), '\n');
@@ -522,12 +528,13 @@ pub const ParseDiagnostic = struct {
                     },
                 );
 
-                if (try self.noteMsg(allocator)) |note_msg| {
+                var note_msg = try self.noteMsg(allocator);
+                if (note_msg) |*nm| {
+                    defer nm.deinit(allocator);
                     try stderr.interface.print(
                         ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
-                        .{note_msg.items},
+                        .{nm.items},
                     );
-                    note_msg.deinit();
                 }
             } else {
                 try stderr.interface.print(
@@ -539,9 +546,10 @@ pub const ParseDiagnostic = struct {
                     filename,      span.start.row, span.start.col,
                     err_msg.items, source_trim,    underline,
                 });
-                if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.interface.print("note: {s}\n", .{note_msg.items});
-                    note_msg.deinit();
+                var note_msg = try self.noteMsg(allocator);
+                if (note_msg) |*nm| {
+                    defer nm.deinit(allocator);
+                    try stderr.interface.print("note: {s}\n", .{nm.items});
                 }
             }
         } else {
@@ -552,21 +560,24 @@ pub const ParseDiagnostic = struct {
                     .{ filename, err_msg.items },
                 );
 
-                if (try self.noteMsg(allocator)) |note_msg| {
+                var note_msg = try self.noteMsg(allocator);
+                if (note_msg) |*nm| {
+                    defer nm.deinit(allocator);
                     try stderr.interface.print(
                         ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
-                        .{note_msg.items},
+                        .{nm.items},
                     );
-                    note_msg.deinit();
                 }
             } else {
                 try stderr.interface.print(
                     \\{s}: error: {s}
                     \\
                 , .{ filename, err_msg.items });
-                if (try self.noteMsg(allocator)) |note_msg| {
-                    try stderr.interface.print("note: {s}\n", .{note_msg.items});
-                    note_msg.deinit();
+
+                var note_msg = try self.noteMsg(allocator);
+                if (note_msg) |*nm| {
+                    defer nm.deinit(allocator);
+                    try stderr.interface.print("note: {s}\n", .{nm.items});
                 }
             }
         }

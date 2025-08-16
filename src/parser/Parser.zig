@@ -112,22 +112,22 @@ pub fn init(
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
     var stmts = try ArrayList(Stmt).initCapacity(self.allocator, 100);
     errdefer {
-        for (stmts.items) |stmt| stmt.deinit();
-        stmts.deinit();
+        for (stmts.items) |*stmt| stmt.deinit(self.allocator);
+        stmts.deinit(self.allocator);
     }
 
     // lexer.lex_finished means that peek_tok is the "last" token from lexer
     while (!self.lexer.lex_finished) : (self.nextToken()) {
-        const stmt = try self.parseStatement();
-        errdefer stmt.deinit();
-        try stmts.append(stmt);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try stmts.append(self.allocator, stmt);
     } else {
         // so we need one more step to exhaust peek_tok
-        const stmt = try self.parseStatement();
-        errdefer stmt.deinit();
-        try stmts.append(stmt);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try stmts.append(self.allocator, stmt);
         if (self.doc_state.doc_start and !self.doc_state.prevent_end_doc)
-            try stmts.append(Stmt.DocumentEnd);
+            try stmts.append(self.allocator, Stmt.DocumentEnd);
     }
 
     return stmts;
@@ -351,18 +351,18 @@ fn parseDocclass(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    const name = try self.takeName();
-    errdefer name.deinit();
+    var name = try self.takeName();
+    errdefer name.deinit(self.allocator);
     self.eatWhitespaces(false);
 
-    const options = switch (self.currToktype()) {
+    var options = switch (self.currToktype()) {
         .Eof, .Newline => null,
         else => try self.parseOptions(),
     };
     errdefer {
-        if (options) |options_| {
-            for (options_.items) |option| option.deinit();
-            options_.deinit();
+        if (options) |*options_| {
+            for (options_.items) |*option| option.deinit(self.allocator);
+            options_.deinit(self.allocator);
         }
     }
 
@@ -390,18 +390,18 @@ fn parseSinglePkg(self: *Self) ParseError!Stmt {
 
     if (self.expect(.current, &.{.Lbrace})) return self.parseMultiplePkgs();
 
-    const name = try self.takeName();
-    errdefer name.deinit();
+    var name = try self.takeName();
+    errdefer name.deinit(self.allocator);
     self.eatWhitespaces(false);
 
-    const options = switch (self.currToktype()) {
+    var options = switch (self.currToktype()) {
         .Lparen => try self.parseOptions(),
         else => null,
     };
     errdefer {
-        if (options) |options_| {
-            for (options_.items) |option| option.deinit();
-            options_.deinit();
+        if (options) |*options_| {
+            for (options_.items) |*option| option.deinit(self.allocator);
+            options_.deinit(self.allocator);
         }
     }
 
@@ -428,17 +428,17 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
 
     var output = try ArrayList(ast.UsePackage).initCapacity(self.allocator, 10);
     errdefer {
-        for (output.items) |pkg| pkg.deinit();
-        output.deinit();
+        for (output.items) |*pkg| pkg.deinit(self.allocator);
+        output.deinit(self.allocator);
     }
 
     var name = CowStr.init(.Empty, .{});
-    errdefer name.deinit();
+    errdefer name.deinit(self.allocator);
     var options: ?ArrayList(CowStr) = null;
     errdefer {
-        if (options) |o| {
-            for (o.items) |s| s.deinit();
-            o.deinit();
+        if (options) |*o| {
+            for (o.items) |*s| s.deinit(self.allocator);
+            o.deinit(self.allocator);
         }
     }
 
@@ -461,7 +461,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
 
         switch (self.currToktype()) {
             .Comma, .Rbrace => {
-                try output.append(.{
+                try output.append(self.allocator, .{
                     .name = name,
                     .options = options,
                 });
@@ -517,12 +517,12 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
 
     var output = try ArrayList(CowStr).initCapacity(self.allocator, 10);
     errdefer {
-        for (output.items) |expr| expr.deinit();
-        output.deinit();
+        for (output.items) |*expr| expr.deinit(self.allocator);
+        output.deinit(self.allocator);
     }
 
     var tmp = CowStr.init(.Empty, .{});
-    errdefer tmp.deinit();
+    errdefer tmp.deinit(self.allocator);
 
     while (switch (self.currToktype()) {
         .Rparen => false,
@@ -538,7 +538,7 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
         switch (self.currToktype()) {
             .Comma => {
                 if (tmp != .Empty) {
-                    try output.append(tmp);
+                    try output.append(self.allocator, tmp);
                     tmp = CowStr.init(.Empty, .{});
                 }
             },
@@ -547,7 +547,7 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
         }
     } else {
         if (tmp != .Empty) {
-            try output.append(tmp);
+            try output.append(self.allocator, tmp);
         }
     }
 
@@ -571,7 +571,7 @@ fn takeName(self: *Self) ParseError!CowStr {
         ),
         else => return CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}),
     };
-    errdefer output.deinit();
+    errdefer output.deinit(self.allocator);
     self.nextToken();
 
     while (self.expect(.current, &.{ .Text, .Minus, .Integer })) : (self.nextToken()) {
@@ -611,8 +611,8 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
     const close_tok = comptime getClosedMathStmt(open_tok);
     var ctx = try ArrayList(Stmt).initCapacity(self.allocator, 20);
     errdefer {
-        for (ctx.items) |stmt| stmt.deinit();
-        ctx.deinit();
+        for (ctx.items) |*stmt| stmt.deinit(self.allocator);
+        ctx.deinit(self.allocator);
     }
 
     if (!self.expect(.current, &.{open_tok})) {
@@ -638,9 +638,9 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         },
         else => true,
     }) : (self.nextToken()) {
-        const stmt = try self.parseStatement();
-        errdefer stmt.deinit();
-        try ctx.append(stmt);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try ctx.append(self.allocator, stmt);
     }
 
     if (!self.expect(.current, &.{close_tok})) {
@@ -665,8 +665,8 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
     var add_back_space = false;
     var inner = try ArrayList(Stmt).initCapacity(self.allocator, 20);
     errdefer {
-        for (inner.items) |stmt| stmt.deinit();
-        inner.deinit();
+        for (inner.items) |*stmt| stmt.deinit(self.allocator);
+        inner.deinit(self.allocator);
     }
 
     if (add_front_space) {
@@ -706,9 +706,9 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
         },
         else => true,
     }) : (self.nextToken()) {
-        const stmt = try self.parseStatement();
-        errdefer stmt.deinit();
-        try inner.append(stmt);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try inner.append(self.allocator, stmt);
     }
     self.doc_state.math_mode = true;
 
@@ -797,8 +797,8 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
     var is_fraction = false;
     var numerator = try ArrayList(Stmt).initCapacity(self.allocator, 10);
     errdefer {
-        for (numerator.items) |stmt| stmt.deinit();
-        numerator.deinit();
+        for (numerator.items) |*stmt| stmt.deinit(self.allocator);
+        numerator.deinit(self.allocator);
     }
     var denominator: ArrayList(Stmt) = if (frac_enable)
         try ArrayList(Stmt).initCapacity(self.allocator, 10)
@@ -806,8 +806,8 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
         undefined; // we do not use this part if `frac_enable` is false.
     errdefer {
         if (frac_enable) {
-            for (denominator.items) |stmt| stmt.deinit();
-            denominator.deinit();
+            for (denominator.items) |*stmt| stmt.deinit(self.allocator);
+            denominator.deinit(self.allocator);
         }
     }
 
@@ -830,13 +830,13 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
         }
 
         if (frac_enable and is_fraction) {
-            const denominator_stmt = try self.parseStatement();
-            errdefer denominator_stmt.deinit();
-            try denominator.append(denominator_stmt);
+            var denominator_stmt = try self.parseStatement();
+            errdefer denominator_stmt.deinit(self.allocator);
+            try denominator.append(self.allocator, denominator_stmt);
         } else {
-            const numerator_stmt = try self.parseStatement();
-            errdefer numerator_stmt.deinit();
-            try numerator.append(numerator_stmt);
+            var numerator_stmt = try self.parseStatement();
+            errdefer numerator_stmt.deinit(self.allocator);
+            try numerator.append(self.allocator, numerator_stmt);
         }
     }
 
@@ -851,7 +851,7 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
         // As frac_enable is true, denominator is initialized. Also since
         // is_fraction is false, denominator is empty ArrayList.
         // So we should deallocate denominator only
-        if (frac_enable) denominator.deinit();
+        if (frac_enable) denominator.deinit(self.allocator);
         return Stmt{
             .Braced = .{ .inner = numerator },
         };
@@ -864,7 +864,7 @@ fn parseFilepathHelper(
     left_parn_loc: Span,
 ) ParseError!struct { ArrayList(u8), []const u8 } {
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
-    errdefer file_path_str.deinit();
+    errdefer file_path_str.deinit(self.allocator);
 
     var inside_config_dir = false;
     var parse_very_first_chr = false;
@@ -906,29 +906,32 @@ fn parseFilepathHelper(
             return ParseError.ParseFailed;
         } else {
             @branchHint(.likely);
-            try file_path_str.appendSlice(chr_str);
+            try file_path_str.appendSlice(self.allocator, chr_str);
         }
         parse_very_first_chr = true;
         self.nextRawToken();
     }
     self.nextToken();
 
-    const file_path_str_raw = try file_path_str.toOwnedSlice();
+    const file_path_str_raw = try file_path_str.toOwnedSlice(self.allocator);
     defer self.allocator.free(file_path_str_raw);
     if (inside_config_dir) {
         const config_path = try getConfigPath(self.allocator);
         defer self.allocator.free(config_path);
-        try file_path_str.writer().print(
+        try file_path_str.print(
+            self.allocator,
             "{s}/{s}",
             .{ config_path, mem.trim(u8, file_path_str_raw, " \t") },
         );
     } else if (path.isAbsolute(file_path_str_raw)) {
-        try file_path_str.writer().print(
+        try file_path_str.print(
+            self.allocator,
             "{s}",
             .{mem.trim(u8, file_path_str_raw, " \t")},
         );
     } else {
-        try file_path_str.writer().print(
+        try file_path_str.print(
+            self.allocator,
             "./{s}",
             .{mem.trim(u8, file_path_str_raw, " \t")},
         );
@@ -980,8 +983,8 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
 
     const left_parn_loc = self.curr_tok.span;
     preventBug(&left_parn_loc);
-    const file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
-    defer file_name_str.deinit();
+    var file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
+    defer file_name_str.deinit(self.allocator);
 
     const filepath_diff = path.relative(
         self.allocator,
@@ -1011,10 +1014,10 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
         // we do not need filepath_diff anymore in here
         self.allocator.free(filepath_diff);
         break :blk Stmt{
-            .FilePath = CowStr.fromOwnedStr(self.allocator, filepath_diff_win),
+            .FilePath = .fromOwnedSlice(filepath_diff_win),
         };
     } else Stmt{
-        .FilePath = CowStr.fromOwnedStr(self.allocator, filepath_diff),
+        .FilePath = .fromOwnedSlice(filepath_diff),
     };
 }
 
@@ -1053,15 +1056,15 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
 
     const left_parn_loc = self.curr_tok.span;
     preventBug(&left_parn_loc);
-    const file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
-    defer file_name.deinit();
+    var file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
+    defer file_name.deinit(self.allocator);
 
     var into_copy_filename = try ArrayList(u8).initCapacity(
         self.allocator,
         raw_filename.len + VESTI_LOCAL_DUMMY_DIR.len,
     );
-    defer into_copy_filename.deinit();
-    try into_copy_filename.writer().print("{s}/{s}", .{
+    defer into_copy_filename.deinit(self.allocator);
+    try into_copy_filename.print(self.allocator, "{s}/{s}", .{
         VESTI_LOCAL_DUMMY_DIR, raw_filename,
     });
 
@@ -1121,7 +1124,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     }
 
     var mod_dir_path = try ArrayList(u8).initCapacity(self.allocator, 30);
-    defer mod_dir_path.deinit();
+    defer mod_dir_path.deinit(self.allocator);
 
     while (true) : (self.nextRawToken()) {
         std.debug.assert(self.expect(.peek, &.{
@@ -1139,16 +1142,17 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         }
-        try mod_dir_path.appendSlice(chr_str);
+        try mod_dir_path.appendSlice(self.allocator, chr_str);
     }
     self.nextToken();
 
-    const mod_dir_path_str = try mod_dir_path.toOwnedSlice();
+    const mod_dir_path_str = try mod_dir_path.toOwnedSlice(self.allocator);
     defer self.allocator.free(mod_dir_path_str);
     const config_path = try getConfigPath(self.allocator);
     defer self.allocator.free(config_path);
 
-    try mod_dir_path.writer().print(
+    try mod_dir_path.print(
+        self.allocator,
         "{s}/{s}",
         .{
             config_path,
@@ -1160,8 +1164,8 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.allocator,
         mod_dir_path.items.len + 15,
     );
-    defer mod_data_path.deinit();
-    try mod_data_path.writer().print("{s}/vesti.zon", .{mod_dir_path.items});
+    defer mod_data_path.deinit(self.allocator);
+    try mod_data_path.print(self.allocator, "{s}/vesti.zon", .{mod_dir_path.items});
 
     var mod_zon_file = fs.cwd().openFile(mod_data_path.items, .{}) catch {
         const io_diag = try diag.IODiagnostic.init(
@@ -1211,20 +1215,23 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
             self.allocator,
             export_file.len + mod_dir_path.items.len,
         );
-        defer mod_filename.deinit();
-        try mod_filename.writer().print("{s}/{s}", .{
-            mod_dir_path.items,
-            export_file,
-        });
+        defer mod_filename.deinit(self.allocator);
+        try mod_filename.print(
+            self.allocator,
+            "{s}/{s}",
+            .{ mod_dir_path.items, export_file },
+        );
 
         var into_copy_filename = try ArrayList(u8).initCapacity(
             self.allocator,
             export_file.len + VESTI_LOCAL_DUMMY_DIR.len,
         );
-        defer into_copy_filename.deinit();
-        try into_copy_filename.writer().print("{s}/{s}", .{
-            VESTI_LOCAL_DUMMY_DIR, export_file,
-        });
+        defer into_copy_filename.deinit(self.allocator);
+        try into_copy_filename.print(
+            self.allocator,
+            "{s}/{s}",
+            .{ VESTI_LOCAL_DUMMY_DIR, export_file },
+        );
 
         fs.cwd().copyFile(
             mod_filename.items,
@@ -1283,7 +1290,7 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
     }
 
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
-    defer file_path_str.deinit();
+    defer file_path_str.deinit(self.allocator);
 
     while (true) : (self.nextRawToken()) {
         std.debug.assert(self.expect(.peek, &.{
@@ -1301,7 +1308,7 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         }
-        try file_path_str.appendSlice(chr_str);
+        try file_path_str.appendSlice(self.allocator, chr_str);
     }
     self.nextToken();
 
@@ -1379,7 +1386,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         };
         break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
     };
-    errdefer name.deinit();
+    errdefer name.deinit(self.allocator);
     self.nextToken();
 
     if (ENV_MATH_IDENT.has(name.Owned.items)) {
@@ -1392,13 +1399,13 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     }
     self.eatWhitespaces(false);
 
-    const args = try self.parseFunctionArgs(
+    var args = try self.parseFunctionArgs(
         .Lparen,
         .Rparen,
         .Lsqbrace,
         .Rsqbrace,
     );
-    errdefer args.deinit();
+    errdefer args.deinit(self.allocator);
 
     if (!is_real) {
         if (off_math_state) {
@@ -1499,7 +1506,7 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
         };
         break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
     };
-    errdefer name.deinit();
+    errdefer name.deinit(self.allocator);
     self.nextToken();
 
     while (self.expect(.current, &.{.Star})) : (self.nextToken()) {
@@ -1626,7 +1633,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
 
     var code_import: ?ArrayList([]const u8) = null;
     errdefer {
-        if (code_import) |imports| imports.deinit();
+        if (code_import) |*imports| imports.deinit(self.allocator);
     }
     if (self.expect(.peek, &.{.Lsqbrace})) {
         code_import = try ArrayList([]const u8).initCapacity(
@@ -1651,7 +1658,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
                 return ParseError.ParseFailed;
             }
 
-            try code_import.?.append(self.curr_tok.lit.in_text);
+            try code_import.?.append(self.allocator, self.curr_tok.lit.in_text);
             self.nextToken();
             self.eatWhitespaces(true);
 
@@ -1844,8 +1851,8 @@ fn parseFunctionArgs(
 ) ParseError!ArrayList(ast.Arg) {
     var args = try ArrayList(ast.Arg).initCapacity(self.allocator, 10);
     errdefer {
-        for (args.items) |arg| arg.deinit();
-        args.deinit();
+        for (args.items) |*arg| arg.deinit(self.allocator);
+        args.deinit(self.allocator);
     }
 
     if (self.expect(.current, &.{ open, optional_open, .Star })) {
@@ -1864,9 +1871,9 @@ fn parseFunctionArgs(
                     .Optional,
                 ),
                 .Star => {
-                    try args.append(.{
+                    try args.append(self.allocator, .{
                         .needed = .StarArg,
-                        .ctx = ArrayList(Stmt).init(self.allocator),
+                        .ctx = .{},
                     });
                 },
                 else => unreachable,
@@ -1901,8 +1908,8 @@ fn parseFunctionArgsCore(
 
     var tmp = try ArrayList(Stmt).initCapacity(self.allocator, 20);
     errdefer {
-        for (tmp.items) |stmt| stmt.deinit();
-        tmp.deinit();
+        for (tmp.items) |*stmt| stmt.deinit(self.allocator);
+        tmp.deinit(self.allocator);
     }
 
     while (switch (self.currToktype()) {
@@ -1916,9 +1923,9 @@ fn parseFunctionArgsCore(
         },
         else => true,
     }) : (self.nextToken()) {
-        const stmt = try self.parseStatement();
-        errdefer stmt.deinit();
-        try tmp.append(stmt);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try tmp.append(self.allocator, stmt);
     }
 
     if (!self.expect(.current, &.{closed})) {
@@ -1932,17 +1939,17 @@ fn parseFunctionArgsCore(
         return ParseError.ParseFailed;
     }
 
-    try args.append(.{ .needed = arg_need, .ctx = tmp });
+    try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
 }
 
 fn getConfigPath(allocator: Allocator) ParseError![]const u8 {
     var output = try ArrayList(u8).initCapacity(allocator, 30);
-    errdefer output.deinit();
+    errdefer output.deinit(allocator);
 
     switch (builtin.os.tag) {
         .linux, .macos => {
-            try output.appendSlice(std.posix.getenv("HOME").?);
-            try output.appendSlice("/.config/vesti");
+            try output.appendSlice(allocator, std.posix.getenv("HOME").?);
+            try output.appendSlice(allocator, "/.config/vesti");
         },
         .windows => {
             const appdata_location = try process.getEnvVarOwned(
@@ -1950,13 +1957,13 @@ fn getConfigPath(allocator: Allocator) ParseError![]const u8 {
                 "APPDATA",
             );
             defer allocator.free(appdata_location);
-            try output.appendSlice(appdata_location);
-            try output.appendSlice("\\vesti");
+            try output.appendSlice(allocator, appdata_location);
+            try output.appendSlice(allocator, "\\vesti");
         },
         else => @compileError("only linux, macos and windows are supported"),
     }
 
-    return try output.toOwnedSlice();
+    return try output.toOwnedSlice(allocator);
 }
 
 test "test vesti parser" {

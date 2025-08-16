@@ -13,10 +13,11 @@ const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("./Codegen.zig");
 const Dynlib = std.DynLib;
+const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
 const Lua = @import("./Lua.zig");
 const Parser = @import("./parser/Parser.zig");
-const StringArrayHashMap = std.StringArrayHashMap;
+const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
 const TectonicFnt = fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
 
@@ -106,10 +107,10 @@ fn compileInner(
     defer vesti_dummy.close();
 
     // store "absolute paths" for vesti files
-    var main_vesti_files = StringArrayHashMap(bool).init(allocator);
+    var main_vesti_files: StringArrayHashMap(bool) = .{};
     defer {
         for (main_vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
-        main_vesti_files.deinit();
+        main_vesti_files.deinit(allocator);
     }
     for (main_filenames) |filename| {
         const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch {
@@ -123,17 +124,17 @@ fn compileInner(
             return error.FailedToOpenFile;
         };
         errdefer allocator.free(real_filename);
-        try main_vesti_files.put(real_filename, true);
+        try main_vesti_files.put(allocator, real_filename, true);
     }
 
     var vesti_files = if (attr.compile_all)
-        StringArrayHashMap(bool).init(allocator)
+        StringArrayHashMap(bool){}
     else
         main_vesti_files;
     defer {
         if (attr.compile_all) {
             for (vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
-            vesti_files.deinit();
+            vesti_files.deinit(allocator);
         }
     }
 
@@ -273,7 +274,7 @@ pub fn vestiToLatex(
     };
     defer allocator.free(source);
 
-    var parser = try Parser.init(
+    var parser: Parser = try .init(
         allocator,
         source,
         &vesti_file_dir,
@@ -282,7 +283,7 @@ pub fn vestiToLatex(
         engine,
     );
 
-    const ast = parser.parse() catch |err| switch (err) {
+    var ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
             try diagnostic.initMetadataAlloc(filename, source);
             return err;
@@ -290,17 +291,18 @@ pub fn vestiToLatex(
         else => return err,
     };
     defer {
-        for (ast.items) |stmt| stmt.deinit();
-        ast.deinit();
+        for (ast.items) |*stmt| stmt.deinit(allocator);
+        ast.deinit(allocator);
     }
 
     var content = try ArrayList(u8).initCapacity(allocator, 256);
-    defer content.deinit();
+    defer content.deinit(allocator);
 
-    const writer = content.writer();
+    var aw: Io.Writer.Allocating = .fromArrayList(allocator, &content);
+    defer content = aw.toArrayList();
     var codegen = try Codegen.init(allocator, source, ast.items, diagnostic);
-    defer codegen.deinit();
-    codegen.codegen(writer) catch |err| {
+    defer codegen.deinit(allocator);
+    codegen.codegen(&aw.writer) catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);
         return err;
     };
@@ -513,9 +515,9 @@ fn updateVesFiles(
         if (vesti_files.get(real_filename) == null) {
             // check whether "real_filename" is a "main file"
             if (main_vesti_files.get(real_filename) != null) {
-                try vesti_files.put(real_filename, true);
+                try vesti_files.put(allocator, real_filename, true);
             } else {
-                try vesti_files.put(real_filename, false);
+                try vesti_files.put(allocator, real_filename, false);
             }
         } else {
             // we don't need this resource. Deallocate it
@@ -528,9 +530,9 @@ fn updateVesFiles(
 pub fn vestiNameMangle(allocator: Allocator, filename: []const u8) !ArrayList(u8) {
     const fnv1_hash = std.hash.Fnv1a_64.hash(filename);
     var output = try ArrayList(u8).initCapacity(allocator, 50);
-    errdefer output.deinit();
+    errdefer output.deinit(allocator);
 
-    try output.writer().print("@vesti__{x}.tex", .{fnv1_hash});
+    try output.print(allocator, "@vesti__{x}.tex", .{fnv1_hash});
 
     return output;
 }
@@ -541,8 +543,8 @@ fn getTexFilename(allocator: Allocator, filename: []const u8, is_main: bool) ![]
         return changeExtension(allocator, filename, "tex");
     } else {
         var output = try vestiNameMangle(allocator, filename);
-        errdefer output.deinit();
-        return try output.toOwnedSlice();
+        errdefer output.deinit(allocator);
+        return try output.toOwnedSlice(allocator);
     }
 }
 

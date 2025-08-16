@@ -8,10 +8,10 @@ const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 
-const VESTI_VERSION_STR = "0.1.2";
+const VESTI_VERSION_STR = "0.2.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
-const min_zig_string = "0.15.0-dev.1474+3ea015db9";
+const min_zig_string = "0.15.0-dev.1552+b87b95868";
 const program_name = "vesti";
 
 // NOTE: This code came from

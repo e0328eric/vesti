@@ -45,22 +45,22 @@ pub const CowStr = union(CowStrState) {
                 const str = initializer[1];
 
                 var inner = try ArrayList(u8).initCapacity(allocator, str.len);
-                errdefer inner.deinit();
-                try inner.appendSlice(str);
+                errdefer inner.deinit(allocator);
+                try inner.appendSlice(allocator, str);
                 return @unionInit(Self, "Owned", inner);
             },
         }
     }
 
-    pub fn deinit(self: Self) void {
-        switch (self) {
-            .Owned => |inner| inner.deinit(),
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        switch (self.*) {
+            .Owned => |*inner| inner.deinit(allocator),
             else => {},
         }
     }
 
-    pub fn fromOwnedStr(allocator: Allocator, owned_str: []u8) Self {
-        const inner = ArrayList(u8).fromOwnedSlice(allocator, owned_str);
+    pub fn fromOwnedSlice(owned_str: []u8) Self {
+        const inner = ArrayList(u8).fromOwnedSlice(owned_str);
         return @unionInit(Self, "Owned", inner);
     }
 
@@ -76,15 +76,15 @@ pub const CowStr = union(CowStrState) {
                     allocator,
                     inner.len + to_append.len,
                 );
-                errdefer output.deinit();
+                errdefer output.deinit(allocator);
 
-                try output.appendSlice(inner);
-                try output.appendSlice(to_append);
+                try output.appendSlice(allocator, inner);
+                try output.appendSlice(allocator, to_append);
 
                 // Since self.* is .Borrowed, this operation is  memory safe
                 self.* = @unionInit(Self, "Owned", output);
             },
-            .Owned => |*inner| try inner.appendSlice(to_append),
+            .Owned => |*inner| try inner.appendSlice(allocator, to_append),
         }
     }
 
