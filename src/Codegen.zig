@@ -205,10 +205,10 @@ fn codegenStmt(
         .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}\n", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{f}", .{name}),
-        .LuaCode => |cb| {
+        .PyCode => |cb| {
             var new_code = try ArrayList(u8).initCapacity(
                 self.allocator,
-                cb.code.len,
+                cb.code.items.len,
             );
             errdefer new_code.deinit(self.allocator);
 
@@ -237,12 +237,12 @@ fn codegenStmt(
                     } });
                     return error.DuplicatedLuaLabel;
                 }
-                try new_code.appendSlice(self.allocator, cb.code);
+                try new_code.appendSlice(self.allocator, cb.code.items);
                 try self.luacode_exports.put(self.allocator, export_label, new_code);
                 return;
             }
 
-            try new_code.appendSlice(self.allocator, cb.code);
+            try new_code.appendSlice(self.allocator, cb.code.items);
             try new_code.append(self.allocator, 0);
 
             // TODO: print appropriate error message

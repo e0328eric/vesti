@@ -6,6 +6,7 @@ const diag = @import("../../diagnostic.zig");
 const ArrayList = std.ArrayList;
 const CowStr = @import("../../CowStr.zig").CowStr;
 const Expr = @import("../ast.zig").Expr;
+const Io = std.Io;
 const Parser = @import("../Parser.zig");
 const Stmt = @import("../ast.zig").Stmt;
 
@@ -25,11 +26,11 @@ pub fn expect(
         source,
         undefined,
         &diagnostic,
-        false, // disallow luacode for testing
+        false, // disallow pycode for testing
         null, // disallow changing latex engine type
     );
 
-    const ast = parser.parse() catch |err| switch (err) {
+    var ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
             try diagnostic.prettyPrint(true);
             return err;
@@ -37,15 +38,19 @@ pub fn expect(
         else => return err,
     };
     defer {
-        for (ast.items) |stmt| stmt.deinit();
-        ast.deinit();
+        for (ast.items) |*stmt| stmt.deinit(allocator);
+        ast.deinit(allocator);
     }
 
     var output = try ArrayList(u8).initCapacity(allocator, 100);
-    defer output.deinit();
+    var aw: Io.Writer.Allocating = .fromArrayList(allocator, &output);
+    defer aw.deinit();
     var codegen = try Codegen.init(allocator, source, ast.items, &diagnostic);
-    defer codegen.deinit();
-    try codegen.codegen(output.writer());
+    defer codegen.deinit(allocator);
+    try codegen.codegen(&aw.writer);
+
+    output = aw.toArrayList();
+    defer output.deinit(allocator);
 
     if (output_modifier) |f| {
         if (!mem.eql(u8, f(output.items), expected)) {

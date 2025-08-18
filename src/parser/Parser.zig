@@ -1,9 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const ziglyph = @import("ziglyph");
 const fs = std.fs;
 const mem = std.mem;
 const process = std.process;
 const path = fs.path;
+const unicode = std.unicode;
 const zon = std.zon;
 const ast = @import("./ast.zig");
 const diag = @import("../diagnostic.zig");
@@ -20,6 +22,7 @@ const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
 const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
+const VESPY_MAIN_LABEL = "MAINPY";
 
 allocator: Allocator,
 lexer: Lexer,
@@ -28,7 +31,7 @@ peek_tok: Token,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
-allow_luacode: bool,
+allow_pycode: bool,
 engine: ?*LatexEngine,
 
 const Self = @This();
@@ -70,6 +73,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
+    error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ ParseFailed, ParseZon, NameMangle, LuaInitFailed };
 
 pub const VestiModule = struct {
@@ -91,7 +95,7 @@ pub fn init(
     source: []const u8,
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
-    allow_luacode: bool,
+    allow_pycode: bool,
     engine: ?*LatexEngine,
 ) !Self {
     var self: Self = undefined;
@@ -103,7 +107,7 @@ pub fn init(
     self.doc_state = DocState{};
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
-    self.allow_luacode = allow_luacode;
+    self.allow_pycode = allow_pycode;
     self.engine = engine;
 
     return self;
@@ -309,11 +313,11 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .CompileType => try self.parseCompileType(),
-        .LuaCode => if (self.allow_luacode)
-            try self.parseLuaCode()
+        .PyCode => if (self.allow_pycode)
+            try self.parsePyCode()
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .DisallowLuacode,
+                .err_info = .DisallowPycode,
                 .span = self.curr_tok.span,
             } });
             return ParseError.ParseFailed;
@@ -1528,12 +1532,12 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     return Stmt{ .EndPhantomEnviron = name };
 }
 
-fn parseLuaCode(self: *Self) ParseError!Stmt {
+fn parsePyCode(self: *Self) ParseError!Stmt {
     const codeblock_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.LuaCode})) {
+    if (!self.expect(.current, &.{.PyCode})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.LuaCode},
+                .expected = &.{.PyCode},
                 .obtained = self.currToktype(),
             } },
             .span = codeblock_loc,
@@ -1543,17 +1547,17 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lbrace, .Eof }))
+        !self.expect(.peek, &.{ .Text, .Eof }))
     {
         self.nextToken();
     } else {
         self.nextRawToken();
     }
 
-    if (!self.expect(.current, &.{.Lbrace})) {
+    if (!self.expect(.current, &.{.Text})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lbrace},
+                .expected = &.{.Text},
                 .obtained = self.currToktype(),
             } },
             .span = codeblock_loc,
@@ -1561,74 +1565,42 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    std.debug.assert(self.expect(.peek, &.{
-        .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-    }));
-    const start = self.peek_tok.toktype.RawChar.start;
+    // check that peek tokentype is RawChar
+    std.debug.assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
 
-    var bracket_open: usize = 0;
-    var is_escaped = false;
-    var pass_counting_bracket = false;
-    var maybe_multiline_string = false;
-    var multiline_string = false;
+    // code_export text also works as a <BRACKET> of the pycode block
+    const code_export = self.curr_tok.lit.in_text;
+    const start = self.peekToktype().RawChar.start;
+
+    var end_text = try ArrayList(u8).initCapacity(self.allocator, code_export.len);
+    var buf: [4]u8 = @splat(0);
+    defer end_text.deinit(self.allocator);
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{
-            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-        }));
-        const chr = self.peek_tok.toktype.RawChar.chr;
-
-        switch (chr) {
-            '{' => if (!pass_counting_bracket) {
-                bracket_open += 1;
-            },
-            '}' => {
-                if (!pass_counting_bracket) {
-                    if (bracket_open == 0) break;
-                    bracket_open -= 1;
-                }
-            },
-            '[' => {
-                if (maybe_multiline_string) {
-                    pass_counting_bracket = true;
-                    maybe_multiline_string = false;
-                    multiline_string = true;
-                } else if (!is_escaped) {
-                    maybe_multiline_string = true;
-                }
-            },
-            ']' => {
-                if (maybe_multiline_string) {
-                    pass_counting_bracket = false;
-                    maybe_multiline_string = false;
-                    multiline_string = false;
-                } else if (!is_escaped) {
-                    maybe_multiline_string = true;
-                }
-            },
-            '=' => if (maybe_multiline_string) {
-                maybe_multiline_string = true;
-            },
-            '\\' => is_escaped = true,
-            '\'', '"' => {
-                if (!multiline_string and !is_escaped) {
-                    pass_counting_bracket = !pass_counting_bracket;
-                }
-                is_escaped = false;
-            },
-            0 => {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EofErr,
-                    .span = codeblock_loc,
-                } });
-                return ParseError.ParseFailed;
-            },
-            else => {
-                is_escaped = false;
-                if (maybe_multiline_string) maybe_multiline_string = false;
-            },
+        if (self.expect(.peek, &.{.Eof})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .EofErr,
+                .span = codeblock_loc,
+            } });
+            return ParseError.ParseFailed;
         }
+
+        // check that peek tokentype is RawChar
+        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
+        const chr = self.peekToktype().RawChar.chr;
+
+        if (!ziglyph.isAlphabetic(chr) and !ziglyph.isDecimal(chr)) {
+            end_text.clearRetainingCapacity();
+            continue;
+        }
+
+        if (end_text.items.len == 0 and ziglyph.isDecimal(chr)) continue;
+
+        const len = try unicode.utf8Encode(chr, &buf);
+        try end_text.appendSlice(self.allocator, buf[0..len]);
+
+        if (mem.eql(u8, code_export, end_text.items)) break;
     }
-    const end = self.peek_tok.toktype.RawChar.start;
+    const end = self.peek_tok.toktype.RawChar.end -| end_text.items.len;
     self.nextToken();
 
     var code_import: ?ArrayList([]const u8) = null;
@@ -1641,7 +1613,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             10,
         );
 
-        self.nextToken(); // skip '}' token
+        self.nextToken(); // skip <end bracket> token
         self.nextToken(); // skip '[' token
 
         while (true) : (self.nextToken()) {
@@ -1679,44 +1651,40 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         }
     }
 
-    var code_export: ?[]const u8 = null;
-    if (self.expect(.peek, &.{.Less})) {
-        self.nextToken(); // skip '}' or ']' token
-
-        const codeblock_tag_loc = self.curr_tok.span;
-        self.nextToken(); // skip '<' token
-
-        if (!self.expect(.current, &.{.Text})) {
+    var pycode = try ArrayList(u8).initCapacity(self.allocator, 50);
+    errdefer pycode.deinit(self.allocator);
+    var it = mem.tokenizeScalar(u8, self.lexer.source[start..end], '\n');
+    while (it.next()) |line| {
+        const pos = mem.indexOfScalar(u8, line, '\\') orelse {
+            const trim_line = mem.trim(u8, line, " \t\r\n");
+            if (trim_line.len == 0) continue else {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .InvalidPycode,
+                    .span = codeblock_loc,
+                } });
+                return ParseError.ParseFailed;
+            }
+        };
+        if (pos + 2 >= line.len) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .TokenExpected = .{
-                    .expected = &.{.Text},
-                    .obtained = self.currToktype(),
-                } },
-                .span = codeblock_tag_loc,
+                .err_info = .InvalidPycode,
+                .span = codeblock_loc,
             } });
             return ParseError.ParseFailed;
         }
-        code_export = self.curr_tok.lit.in_text;
-        self.nextToken();
-
-        if (!self.expect(.current, &.{.Great})) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .TokenExpected = .{
-                    .expected = &.{.Great},
-                    .obtained = self.currToktype(),
-                } },
-                .span = codeblock_tag_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
+        try pycode.appendSlice(self.allocator, line[pos + 2 ..]);
+        try pycode.append(self.allocator, '\n');
     }
 
     return Stmt{
-        .LuaCode = .{
+        .PyCode = .{
             .code_span = codeblock_loc,
             .code_import = code_import,
-            .code_export = code_export,
-            .code = self.lexer.source[start..end],
+            .code_export = if (mem.eql(u8, code_export, VESPY_MAIN_LABEL))
+                null
+            else
+                code_export,
+            .code = pycode,
         },
     };
 }
@@ -1971,4 +1939,5 @@ test "test vesti parser" {
     _ = @import("./tests/importpkg.zig");
     _ = @import("./tests/math_stmts.zig");
     _ = @import("./tests/environments.zig");
+    _ = @import("./tests/pycode.zig");
 }

@@ -243,7 +243,8 @@ pub const ParseDiagnostic = struct {
         Deprecated,
         LuaLabelNotFound,
         DuplicatedLuaLabel,
-        DisallowLuacode,
+        InvalidPycode,
+        DisallowPycode,
         LuaEvalFailed,
         NotLocatedInVeryFirst,
         DoubleUsed,
@@ -272,7 +273,8 @@ pub const ParseDiagnostic = struct {
         Deprecated: []const u8,
         LuaLabelNotFound: ArrayList(u8),
         DuplicatedLuaLabel: []const u8,
-        DisallowLuacode,
+        InvalidPycode,
+        DisallowPycode,
         LuaEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
@@ -400,7 +402,8 @@ pub const ParseDiagnostic = struct {
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try aw.writer.writeAll(info),
-            .DisallowLuacode => try aw.writer.writeAll("nested luacode is not allowed"),
+            .InvalidPycode => try aw.writer.writeAll("invalid pycode was found"),
+            .DisallowPycode => try aw.writer.writeAll("nested pycode is not allowed"),
             .LuaLabelNotFound => |label| try aw.writer.print(
                 "label `{s}` is not found",
                 .{label.items},
@@ -475,20 +478,22 @@ pub const ParseDiagnostic = struct {
         source: ?CowStr,
         no_color: bool,
     ) !void {
-        std.debug.assert(absolute_filename != null and source != null);
+        std.debug.assert(source != null);
 
         const stderr_handle = std.fs.File.stderr();
         var stderr_buf: [4096]u8 = undefined;
         var stderr = stderr_handle.writer(&stderr_buf);
 
-        const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
-        defer allocator.free(current_dir);
-        const filename = try std.fs.path.relative(
-            allocator,
-            current_dir,
-            absolute_filename.?.toStr(),
-        );
-        defer allocator.free(filename);
+        const filename = if (absolute_filename) |af| blk: {
+            const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
+            defer allocator.free(current_dir);
+            break :blk try std.fs.path.relative(
+                allocator,
+                current_dir,
+                af.toStr(),
+            );
+        } else "^.^";
+        defer if (absolute_filename != null) allocator.free(filename);
 
         var err_msg = try self.errorMsg(allocator);
         defer err_msg.deinit(allocator);

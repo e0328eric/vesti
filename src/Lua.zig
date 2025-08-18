@@ -1,21 +1,21 @@
 // TODO: after implementing pycode, nuke this file
 
 const std = @import("std");
-const zlua = @import("zlua");
 const diag = @import("./diagnostic.zig");
 const ansi = @import("./ansi.zig");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const ZigLua = zlua.Lua;
 const CowStr = @import("./CowStr.zig").CowStr;
 const Parser = @import("./parser/Parser.zig");
 const Codegen = @import("./Codegen.zig");
 
-lua: *ZigLua,
+const ZigLua = anyopaque;
+
+lua: *opaque {},
 
 const Self = @This();
-pub const Error = Allocator.Error || zlua.Error;
+pub const Error = Allocator.Error;
 
 const VESTI_OUTPUT_STR: [:0]const u8 = "__VESTI_OUTPUT_STR__";
 const VESTI_ERROR_STR: [:0]const u8 = "__VESTI_ERROR_STR__";
@@ -201,21 +201,6 @@ fn parse(lua: *ZigLua) i32 {
     //     _ = lua.pushString(content.items);
 
     //     return 1;
-}
-
-fn luaType2Str(ty: zlua.LuaType) []const u8 {
-    return switch (ty) {
-        .none => "none",
-        .nil => "nil",
-        .boolean => "boolean",
-        .light_userdata => "light_userdata",
-        .number => "number",
-        .string => "string",
-        .table => "table",
-        .function => "function",
-        .userdata => "userdata",
-        .thread => "thread",
-    };
 }
 
 fn getManifestDir(lua: *ZigLua) i32 {

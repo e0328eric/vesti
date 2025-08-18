@@ -3,6 +3,7 @@ const std = @import("std");
 const mem = std.mem;
 
 const assert = std.debug.assert;
+const fmtStr = std.fmt.comptimePrint;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -12,6 +13,49 @@ pub const CowStrState = enum(u2) {
     Borrowed,
     Owned,
 };
+
+fn validInnerType(comptime inner: type) void {
+    comptime {
+        const typeinfo = @typeInfo(inner);
+        if (typeinfo != .pointer) {
+            @compileError(fmtStr(
+                "expected pointer, got {s}",
+                .{@typeName(inner)},
+            ));
+        }
+
+        if (!typeinfo.pointer.is_const) {
+            @compileError("non-const pointer was given");
+        }
+        switch (typeinfo.pointer.size) {
+            .one => {
+                const child_typeinfo = @typeInfo(typeinfo.pointer.child);
+                if (child_typeinfo != .array) {
+                    @compileError(fmtStr(
+                        "pointer of u8 array was expected, got {s}",
+                        .{@typeName(inner)},
+                    ));
+                }
+                if (child_typeinfo.array.child != u8) {
+                    @compileError(fmtStr(
+                        "pointer of u8 array was expected, got {s}",
+                        .{@typeName(inner)},
+                    ));
+                }
+            },
+            .slice => if (inner != []const u8) {
+                @compileError(fmtStr(
+                    "expected []const u8, got {s}",
+                    .{@typeName(inner)},
+                ));
+            },
+            else => @compileError(fmtStr(
+                "pointer of type [*] or [*c] is invalid, got {s}",
+                .{@typeName(inner)},
+            )),
+        }
+    }
+}
 
 pub const CowStr = union(CowStrState) {
     Empty,
@@ -30,7 +74,7 @@ pub const CowStr = union(CowStrState) {
                 comptime {
                     const typeinfo = @typeInfo(@TypeOf(initializer));
                     assert(typeinfo == .@"struct");
-                    assert(@TypeOf(initializer[0]) == []const u8);
+                    validInnerType(@TypeOf(initializer[0]));
                 }
                 return @unionInit(Self, "Borrowed", initializer[0]);
             },
@@ -39,7 +83,7 @@ pub const CowStr = union(CowStrState) {
                     const typeinfo = @typeInfo(@TypeOf(initializer));
                     assert(typeinfo == .@"struct");
                     assert(@TypeOf(initializer[0]) == Allocator);
-                    assert(@TypeOf(initializer[1]) == []const u8);
+                    validInnerType(@TypeOf(initializer[1]));
                 }
                 const allocator = initializer[0];
                 const str = initializer[1];

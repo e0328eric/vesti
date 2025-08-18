@@ -39,9 +39,9 @@ pub const TokenType = union(enum(u8)) {
     RawLatex,
     OtherChar,
     RawChar: struct {
-        start: usize,
-        end: usize,
-        chr: u21,
+        start: usize = 0,
+        end: usize = 0,
+        chr: u21 = 0,
     },
 
     // Keywords
@@ -61,7 +61,7 @@ pub const TokenType = union(enum(u8)) {
     Latex3On,
     Latex3Off,
     NonStopMode,
-    LuaCode,
+    PyCode,
     MathMode,
     CompileType,
 
@@ -179,7 +179,7 @@ pub const TokenType = union(enum(u8)) {
             .Latex3On =>                 try writer.writeAll("`ltx3on`"),
             .Latex3Off =>                try writer.writeAll("`ltx3off`"),
             .NonStopMode =>              try writer.writeAll("`nonstopmode`"),
-            .LuaCode =>                  try writer.writeAll("`luacode`"),
+            .PyCode =>                  try writer.writeAll("`pycode`"),
             .MathMode =>                 try writer.writeAll("`mathmode`"),
             .CompileType =>              try writer.writeAll("`compty`"),
             .Plus =>                     try writer.writeAll("`+`"),
@@ -272,9 +272,10 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "ltx3on", TokenType.Latex3On },
     .{ "ltx3off", TokenType.Latex3Off },
     .{ "nonstopmode", TokenType.NonStopMode },
-    .{ "luacode", TokenType.LuaCode },
+    .{ "pycode", TokenType.PyCode },
     .{ "mathmode", TokenType.MathMode },
     .{ "compty", TokenType.CompileType },
+    .{ "luacode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "pycode" } } },
     .{ "importfile", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "cpfile" } } },
     .{ "getfilepath", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "getfp" } } },
     .{ "defenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },

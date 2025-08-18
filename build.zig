@@ -43,23 +43,45 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const zlua = b.dependency("zlua", .{
-        .target = target,
-        .optimize = optimize,
-        .lang = .lua54,
-    });
+
     const ziglyph = b.dependency("ziglyph", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const vesti_c_header = b.addTranslateC(.{
+    const vesti_c_h = b.addTranslateC(.{
         .root_source_file = b.path("./src/vesti_c.h"),
         .target = target,
         .optimize = optimize,
     });
     const vesti_c = b.addModule("vesti-c", .{
-        .root_source_file = vesti_c_header.getOutput(),
+        .root_source_file = vesti_c_h.getOutput(),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const py_libs = switch (target.result.os.tag) {
+        .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/libs"),
+        else => "",
+    };
+    defer if (target.result.os.tag == .windows) alloc.free(py_libs);
+    const py_include = switch (target.result.os.tag) {
+        .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/include"),
+        else => "",
+    };
+    defer if (target.result.os.tag == .windows) alloc.free(py_include);
+
+    const py_c_h = b.addTranslateC(.{
+        .root_source_file = b.path("src/pyzig.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    switch (target.result.os.tag) {
+        .windows => py_c_h.addIncludePath(.{ .cwd_relative = py_include }),
+        else => {},
+    }
+    const py_c = b.createModule(.{
+        .root_source_file = py_c_h.getOutput(),
         .target = target,
         .optimize = optimize,
     });
@@ -79,11 +101,25 @@ pub fn build(b: *Build) !void {
         .strip = strip,
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
-            .{ .name = "zlua", .module = zlua.module("zlua") },
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
             .{ .name = "c", .module = vesti_c },
+            .{ .name = "pyzig", .module = py_c },
         },
     });
+    if (use_tectonic) {
+        exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
+        exe_mod.linkSystemLibrary(
+            "vesti_tectonic",
+            .{ .search_strategy = .paths_first, .preferred_link_mode = .dynamic },
+        );
+    }
+    switch (target.result.os.tag) {
+        .windows => {
+            exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
+            exe_mod.linkSystemLibrary("python313", .{});
+        },
+        else => {},
+    }
     exe_mod.addOptions("vesti-info", vesti_opt);
 
     const exe = b.addExecutable(.{
@@ -91,15 +127,6 @@ pub fn build(b: *Build) !void {
         .version = VESTI_VERSION,
         .root_module = exe_mod,
     });
-    if (use_tectonic) {
-        exe.addLibraryPath(.{
-            .cwd_relative = b.exe_dir,
-        });
-        exe.linkSystemLibrary2(
-            "vesti_tectonic",
-            .{ .search_strategy = .paths_first, .preferred_link_mode = .dynamic },
-        );
-    }
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -118,7 +145,6 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
         .strip = strip,
         .imports = &.{
-            .{ .name = "zlua", .module = zlua.module("zlua") },
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
         },
     });
