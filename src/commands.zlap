@@ -95,11 +95,11 @@
     default: 3;
 
     #flag;
-    long: luacode;
+    long: pycode;
     short:;
-    desc: custom luacode to execute;
+    desc: custom pycode to execute;
     type: string;
-    default: build.lua;
+    default: build.py;
 }
 {
     #name: clear;

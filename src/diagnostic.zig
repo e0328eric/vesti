@@ -221,7 +221,7 @@ pub const IODiagnostic = struct {
             }
         }
 
-        try stderr.end();
+        try stderr.interface.flush();
     }
 };
 
@@ -242,10 +242,10 @@ pub const ParseDiagnostic = struct {
         IllegalUseErr,
         Deprecated,
         LuaLabelNotFound,
-        DuplicatedLuaLabel,
+        DuplicatedPyLabel,
         InvalidPycode,
         DisallowPycode,
-        LuaEvalFailed,
+        PyEvalFailed,
         NotLocatedInVeryFirst,
         DoubleUsed,
         InvalidLatexEngine,
@@ -272,10 +272,10 @@ pub const ParseDiagnostic = struct {
         IllegalUseErr: []const u8,
         Deprecated: []const u8,
         LuaLabelNotFound: ArrayList(u8),
-        DuplicatedLuaLabel: []const u8,
+        DuplicatedPyLabel: []const u8,
         InvalidPycode,
         DisallowPycode,
-        LuaEvalFailed: struct {
+        PyEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
         },
@@ -287,7 +287,7 @@ pub const ParseDiagnostic = struct {
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
                 .LuaLabelNotFound => |*label| label.deinit(allocator),
-                .LuaEvalFailed => |*inner| {
+                .PyEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
                     inner.err_detail.deinit(allocator);
                 },
@@ -296,7 +296,7 @@ pub const ParseDiagnostic = struct {
         }
     };
 
-    pub fn luaLabelNotFound(
+    pub fn pyLabelNotFound(
         allocator: Allocator,
         span: Span,
         label_str: []const u8,
@@ -311,7 +311,7 @@ pub const ParseDiagnostic = struct {
         };
     }
 
-    pub fn luaEvalFailed(
+    pub fn pyEvalFailed(
         allocator: Allocator,
         span: ?Span,
         comptime fmt_str: []const u8,
@@ -327,7 +327,7 @@ pub const ParseDiagnostic = struct {
         try err_detail.appendSlice(allocator, err_detail_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .LuaEvalFailed = .{
+            .err_info = ParseErrorInfo{ .PyEvalFailed = .{
                 .err_msg = err_msg,
                 .err_detail = err_detail,
             } },
@@ -408,12 +408,12 @@ pub const ParseDiagnostic = struct {
                 "label `{s}` is not found",
                 .{label.items},
             ),
-            .DuplicatedLuaLabel => |label| try aw.writer.print(
+            .DuplicatedPyLabel => |label| try aw.writer.print(
                 "label `{s}` is duplicated",
                 .{label},
             ),
-            .LuaEvalFailed => |inner| try aw.writer.print(
-                "lua exception occured: {s}",
+            .PyEvalFailed => |inner| try aw.writer.print(
+                "python exception occured: {s}",
                 .{inner.err_msg.items},
             ),
             .NotLocatedInVeryFirst => |tok| try aw.writer.print(
@@ -449,7 +449,7 @@ pub const ParseDiagnostic = struct {
                 );
                 break :blk output;
             },
-            .LuaEvalFailed => |inner| blk: {
+            .PyEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 
@@ -587,6 +587,6 @@ pub const ParseDiagnostic = struct {
             }
         }
 
-        try stderr.end();
+        try stderr.interface.flush();
     }
 };

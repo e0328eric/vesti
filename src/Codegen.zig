@@ -5,23 +5,22 @@ const ast = @import("./parser/ast.zig");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
+const Python = @import("./Python.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
-const Lua = @import("./Lua.zig");
 const Span = @import("./location.zig").Span;
 
-const Error = Allocator.Error || Io.Writer.Error || Lua.Error || error{
-    LuaInitFailed,
-    LuaLabelNotFound,
-    DuplicatedLuaLabel,
-    LuaEvalFailed,
+const Error = Allocator.Error || Io.Writer.Error || Python.Error || error{
+    PyLabelNotFound,
+    DuplicatedPyLabel,
+    PyEvalFailed,
 };
 
 allocator: Allocator,
 source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
-luacode_exports: StringArrayHashMap(ArrayList(u8)),
-lua: Lua,
+pycode_exports: StringArrayHashMap(ArrayList(u8)),
+py: Python,
 
 const Self = @This();
 
@@ -31,34 +30,34 @@ pub fn init(
     stmts: []const ast.Stmt,
     diagnostic: *diag.Diagnostic,
 ) !Self {
-    const lua = Lua.init(allocator) catch {
+    var py = Python.init() catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
-            "failed to initialize lua vm",
+            "failed to initialize python vm",
             .{},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.LuaInitFailed;
+        return error.PyInitFailed;
     };
-    errdefer lua.deinit();
+    errdefer py.deinit();
 
     return Self{
         .allocator = allocator,
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
-        .luacode_exports = .{},
-        .lua = lua,
+        .pycode_exports = .{},
+        .py = py,
     };
 }
 
 pub fn deinit(self: *Self, allocator: Allocator) void {
-    for (self.luacode_exports.values()) |*code| {
+    for (self.pycode_exports.values()) |*code| {
         code.deinit(allocator);
     }
-    self.luacode_exports.deinit(allocator);
-    self.lua.deinit();
+    self.pycode_exports.deinit(allocator);
+    self.py.deinit();
 }
 
 pub fn codegen(
@@ -214,31 +213,31 @@ fn codegenStmt(
 
             if (cb.code_import) |import_arr_list| {
                 for (import_arr_list.items) |import_label| {
-                    if (self.luacode_exports.get(import_label)) |import_code| {
+                    if (self.pycode_exports.get(import_label)) |import_code| {
                         try new_code.appendSlice(self.allocator, import_code.items);
                         try new_code.append(self.allocator, '\n');
                     } else {
-                        const label_not_found = try diag.ParseDiagnostic.luaLabelNotFound(
+                        const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
                             self.diagnostic.allocator,
                             cb.code_span,
                             import_label,
                         );
                         self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
-                        return error.LuaLabelNotFound;
+                        return error.PyLabelNotFound;
                     }
                 }
             }
 
             if (cb.code_export) |export_label| {
-                if (self.luacode_exports.get(export_label) != null) {
+                if (self.pycode_exports.get(export_label) != null) {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .DuplicatedLuaLabel = export_label },
+                        .err_info = .{ .DuplicatedPyLabel = export_label },
                         .span = cb.code_span,
                     } });
-                    return error.DuplicatedLuaLabel;
+                    return error.DuplicatedPyLabel;
                 }
                 try new_code.appendSlice(self.allocator, cb.code.items);
-                try self.luacode_exports.put(self.allocator, export_label, new_code);
+                try self.pycode_exports.put(self.allocator, export_label, new_code);
                 return;
             }
 
@@ -246,83 +245,38 @@ fn codegenStmt(
             try new_code.append(self.allocator, 0);
 
             // TODO: print appropriate error message
-            self.lua.evalCode(@ptrCast(new_code.items)) catch |err| {
-                // the very top element is an "error" string
-                const err_str = self.lua.lua.toString(-1) catch unreachable;
-                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
-                    self.diagnostic.allocator,
-                    cb.code_span,
-                    "{}",
-                    .{err},
-                    err_str,
-                );
-                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
-                return error.LuaEvalFailed;
+            self.py.runPyCode(@ptrCast(new_code.items)) catch |err| {
+                if (try self.py.getPyErrorMsg(self.diagnostic.allocator)) |err_str| {
+                    const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
+                        self.diagnostic.allocator,
+                        cb.code_span,
+                        "{}",
+                        .{err},
+                        err_str,
+                    );
+                    self.diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
+                    return error.PyEvalFailed;
+                }
             };
-            if (self.lua.getError()) |err_str| {
-                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+            if (try self.py.getPyErrorMsg(self.diagnostic.allocator)) |err_str| {
+                const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
                     self.diagnostic.allocator,
                     cb.code_span,
                     "vesti library in lua emits an error",
                     .{},
                     err_str,
                 );
-                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
-                return error.LuaEvalFailed;
+                self.diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
+                return error.PyEvalFailed;
             }
-            const ves_output = self.lua.getVestiOutputStr();
-            try writer.writeAll(ves_output);
 
-            self.lua.clearVestiOutputStr();
+            var ves_output = try self.py.getVestiOutputStr(self.allocator);
+            defer ves_output.deinit(self.allocator);
+            std.debug.print("{s}\n", .{ves_output.items});
+            try writer.writeAll(ves_output.items);
+
             new_code.deinit(self.allocator);
         },
         .Int, .Float => undefined, // TODO: deprecated
     }
 }
-
-pub const LazyLuacode = struct {
-    lazy_luacode: ArrayList(struct { ArrayList(u8), Span }),
-
-    pub fn deinit(self: @This()) void {
-        for (self.lazy_luacode.items) |code| {
-            code[0].deinit();
-        }
-        self.lazy_luacode.deinit();
-    }
-
-    pub fn run(self: *@This(), writer: anytype) !void {
-        // execute lazy luacodes
-        // TODO: print appropriate error message
-        for (self.lazy_luacode.items) |code| {
-            self.lua.evalCode(@ptrCast(code[0].items)) catch |err| {
-                // the very top element is an "error" string
-                const err_str = self.lua.lua.toString(-1) catch unreachable;
-                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
-                    self.diagnostic.allocator,
-                    code[1],
-                    "{}",
-                    .{err},
-                    err_str,
-                );
-                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
-                return error.LuaEvalFailed;
-            };
-            if (self.lua.getError()) |err_str| {
-                const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
-                    self.diagnostic.allocator,
-                    code[1],
-                    "vesti library in lua emits an error",
-                    .{},
-                    err_str,
-                );
-                self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
-                return error.LuaEvalFailed;
-            }
-            const ves_output = self.lua.getVestiOutputStr();
-            try writer.writeAll(ves_output);
-
-            self.lua.clearVestiOutputStr();
-        }
-        self.lazy_luacode.clearRetainingCapacity();
-    }
-};

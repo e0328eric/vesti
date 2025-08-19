@@ -15,7 +15,6 @@ const Codegen = @import("./Codegen.zig");
 const Dynlib = std.DynLib;
 const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
-const Lua = @import("./Lua.zig");
 const Parser = @import("./parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
@@ -38,15 +37,15 @@ pub fn compile(
     engine: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    luacode_path: []const u8,
+    pycode_path: []const u8,
     attr: CompileAttribute,
 ) !void {
-    const luacode_contents = try run_script.getBuildLuaContents(
+    const pycode_contents = try run_script.getBuildPyContents(
         allocator,
-        luacode_path,
+        pycode_path,
         diagnostic,
     );
-    defer if (luacode_contents) |lf| allocator.free(lf);
+    defer if (pycode_contents) |lf| allocator.free(lf);
 
     while (true) {
         compileInner(
@@ -56,7 +55,7 @@ pub fn compile(
             engine,
             compile_limit,
             prev_mtime,
-            luacode_contents,
+            pycode_contents,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -91,7 +90,7 @@ fn compileInner(
     engine_: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    luacode_contents: ?[:0]const u8,
+    pycode_contents: ?[:0]const u8,
     attr: CompileAttribute,
 ) !void {
     // actually, one can change compile latex engine with `compty` keyword
@@ -188,7 +187,7 @@ fn compileInner(
                     diagnostic,
                     engine,
                     &vesti_dummy,
-                    luacode_contents,
+                    pycode_contents,
                     compile_limit,
                 );
             }
@@ -227,7 +226,7 @@ fn compileInner(
                 diagnostic,
                 engine,
                 &vesti_dummy,
-                luacode_contents,
+                pycode_contents,
                 compile_limit,
             );
         }
@@ -295,17 +294,16 @@ pub fn vestiToLatex(
         ast.deinit(allocator);
     }
 
-    var content = try ArrayList(u8).initCapacity(allocator, 256);
-    defer content.deinit(allocator);
-
-    var aw: Io.Writer.Allocating = .fromArrayList(allocator, &content);
-    defer content = aw.toArrayList();
+    var aw: Io.Writer.Allocating = try .initCapacity(allocator, 256);
+    defer aw.deinit();
     var codegen = try Codegen.init(allocator, source, ast.items, diagnostic);
     defer codegen.deinit(allocator);
     codegen.codegen(&aw.writer) catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);
         return err;
     };
+    var content = aw.toArrayList();
+    defer content.deinit(allocator);
 
     const output_filename = try getTexFilename(allocator, filename, is_main);
     defer allocator.free(output_filename);
@@ -338,7 +336,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    luacode_contents: ?[:0]const u8,
+    pycode_contents: ?[:0]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -352,8 +350,8 @@ fn compileLatex(
                 vesti_dummy,
                 compile_limit,
             );
-            if (luacode_contents) |lc| {
-                try run_script.runLuacode(allocator, diagnostic, lc);
+            if (pycode_contents) |lc| {
+                try run_script.runPyCode(allocator, diagnostic, lc);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -381,8 +379,8 @@ fn compileLatex(
                 main_tex_file,
                 vesti_dummy,
             );
-            if (luacode_contents) |lc| {
-                try run_script.runLuacode(allocator, diagnostic, lc);
+            if (pycode_contents) |lc| {
+                try run_script.runPyCode(allocator, diagnostic, lc);
             }
 
             std.debug.print("[compiled]\n", .{});

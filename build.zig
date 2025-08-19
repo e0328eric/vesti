@@ -11,7 +11,7 @@ const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 const VESTI_VERSION_STR = "0.2.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
-const min_zig_string = "0.15.0-dev.1552+b87b95868";
+const min_zig_string = "0.15.0-dev.1599+cf90a5e45";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -71,21 +71,6 @@ pub fn build(b: *Build) !void {
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
 
-    const py_c_h = b.addTranslateC(.{
-        .root_source_file = b.path("src/pyzig.h"),
-        .target = target,
-        .optimize = optimize,
-    });
-    switch (target.result.os.tag) {
-        .windows => py_c_h.addIncludePath(.{ .cwd_relative = py_include }),
-        else => {},
-    }
-    const py_c = b.createModule(.{
-        .root_source_file = py_c_h.getOutput(),
-        .target = target,
-        .optimize = optimize,
-    });
-
     if (use_tectonic) {
         try buildRust(b, alloc, target);
     }
@@ -98,13 +83,17 @@ pub fn build(b: *Build) !void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
         .strip = strip,
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
             .{ .name = "c", .module = vesti_c },
-            .{ .name = "pyzig", .module = py_c },
         },
+    });
+    exe_mod.addCSourceFile(.{
+        .file = b.path("src/vespy.c"),
+        .flags = &.{"-std=c11"},
     });
     if (use_tectonic) {
         exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
@@ -115,6 +104,8 @@ pub fn build(b: *Build) !void {
     }
     switch (target.result.os.tag) {
         .windows => {
+            exe_mod.addIncludePath(.{ .cwd_relative = py_include });
+            exe_mod.addIncludePath(b.path("src"));
             exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
             exe_mod.linkSystemLibrary("python313", .{});
         },

@@ -59,7 +59,7 @@ pub fn main() !void {
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
     const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
-    const luacode_path = compile_subcmd.flags.get("luacode").?.value.string;
+    const pycode_path = compile_subcmd.flags.get("pycode").?.value.string;
 
     const engine = try getEngine(.{
         .is_latex = is_latex,
@@ -75,14 +75,14 @@ pub fn main() !void {
     defer diagnostic.deinit();
 
     if (zlap.isSubcmdActive("run")) {
-        const lua_contents = (try run_script.getBuildLuaContents(
+        const py_contents = (try run_script.getBuildPyContents(
             allocator,
-            luacode_path,
+            pycode_path,
             &diagnostic,
         )) orelse return error.BuildFileNotFound; // TODO: make a diagnostic
-        defer allocator.free(lua_contents);
+        defer allocator.free(py_contents);
 
-        run_script.runLuacode(allocator, &diagnostic, lua_contents) catch |err| {
+        run_script.runPyCode(allocator, &diagnostic, py_contents) catch |err| {
             try diagnostic.prettyPrint(no_color);
             return err;
         };
@@ -96,7 +96,7 @@ pub fn main() !void {
         engine,
         compile_lim,
         &prev_mtime,
-        luacode_path,
+        pycode_path,
         .{
             .compile_all = compile_all,
             .watch = watch,

@@ -3,29 +3,29 @@ const fs = std.fs;
 const diag = @import("./diagnostic.zig");
 
 const Allocator = std.mem.Allocator;
-const Lua = @import("./Lua.zig");
+const Python = @import("./Python.zig");
 
-pub fn getBuildLuaContents(
+pub fn getBuildPyContents(
     allocator: Allocator,
-    luacode_path: []const u8,
+    pycode_path: []const u8,
     diagnostic: *diag.Diagnostic,
 ) !?[:0]const u8 {
-    const luacode_file = fs.cwd().openFile(luacode_path, .{}) catch |err| switch (err) {
+    const pycode_file = fs.cwd().openFile(pycode_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => {
             const io_diag = try diag.IODiagnostic.init(
                 diagnostic.allocator,
                 null,
                 "failed to read {s}",
-                .{luacode_path},
+                .{pycode_path},
             );
             diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileVesFailed;
         },
     };
-    defer luacode_file.close();
+    defer pycode_file.close();
 
-    const luacode_contents = try luacode_file.readToEndAllocOptions(
+    const pycode_contents = try pycode_file.readToEndAllocOptions(
         allocator,
         std.math.maxInt(usize),
         null,
@@ -33,25 +33,25 @@ pub fn getBuildLuaContents(
         0,
     );
 
-    return luacode_contents;
+    return pycode_contents;
 }
 
-pub fn runLuacode(
+pub fn runPyCode(
     allocator: Allocator,
     diagnostic: *diag.Diagnostic,
-    luacode_contents: [:0]const u8,
+    pycode_contents: [:0]const u8,
 ) !void {
-    const lua = Lua.init(allocator) catch {
+    var py = Python.init() catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
-            "failed to initialize lua vm",
+            "failed to initialize python vm",
             .{},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.LuaInitFailed;
+        return error.PyInitFailed;
     };
-    defer lua.deinit();
+    defer py.deinit();
 
-    try lua.evalCode(luacode_contents);
+    try py.runPyCode(pycode_contents);
 }

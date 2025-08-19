@@ -1,127 +1,153 @@
 const std = @import("std");
-const py = @import("pyzig");
-const diag = @import("./diagnostic.zig");
+const mem = std.mem;
 
-const Parser = @import("./parser/Parser.zig");
-const Codegen = @import("./Codegen.zig");
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
+//const Parser = @import("./parser/Parser.zig");
+//const Codegen = @import("./Codegen.zig");
 
-const VESTI_OUTPUT_STR: [:0]const u8 = "__VESTI_OUTPUT_STR__";
-const VESTI_ERROR_STR: [:0]const u8 = "__VESTI_ERROR_STR__";
-
-pub const Error = error{
+pub const Error = Allocator.Error || error{
     PyInitFailed,
+    PyGetModFailed,
     PyCalcFailed,
 };
 
+gil_state: ?*PyThreadState,
+vespy: ?*PyObject,
+
+const Self = @This();
+
+// extern functions coming from C
+const PyObject = opaque {};
+const PyThreadState = opaque {};
+
+extern "c" fn pyInitVestiModule() c_int;
+extern "c" fn pyDecRef(obj: ?*PyObject) void;
+extern "c" fn PyEval_InitThreads() void;
+extern "c" fn Py_Initialize() void;
+extern "c" fn Py_Finalize() void;
+extern "c" fn Py_NewInterpreter() ?*PyThreadState;
+extern "c" fn Py_EndInterpreter(pst: ?*PyThreadState) void;
+extern "c" fn PyEval_SaveThread() ?*PyThreadState;
+extern "c" fn PyEval_RestoreThread(pst: ?*PyThreadState) void;
+extern "c" fn PyImport_ImportModule(mod_name: [*:0]const u8) ?*PyObject;
+extern "c" fn PyModule_GetState(module: ?*PyObject) ?*anyopaque;
+extern "c" fn PyRun_SimpleString(code: [*:0]const u8) c_int;
+extern "c" fn PyErr_Fetch(
+    etype: ?*?*PyObject,
+    evalue: ?*?*PyObject,
+    etb: ?*?*PyObject,
+) void;
+extern "c" fn PyErr_NormalizeException(
+    etype: ?*?*PyObject,
+    evalue: ?*?*PyObject,
+    etb: ?*?*PyObject,
+) void;
+extern "c" fn PyObject_Str(val: ?*PyObject) ?*PyObject;
+extern "c" fn PyUnicode_AsUTF8(val: ?*PyObject) [*:0]const u8;
+
 //          ╭─────────────────────────────────────────────────────────╮
-//          │               public apis that vesti uses               │
+//          │                    Public Functions                     │
 //          ╰─────────────────────────────────────────────────────────╯
 
-pub fn init() Error!void {
-    if (py.PyImport_AppendInittab("vesti", &pyInitVesti) == -1) {
-        return error.PyInitFailed;
-    }
+pub fn init() Error!Self {
+    if (pyInitVestiModule() == -1) return error.PyInitFailed;
 
-    py.Py_Initialize();
-    return .{};
+    var self: Self = undefined;
+
+    Py_Initialize();
+    errdefer Py_Finalize();
+
+    self.gil_state = PyEval_SaveThread() orelse return error.PyInitFailed;
+
+    PyEval_RestoreThread(self.gil_state);
+    defer self.gil_state = PyEval_SaveThread();
+    self.vespy = PyImport_ImportModule("vesti");
+
+    return self;
 }
 
-pub fn deinit() void {
-    py.Py_Finalize();
+pub fn deinit(self: *Self) void {
+    PyEval_RestoreThread(self.gil_state);
+    pyDecRef(self.vespy);
+    Py_Finalize();
 }
 
-pub fn runPycode(code: [:0]const u8) Error!void {
-    if (py.PyRun_SimpleString(@ptrCast(code.ptr)) != 0) {
-        return error.PyCalFailed;
+pub fn runPyCode(self: *Self, code: [:0]const u8) Error!void {
+    PyEval_RestoreThread(self.gil_state);
+    defer self.gil_state = PyEval_SaveThread();
+
+    if (PyRun_SimpleString(@ptrCast(code.ptr)) != 0) {
+        return error.PyCalcFailed;
     }
+}
+
+pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
+    PyEval_RestoreThread(self.gil_state);
+    defer self.gil_state = PyEval_SaveThread();
+
+    const state_ptr = PyModule_GetState(self.vespy) orelse return error.PyGetModFailed;
+    const vespy: *VesPy = @ptrCast(@alignCast(state_ptr));
+
+    return try vespy.vesti_output.clone(outside_alloc);
+}
+
+pub fn getPyErrorMsg(self: *Self, outside_alloc: Allocator) !?[:0]const u8 {
+    PyEval_RestoreThread(self.gil_state);
+    defer self.gil_state = PyEval_SaveThread();
+
+    var etype: ?*PyObject = null;
+    defer pyDecRef(etype);
+    var evalue: ?*PyObject = null;
+    defer pyDecRef(evalue);
+    var etb: ?*PyObject = null;
+    defer pyDecRef(etb);
+
+    PyErr_Fetch(@ptrCast(&etype), @ptrCast(&evalue), @ptrCast(&etb));
+    PyErr_NormalizeException(@ptrCast(&etype), @ptrCast(&evalue), @ptrCast(&etb));
+
+    if (evalue) |val| {
+        const s = PyObject_Str(val);
+        defer pyDecRef(s);
+        if (s != null) {
+            const msg = PyUnicode_AsUTF8(s);
+            var output: ArrayList(u8) = .{};
+            errdefer output.deinit(outside_alloc);
+            try output.print(outside_alloc, "{s}", .{msg});
+            return try output.toOwnedSliceSentinel(outside_alloc, 0);
+        }
+    }
+
+    return null;
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
 //          │       boilerplates for making vesti python module       │
 //          ╰─────────────────────────────────────────────────────────╯
 
-const VESTI_PY_BUILTINS: [3]py.PyMethodDef = .{
-    .{
-        .ml_name = "addOne",
-        .ml_meth = @ptrCast(&vesti_addOne),
-        .ml_flags = py.METH_VARARGS,
-        .ml_doc = "",
-    },
-    .{
-        .ml_name = "mulTwo",
-        .ml_meth = @ptrCast(&vesti_mulTwo),
-        .ml_flags = py.METH_VARARGS,
-        .ml_doc = "",
-    },
-    .{}, // DO NOT REMOVE
+const c_alloc = std.heap.c_allocator;
+
+const VesPy = extern struct {
+    vesti_output: *ArrayList(u8),
 };
 
-// translate-c cannot translate the following code.
-const PYMODULEDEF_HEAD_INIT: py.PyModuleDef_Base = .{
-    .ob_base = .{
-        .unnamed_0 = .{
-            .ob_refcnt = py._Py_IMMORTAL_REFCNT,
-        },
-    },
-};
+export fn initVesPy(self: *VesPy) callconv(.c) bool {
+    self.vesti_output = c_alloc.create(ArrayList(u8)) catch return false;
+    self.vesti_output.* = ArrayList(u8).initCapacity(c_alloc, 100) catch return false;
 
-var VESTI_MODULE: py.PyModuleDef = .{
-    .m_base = PYMODULEDEF_HEAD_INIT,
-    .m_name = "vesti",
-    .m_doc = "vesti modules",
-    .m_size = -1,
-    .m_methods = @ptrCast(@constCast(&VESTI_PY_BUILTINS)),
-};
-
-fn pyInitVesti() callconv(.c) [*c]py.PyObject {
-    return @ptrCast(py.PyModule_Create(
-        @as([*c]py.PyModuleDef, @ptrCast(&VESTI_MODULE)),
-    ));
+    return true;
 }
 
-//          ╭─────────────────────────────────────────────────────────╮
-//          │         Implementations of vesti python module          │
-//          ╰─────────────────────────────────────────────────────────╯
-
-fn vesti_addOne(self: *py.PyObject, args: *py.PyObject) callconv(.c) ?*py.PyObject {
-    _ = self;
-    //const builtins = py.PyImport_ImportModule("builtins");
-    //defer py.Py_DECREF(builtins);
-    //const print_fnt = py.PyObject_GetAttrString(builtins, "print");
-    //defer py.Py_DECREF(print_fnt);
-
-    //const print_args = py.PyTuple_Pack(1, self);
-    //defer py.Py_DECREF(print_args);
-    //const result = py.PyObject_CallObject(print_fnt, print_args);
-    //defer py.Py_DECREF(result);
-
-    var x: *py.PyObject = undefined;
-    if (py.PyArg_ParseTuple(
-        @ptrCast(args),
-        "O",
-        @as(**py.PyObject, @ptrCast(&x)),
-    ) == 0) {
-        return null;
-    }
-
-    const one = py.PyLong_FromLong(1);
-    defer py.Py_DECREF(one);
-
-    return py.PyNumber_Add(x, one);
+export fn deinitVesPy(self: *VesPy) callconv(.c) void {
+    self.vesti_output.deinit(c_alloc);
+    c_alloc.destroy(self.vesti_output);
 }
 
-fn vesti_mulTwo(self: *py.PyObject, args: *py.PyObject) callconv(.c) ?*py.PyObject {
-    _ = self;
-    var x: *py.PyObject = undefined;
-    var y: *py.PyObject = undefined;
-    if (py.PyArg_ParseTuple(
-        @ptrCast(args),
-        "OO",
-        @as(**py.PyObject, @ptrCast(&x)),
-        @as(**py.PyObject, @ptrCast(&y)),
-    ) == 0) {
-        return null;
-    }
+export fn appendCStr(self: *VesPy, str: [*:0]const u8, len: usize) bool {
+    self.vesti_output.appendSlice(c_alloc, str[0..len]) catch return false;
+    return true;
+}
 
-    return py.PyNumber_Multiply(x, y);
+export fn dumpVesPy(self: *VesPy) void {
+    std.debug.print("pointer: {*}\n", .{self.vesti_output});
 }
