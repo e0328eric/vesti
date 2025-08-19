@@ -1,6 +1,6 @@
 #include "vespy.h"
 
-PyObject* vestiAddOne(PyObject* self, PyObject* args) {
+static PyObject* vestiAddOne(PyObject* self, PyObject* args) {
     //const builtins = PyImport_ImportModule("builtins");
     //defer py.Py_XDECREF(builtins);
     //const print_fnt = py.PyObject_GetAttrString(builtins, "print");
@@ -21,7 +21,7 @@ PyObject* vestiAddOne(PyObject* self, PyObject* args) {
     return result;
 }
 
-PyObject* vestiPrint(PyObject* self, PyObject* args) {
+static PyObject* vestiPrint(PyObject* self, PyObject* args) {
     VesPy* vespy = (VesPy*)PyModule_GetState(self);
     const char* str;
 
