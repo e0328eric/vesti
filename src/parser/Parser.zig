@@ -22,7 +22,8 @@ const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
 const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
-const VESPY_MAIN_LABEL = "MAINPY";
+const VESPY_MAIN_LABEL = @import("vesti-info").VESPY_MAIN_LABEL;
+const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 allocator: Allocator,
 lexer: Lexer,
@@ -54,7 +55,6 @@ pub const LatexEngine = enum(u3) {
     }
 };
 
-pub const VESTI_LOCAL_DUMMY_DIR = "./.vesti-dummy";
 const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
     .{"equation"},
     .{"align"},
@@ -992,7 +992,7 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
 
     const filepath_diff = path.relative(
         self.allocator,
-        VESTI_LOCAL_DUMMY_DIR,
+        VESTI_DUMMY_DIR,
         file_name_str.items,
     ) catch {
         const io_diag = try diag.IODiagnostic.init(
@@ -1000,7 +1000,7 @@ fn parseFilepath(self: *Self) ParseError!Stmt {
             import_file_loc,
             "cannot get the relative path from {s} to {s}",
             .{
-                VESTI_LOCAL_DUMMY_DIR,
+                VESTI_DUMMY_DIR,
                 file_name_str.items,
             },
         );
@@ -1065,11 +1065,11 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
 
     var into_copy_filename = try ArrayList(u8).initCapacity(
         self.allocator,
-        raw_filename.len + VESTI_LOCAL_DUMMY_DIR.len,
+        raw_filename.len + VESTI_DUMMY_DIR.len,
     );
     defer into_copy_filename.deinit(self.allocator);
     try into_copy_filename.print(self.allocator, "{s}/{s}", .{
-        VESTI_LOCAL_DUMMY_DIR, raw_filename,
+        VESTI_DUMMY_DIR, raw_filename,
     });
 
     fs.cwd().copyFile(
@@ -1228,13 +1228,13 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
         var into_copy_filename = try ArrayList(u8).initCapacity(
             self.allocator,
-            export_file.len + VESTI_LOCAL_DUMMY_DIR.len,
+            export_file.len + VESTI_DUMMY_DIR.len,
         );
         defer into_copy_filename.deinit(self.allocator);
         try into_copy_filename.print(
             self.allocator,
             "{s}/{s}",
-            .{ VESTI_LOCAL_DUMMY_DIR, export_file },
+            .{ VESTI_DUMMY_DIR, export_file },
         );
 
         fs.cwd().copyFile(

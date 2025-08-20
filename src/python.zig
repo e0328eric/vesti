@@ -4,6 +4,7 @@ const mem = std.mem;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const Child = std.process.Child;
 const CowStr = @import("./CowStr.zig").CowStr;
 const Codegen = @import("./Codegen.zig");
 const Io = std.Io;
@@ -237,3 +238,4 @@ export fn parseVesti(
     output_str_len.* = content.len;
     return;
 }
+

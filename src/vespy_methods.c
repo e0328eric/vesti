@@ -86,7 +86,7 @@ EXIT_FUNCTION:
 }
 
 #define vestiParse_Documentation           \
-    "parse input string as a vesti code\n" \
+    "parse input string as a vesti code\n"
 
 static PyObject* vestiParse(PyObject* self, PyObject* arg) {
     UNUSED(self);
@@ -110,6 +110,16 @@ static PyObject* vestiParse(PyObject* self, PyObject* arg) {
     PyObject* output =  PyUnicode_FromString(parsed_code);
     zigAllocatorFree((void*)parsed_code, len);
     return output;
+}
+
+#define vestiGetManifestDir_Documentation                                    \
+    "give the string " VESTI_DUMMY_DIR ", a default vesti cache directory\n"
+
+static PyObject* vestiGetManifestDir(PyObject* self, PyObject* noargs) {
+    UNUSED(self);
+    UNUSED(noargs);
+
+    return PyUnicode_FromString(VESTI_DUMMY_DIR);
 }
 
 #endif // VESTI_PYTHON_BUILTINS_IMPLEMENTATION_C_

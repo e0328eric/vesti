@@ -11,6 +11,10 @@ const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 const VESTI_VERSION_STR = "0.2.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
+// default constants in vesti
+const VESTI_DUMMY_DIR = "./.vesti-dummy";
+const VESPY_MAIN_LABEL = "MAINPY";
+
 const min_zig_string = "0.15.0-dev.1599+cf90a5e45";
 const program_name = "vesti";
 
@@ -78,6 +82,8 @@ pub fn build(b: *Build) !void {
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
+    vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
+    vesti_opt.addOption([]const u8, "VESPY_MAIN_LABEL", VESPY_MAIN_LABEL);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -93,7 +99,10 @@ pub fn build(b: *Build) !void {
     });
     exe_mod.addCSourceFile(.{
         .file = b.path("src/vespy.c"),
-        .flags = &.{"-std=c11"},
+        .flags = &.{
+            "-std=c11",
+            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
+        },
     });
     if (use_tectonic) {
         exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });

@@ -44,6 +44,12 @@ static struct PyMethodDef VESTI_PY_BUILTINS[] = {
         .ml_flags = METH_O,
         .ml_doc = vestiParse_Documentation,
     },
+    (PyMethodDef){
+        .ml_name = "getManifestDir",
+        .ml_meth = &vestiGetManifestDir,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = vestiGetManifestDir_Documentation,
+    },
     {NULL, NULL, 0, NULL},
 };
 

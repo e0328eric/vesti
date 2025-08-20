@@ -20,7 +20,7 @@ const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
 const TectonicFnt = fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
 
-const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
+const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
 
 pub const CompileAttribute = packed struct {
@@ -98,11 +98,11 @@ fn compileInner(
     var engine = engine_;
 
     // make vesti-dummy directory
-    fs.cwd().makeDir(VESTI_LOCAL_DUMMY_DIR) catch |err| switch (err) {
+    fs.cwd().makeDir(VESTI_DUMMY_DIR) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    var vesti_dummy = try fs.cwd().openDir(VESTI_LOCAL_DUMMY_DIR, .{});
+    var vesti_dummy = try fs.cwd().openDir(VESTI_DUMMY_DIR, .{});
     defer vesti_dummy.close();
 
     // store "absolute paths" for vesti files
@@ -420,7 +420,7 @@ fn compileLatexWithTectonic(
         "compile_latex_with_tectonic",
     )) |comp| {
         // compile_latex_with_tectonic requires to change the current directory into
-        // VESTI_LOCAL_DUMMY_DIR
+        // VESTI_DUMMY_DIR
         // if one store only fs.cwd(), then it breaks after `recovering` cwd, so
         // curr_dir should store fs.cwd().openDir(".").
         var curr_dir = try fs.cwd().openDir(".", .{});
@@ -431,8 +431,8 @@ fn compileLatexWithTectonic(
         if (!comp(
             main_tex_file.ptr,
             main_tex_file.len,
-            @ptrCast(VESTI_LOCAL_DUMMY_DIR),
-            VESTI_LOCAL_DUMMY_DIR.len,
+            @ptrCast(VESTI_DUMMY_DIR),
+            VESTI_DUMMY_DIR.len,
             compile_limit,
         )) {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -459,7 +459,7 @@ fn compileLatexWithInner(
     const result = try Child.run(.{
         .allocator = allocator,
         .argv = &.{ engine.toStr(), main_tex_file },
-        .cwd = VESTI_LOCAL_DUMMY_DIR,
+        .cwd = VESTI_DUMMY_DIR,
         .max_output_bytes = std.math.maxInt(usize),
         // XXX: https://github.com/ziglang/zig/issues/5190
         //.cwd_dir = vesti_dummy,

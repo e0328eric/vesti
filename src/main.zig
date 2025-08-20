@@ -10,7 +10,7 @@ const ArrayList = std.ArrayList;
 const Diagnostic = @import("./diagnostic.zig").Diagnostic;
 const Parser = @import("./parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
-const VESTI_LOCAL_DUMMY_DIR = Parser.VESTI_LOCAL_DUMMY_DIR;
+const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 fn signalHandler(signal: c_int) callconv(.c) noreturn {
     _ = signal;
@@ -30,8 +30,8 @@ pub fn main() !void {
     defer zlap.deinit();
 
     if (zlap.isSubcmdActive("clear")) {
-        try std.fs.cwd().deleteTree(VESTI_LOCAL_DUMMY_DIR);
-        std.debug.print("[successively remove {s}]", .{VESTI_LOCAL_DUMMY_DIR});
+        try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
+        std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
         return;
     } else if (zlap.is_help or
         (!zlap.isSubcmdActive("compile") and !zlap.isSubcmdActive("run")))
