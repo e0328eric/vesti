@@ -2,7 +2,9 @@
 #define VESTI_PYTHON_H_
 
 #include <stdbool.h>
+#include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -14,9 +16,15 @@ typedef struct {
     void* vesti_output;
 } VesPy;
 
+extern void* zigAllocatorAlloc(size_t n);
+extern void zigAllocatorFree(void* ptr, size_t n);
 extern bool initVesPy(VesPy* self);
 extern void deinitVesPy(VesPy* self);
 extern bool appendCStr(VesPy* self, const char* str, size_t len);
 extern void dumpVesPy(VesPy* self);
+extern const char* parseVesti(
+    const char** output, size_t* output_len,
+    const char* code, size_t len
+);
 
 #endif // VESTI_PYTHON_H_

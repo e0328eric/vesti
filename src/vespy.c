@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "vespy.h"
 
 //          ╭─────────────────────────────────────────────────────────╮
@@ -31,16 +33,16 @@ static void modFree(void* v) {
 
 static struct PyMethodDef VESTI_PY_BUILTINS[] = {
     (PyMethodDef){
-        .ml_name = "addOne",
-        .ml_meth = &vestiAddOne,
-        .ml_flags = METH_VARARGS,
-        .ml_doc = "add one",
+        .ml_name = "print",
+        .ml_meth = (PyCFunction)(&vestiPrint),
+        .ml_flags = METH_FASTCALL | METH_KEYWORDS,
+        .ml_doc = vestiPrint_Documentation,
     },
     (PyMethodDef){
-        .ml_name = "print",
-        .ml_meth = &vestiPrint,
-        .ml_flags = METH_VARARGS,
-        .ml_doc = "writes inner value into the vesti code",
+        .ml_name = "parse",
+        .ml_meth = &vestiParse,
+        .ml_flags = METH_O,
+        .ml_doc = vestiParse_Documentation,
     },
     {NULL, NULL, 0, NULL},
 };
@@ -84,3 +86,11 @@ void pyDecRef(PyObject* obj) {
     Py_XDECREF(obj);
 }
 
+PyObject* raiseError(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    PyObject* result = PyErr_FormatV(PyExc_RuntimeError, fmt, args);
+    va_end(args);
+
+    return result;
+}

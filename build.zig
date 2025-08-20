@@ -135,10 +135,24 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
         .strip = strip,
+        .link_libc = true,
         .imports = &.{
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
         },
     });
+    test_mod.addCSourceFile(.{
+        .file = b.path("src/vespy.c"),
+        .flags = &.{"-std=c11"},
+    });
+    switch (target.result.os.tag) {
+        .windows => {
+            test_mod.addIncludePath(.{ .cwd_relative = py_include });
+            test_mod.addIncludePath(b.path("src"));
+            test_mod.addLibraryPath(.{ .cwd_relative = py_libs });
+            test_mod.linkSystemLibrary("python313", .{});
+        },
+        else => {},
+    }
     const exe_unit_tests = b.addTest(.{
         .name = "vesti-test",
         .root_module = test_mod,

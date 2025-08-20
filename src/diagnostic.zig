@@ -359,9 +359,18 @@ pub const ParseDiagnostic = struct {
                         .{ info.expected[0], info.obtained },
                     );
                 } else {
+                    var tmp = Io.Writer.Allocating.init(allocator);
+                    defer tmp.deinit();
+
+                    try tmp.writer.writeByte('[');
+                    for (info.expected) |info_inner| {
+                        try tmp.writer.print(" {f}", .{info_inner});
+                    }
+                    try tmp.writer.writeAll(" ]");
+
                     try aw.writer.print(
-                        "{any} was expected but got {?f}",
-                        .{ info.expected, info.obtained },
+                        "{s} was expected but got {?f}",
+                        .{ tmp.written(), info.obtained },
                     );
                 }
             },
@@ -376,9 +385,18 @@ pub const ParseDiagnostic = struct {
                         .{ info.close, info.open[0] },
                     );
                 } else {
+                    var tmp = Io.Writer.Allocating.init(allocator);
+                    defer tmp.deinit();
+
+                    try tmp.writer.writeByte('[');
+                    for (info.open) |info_inner| {
+                        try tmp.writer.print(" {f}", .{info_inner});
+                    }
+                    try tmp.writer.writeAll(" ]");
+
                     try aw.writer.print(
-                        "either {f} was not opened with {any}",
-                        .{ info.close, info.open },
+                        "either {f} was not opened with {s}",
+                        .{ info.close, tmp.written() },
                     );
                 }
             },
@@ -389,9 +407,18 @@ pub const ParseDiagnostic = struct {
                         .{ info.open[0], info.close },
                     );
                 } else {
+                    var tmp = Io.Writer.Allocating.init(allocator);
+                    defer tmp.deinit();
+
+                    try tmp.writer.writeByte('[');
+                    for (info.open) |info_inner| {
+                        try tmp.writer.print(" {f}", .{info_inner});
+                    }
+                    try tmp.writer.writeAll(" ]");
+
                     try aw.writer.print(
-                        "either {any} was not closed with {f}",
-                        .{ info.open, info.close },
+                        "either {s} was not closed with {f}",
+                        .{ tmp.written(), info.close },
                     );
                 }
             },

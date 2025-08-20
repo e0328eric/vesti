@@ -1602,6 +1602,19 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     }
     const end = self.peek_tok.toktype.RawChar.end -| end_text.items.len;
     self.nextToken();
+    if (!self.expect(.peek, &.{ .Space, .Newline, .Eof })) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{ .Space, .Newline, .Eof },
+                .obtained = self.peekToktype(),
+            } },
+            .span = self.peek_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    while (self.peekToktype() == .Space) {
+        self.nextToken();
+    }
 
     var code_import: ?ArrayList([]const u8) = null;
     errdefer {
@@ -1613,7 +1626,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
             10,
         );
 
-        self.nextToken(); // skip <end bracket> token
+        self.nextToken(); // skip ' ' token
         self.nextToken(); // skip '[' token
 
         while (true) : (self.nextToken()) {
@@ -1655,7 +1668,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     errdefer pycode.deinit(self.allocator);
     var it = mem.tokenizeScalar(u8, self.lexer.source[start..end], '\n');
     while (it.next()) |line| {
-        const pos = mem.indexOfScalar(u8, line, '\\') orelse {
+        const pos = mem.indexOfScalar(u8, line, '/') orelse {
             const trim_line = mem.trim(u8, line, " \t\r\n");
             if (trim_line.len == 0) continue else {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{

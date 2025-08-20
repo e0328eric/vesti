@@ -53,5 +53,15 @@ pub fn runPyCode(
     };
     defer py.deinit();
 
-    try py.runPyCode(pycode_contents);
+    if (!py.runPyCode(pycode_contents)) {
+        const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
+            diagnostic.allocator,
+            null,
+            "vesti library in python emits an error",
+            .{},
+            "see above python error message",
+        );
+        diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
+        return error.PyEvalFailed;
+    }
 }

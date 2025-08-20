@@ -1,35 +1,127 @@
+#ifndef VESTI_PYTHON_BUILTINS_IMPLEMENTATION_C_
+#define VESTI_PYTHON_BUILTINS_IMPLEMENTATION_C_
+
 #include "vespy.h"
 
-static PyObject* vestiAddOne(PyObject* self, PyObject* args) {
-    //const builtins = PyImport_ImportModule("builtins");
-    //defer py.Py_XDECREF(builtins);
-    //const print_fnt = py.PyObject_GetAttrString(builtins, "print");
-    //defer py.Py_XDECREF(print_fnt);
+#define vestiPrint_Documentation                                 \
+    "bake inner values inside of generated latex codebase\n"     \
+    "\n"                                                         \
+    "<Default Arguments>\n"                                      \
+    "sep (str, default = " ")\n"                                 \
+    "    A separator between each parameters of `vesti.print`\n" \
+    "\n"                                                         \
+    "nl  (int, default = 0)\n"                                   \
+    "    Add newlines after `vesti.print` outputs\n"             \
+    "    If nl > 2, then it changes into nl = 2\n"               \
 
-    //const print_args = py.PyTuple_Pack(1, self);
-    //defer py.Py_XDECREF(print_args);
-    //const result = py.PyObject_CallObject(print_fnt, print_args);
-    //defer py.Py_XDECREF(result);
+typedef struct {
+    const char* separator;
+    uint8_t newline;
+} PrintKwArgs;
 
-    PyObject* x;
-    if (PyArg_ParseTuple(args, "O", &x) == 0) return NULL;
+static void parsePrintKwArgs(PrintKwArgs* output, PyObject* kwargs) {
+    output->separator = " ";
+    output->newline = 0;
+    if (!kwargs) return;
 
-    PyObject* one = PyLong_FromLong(1);
-    PyObject* result = PyNumber_Add(x, one);
-    Py_XDECREF(one);
+    PyObject* tmp;
+    if ((tmp = PyDict_GetItemString(kwargs, "sep")) != NULL) {
+        if (PyUnicode_CheckExact(tmp)) {
+            output->separator = PyUnicode_AsUTF8(tmp);
+        }
+    }
 
+    if ((tmp = PyDict_GetItemString(kwargs, "nl")) != NULL) {
+        if (PyLong_CheckExact(tmp)) {
+            output->newline = (uint8_t)PyLong_AsSize_t(tmp);
+            output->newline = output->newline > 2 ? 2 : output->newline;
+        }
+    }
+}
+
+static PyObject* vestiPrint(
+    PyObject* self,
+    PyObject* const* args,
+    Py_ssize_t nargs,
+    PyObject* kwargs
+) {
+    PyObject* result = Py_None;
+    VesPy* vespy = (VesPy*)PyModule_GetState(self);
+
+    if (nargs < 1) {
+        result = PyErr_Format(PyExc_RuntimeError, "no argument");
+        goto EXIT_FUNCTION;
+    };
+
+    PrintKwArgs kwargs_data;
+    parsePrintKwArgs(&kwargs_data, kwargs);
+
+    for (size_t i = 0; i < (size_t)nargs; ++i) {
+        PyObject* val = args[i];
+        PyObject* str_obj = PyObject_Str(val);
+
+        Py_ssize_t str_len;
+        const char* str = PyUnicode_AsUTF8AndSize(str_obj, &str_len);
+        assert(str_len >= 0 && "python should give a valid string");
+
+        if (!appendCStr(vespy, str, str_len)) return NULL; // OOM
+        if (i + 1 < (size_t)nargs) {
+            if (!appendCStr(
+                vespy,
+                kwargs_data.separator,
+                strlen(kwargs_data.separator)
+            )) return NULL; // OOM
+        }
+
+        for (uint8_t j = 0; j < kwargs_data.newline; ++j) {
+            if (!appendCStr(vespy, "\n", 1)) return NULL; // OOM
+        }
+
+        Py_XDECREF(str_obj);
+    }
+
+
+EXIT_FUNCTION:
     return result;
 }
 
-static PyObject* vestiPrint(PyObject* self, PyObject* args) {
-    VesPy* vespy = (VesPy*)PyModule_GetState(self);
-    const char* str;
+#define vestiParse_Documentation           \
+    "parse input string as a vesti code\n" \
 
-    if (PyArg_ParseTuple(args, "s", &str) == 0) return NULL;
-    size_t str_len = strlen(str);
+static PyObject* vestiParse(PyObject* self, PyObject* arg) {
+    UNUSED(self);
 
-    if (!appendCStr(vespy, str, str_len)) return NULL;
+    if (!PyUnicode_CheckExact(arg)) {
+        PyErr_SetString(PyExc_TypeError, "non-string value was given");
+        return Py_None;
+    }
 
-    return Py_None;
+    Py_ssize_t ves_code_len;
+    const char* ves_code = PyUnicode_AsUTF8AndSize(arg, &ves_code_len);
+
+    const char* parsed_code; size_t len;
+    parseVesti(&parsed_code, &len, ves_code, (size_t)ves_code_len);
+
+    if (!parsed_code) {
+        PyErr_SetString(PyExc_RuntimeError, "parsing vesti code failed");
+        return NULL;
+    }
+
+    PyObject* output =  PyUnicode_FromString(parsed_code);
+    zigAllocatorFree((void*)parsed_code, len);
+    return output;
 }
 
+#endif // VESTI_PYTHON_BUILTINS_IMPLEMENTATION_C_
+
+// REFERENCE NOTE
+//
+//const builtins = PyImport_ImportModule("builtins");
+//defer py.Py_XDECREF(builtins);
+//const print_fnt = py.PyObject_GetAttrString(builtins, "print");
+//defer py.Py_XDECREF(print_fnt);
+
+//const print_args = py.PyTuple_Pack(1, self);
+//defer py.Py_XDECREF(print_args);
+//const result = py.PyObject_CallObject(print_fnt, print_args);
+//defer py.Py_XDECREF(result);

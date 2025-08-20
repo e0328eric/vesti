@@ -1,15 +1,17 @@
 const std = @import("std");
+const diag = @import("./diagnostic.zig");
 const mem = std.mem;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-//const Parser = @import("./parser/Parser.zig");
-//const Codegen = @import("./Codegen.zig");
+const CowStr = @import("./CowStr.zig").CowStr;
+const Codegen = @import("./Codegen.zig");
+const Io = std.Io;
+const Parser = @import("./parser/Parser.zig");
 
 pub const Error = Allocator.Error || error{
     PyInitFailed,
     PyGetModFailed,
-    PyCalcFailed,
 };
 
 gil_state: ?*PyThreadState,
@@ -33,6 +35,7 @@ extern "c" fn PyEval_RestoreThread(pst: ?*PyThreadState) void;
 extern "c" fn PyImport_ImportModule(mod_name: [*:0]const u8) ?*PyObject;
 extern "c" fn PyModule_GetState(module: ?*PyObject) ?*anyopaque;
 extern "c" fn PyRun_SimpleString(code: [*:0]const u8) c_int;
+extern "c" fn PyErr_Occurred() ?*PyObject;
 extern "c" fn PyErr_Fetch(
     etype: ?*?*PyObject,
     evalue: ?*?*PyObject,
@@ -73,13 +76,11 @@ pub fn deinit(self: *Self) void {
     Py_Finalize();
 }
 
-pub fn runPyCode(self: *Self, code: [:0]const u8) Error!void {
+pub fn runPyCode(self: *Self, code: [:0]const u8) bool {
     PyEval_RestoreThread(self.gil_state);
     defer self.gil_state = PyEval_SaveThread();
 
-    if (PyRun_SimpleString(@ptrCast(code.ptr)) != 0) {
-        return error.PyCalcFailed;
-    }
+    return PyRun_SimpleString(@ptrCast(code.ptr)) == 0;
 }
 
 pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
@@ -92,35 +93,6 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
     return try vespy.vesti_output.clone(outside_alloc);
 }
 
-pub fn getPyErrorMsg(self: *Self, outside_alloc: Allocator) !?[:0]const u8 {
-    PyEval_RestoreThread(self.gil_state);
-    defer self.gil_state = PyEval_SaveThread();
-
-    var etype: ?*PyObject = null;
-    defer pyDecRef(etype);
-    var evalue: ?*PyObject = null;
-    defer pyDecRef(evalue);
-    var etb: ?*PyObject = null;
-    defer pyDecRef(etb);
-
-    PyErr_Fetch(@ptrCast(&etype), @ptrCast(&evalue), @ptrCast(&etb));
-    PyErr_NormalizeException(@ptrCast(&etype), @ptrCast(&evalue), @ptrCast(&etb));
-
-    if (evalue) |val| {
-        const s = PyObject_Str(val);
-        defer pyDecRef(s);
-        if (s != null) {
-            const msg = PyUnicode_AsUTF8(s);
-            var output: ArrayList(u8) = .{};
-            errdefer output.deinit(outside_alloc);
-            try output.print(outside_alloc, "{s}", .{msg});
-            return try output.toOwnedSliceSentinel(outside_alloc, 0);
-        }
-    }
-
-    return null;
-}
-
 //          ╭─────────────────────────────────────────────────────────╮
 //          │       boilerplates for making vesti python module       │
 //          ╰─────────────────────────────────────────────────────────╯
@@ -130,6 +102,15 @@ const c_alloc = std.heap.c_allocator;
 const VesPy = extern struct {
     vesti_output: *ArrayList(u8),
 };
+
+export fn zigAllocatorAlloc(n: usize) callconv(.c) ?*anyopaque {
+    const ptr = c_alloc.alloc(u8, n) catch return null;
+    return @ptrCast(ptr);
+}
+
+export fn zigAllocatorFree(ptr: ?*anyopaque, n: usize) callconv(.c) void {
+    if (ptr) |p| c_alloc.free(@as([*]u8, @ptrCast(@alignCast(p)))[0..n]);
+}
 
 export fn initVesPy(self: *VesPy) callconv(.c) bool {
     self.vesti_output = c_alloc.create(ArrayList(u8)) catch return false;
@@ -150,4 +131,109 @@ export fn appendCStr(self: *VesPy, str: [*:0]const u8, len: usize) bool {
 
 export fn dumpVesPy(self: *VesPy) void {
     std.debug.print("pointer: {*}\n", .{self.vesti_output});
+}
+
+export fn parseVesti(
+    output_str: *?[*:0]const u8,
+    output_str_len: *usize,
+    code: [*:0]const u8,
+    len: usize,
+) void {
+    const vesti_code = code[0..len];
+
+    var diagnostic = diag.Diagnostic{
+        .allocator = c_alloc,
+    };
+    defer diagnostic.deinit();
+
+    var cwd_dir = std.fs.cwd();
+    var parser = Parser.init(
+        c_alloc,
+        vesti_code,
+        &cwd_dir,
+        &diagnostic,
+        false, // disallow nested pycode
+        null, // disallow changing engine type
+    ) catch |err| {
+        std.debug.print(
+            "parse init failed because of {s}\n",
+            .{@errorName(err).ptr},
+        );
+        output_str.* = null;
+        return;
+    };
+
+    var ast = parser.parse() catch |err| {
+        switch (err) {
+            Parser.ParseError.ParseFailed => {
+                diagnostic.initMetadata(
+                    CowStr.init(.Borrowed, .{@as([]const u8, "<pycode>")}),
+                    CowStr.init(.Borrowed, .{@as([]const u8, @ptrCast(vesti_code))}),
+                );
+                diagnostic.prettyPrint(true) catch {
+                    std.debug.print(
+                        "diagnostic pretty print failed\n",
+                        .{},
+                    );
+                    output_str.* = null;
+                    return;
+                };
+            },
+            else => {},
+        }
+        std.debug.print(
+            "parse failed because of {s}\n",
+            .{@errorName(err).ptr},
+        );
+        output_str.* = null;
+        return;
+    };
+    defer {
+        for (ast.items) |*stmt| stmt.deinit(c_alloc);
+        ast.deinit(c_alloc);
+    }
+
+    var aw = Io.Writer.Allocating.initCapacity(c_alloc, 256) catch @panic("OOM");
+    errdefer aw.deinit();
+    var codegen = Codegen.init(
+        c_alloc,
+        vesti_code,
+        ast.items,
+        &diagnostic,
+        true, // disallow nested pycode
+    ) catch |err| {
+        std.debug.print(
+            "codegen init failed because of {s}\n",
+            .{@errorName(err).ptr},
+        );
+        output_str.* = null;
+        return;
+    };
+    defer codegen.deinit(c_alloc);
+    codegen.codegen(&aw.writer) catch |err| {
+        diagnostic.initMetadata(
+            CowStr.init(.Borrowed, .{@as([]const u8, "<pycode>")}),
+            CowStr.init(.Borrowed, .{@as([]const u8, @ptrCast(vesti_code))}),
+        );
+        diagnostic.prettyPrint(true) catch {
+            std.debug.print(
+                "diagnostic pretty print failed\n",
+                .{},
+            );
+            output_str.* = null;
+            return;
+        };
+        std.debug.print(
+            "vesti code generation failed because of {s}\n",
+            .{@errorName(err).ptr},
+        );
+        output_str.* = null;
+        return;
+    };
+
+    const content = aw.toOwnedSliceSentinel(0) catch @panic("OOM");
+
+    output_str.* = content.ptr;
+    output_str_len.* = content.len;
+    return;
 }

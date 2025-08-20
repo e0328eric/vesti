@@ -9,11 +9,11 @@ const Parser = @import("../Parser.zig");
 test "basic pycode 1" {
     const source =
         \\pycode 聖者の行進
-        \\    \\import vesti
+        \\    //import vesti
         \\ 
-        \\\\print("Hello, World!")
-        \\            \\if x == 3:
-        \\\\    pass
+        \\//print("Hello, World!")
+        \\            //if x == 3:
+        \\//    pass
         \\    聖者の行進
     ;
     var diagnostic = diag.Diagnostic{
@@ -57,12 +57,12 @@ test "basic pycode 1" {
 test "basic pycode with imports" {
     const source =
         \\pycode 聖者の行進
-        \\    \\import vesti
+        \\    //import vesti
         \\ 
-        \\\\print("Hello, World!")
-        \\            \\if x == 3:
-        \\\\    pass
-        \\    聖者の行進[abcd, 가나다라]
+        \\//print("Hello, World!")
+        \\            //if x == 3:
+        \\//    pass
+        \\    聖者の行進 [abcd, 가나다라]
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,
@@ -113,12 +113,12 @@ test "basic pycode with noexport" {
     const source =
         // the <BRACKET> label `MAINPY` is preserved not to exporting pycode
         \\pycode MAINPY
-        \\    \\import vesti
+        \\    //import vesti
         \\ 
-        \\\\print("Hello, World!")
-        \\            \\if x == 3:
-        \\\\    pass
-        \\    MAINPY[abcd, 가나다라]
+        \\//print("Hello, World!")
+        \\            //if x == 3:
+        \\//    pass
+        \\    MAINPY [abcd, 가나다라]
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,

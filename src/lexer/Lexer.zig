@@ -768,7 +768,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "\"", .{ "\"", null, .DoubleQuote } },
     .{ "...", .{ "...", "\\cdots ", .CenterDots } },
     .{ "oo", .{ "oo", "\\infty ", .InfinitySym } },
-    .{ "%-#", .{ "", "", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "%#" } } } }, // TODO: remove this in the stable version
+    .{ "%-#", .{ "", "", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "%#" } } } },
 });
 
 fn str2Token(self: Self, comptime str: []const u8, token: *Token, loc: Location) void {

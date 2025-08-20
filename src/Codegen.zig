@@ -20,7 +20,7 @@ source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
 pycode_exports: StringArrayHashMap(ArrayList(u8)),
-py: Python,
+py: ?Python,
 
 const Self = @This();
 
@@ -29,8 +29,9 @@ pub fn init(
     source: []const u8,
     stmts: []const ast.Stmt,
     diagnostic: *diag.Diagnostic,
+    comptime disallow_pycode: bool,
 ) !Self {
-    var py = Python.init() catch {
+    var py: ?Python = if (disallow_pycode) null else Python.init() catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
@@ -40,7 +41,7 @@ pub fn init(
         diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.PyInitFailed;
     };
-    errdefer py.deinit();
+    errdefer if (py) |*p| p.deinit();
 
     return Self{
         .allocator = allocator,
@@ -57,7 +58,7 @@ pub fn deinit(self: *Self, allocator: Allocator) void {
         code.deinit(allocator);
     }
     self.pycode_exports.deinit(allocator);
-    self.py.deinit();
+    if (self.py) |*py| py.deinit();
 }
 
 pub fn codegen(
@@ -205,77 +206,65 @@ fn codegenStmt(
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{f}", .{name}),
         .PyCode => |cb| {
-            var new_code = try ArrayList(u8).initCapacity(
-                self.allocator,
-                cb.code.items.len,
-            );
-            errdefer new_code.deinit(self.allocator);
+            if (self.py) |*py| {
+                var new_code = try ArrayList(u8).initCapacity(
+                    self.allocator,
+                    cb.code.items.len,
+                );
+                errdefer new_code.deinit(self.allocator);
 
-            if (cb.code_import) |import_arr_list| {
-                for (import_arr_list.items) |import_label| {
-                    if (self.pycode_exports.get(import_label)) |import_code| {
-                        try new_code.appendSlice(self.allocator, import_code.items);
-                        try new_code.append(self.allocator, '\n');
-                    } else {
-                        const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
-                            self.diagnostic.allocator,
-                            cb.code_span,
-                            import_label,
-                        );
-                        self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
-                        return error.PyLabelNotFound;
+                if (cb.code_import) |import_arr_list| {
+                    for (import_arr_list.items) |import_label| {
+                        if (self.pycode_exports.get(import_label)) |import_code| {
+                            try new_code.appendSlice(self.allocator, import_code.items);
+                            try new_code.append(self.allocator, '\n');
+                        } else {
+                            const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
+                                self.diagnostic.allocator,
+                                cb.code_span,
+                                import_label,
+                            );
+                            self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
+                            return error.PyLabelNotFound;
+                        }
                     }
                 }
-            }
 
-            if (cb.code_export) |export_label| {
-                if (self.pycode_exports.get(export_label) != null) {
-                    self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .DuplicatedPyLabel = export_label },
-                        .span = cb.code_span,
-                    } });
-                    return error.DuplicatedPyLabel;
+                if (cb.code_export) |export_label| {
+                    if (self.pycode_exports.get(export_label) != null) {
+                        self.diagnostic.initDiagInner(.{ .ParseError = .{
+                            .err_info = .{ .DuplicatedPyLabel = export_label },
+                            .span = cb.code_span,
+                        } });
+                        return error.DuplicatedPyLabel;
+                    }
+                    try new_code.appendSlice(self.allocator, cb.code.items);
+                    try self.pycode_exports.put(self.allocator, export_label, new_code);
+                    return;
                 }
+
                 try new_code.appendSlice(self.allocator, cb.code.items);
-                try self.pycode_exports.put(self.allocator, export_label, new_code);
-                return;
-            }
+                try new_code.append(self.allocator, 0);
 
-            try new_code.appendSlice(self.allocator, cb.code.items);
-            try new_code.append(self.allocator, 0);
-
-            // TODO: print appropriate error message
-            self.py.runPyCode(@ptrCast(new_code.items)) catch |err| {
-                if (try self.py.getPyErrorMsg(self.diagnostic.allocator)) |err_str| {
+                // TODO: print appropriate error message
+                if (!py.runPyCode(@ptrCast(new_code.items))) {
                     const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
                         self.diagnostic.allocator,
                         cb.code_span,
-                        "{}",
-                        .{err},
-                        err_str,
+                        "vesti library in python emits an error",
+                        .{},
+                        "see above python error message",
                     );
                     self.diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
                     return error.PyEvalFailed;
                 }
-            };
-            if (try self.py.getPyErrorMsg(self.diagnostic.allocator)) |err_str| {
-                const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
-                    self.diagnostic.allocator,
-                    cb.code_span,
-                    "vesti library in lua emits an error",
-                    .{},
-                    err_str,
-                );
-                self.diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
-                return error.PyEvalFailed;
+
+                var ves_output = try py.getVestiOutputStr(self.allocator);
+                defer ves_output.deinit(self.allocator);
+                try writer.writeAll(ves_output.items);
+
+                new_code.deinit(self.allocator);
             }
-
-            var ves_output = try self.py.getVestiOutputStr(self.allocator);
-            defer ves_output.deinit(self.allocator);
-            std.debug.print("{s}\n", .{ves_output.items});
-            try writer.writeAll(ves_output.items);
-
-            new_code.deinit(self.allocator);
         },
         .Int, .Float => undefined, // TODO: deprecated
     }
