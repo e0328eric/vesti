@@ -41,7 +41,7 @@ about.
     $\Us$ which does not have a finite subset of $\Us$ that covers $X$.
     Put
     \[
-        \Vs := \{X \setminus  E : E\in\Us\}.
+        \Vs \defeq \{X \setminus  E : E\in\Us\}.
     \]
     Observe that $\Vs$ satisfies FIP. Take an ultrafilter $\Uc$ which is a
     superset of $\Vs$ by \Cref{prop:existence-ultrafilters} and
@@ -60,7 +60,7 @@ about.
     Suppose that $K\subset X$ is compact, and fix an ultrafilter $\Uc$ that
     contains $K$. Then the set
     \begin{equation}
-        \Uc' := \{F\cap K : F\in\Uc\} \label{eq:coro:compact-filter:1}
+        \Uc' \defeq \{F\cap K : F\in\Uc\} \label{eq:coro:compact-filter:1}
     \end{equation}
     is an ultrafilter in $K$. Being compact, $\Uc'\to x\in K$ by
     \Cref{thm:compact-filter}. Now fix an open set $N$ that contains $x$.
@@ -112,7 +112,7 @@ One may solve \Cref{exe:properties-compact}.
             $\Uc\supset\Fc$ by \Cref{prop:existence-ultrafilters}, and finally,
             consider
             \[
-                \Uc' := \{F\cap K : F\in\Uc\}.
+                \Uc' \defeq \{F\cap K : F\in\Uc\}.
             \]
             Since $\Uc'$ is an ultrafilter in $K$, there is a point $y\in K$
             such that $\Uc'\to y$ by \Cref{coro:compact-filter}.

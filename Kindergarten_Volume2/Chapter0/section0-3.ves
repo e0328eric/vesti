@@ -6,7 +6,7 @@ useenv defin [Product set] { \index{set!product}
     X_\alpha$ for each $\alpha\in A$.
 
     If at least one set $X_\alpha$ is empty or $A=\emptyset$, define
-    $\prod_{\alpha\in A}X_\alpha := \emptyset$.
+    $\prod_{\alpha\in A}X_\alpha \defeq \emptyset$.
 }
 
 In mathematics, if every sets are nonempty, their product is also not empty and

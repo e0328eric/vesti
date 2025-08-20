@@ -1,3 +1,4 @@
+compty(lua)
 importmod(coprime)
 cpfile(./references.bib)
 docclass memoir (b5paper, 9pt, openright, final)
@@ -5,9 +6,9 @@ docclass memoir (b5paper, 9pt, openright, final)
 importpkg {
     anyfontsize,
     caption,
-    coprime-math,
     fontawesome,
-    fontenc (T1),
+    fontenc,
+    coprime-math (stix),
     graphicx,
     helvet,
     lipsum,
@@ -22,6 +23,17 @@ importpkg {
     xparse,
     cleveref,
 }
+
+\setsansfont{notosans}
+\setmonofont{notosansmono}
+
+\def\Re{mathmode{\mathop{"Re"}}}
+\def\Im{mathmode{\mathop{"Im"}}}
+\def\I{\bbb{1}}
+\let\llo=\lParen
+\let\rro=\rParen
+\let\llc=\lBrack
+\let\rrc=\rBrack
 
 \makeindex
 \makeindex[sym]
@@ -42,6 +54,8 @@ makeatletter
 makeatother
 
 startdoc
+\def\defeq{:=}
+\def\eqdef{=:}
 
 \frontmatter
 \thispagestyle{empty}
@@ -97,21 +111,29 @@ importves(./Chapter1/section1-5.ves)
 
 \chapter{Measures and Integrations}
 \section{Introduction}
-importves(./Chapter2/section2-1.ves)
+importves(./Measure-Integration/section1.ves)
 
 \section{Measures and measurable sets}
-importves(./Chapter2/section2-2.ves)
+importves(./Measure-Integration/section2.ves)
 
 \section{Measurable functions}
-importves(./Chapter2/section2-3.ves)
+importves(./Measure-Integration/section3.ves)
 
 \section{Integrations}
-importves(./Chapter2/section2-4.ves)
+importves(./Measure-Integration/section4.ves)
 
 \section{Borel sets and Borel measures}
-importves(./Chapter2/section2-5.ves)
+importves(./Measure-Integration/section5.ves)
 
-\chapter{The Fubini-Tonelli's theorem} \label{chap:fubini-tonelli}
+\chapter{Elementary Functional Analysis Theory}
+
+\chapter{Vector Valued Integrations} \label{chap:bochner-integral}
+importves(./bochner-integral/prologue.ves)
+\section{Measurability and Bochner integral}
+importves(./bochner-integral/section1.ves)
+
+\section{The $L_p$ spaces for Bochner Integral}
+importves(./bochner-integral/section2.ves)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

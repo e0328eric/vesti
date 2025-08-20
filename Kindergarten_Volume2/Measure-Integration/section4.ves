@@ -1,0 +1,21 @@
+Now we are ready to define a Lebesgue integration. 
+Everywhere in this section, $(X,\mu)$ denotes a measure space.
+
+useenv figure [t] {
+    \centering
+    useenv tikzpicture [xscale=4,yscale=14] {
+        \draw[thick] (-0.2,0) -- (1.2,0) node[right] {$X$};
+        \draw[thick] (0,0) -- (0,0.2) node[above] {$[0,oo)$};
+        \draw[densely dashed, name path=line1] (0,0.09) node[above left=-1mm]
+            {$k2^{-n}$} -- ++(1.2,0);
+        \draw[densely dashed, name path=line2] (0,0.08) node[below left=-1mm]
+            {$(k-1)2^{-n}$} -- ++(1.2,0);
+        \draw[domain=0:1,variable=\x,smooth,name path=foo] plot (\x, {-pow(\x,3)+pow(\x,2)});
+        \path[name intersections={of=line1 and foo, name=i}]
+            ($0.5*(i-1) + 0.5*(i-2) + (0,0.08)$) node {$y=f(x)$};
+        \path[thick,fill=black!10,name intersections={of=line1 and foo, name=i}];
+        \path[thick,fill=black!10,name intersections={of=line2 and foo, name=j}];
+        \draw[fill=black!20] ($(j-1)!(i-1)!(j-2)$) rectangle (i-2);
+    }
+    \caption{Definition of the Lebesgue integration}
+}

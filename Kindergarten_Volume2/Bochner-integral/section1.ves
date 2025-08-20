@@ -1,0 +1,36 @@
+Let $(X,\Mf,\mu)$ be a measure space. Consider
+$$
+    s = \sum_{j=1}^n c_j\I_{E_j},
+$$
+where $n\in\Z_+$, $c_1,...,c_n\in F$ are distinct and the sets $E_j\subset X$
+are $\Mf$-measurable and mutually disjoint.
+Let $S(X,F)$ denotes the family of all such simple functions.
+
+A function $u:X->F$ is said to be \it{strongly measurable} if there exists a
+sequence $(s_n)_n$ in $S(X,F)$ such that
+$$
+    \lim_{n->oo}||u(x) - s_n(x)|| = 0,\quad (\mu-"a.e.")\ x\in X.
+$$
+
+A simple function $s\in S(X,F)$ is \it{Bochner integrable} if $s$ attains
+nonzero values on each set of finite measure. For every $E\in\Mf$, the
+\it{Bochner integral} of $s$ over $E$ is defined by
+$$
+    \int_E sd\mu \defeq \sum_{j=1}^n c_j\mu(E_j\cap E) \quad (0\cdot oo \defeq 0).
+$$
+Now let $u$ is strongly measurable. If there exists a sequence $(s_n)_n$ in
+$S(X,F)$ such that
+$$
+    \lim_{n->oo}||u(x)-s_n(x)|| = 0\quad (\mu"-a.e."# x),
+$$
+$$
+    \lim_{n->oo}\int_X ||u-s_n||d\mu = 0,
+$$
+We define
+$$
+    \int_E ud\mu \defeq \lim_{n->oo}\int_E s_nd\mu,
+$$
+where the limit performs on the strong sense.
+We say that such sequence $(s_n)_n$ is called a \it{generating sequence} of
+$u$.
+

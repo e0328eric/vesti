@@ -6,7 +6,6 @@ useenv defin [Measures and measure spaces] { \label{defin:measure}
     $\mu:\Pc(X)->[0,oo]$\index[sym]{$\mu$} such that
     useenv enumerate [label=(\roman*)] {
         \item $\mu(\emptyset)=0$;
-        \item $\mu(A)<=\mu(B)$ if $A\subset B$;
         \item $\mu(\bigcup_{j=1}^oo A_j) <= \sum_{j=1}^oo \mu(A_j)$.
     }
 
@@ -14,7 +13,7 @@ useenv defin [Measures and measure spaces] { \label{defin:measure}
     space}\index[sym]{$(X,\mu)$}.
 }
 
-Below exercise is almost trivial, so we use this fact without mention it.
+Below two exercises are almost trivial, so we use this fact without mention it.
 However, we should prove the following property because it is not implied from
 the definition directly.
 
@@ -26,8 +25,12 @@ useenv exec* {
     $$
 }
 
-Now we are going to define a term ``measurable" of sets.
+useenv exec* {
+    Let $X$ be a nonempty set and $\mu$ a measure on $X$. If $A\subset B$, prove
+    that $\mu(A)<=\mu(B)$.
+}
 
+Now we are going to define a term ``measurable" of sets.
 useenv defin [Measurable sets] {
     Let $(X,\mu)$ be a measure space. A set $A\subset X$ is called
     \it{$\mu$-measurable}\index{set!measurable}\index{set!$\mu$-measurable} if
@@ -277,7 +280,7 @@ useenv defin { \label{defin:sigma-field-generate}
     Let $X$ be a set and $\Cc$ be a subset of $\Pc(X)$.
     Then the $\sigma$-field $\sigma(\Cc)$ generated from $\Cc$ is defined by
     $$
-        \sigma(\Cc) := \bigcap\{\Mf \subset \Pc(X) : \Mf \supset \Cc,\ \Mf #"is
+        \sigma(\Cc) \defeq \bigcap\{\Mf \subset \Pc(X) : \Mf \supset \Cc,\ \Mf #"is
         a"# \sigma"-field"\}.
     $$
     \index[sym]{$\sigma(\Cc)$}
@@ -301,7 +304,7 @@ useenv exec {
     Let $X$ and $Y$ be nonempty sets and $f:X->Y$ a function. If $\Mf$ is a
     $\sigma$-field on $Y$ then the collection
     $$
-        f^{-1}[\Mf] := \{f^{-1}[E] : E\in\Mf\}
+        f^{-1}[\Mf] \defeq \{f^{-1}[E] : E\in\Mf\}
     $$
     is a $\sigma$-field on $X$.\index[sym]{$f^{-1}[\Mf]$}
 }
