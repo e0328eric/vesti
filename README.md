@@ -2,12 +2,12 @@
 
 A transpiler that compiles into LaTeX.
 
-## Why need a LaTeX transpiler?
+## Why do we need a LaTeX transpiler?
 
-I used to make several documentations using LaTeX (or plainTeX, but TeX is quite cumbersome to write
-a document, especially very complex tables or put an image, for example).
-However, its markdown like syntax is not confortable to use it.
-For example, there is a simple LaTeX document.
+I used to create several documents using LaTeX (or plain TeX but TeX is quite
+cumbersome to write—especially when working with very complex tables or
+inserting images). Its markdown-like syntax is also not comfortable to use. For
+example, here is a simple LaTeX document:
 
 ```tex
 % coprime is my custom class. See https://github.com/e0328eric/coprime.
@@ -26,14 +26,12 @@ Hello, World!
     \end{tikzpicture}
 \end{figure}
 
-Upper code is a figure using tikz.
+The code above is a figure using TikZ.
 
 \end{document}
 ```
 
-What I am anoying about to use it is `\begin` and `\end` block. Is there a way to write much simpler? This
-question makes me to start this project. Currently, below code is generated into upper LaTeX code
-using vesti except comments.
+What annoys me most when using it is the `\begin` and `\end` blocks. Is there a way to write something much simpler? This question led me to start this project. Currently, the following code is generated into the LaTeX code above (except comments) using vesti:
 
 ```
 % coprime is my custom class. See https://github.com/e0328eric/coprime.
@@ -53,32 +51,33 @@ useenv figure [ht] {
     }
 }
 
-Upper code is a figure using tikz.
+The code above is a figure using TikZ.
 ```
 
 # Installation
-## Prerequisits
-On windows, texlive or related software and python 3.13 is required. If one uses
-vesti with tectonic backend, the dependency of texlive is not needed.
 
-On linux and macos, freetype2 and fontconfig are additionally required.
+## Prerequisites
+On Windows, TeX Live (or related software) and Python 3.13 are required. If one uses vesti with the Tectonic backend, TeX Live is not needed.
+
+On Linux and macOS, `freetype2` and `fontconfig` are additionally required.
 
 ## Compilation
-If one does not want to compile tectonic backend, just run the following code
+If you do not want to compile the Tectonic backend, just run the following command:
+
 ```console
 $ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
 ```
 
-Otherwise, there are two more tools needed:
-- rust compiler (with cargo)
+Otherwise, two additional tools are needed:
+- Rust compiler (with Cargo)
 - cargo-vcpkg
 
-Then run the following command
+Then run the following command:
+
 ```console
 $ zig build --prefix-exe-dir <path to install> -Dtectonic=true -Doptimize=ReleaseSafe
 ```
 
 ## Warning
-This language is in beta version, so future break changes can be exist. Beware
-to use in the large projects.
+This language is in beta, so breaking changes may occur in the future. Be cautious when using it for large projects.
 
