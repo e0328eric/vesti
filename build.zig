@@ -15,7 +15,7 @@ const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreach
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 const VESPY_MAIN_LABEL = "MAINPY";
 
-const min_zig_string = "0.15.0-dev.1599+cf90a5e45";
+const min_zig_string = "0.15.1";
 const program_name = "vesti";
 
 // NOTE: This code came from
