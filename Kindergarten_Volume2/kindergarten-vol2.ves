@@ -1,4 +1,4 @@
-compty(lua)
+compty(tect)
 importmod(coprime)
 cpfile(./references.bib)
 docclass memoir (b5paper, 9pt, openright, final)
@@ -8,7 +8,7 @@ importpkg {
     caption,
     fontawesome,
     fontenc,
-    coprime-math (stix),
+    coprime-math,
     graphicx,
     helvet,
     lipsum,
@@ -23,9 +23,6 @@ importpkg {
     xparse,
     cleveref,
 }
-
-\setsansfont{notosans}
-\setmonofont{notosansmono}
 
 \def\Re{mathmode{\mathop{"Re"}}}
 \def\Im{mathmode{\mathop{"Im"}}}
@@ -128,12 +125,12 @@ importves(./Measure-Integration/section5.ves)
 \chapter{Elementary Functional Analysis Theory}
 
 \chapter{Vector Valued Integrations} \label{chap:bochner-integral}
-importves(./bochner-integral/prologue.ves)
+importves(./Bochner-Integral/prologue.ves)
 \section{Measurability and Bochner integral}
-importves(./bochner-integral/section1.ves)
+importves(./Bochner-Integral/section1.ves)
 
 \section{The $L_p$ spaces for Bochner Integral}
-importves(./bochner-integral/section2.ves)
+importves(./Bochner-Integral/section2.ves)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

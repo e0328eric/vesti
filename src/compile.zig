@@ -412,7 +412,12 @@ fn compileLatexWithTectonic(
     vesti_dummy: *fs.Dir,
     compile_limit: usize,
 ) !void {
-    var dll = try Dynlib.open("vesti_tectonic.dll");
+    var dll = try Dynlib.open(switch (builtin.os.tag) {
+        .windows => "vesti_tectonic.dll",
+        .linux => "libvesti_tectonic.so",
+        .macos => "libvesti_tectonic.dylib",
+        else => @panic("Not supported"),
+    });
     defer dll.close();
 
     if (dll.lookup(

@@ -66,11 +66,13 @@ pub fn build(b: *Build) !void {
 
     const py_libs = switch (target.result.os.tag) {
         .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/libs"),
+        .linux => "/usr/lib",
         else => "",
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_libs);
     const py_include = switch (target.result.os.tag) {
         .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/include"),
+        .linux => "/usr/include/python3.13",
         else => "",
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
@@ -111,13 +113,13 @@ pub fn build(b: *Build) !void {
             .{ .search_strategy = .paths_first, .preferred_link_mode = .dynamic },
         );
     }
+    exe_mod.addIncludePath(.{ .cwd_relative = py_include });
+    exe_mod.addIncludePath(b.path("src"));
+    exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
     switch (target.result.os.tag) {
-        .windows => {
-            exe_mod.addIncludePath(.{ .cwd_relative = py_include });
-            exe_mod.addIncludePath(b.path("src"));
-            exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
-            exe_mod.linkSystemLibrary("python313", .{});
-        },
+        .windows =>
+            exe_mod.linkSystemLibrary("python313", .{}),
+        .linux => exe_mod.linkSystemLibrary("python3.13", .{}),
         else => {},
     }
     exe_mod.addOptions("vesti-info", vesti_opt);
