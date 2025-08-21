@@ -56,13 +56,24 @@ useenv figure [ht] {
 Upper code is a figure using tikz.
 ```
 
-## Installation
+# Installation
+## Prerequisits
+On windows, texlive or related software and python 3.13 is required. If one uses
+vesti with tectonic backend, the dependency of texlive is not needed.
+
+On linux and macos, freetype2 and fontconfig are additionally required.
+
+## Compilation
 If one does not want to compile tectonic backend, just run the following code
 ```console
 $ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
 ```
 
-Otherwise, run this
+Otherwise, there are two more tools needed:
+- rust compiler (with cargo)
+- cargo-vcpkg
+
+Then run the following command
 ```console
 $ zig build --prefix-exe-dir <path to install> -Dtectonic=true -Doptimize=ReleaseSafe
 ```
