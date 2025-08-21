@@ -95,11 +95,32 @@
     default: 3;
 
     #flag;
-    long: pycode;
+    long: before_script;
+    short:;
+    desc: custom pycode to execute before running vesti steps;
+    type: string;
+    default: before.py;
+
+    #flag;
+    long: after_script;
+    short:;
+    desc: custom pycode to execute after running vesti steps;
+    type: string;
+    default: after.py;
+
+    #flag;
+    long: step_script;
+    short:;
+    desc: custom pycode to execute for each end of vesti steps;
+    type: string;
+    default: step.py;
+
+    #flag;
+    long: run_script;
     short:;
     desc: custom pycode to execute;
     type: string;
-    default: build.py;
+    default: run.py;
 }
 {
     #name: clear;

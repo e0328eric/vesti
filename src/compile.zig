@@ -5,7 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("./diagnostic.zig");
-const run_script = @import("./run_script.zig");
+const pyscript = @import("./pyscript.zig");
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
@@ -30,6 +30,43 @@ pub const CompileAttribute = packed struct {
     no_exit_err: bool,
 };
 
+pub const PythonScripts = struct {
+    before: []const u8,
+    after: []const u8,
+    step: []const u8,
+};
+
+pub const PythonContents = struct {
+    before: ?[:0]const u8 = null,
+    after: ?[:0]const u8 = null,
+    step: ?[:0]const u8 = null,
+
+    fn init(
+        scripts: *const PythonScripts,
+        allocator: Allocator,
+        diagnostic: *diag.Diagnostic,
+    ) !@This() {
+        var output: @This() = .{};
+
+        inline for (&.{ "before", "after", "step" }) |ty| {
+            @field(output, ty) = try pyscript.getBuildPyContents(
+                allocator,
+                @field(scripts, ty),
+                diagnostic,
+            );
+            errdefer if (@field(output, ty)) |lf| allocator.free(lf);
+        }
+
+        return output;
+    }
+
+    fn deinit(self: *const @This(), allocator: Allocator) void {
+        inline for (&.{ "before", "after", "step" }) |ty| {
+            if (@field(self, ty)) |lf| allocator.free(lf);
+        }
+    }
+};
+
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
@@ -37,15 +74,15 @@ pub fn compile(
     engine: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    pycode_path: []const u8,
+    pycode_scripts: PythonScripts,
     attr: CompileAttribute,
 ) !void {
-    const pycode_contents = try run_script.getBuildPyContents(
+    const pycode_contents = try PythonContents.init(
+        &pycode_scripts,
         allocator,
-        pycode_path,
         diagnostic,
     );
-    defer if (pycode_contents) |lf| allocator.free(lf);
+    defer pycode_contents.deinit(allocator);
 
     while (true) {
         compileInner(
@@ -90,7 +127,7 @@ fn compileInner(
     engine_: LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    pycode_contents: ?[:0]const u8,
+    pycode_contents: PythonContents,
     attr: CompileAttribute,
 ) !void {
     // actually, one can change compile latex engine with `compty` keyword
@@ -343,7 +380,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    pycode_contents: ?[:0]const u8,
+    pycode_contents: PythonContents,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -351,14 +388,17 @@ fn compileLatex(
 
     if (engine == .tectonic) {
         if (@import("vesti-info").USE_TECTONIC) {
+            if (pycode_contents.before) |lc| {
+                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
+            }
             try compileLatexWithTectonic(
                 diagnostic,
                 main_tex_file,
                 vesti_dummy,
                 compile_limit,
             );
-            if (pycode_contents) |lc| {
-                try run_script.runPyCode(allocator, diagnostic, engine, lc);
+            if (pycode_contents.after) |lc| {
+                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -373,6 +413,9 @@ fn compileLatex(
             return error.CompileLatexFailed;
         }
     } else {
+        if (pycode_contents.before) |lc| {
+            try pyscript.runPyCode(allocator, diagnostic, engine, lc);
+        }
         for (0..compile_limit) |i| {
             std.debug.print("[compile number {}, engine: {s}]\n", .{
                 i + 1,
@@ -386,11 +429,14 @@ fn compileLatex(
                 main_tex_file,
                 vesti_dummy,
             );
-            if (pycode_contents) |lc| {
-                try run_script.runPyCode(allocator, diagnostic, engine, lc);
+            if (pycode_contents.step) |lc| {
+                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
             }
 
             std.debug.print("[compiled]\n", .{});
+        }
+        if (pycode_contents.after) |lc| {
+            try pyscript.runPyCode(allocator, diagnostic, engine, lc);
         }
     }
 

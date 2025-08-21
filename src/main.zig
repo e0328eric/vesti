@@ -1,7 +1,7 @@
 const std = @import("std");
 const time = std.time;
 const compile = @import("./compile.zig");
-const run_script = @import("./run_script.zig");
+const pyscript = @import("./pyscript.zig");
 const c = @import("c");
 
 const assert = std.debug.assert;
@@ -59,7 +59,10 @@ pub fn main() !void {
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
     const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
-    const pycode_path = compile_subcmd.flags.get("pycode").?.value.string;
+    const before_script = compile_subcmd.flags.get("before_script").?.value.string;
+    const after_script = compile_subcmd.flags.get("after_script").?.value.string;
+    const step_script = compile_subcmd.flags.get("step_script").?.value.string;
+    const run_script = compile_subcmd.flags.get("run_script").?.value.string;
 
     const engine = try getEngine(.{
         .is_latex = is_latex,
@@ -78,14 +81,14 @@ pub fn main() !void {
     // `run` may different (since we can know the engine type inside of
     // build.py). How can I resolve such issue?
     if (zlap.isSubcmdActive("run")) {
-        const py_contents = (try run_script.getBuildPyContents(
+        const py_contents = (try pyscript.getBuildPyContents(
             allocator,
-            pycode_path,
+            run_script,
             &diagnostic,
         )) orelse return error.BuildFileNotFound; // TODO: make a diagnostic
         defer allocator.free(py_contents);
 
-        run_script.runPyCode(allocator, &diagnostic, engine, py_contents) catch |err| {
+        pyscript.runPyCode(allocator, &diagnostic, engine, py_contents) catch |err| {
             try diagnostic.prettyPrint(no_color);
             return err;
         };
@@ -99,7 +102,11 @@ pub fn main() !void {
         engine,
         compile_lim,
         &prev_mtime,
-        pycode_path,
+        .{
+            .before = before_script,
+            .after = after_script,
+            .step = step_script,
+        },
         .{
             .compile_all = compile_all,
             .watch = watch,
