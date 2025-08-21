@@ -37,7 +37,7 @@ engine: ?*LatexEngine,
 
 const Self = @This();
 
-pub const LatexEngine = enum(u3) {
+pub const LatexEngine = enum(u8) { // it also uses in c
     latex,
     pdflatex,
     xelatex,

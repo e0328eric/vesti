@@ -89,7 +89,7 @@ EXIT_FUNCTION:
     "parse input string as a vesti code\n"
 
 static PyObject* vestiParse(PyObject* self, PyObject* arg) {
-    UNUSED(self);
+    VesPy* vespy = (VesPy*)PyModule_GetState(self);
 
     if (!PyUnicode_CheckExact(arg)) {
         PyErr_SetString(PyExc_TypeError, "non-string value was given");
@@ -100,7 +100,7 @@ static PyObject* vestiParse(PyObject* self, PyObject* arg) {
     const char* ves_code = PyUnicode_AsUTF8AndSize(arg, &ves_code_len);
 
     const char* parsed_code; size_t len;
-    parseVesti(&parsed_code, &len, ves_code, (size_t)ves_code_len);
+    parseVesti(&parsed_code, &len, ves_code, (size_t)ves_code_len, vespy->engine);
 
     if (!parsed_code) {
         PyErr_SetString(PyExc_RuntimeError, "parsing vesti code failed");
@@ -112,7 +112,7 @@ static PyObject* vestiParse(PyObject* self, PyObject* arg) {
     return output;
 }
 
-#define vestiGetManifestDir_Documentation                                    \
+#define vestiGetManifestDir_Documentation \
     "give the string " VESTI_DUMMY_DIR ", a default vesti cache directory\n"
 
 static PyObject* vestiGetManifestDir(PyObject* self, PyObject* noargs) {
@@ -120,6 +120,38 @@ static PyObject* vestiGetManifestDir(PyObject* self, PyObject* noargs) {
     UNUSED(noargs);
 
     return PyUnicode_FromString(VESTI_DUMMY_DIR);
+}
+
+#define vestiEngineType_Documentation                         \
+    "give the engine type of current running latex backend\n" \
+    "\n"                                                      \
+    "<Possible Values>\n"                                     \
+    "    - latex\n"                                           \
+    "    - pdf  (indicates pdflatex)\n"                       \
+    "    - xe   (indicates xelatex)\n"                        \
+    "    - lua  (indicates lualatex)\n"                       \
+    "    - tect (indicates tectonic)\n"
+
+static PyObject* vestiEngineType(PyObject* self, PyObject* noargs) {
+    UNUSED(noargs);
+    VesPy* vespy = (VesPy*)PyModule_GetState(self);
+
+    switch (vespy->engine) {
+    case LATEX_ENGINE_LATEX:
+        return PyUnicode_FromString("latex");
+    case LATEX_ENGINE_PDF:
+        return PyUnicode_FromString("pdf");
+    case LATEX_ENGINE_XE:
+        return PyUnicode_FromString("xe");
+    case LATEX_ENGINE_LUA:
+        return PyUnicode_FromString("lua");
+    case LATEX_ENGINE_TECTONIC:
+        return PyUnicode_FromString("tect");
+    default:
+        PyErr_SetString(PyExc_RuntimeError, 
+            "internal vesti-python error. unreachable branch reached...");
+        return NULL;
+    }
 }
 
 #endif // VESTI_PYTHON_BUILTINS_IMPLEMENTATION_C_

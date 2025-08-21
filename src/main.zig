@@ -74,6 +74,9 @@ pub fn main() !void {
     };
     defer diagnostic.deinit();
 
+    // TODO: because of the `compty` keyword, engines between `compile` and
+    // `run` may different (since we can know the engine type inside of
+    // build.py). How can I resolve such issue?
     if (zlap.isSubcmdActive("run")) {
         const py_contents = (try run_script.getBuildPyContents(
             allocator,
@@ -82,7 +85,7 @@ pub fn main() !void {
         )) orelse return error.BuildFileNotFound; // TODO: make a diagnostic
         defer allocator.free(py_contents);
 
-        run_script.runPyCode(allocator, &diagnostic, py_contents) catch |err| {
+        run_script.runPyCode(allocator, &diagnostic, engine, py_contents) catch |err| {
             try diagnostic.prettyPrint(no_color);
             return err;
         };

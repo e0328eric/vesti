@@ -301,6 +301,7 @@ pub fn vestiToLatex(
         source,
         ast.items,
         diagnostic,
+        engine.*,
         false, // allow initializing python
     );
     defer codegen.deinit(allocator);
@@ -357,7 +358,7 @@ fn compileLatex(
                 compile_limit,
             );
             if (pycode_contents) |lc| {
-                try run_script.runPyCode(allocator, diagnostic, lc);
+                try run_script.runPyCode(allocator, diagnostic, engine, lc);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -386,7 +387,7 @@ fn compileLatex(
                 vesti_dummy,
             );
             if (pycode_contents) |lc| {
-                try run_script.runPyCode(allocator, diagnostic, lc);
+                try run_script.runPyCode(allocator, diagnostic, engine, lc);
             }
 
             std.debug.print("[compiled]\n", .{});

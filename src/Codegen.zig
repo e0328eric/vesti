@@ -5,6 +5,7 @@ const ast = @import("./parser/ast.zig");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
+const LatexEngine = @import("./parser/Parser.zig").LatexEngine;
 const Python = @import("./Python.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("./location.zig").Span;
@@ -29,9 +30,10 @@ pub fn init(
     source: []const u8,
     stmts: []const ast.Stmt,
     diagnostic: *diag.Diagnostic,
+    engine: LatexEngine,
     comptime disallow_pycode: bool,
 ) !Self {
-    var py: ?Python = if (disallow_pycode) null else Python.init() catch {
+    var py: ?Python = if (disallow_pycode) null else Python.init(engine) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,

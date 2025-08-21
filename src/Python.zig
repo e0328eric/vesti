@@ -9,6 +9,7 @@ const CowStr = @import("./CowStr.zig").CowStr;
 const Codegen = @import("./Codegen.zig");
 const Io = std.Io;
 const Parser = @import("./parser/Parser.zig");
+const LatexEngine = Parser.LatexEngine;
 
 pub const Error = Allocator.Error || error{
     PyInitFailed,
@@ -54,7 +55,7 @@ extern "c" fn PyUnicode_AsUTF8(val: ?*PyObject) [*:0]const u8;
 //          │                    Public Functions                     │
 //          ╰─────────────────────────────────────────────────────────╯
 
-pub fn init() Error!Self {
+pub fn init(engine: LatexEngine) Error!Self {
     if (pyInitVestiModule() == -1) return error.PyInitFailed;
 
     var self: Self = undefined;
@@ -67,6 +68,11 @@ pub fn init() Error!Self {
     PyEval_RestoreThread(self.gil_state);
     defer self.gil_state = PyEval_SaveThread();
     self.vespy = PyImport_ImportModule("vesti");
+
+    const vespy = @as(*VesPy, @ptrCast(@alignCast(PyModule_GetState(self.vespy).?)));
+    vespy.vesti_output = c_alloc.create(ArrayList(u8)) catch return error.PyInitFailed;
+    vespy.vesti_output.* = ArrayList(u8).initCapacity(c_alloc, 100) catch return error.PyInitFailed;
+    vespy.engine = engine;
 
     return self;
 }
@@ -102,6 +108,7 @@ const c_alloc = std.heap.c_allocator;
 
 const VesPy = extern struct {
     vesti_output: *ArrayList(u8),
+    engine: LatexEngine,
 };
 
 export fn zigAllocatorAlloc(n: usize) callconv(.c) ?*anyopaque {
@@ -111,13 +118,6 @@ export fn zigAllocatorAlloc(n: usize) callconv(.c) ?*anyopaque {
 
 export fn zigAllocatorFree(ptr: ?*anyopaque, n: usize) callconv(.c) void {
     if (ptr) |p| c_alloc.free(@as([*]u8, @ptrCast(@alignCast(p)))[0..n]);
-}
-
-export fn initVesPy(self: *VesPy) callconv(.c) bool {
-    self.vesti_output = c_alloc.create(ArrayList(u8)) catch return false;
-    self.vesti_output.* = ArrayList(u8).initCapacity(c_alloc, 100) catch return false;
-
-    return true;
 }
 
 export fn deinitVesPy(self: *VesPy) callconv(.c) void {
@@ -139,6 +139,7 @@ export fn parseVesti(
     output_str_len: *usize,
     code: [*:0]const u8,
     len: usize,
+    engine: LatexEngine,
 ) void {
     const vesti_code = code[0..len];
 
@@ -201,6 +202,7 @@ export fn parseVesti(
         vesti_code,
         ast.items,
         &diagnostic,
+        engine,
         true, // disallow nested pycode
     ) catch |err| {
         std.debug.print(
@@ -238,4 +240,3 @@ export fn parseVesti(
     output_str_len.* = content.len;
     return;
 }
-

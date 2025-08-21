@@ -4,6 +4,7 @@ const diag = @import("./diagnostic.zig");
 
 const Allocator = std.mem.Allocator;
 const Python = @import("./Python.zig");
+const LatexEngine = @import("./parser/Parser.zig").LatexEngine;
 
 pub fn getBuildPyContents(
     allocator: Allocator,
@@ -39,9 +40,10 @@ pub fn getBuildPyContents(
 pub fn runPyCode(
     allocator: Allocator,
     diagnostic: *diag.Diagnostic,
+    engine: LatexEngine,
     pycode_contents: [:0]const u8,
 ) !void {
-    var py = Python.init() catch {
+    var py = Python.init(engine) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,

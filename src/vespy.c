@@ -50,6 +50,12 @@ static struct PyMethodDef VESTI_PY_BUILTINS[] = {
         .ml_flags = METH_NOARGS,
         .ml_doc = vestiGetManifestDir_Documentation,
     },
+    (PyMethodDef){
+        .ml_name = "engineType",
+        .ml_meth = &vestiEngineType,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = vestiEngineType_Documentation,
+    },
     {NULL, NULL, 0, NULL},
 };
 
@@ -66,18 +72,7 @@ static struct PyModuleDef VESTI_MODULE = {
 };
 
 static PyObject* pyInitVesti(void) {
-    PyObject* mod = PyModule_Create(&VESTI_MODULE);
-    if (!mod) return NULL;
-
-    VesPy* vespy = (VesPy*)PyModule_GetState(mod);
-    if (!vespy) goto FAILURE;
-    if (!initVesPy(vespy)) goto FAILURE;
-
-    return mod;
-
-FAILURE:
-    Py_XDECREF(mod);
-    return NULL;
+    return PyModule_Create(&VESTI_MODULE);
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
