@@ -18,10 +18,6 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
     std.process.exit(0);
 }
 
-//pub fn main() !void {
-//    std.debug.print("{s}\n", .{@import("vesti-info").TECTONIC_DLL_PATH});
-//}
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
