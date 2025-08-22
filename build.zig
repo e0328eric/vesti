@@ -77,18 +77,15 @@ pub fn build(b: *Build) !void {
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
 
-    var rust_dll_path: ?[]const u8 = null;
     if (use_tectonic) {
-        rust_dll_path = try buildRust(b, alloc, target);
+        try buildRust(b, alloc, target);
     }
-    defer if (rust_dll_path) |rdp| alloc.free(rdp);
 
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "VESPY_MAIN_LABEL", VESPY_MAIN_LABEL);
-    vesti_opt.addOption(?[]const u8, "TECTONIC_DLL_PATH", rust_dll_path);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -110,11 +107,13 @@ pub fn build(b: *Build) !void {
         },
     });
     if (use_tectonic) {
-        exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
-        exe_mod.linkSystemLibrary(
-            "vesti_tectonic",
-            .{ .search_strategy = .paths_first, .preferred_link_mode = .dynamic },
-        );
+        //exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
+        exe_mod.addLibraryPath(b.path("vesti-tectonic/target/release"));
+        switch (target.result.os.tag) {
+            .windows => exe_mod.linkSystemLibrary("vesti_tectonic.dll", .{}),
+            .linux => exe_mod.linkSystemLibrary("vesti_tectonic", .{}),
+            else => {},
+        }
     }
     exe_mod.addIncludePath(.{ .cwd_relative = py_include });
     exe_mod.addIncludePath(b.path("src"));
@@ -181,7 +180,7 @@ fn buildRust(
     b: *Build,
     alloc: Allocator,
     target: Build.ResolvedTarget,
-) ![]const u8 {
+) !void {
     var tectonic_dir = try b.build_root.handle.openDir("./vesti-tectonic", .{});
     defer tectonic_dir.close();
     try tectonic_dir.setAsCwd();
@@ -263,5 +262,4 @@ fn buildRust(
     , .{ source_path, dest_path });
 
     try fs.renameAbsolute(source_path, dest_path);
-    return dest_path;
 }

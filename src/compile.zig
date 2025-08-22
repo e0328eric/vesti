@@ -12,7 +12,6 @@ const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("./Codegen.zig");
-const Dynlib = std.DynLib;
 const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("./parser/Parser.zig");
@@ -453,51 +452,42 @@ fn compileLatex(
     try into.writeAll(pdf_context);
 }
 
+extern fn compile_latex_with_tectonic(
+    latex_filename_ptr: [*]const u8,
+    latex_filename_len: usize,
+    vesti_local_dummy_dir_ptr: [*]const u8,
+    vesti_local_dummy_dir_len: usize,
+    compile_limit: usize,
+) bool;
+
 fn compileLatexWithTectonic(
     diagnostic: *diag.Diagnostic,
     main_tex_file: []const u8,
     vesti_dummy: *fs.Dir,
     compile_limit: usize,
 ) !void {
-    var dll = try Dynlib.open(switch (builtin.os.tag) {
-        .windows => "vesti_tectonic.dll",
-        .linux => "libvesti_tectonic.so",
-        .macos => "libvesti_tectonic.dylib",
-        else => @panic("Not supported"),
-    });
-    defer dll.close();
+    var curr_dir = try fs.cwd().openDir(".", .{});
+    defer curr_dir.close();
+    try vesti_dummy.setAsCwd();
+    defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
 
-    if (dll.lookup(
-        *const TectonicFnt,
-        "compile_latex_with_tectonic",
-    )) |comp| {
-        // compile_latex_with_tectonic requires to change the current directory into
-        // VESTI_DUMMY_DIR
-        // if one store only fs.cwd(), then it breaks after `recovering` cwd, so
-        // curr_dir should store fs.cwd().openDir(".").
-        var curr_dir = try fs.cwd().openDir(".", .{});
-        defer curr_dir.close();
-        try vesti_dummy.setAsCwd();
-        defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
-
-        if (!comp(
-            main_tex_file.ptr,
-            main_tex_file.len,
-            @ptrCast(VESTI_DUMMY_DIR),
-            VESTI_DUMMY_DIR.len,
-            compile_limit,
-        )) {
-            const io_diag = try diag.IODiagnostic.initWithNote(
-                diagnostic.allocator,
-                null,
-                "tectonic gaves an error while processing",
-                .{},
-                "",
-                .{},
-            );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.CompileLatexFailed;
-        }
+    if (!compile_latx_with_tectonic(
+        main_tex_file.ptr,
+        main_tex_file.len,
+        @ptrCast(VESTI_DUMMY_DIR),
+        VESTI_DUMMY_DIR.len,
+        compile_limit,
+    )) {
+        const io_diag = try diag.IODiagnostic.initWithNote(
+            diagnostic.allocator,
+            null,
+            "tectonic gaves an error while processing",
+            .{},
+            "",
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.CompileLatexFailed;
     }
 }
 
