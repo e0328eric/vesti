@@ -107,11 +107,15 @@ pub fn build(b: *Build) !void {
         },
     });
     if (use_tectonic) {
-        //exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
-        exe_mod.addLibraryPath(b.path("vesti-tectonic/target/release"));
         switch (target.result.os.tag) {
-            .windows => exe_mod.linkSystemLibrary("vesti_tectonic.dll", .{}),
-            .linux => exe_mod.linkSystemLibrary("vesti_tectonic", .{}),
+            .windows => {
+                exe_mod.addLibraryPath(b.path("vesti-tectonic/target/release"));
+                exe_mod.linkSystemLibrary("vesti_tectonic.dll", .{});
+            },
+            .linux => {
+                exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
+                exe_mod.linkSystemLibrary("vesti_tectonic", .{});
+            },
             else => {},
         }
     }

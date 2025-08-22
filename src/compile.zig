@@ -471,7 +471,7 @@ fn compileLatexWithTectonic(
     try vesti_dummy.setAsCwd();
     defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
 
-    if (!compile_latx_with_tectonic(
+    if (!compile_latex_with_tectonic(
         main_tex_file.ptr,
         main_tex_file.len,
         @ptrCast(VESTI_DUMMY_DIR),
