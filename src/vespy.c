@@ -45,10 +45,10 @@ static struct PyMethodDef VESTI_PY_BUILTINS[] = {
         .ml_doc = vestiParse_Documentation,
     },
     (PyMethodDef){
-        .ml_name = "getManifestDir",
-        .ml_meth = &vestiGetManifestDir,
+        .ml_name = "getDummyDir",
+        .ml_meth = &vestiGetDummyDir,
         .ml_flags = METH_NOARGS,
-        .ml_doc = vestiGetManifestDir_Documentation,
+        .ml_doc = vestiGetDummyDir_Documentation,
     },
     (PyMethodDef){
         .ml_name = "engineType",

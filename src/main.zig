@@ -1,8 +1,8 @@
 const std = @import("std");
-const time = std.time;
 const compile = @import("./compile.zig");
 const pyscript = @import("./pyscript.zig");
 const c = @import("c");
+const time = std.time;
 
 const assert = std.debug.assert;
 
@@ -17,6 +17,10 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
     std.debug.print("bye!\n", .{});
     std.process.exit(0);
 }
+
+//pub fn main() !void {
+//    std.debug.print("{s}\n", .{@import("vesti-info").TECTONIC_DLL_PATH});
+//}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -33,9 +37,15 @@ pub fn main() !void {
         try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
         std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
         return;
-    } else if (zlap.is_help or
-        (!zlap.isSubcmdActive("compile") and !zlap.isSubcmdActive("run")))
-    {
+    } else if (zlap.isSubcmdActive("tex2ves")) {
+        const tex2ves_subcmd = zlap.subcommands.get("tex2ves").?;
+        const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
+        // TODO: implement tex2ves
+        _ = tex_files;
+
+        std.debug.print("currently, this subcommand does nothing.\n", .{});
+        return;
+    } else if (zlap.is_help or !zlap.isSubcmdActive("compile")) {
         std.debug.print("{s}\n", .{zlap.help_msg});
         return;
     }
@@ -62,7 +72,6 @@ pub fn main() !void {
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const after_script = compile_subcmd.flags.get("after_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
-    const run_script = compile_subcmd.flags.get("run_script").?.value.string;
 
     const engine = try getEngine(.{
         .is_latex = is_latex,
@@ -76,23 +85,6 @@ pub fn main() !void {
         .allocator = allocator,
     };
     defer diagnostic.deinit();
-
-    // TODO: because of the `compty` keyword, engines between `compile` and
-    // `run` may different (since we can know the engine type inside of
-    // build.py). How can I resolve such issue?
-    if (zlap.isSubcmdActive("run")) {
-        const py_contents = (try pyscript.getBuildPyContents(
-            allocator,
-            run_script,
-            &diagnostic,
-        )) orelse return error.BuildFileNotFound; // TODO: make a diagnostic
-        defer allocator.free(py_contents);
-
-        pyscript.runPyCode(allocator, &diagnostic, engine, py_contents) catch |err| {
-            try diagnostic.prettyPrint(no_color);
-            return err;
-        };
-    }
 
     var prev_mtime: ?i128 = null;
     try compile.compile(

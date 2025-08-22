@@ -4,8 +4,14 @@
     #desc: A latex transpiler;
 }
 {
-    #name: run;
-    #desc: Run script only;
+    #name: tex2ves;
+    #desc: Convert tex code into vesti;
+
+    #arg;
+    meta: FILENAMES;
+    desc: filenames to convert;
+    type: strings;
+    default:;
 }
 {
     #name: compile;
@@ -114,13 +120,6 @@
     desc: custom pycode to execute for each end of vesti steps;
     type: string;
     default: step.py;
-
-    #flag;
-    long: run_script;
-    short:;
-    desc: custom pycode to execute;
-    type: string;
-    default: run.py;
 }
 {
     #name: clear;

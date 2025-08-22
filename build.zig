@@ -77,15 +77,18 @@ pub fn build(b: *Build) !void {
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
 
+    var rust_dll_path: ?[]const u8 = null;
     if (use_tectonic) {
-        try buildRust(b, alloc, target);
+        rust_dll_path = try buildRust(b, alloc, target);
     }
+    defer if (rust_dll_path) |rdp| alloc.free(rdp);
 
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "VESPY_MAIN_LABEL", VESPY_MAIN_LABEL);
+    vesti_opt.addOption(?[]const u8, "TECTONIC_DLL_PATH", rust_dll_path);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -117,8 +120,7 @@ pub fn build(b: *Build) !void {
     exe_mod.addIncludePath(b.path("src"));
     exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
     switch (target.result.os.tag) {
-        .windows =>
-            exe_mod.linkSystemLibrary("python313", .{}),
+        .windows => exe_mod.linkSystemLibrary("python313", .{}),
         .linux => exe_mod.linkSystemLibrary("python3.13", .{}),
         else => {},
     }
@@ -179,7 +181,7 @@ fn buildRust(
     b: *Build,
     alloc: Allocator,
     target: Build.ResolvedTarget,
-) !void {
+) ![]const u8 {
     var tectonic_dir = try b.build_root.handle.openDir("./vesti-tectonic", .{});
     defer tectonic_dir.close();
     try tectonic_dir.setAsCwd();
@@ -249,7 +251,7 @@ fn buildRust(
         b.exe_dir,
         dll_name,
     });
-    defer alloc.free(dest_path);
+    errdefer alloc.free(dest_path);
 
     try fs.cwd().makePath(b.exe_dir);
 
@@ -261,4 +263,5 @@ fn buildRust(
     , .{ source_path, dest_path });
 
     try fs.renameAbsolute(source_path, dest_path);
+    return dest_path;
 }

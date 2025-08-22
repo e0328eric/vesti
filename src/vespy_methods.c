@@ -112,10 +112,10 @@ static PyObject* vestiParse(PyObject* self, PyObject* arg) {
     return output;
 }
 
-#define vestiGetManifestDir_Documentation \
+#define vestiGetDummyDir_Documentation \
     "give the string " VESTI_DUMMY_DIR ", a default vesti cache directory\n"
 
-static PyObject* vestiGetManifestDir(PyObject* self, PyObject* noargs) {
+static PyObject* vestiGetDummyDir(PyObject* self, PyObject* noargs) {
     UNUSED(self);
     UNUSED(noargs);
 
