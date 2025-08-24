@@ -81,6 +81,11 @@ pub fn compile(
     );
     defer pycode_contents.deinit(allocator);
 
+    // run first.py to "initialize" vesti projects
+    if (pycode_contents.first) |lc| {
+        try pyscript.runPyCode(allocator, diagnostic, engine.*, lc);
+    }
+
     while (true) {
         compileInner(
             allocator,
@@ -89,7 +94,7 @@ pub fn compile(
             engine,
             compile_limit,
             prev_mtime,
-            pycode_contents,
+            pycode_contents.step,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -124,7 +129,7 @@ fn compileInner(
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    pycode_contents: PythonContents,
+    pycode_contents: ?[:0]const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -178,11 +183,6 @@ fn compileInner(
 
     var walk_dir = try fs.cwd().openDir(".", .{ .iterate = true });
     defer walk_dir.close();
-
-    // run first.py to "initialize" vesti projects
-    if (pycode_contents.first) |lc| {
-        try pyscript.runPyCode(allocator, diagnostic, engine.*, lc);
-    }
 
     var is_compiled = false;
     while (attr.watch) {
@@ -387,7 +387,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    pycode_contents: PythonContents,
+    pycode_contents: ?[:0]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -401,7 +401,7 @@ fn compileLatex(
                 vesti_dummy,
                 compile_limit,
             );
-            if (pycode_contents.step) |lc| {
+            if (pycode_contents) |lc| {
                 try pyscript.runPyCode(allocator, diagnostic, engine, lc);
             }
         } else {
@@ -430,7 +430,7 @@ fn compileLatex(
                 main_tex_file,
                 vesti_dummy,
             );
-            if (pycode_contents.step) |lc| {
+            if (pycode_contents) |lc| {
                 try pyscript.runPyCode(allocator, diagnostic, engine, lc);
             }
 
