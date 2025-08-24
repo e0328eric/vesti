@@ -21,7 +21,7 @@ typedef struct {
 
 static void parsePrintKwArgs(PrintKwArgs* output, PyObject* kwargs) {
     output->separator = " ";
-    output->newline = 0;
+    output->newline = 1; // .in default, vesti add an newline for each print
     if (!kwargs) return;
 
     PyObject* tmp;

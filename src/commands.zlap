@@ -101,18 +101,11 @@
     default: 3;
 
     #flag;
-    long: before_script;
+    long: first_script;
     short:;
-    desc: custom pycode to execute before running vesti steps;
+    desc: run pycode once for each vesti runs.
     type: string;
-    default: before.py;
-
-    #flag;
-    long: after_script;
-    short:;
-    desc: custom pycode to execute after running vesti steps;
-    type: string;
-    default: after.py;
+    default: first.py;
 
     #flag;
     long: step_script;

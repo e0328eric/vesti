@@ -65,11 +65,10 @@ pub fn main() !void {
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
     const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
-    const before_script = compile_subcmd.flags.get("before_script").?.value.string;
-    const after_script = compile_subcmd.flags.get("after_script").?.value.string;
+    const first_script = compile_subcmd.flags.get("first_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    const engine = try getEngine(.{
+    var engine = try getEngine(.{
         .is_latex = is_latex,
         .is_pdflatex = is_pdflatex,
         .is_xelatex = is_xelatex,
@@ -87,12 +86,11 @@ pub fn main() !void {
         allocator,
         main_filenames.value.strings.items,
         &diagnostic,
-        engine,
+        &engine,
         compile_lim,
         &prev_mtime,
         .{
-            .before = before_script,
-            .after = after_script,
+            .first = first_script,
             .step = step_script,
         },
         .{

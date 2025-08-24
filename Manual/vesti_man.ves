@@ -1,10 +1,23 @@
 docclass article (10pt)
 importpkg {
     geometry (a4paper, margin = 2.2cm),
+    fontspec,
+    unicode-math,
 }
 
 \title{Vesti Transpiler User Manual}
 \author{Sungbae Jeong}
+
+\setmainfont{texgyrepagella}[
+    Path,
+    Extension = .otf,
+    UprightFont  = *-regular,
+    BoldFont  = *-bold,
+]
+\setmathfont{STIXTwoMath-Regular}[
+    Path,
+    Extension = .ttf,
+]
 
 startdoc
 \maketitle
@@ -16,24 +29,26 @@ startdoc
 Followings are preserved as a keyword.
 useenv table [ht] {
     \centering
-    useenv tabular (cccccc) {
-        \tt{%-begenv-%} &
-        \tt{%-cpfile-%}  &
-        \tt{%-docclass-%}  &
-        \tt{%-endenv-%} &
-        \tt{%-getfp-%}  &
-        \tt{%-importmod-%} \\
-        \tt{%-importpkg-%}  &
-        \tt{%-importves-%} &
-        \tt{%-ltx3off-%} &
-        \tt{%-ltx3on-%} &
-        \tt{%-luacode-%} &
-        \tt{%-makeatletter-%} \\
-        \tt{%-makeatother-%} &
-        \tt{%-mathmode-%} &
-        \tt{%-nonstopmode-%} &
-        \tt{%-startdoc-%} &
-        \tt{%-useenv-%}  &
-        \tt{%-useltx3-%}
-    }
+    pycode MAINPY
+    //import vesti
+    //import re
+
+    //with open("../src/lexer/Token.zig", "r") as f:
+    //  content = f.read()
+
+    //  # Regex: match .{ "keyword", TokenType.<Identifier> }
+    //  pattern = r'\.\{\s*"([^"]+)"\s*,\s*TokenType\.(\w+)'
+    //  matches = re.findall(pattern, content)
+
+    //  # Just extract the keyword names
+    //  keywords = sorted([m[0] for m in matches])
+
+    //  vesti.print(r"\begin{tabular}{ccccc}", nl=1)
+    //  for i, keyword in enumerate(keywords):
+    //      if i % 5 == 4:
+    //          vesti.print(f"{{\\ttfamily {keyword}}}\\\\", nl=1)
+    //      else:
+    //          vesti.print(f"{{\\ttfamily {keyword}}}&", nl=1)
+    //  vesti.print(r"\end{tabular}", nl=1)
+    MAINPY
 }

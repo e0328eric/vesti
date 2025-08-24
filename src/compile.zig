@@ -30,14 +30,12 @@ pub const CompileAttribute = packed struct {
 };
 
 pub const PythonScripts = struct {
-    before: []const u8,
-    after: []const u8,
+    first: []const u8,
     step: []const u8,
 };
 
 pub const PythonContents = struct {
-    before: ?[:0]const u8 = null,
-    after: ?[:0]const u8 = null,
+    first: ?[:0]const u8 = null,
     step: ?[:0]const u8 = null,
 
     fn init(
@@ -47,7 +45,7 @@ pub const PythonContents = struct {
     ) !@This() {
         var output: @This() = .{};
 
-        inline for (&.{ "before", "after", "step" }) |ty| {
+        inline for (&.{ "first", "step" }) |ty| {
             @field(output, ty) = try pyscript.getBuildPyContents(
                 allocator,
                 @field(scripts, ty),
@@ -60,7 +58,7 @@ pub const PythonContents = struct {
     }
 
     fn deinit(self: *const @This(), allocator: Allocator) void {
-        inline for (&.{ "before", "after", "step" }) |ty| {
+        inline for (&.{ "first", "step" }) |ty| {
             if (@field(self, ty)) |lf| allocator.free(lf);
         }
     }
@@ -70,7 +68,7 @@ pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
     diagnostic: *diag.Diagnostic,
-    engine: LatexEngine,
+    engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
     pycode_scripts: PythonScripts,
@@ -123,16 +121,12 @@ fn compileInner(
     allocator: Allocator,
     main_filenames: []const []const u8,
     diagnostic: *diag.Diagnostic,
-    engine_: LatexEngine,
+    engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
     pycode_contents: PythonContents,
     attr: CompileAttribute,
 ) !void {
-    // actually, one can change compile latex engine with `compty` keyword
-    // inside of vesti codes.
-    var engine = engine_;
-
     // make vesti-dummy directory
     fs.cwd().makeDir(VESTI_DUMMY_DIR) catch |err| switch (err) {
         error.PathAlreadyExists => {},
@@ -140,6 +134,15 @@ fn compileInner(
     };
     var vesti_dummy = try fs.cwd().openDir(VESTI_DUMMY_DIR, .{});
     defer vesti_dummy.close();
+
+    // add .gitignore file in default
+    var git_ignore = try vesti_dummy.createFile(".gitignore", .{});
+    defer git_ignore.close();
+
+    var write_buf: [120]u8 = undefined;
+    var writer = git_ignore.writer(&write_buf);
+    try writer.interface.writeAll("*\n");
+    try writer.end();
 
     // store "absolute paths" for vesti files
     var main_vesti_files: StringArrayHashMap(bool) = .{};
@@ -176,6 +179,11 @@ fn compileInner(
     var walk_dir = try fs.cwd().openDir(".", .{ .iterate = true });
     defer walk_dir.close();
 
+    // run first.py to "initialize" vesti projects
+    if (pycode_contents.first) |lc| {
+        try pyscript.runPyCode(allocator, diagnostic, engine.*, lc);
+    }
+
     var is_compiled = false;
     while (attr.watch) {
         try updateVesFiles(
@@ -196,7 +204,7 @@ fn compileInner(
                         vesti_file,
                         diagnostic,
                         &vesti_dummy,
-                        &engine,
+                        engine,
                         vesti_files.get(vesti_file).?,
                     );
                     is_compiled = true;
@@ -207,7 +215,7 @@ fn compileInner(
                     vesti_file,
                     diagnostic,
                     &vesti_dummy,
-                    &engine,
+                    engine,
                     vesti_files.get(vesti_file).?,
                 );
                 is_compiled = true;
@@ -221,7 +229,7 @@ fn compileInner(
                     allocator,
                     filename,
                     diagnostic,
-                    engine,
+                    engine.*,
                     &vesti_dummy,
                     pycode_contents,
                     compile_limit,
@@ -249,7 +257,7 @@ fn compileInner(
                 vesti_file,
                 diagnostic,
                 &vesti_dummy,
-                &engine,
+                engine,
                 vesti_files.get(vesti_file).?,
             );
         }
@@ -260,7 +268,7 @@ fn compileInner(
                 allocator,
                 filename,
                 diagnostic,
-                engine,
+                engine.*,
                 &vesti_dummy,
                 pycode_contents,
                 compile_limit,
@@ -387,16 +395,13 @@ fn compileLatex(
 
     if (engine == .tectonic) {
         if (@import("vesti-info").USE_TECTONIC) {
-            if (pycode_contents.before) |lc| {
-                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
-            }
             try compileLatexWithTectonic(
                 diagnostic,
                 main_tex_file,
                 vesti_dummy,
                 compile_limit,
             );
-            if (pycode_contents.after) |lc| {
+            if (pycode_contents.step) |lc| {
                 try pyscript.runPyCode(allocator, diagnostic, engine, lc);
             }
         } else {
@@ -412,9 +417,6 @@ fn compileLatex(
             return error.CompileLatexFailed;
         }
     } else {
-        if (pycode_contents.before) |lc| {
-            try pyscript.runPyCode(allocator, diagnostic, engine, lc);
-        }
         for (0..compile_limit) |i| {
             std.debug.print("[compile number {}, engine: {s}]\n", .{
                 i + 1,
@@ -433,9 +435,6 @@ fn compileLatex(
             }
 
             std.debug.print("[compiled]\n", .{});
-        }
-        if (pycode_contents.after) |lc| {
-            try pyscript.runPyCode(allocator, diagnostic, engine, lc);
         }
     }
 
