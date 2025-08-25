@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const UNICODE_VERSION = "16.0.0";
+const UNICODE_VERSION = @import("unicode").UNICODE_VERSION;
 
 fn fetchFile(
     comptime dirname: []const u8,
@@ -89,7 +89,7 @@ pub fn main() !void {
 
     inline for (aux_files) |filename| {
         handles[i] = try std.Thread.spawn(.{}, fetchFile, .{
-            "zig-cache/_ziglyph-data/ucd/auxiliary/",
+            ".zig-cache/_ziglyph-data/ucd/auxiliary/",
             filename,
             "https://www.unicode.org/Public/" ++ UNICODE_VERSION ++ "/ucd/auxiliary/",
         });
@@ -99,7 +99,7 @@ pub fn main() !void {
 
     inline for (ext_files) |filename| {
         handles[i] = try std.Thread.spawn(.{}, fetchFile, .{
-            "zig-cache/_ziglyph-data/ucd/extracted/",
+            ".zig-cache/_ziglyph-data/ucd/extracted/",
             filename,
             "https://www.unicode.org/Public/" ++ UNICODE_VERSION ++ "/ucd/extracted/",
         });
@@ -109,7 +109,7 @@ pub fn main() !void {
 
     inline for (ucd_files) |filename| {
         handles[i] = try std.Thread.spawn(.{}, fetchFile, .{
-            "zig-cache/_ziglyph-data/ucd/",
+            ".zig-cache/_ziglyph-data/ucd/",
             filename,
             "https://www.unicode.org/Public/" ++ UNICODE_VERSION ++ "/ucd/",
         });
@@ -118,7 +118,7 @@ pub fn main() !void {
     }
 
     handles[i] = try std.Thread.spawn(.{}, fetchFile, .{
-        "zig-cache/_ziglyph-data/ucd/emoji/",
+        ".zig-cache/_ziglyph-data/ucd/emoji/",
         "emoji-data.txt",
         "https://www.unicode.org/Public/" ++ UNICODE_VERSION ++ "/ucd/emoji/",
     });
@@ -126,7 +126,7 @@ pub fn main() !void {
     i += 1;
 
     handles[i] = try std.Thread.spawn(.{}, fetchFile, .{
-        "zig-cache/_ziglyph-data/uca/",
+        ".zig-cache/_ziglyph-data/uca/",
         "allkeys.txt",
         "https://www.unicode.org/Public/UCA/" ++ UNICODE_VERSION ++ "/",
     });

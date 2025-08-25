@@ -1,6 +1,7 @@
 .{
-    .name = "ziglyph",
+    .name = .ziglyph,
     .version = "0.11.2",
+    .fingerprint = 0x971b2e2cf92f1018,
     .paths = .{
         "src",
 	"build.zig",

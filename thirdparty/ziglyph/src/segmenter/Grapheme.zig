@@ -168,9 +168,9 @@ pub fn StreamingGraphemeIterator(comptime T: type) type {
                 if (gbp.isL(code)) {
                     if (next_cp >= 0x1100 and
                         (gbp.isL(next_cp) or
-                        gbp.isV(next_cp) or
-                        gbp.isLv(next_cp) or
-                        gbp.isLvt(next_cp)))
+                            gbp.isV(next_cp) or
+                            gbp.isLv(next_cp) or
+                            gbp.isLvt(next_cp)))
                     {
                         try encode_and_append(next_cp, &all_bytes);
                         _ = self.advance() catch unreachable;
@@ -178,7 +178,7 @@ pub fn StreamingGraphemeIterator(comptime T: type) type {
                 } else if (gbp.isLv(code) or gbp.isV(code)) {
                     if (next_cp >= 0x1100 and
                         (gbp.isV(next_cp) or
-                        gbp.isT(next_cp)))
+                            gbp.isT(next_cp)))
                     {
                         try encode_and_append(next_cp, &all_bytes);
                         _ = self.advance() catch unreachable;
