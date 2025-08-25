@@ -5,22 +5,7 @@ const max_zig_string = "0.14.1";
 
 const UNICODE_VERSION = "16.0.0";
 
-// NOTE: This code came from
-// https://github.com/zigtools/zls/blob/master/build.zig.
-// TODO: in zig v0.15.1, std.compress.flate.Compress is malfunctioning.
-const Build = blk: {
-    const current_zig = builtin.zig_version;
-    const max_zig = std.SemanticVersion.parse(max_zig_string) catch unreachable;
-    if (current_zig.order(max_zig) == .gt) {
-        @compileError(std.fmt.comptimePrint(
-            "Your Zig version v{f} does not meet the maximum build requirement of v{f}",
-            .{ current_zig, max_zig },
-        ));
-    }
-    break :blk std.Build;
-};
-
-pub fn build(b: *Build) void {
+pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
