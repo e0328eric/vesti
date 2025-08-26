@@ -1,3 +1,4 @@
+compty(xe)
 docclass article (10pt)
 importpkg {
     geometry (a4paper, margin = 2.2cm),
@@ -25,8 +26,14 @@ startdoc
 \section{Introduction}
 
 \section{Language Reference}
+\subsection{Basic Grammar}
+The purpose of \it{vesti} is an easy usage of latex. Thus the grammar itself is
+similar with the latex's one.
+However, there are some difference. The very different thing is the existence
+of keywords.
+
 \subsection{Keywords}
-Followings are preserved as a keyword.
+Followings are reserved as a keyword.
 useenv table [ht] {
     \centering
     pycode MAINPY
@@ -52,3 +59,6 @@ useenv table [ht] {
     //  vesti.print(r"\end{tabular}", nl=1)
     MAINPY
 }
+
+\subsection{{\ttfamily docclass} keywords}
+

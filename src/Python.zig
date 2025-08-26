@@ -1,14 +1,14 @@
 const std = @import("std");
-const diag = @import("./diagnostic.zig");
+const diag = @import("diagnostic.zig");
 const mem = std.mem;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
-const CowStr = @import("./CowStr.zig").CowStr;
-const Codegen = @import("./Codegen.zig");
+const CowStr = @import("CowStr.zig").CowStr;
+const Codegen = @import("Codegen.zig");
 const Io = std.Io;
-const Parser = @import("./parser/Parser.zig");
+const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 
 pub const Error = Allocator.Error || error{

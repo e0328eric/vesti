@@ -4,17 +4,17 @@ const mem = std.mem;
 const fs = std.fs;
 const path = fs.path;
 const time = std.time;
-const diag = @import("./diagnostic.zig");
-const pyscript = @import("./pyscript.zig");
+const diag = @import("diagnostic.zig");
+const pyscript = @import("pyscript.zig");
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
-const Codegen = @import("./Codegen.zig");
+const Codegen = @import("Codegen.zig");
 const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
-const Parser = @import("./parser/Parser.zig");
+const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
 const TectonicFnt = fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;

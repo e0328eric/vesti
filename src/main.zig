@@ -1,14 +1,14 @@
 const std = @import("std");
-const compile = @import("./compile.zig");
-const pyscript = @import("./pyscript.zig");
+const compile = @import("compile.zig");
+const pyscript = @import("pyscript.zig");
 const c = @import("c");
 const time = std.time;
 
 const assert = std.debug.assert;
 
 const ArrayList = std.ArrayList;
-const Diagnostic = @import("./diagnostic.zig").Diagnostic;
-const Parser = @import("./parser/Parser.zig");
+const Diagnostic = @import("diagnostic.zig").Diagnostic;
+const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 

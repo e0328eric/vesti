@@ -9,7 +9,7 @@ const assert = std.debug.assert;
 const Allocator = mem.Allocator;
 const Location = @import("../location.zig").Location;
 const Span = @import("../location.zig").Span;
-const Token = @import("./Token.zig");
+const Token = @import("Token.zig");
 const TokenType = Token.TokenType;
 
 source: []const u8,

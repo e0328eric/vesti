@@ -1,14 +1,14 @@
 const std = @import("std");
 const fmt = std.fmt;
 const mem = std.mem;
-const ansi = @import("./ansi.zig");
+const ansi = @import("ansi.zig");
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
-const Span = @import("./location.zig").Span;
-const TokenType = @import("./lexer/Token.zig").TokenType;
-const CowStr = @import("./CowStr.zig").CowStr;
+const Span = @import("location.zig").Span;
+const TokenType = @import("lexer/Token.zig").TokenType;
+const CowStr = @import("CowStr.zig").CowStr;
 
 pub const Diagnostic = struct {
     allocator: Allocator,

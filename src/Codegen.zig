@@ -1,14 +1,14 @@
 const std = @import("std");
-const diag = @import("./diagnostic.zig");
-const ast = @import("./parser/ast.zig");
+const diag = @import("diagnostic.zig");
+const ast = @import("parser/ast.zig");
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
-const LatexEngine = @import("./parser/Parser.zig").LatexEngine;
-const Python = @import("./Python.zig");
+const LatexEngine = @import("parser/Parser.zig").LatexEngine;
+const Python = @import("Python.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
-const Span = @import("./location.zig").Span;
+const Span = @import("location.zig").Span;
 
 const Error = Allocator.Error || Io.Writer.Error || Python.Error || error{
     PyLabelNotFound,

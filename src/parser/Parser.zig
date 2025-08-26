@@ -7,7 +7,7 @@ const process = std.process;
 const path = fs.path;
 const unicode = std.unicode;
 const zon = std.zon;
-const ast = @import("./ast.zig");
+const ast = @import("ast.zig");
 const diag = @import("../diagnostic.zig");
 
 const Allocator = mem.Allocator;
@@ -1948,9 +1948,9 @@ fn getConfigPath(allocator: Allocator) ParseError![]const u8 {
 }
 
 test "test vesti parser" {
-    _ = @import("./tests/docclass.zig");
-    _ = @import("./tests/importpkg.zig");
-    _ = @import("./tests/math_stmts.zig");
-    _ = @import("./tests/environments.zig");
-    _ = @import("./tests/pycode.zig");
+    _ = @import("tests/docclass.zig");
+    _ = @import("tests/importpkg.zig");
+    _ = @import("tests/math_stmts.zig");
+    _ = @import("tests/environments.zig");
+    _ = @import("tests/pycode.zig");
 }

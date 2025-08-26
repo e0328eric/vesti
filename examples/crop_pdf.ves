@@ -1,0 +1,22 @@
+docclass article
+
+importpkg {
+  graphicx,
+  geometry (a4paper, margin = 2cm),
+}
+
+startdoc
+\pagestyle{empty}
+
+pycode MAINPY
+//import vesti
+
+//template = """useenv center {
+//#                               left botton right up
+//  \\includegraphics[page=%d,trim=0.5cm 3in 3.1in 0.5cm,clip,width=\\textwidth]{getfp(foo.pdf)}
+//}"""
+
+//for i in range(1,430):
+//    vesti.print(vesti.parse(template % i))
+//    vesti.print("\\newpage")
+MAINPY
