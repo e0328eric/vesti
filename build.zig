@@ -6,7 +6,6 @@ const path = fs.path;
 const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
-const Sha3_256 = std.crypto.hash.sha3.Sha3_256;
 
 const VESTI_VERSION_STR = "0.2.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
@@ -58,7 +57,7 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const vesti_c = b.addModule("vesti-c", .{
+    const vesti_c = b.createModule(.{
         .root_source_file = vesti_c_h.getOutput(),
         .target = target,
         .optimize = optimize,
