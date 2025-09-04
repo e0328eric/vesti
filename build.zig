@@ -40,7 +40,7 @@ pub fn build(b: *Build) !void {
         else => false,
     };
 
-    const use_tectonic = b.option(bool, "tectonic", "use tectonic backend") orelse false;
+    const use_tectonic = b.option(bool, "tectonic", "use tectonic backend") orelse true;
 
     const zlap = b.dependency("zlap", .{
         .target = target,
