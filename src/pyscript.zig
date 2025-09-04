@@ -26,10 +26,13 @@ pub fn getBuildPyContents(
     };
     defer pycode_file.close();
 
-    const pycode_contents = try pycode_file.readToEndAllocOptions(
+    var buf: [1024]u8 = undefined;
+    var buf_reader = pycode_file.reader(&buf);
+    const reader = &buf_reader.interface;
+
+    const pycode_contents = try reader.allocRemainingAlignedSentinel(
         allocator,
-        std.math.maxInt(usize),
-        null,
+        .unlimited,
         .of(u8),
         0,
     );

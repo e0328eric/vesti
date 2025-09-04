@@ -1,4 +1,5 @@
 const std = @import("std");
+const mem = std.mem;
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
@@ -41,6 +42,14 @@ pub const ArgNeed = enum(u2) {
     MainArg,
     Optional,
     StarArg,
+};
+
+pub const DefunKind = packed struct(u8) {
+    kind: u1, // \def == 1, and \newcommand == 0
+    redef: u1,
+    expand: u1,
+    long: u1,
+    outer: u1,
 };
 
 pub const Arg = struct {

@@ -14,7 +14,7 @@ const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreach
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 const VESPY_MAIN_LABEL = "MAINPY";
 
-const min_zig_string = "0.15.1";
+const min_zig_string = "0.16.0-dev.164+bc7955306";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -77,7 +77,7 @@ pub fn build(b: *Build) !void {
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
 
     if (use_tectonic) {
-        try buildRust(b, alloc, target);
+        try installDll(b, alloc, target);
     }
 
     const vesti_opt = b.addOptions();
@@ -108,7 +108,7 @@ pub fn build(b: *Build) !void {
     if (use_tectonic) {
         switch (target.result.os.tag) {
             .windows => {
-                exe_mod.addLibraryPath(b.path("vesti-tectonic/target/release"));
+                exe_mod.addLibraryPath(b.path("vesti-tectonic/bin"));
                 exe_mod.linkSystemLibrary("vesti_tectonic.dll", .{});
             },
             .linux => {
@@ -145,6 +145,10 @@ pub fn build(b: *Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
+    const build_rust = BuildRust.create(b, target);
+    const build_rust_cmd = b.step("rust", "Build vesti-tectonic rust code");
+    build_rust_cmd.dependOn(&build_rust.step);
+
     const test_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -179,20 +183,79 @@ pub fn build(b: *Build) !void {
     test_step.dependOn(&run_exe_unit_tests.step);
 }
 
-fn buildRust(
+fn getDllName(target: *const Build.ResolvedTarget) []const []const u8 {
+    return switch (target.result.os.tag) {
+        .windows => &.{ "vesti_tectonic.dll", "vesti_tectonic.dll.lib" },
+        .linux => &.{"libvesti_tectonic.so"},
+        .macos => &.{"libvesti_tectonic.dylib"},
+        else => @panic("Not supported"),
+    };
+}
+
+fn installDll(
     b: *Build,
     alloc: Allocator,
     target: Build.ResolvedTarget,
 ) !void {
-    var tectonic_dir = try b.build_root.handle.openDir("./vesti-tectonic", .{});
-    defer tectonic_dir.close();
-    try tectonic_dir.setAsCwd();
-    defer b.build_root.handle.setAsCwd() catch unreachable;
+    const dll_names = getDllName(&target);
+    const source_path_rel = try path.join(alloc, &.{
+        "./vesti-tectonic/bin/",
+        dll_names[0],
+    });
+    defer alloc.free(source_path_rel);
+    const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
+    defer alloc.free(source_path);
+
+    const dest_path = try path.join(alloc, &.{
+        b.exe_dir,
+        dll_names[0],
+    });
+    errdefer alloc.free(dest_path);
+
+    try fs.cwd().makePath(b.exe_dir);
+
+    std.debug.print(
+        \\[NOTE]
+        \\coping {s}
+        \\ into  {s}
+        \\
+    , .{ source_path, dest_path });
+
+    try fs.copyFileAbsolute(source_path, dest_path, .{});
+}
+
+const BuildRust = struct {
+    step: Build.Step,
+    target: Build.ResolvedTarget,
+
+    fn create(owner: *Build, target: Build.ResolvedTarget) *BuildRust {
+        const build_rust = owner.allocator.create(BuildRust) catch @panic("OOM");
+
+        build_rust.* = .{
+            .step = .init(.{
+                .id = .custom,
+                .name = "buildrust",
+                .owner = owner,
+                .makeFn = makeBuildRust,
+            }),
+            .target = target,
+        };
+
+        return build_rust;
+    }
+};
+
+fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!void {
+    _ = options;
+
+    const b = step.owner;
+    const alloc = b.allocator;
+    const build_rust: *BuildRust = @fieldParentPtr("step", step);
 
     var envmap = try std.process.getEnvMap(alloc);
     defer envmap.deinit();
 
-    if (target.result.os.tag == .windows) {
+    if (build_rust.target.result.os.tag == .windows) {
         const vcpkg_root = try path.join(alloc, &.{
             b.build_root.path.?,
             "vesti-tectonic/target/vcpkg",
@@ -203,6 +266,11 @@ fn buildRust(
         try envmap.put("RUSTFLAGS", "-Ctarget-feature=+crt-static");
         try envmap.put("VCPKG_ROOT", vcpkg_root);
     }
+
+    var tectonic_dir = try b.build_root.handle.openDir("./vesti-tectonic", .{});
+    defer tectonic_dir.close();
+    try tectonic_dir.setAsCwd();
+    defer b.build_root.handle.setAsCwd() catch unreachable;
 
     const vcpkg_result = try Child.run(.{
         .allocator = alloc,
@@ -234,35 +302,35 @@ fn buildRust(
         cargo_result.stderr,
     });
 
-    const dll_name = switch (target.result.os.tag) {
-        .windows => "vesti_tectonic.dll",
-        .linux => "libvesti_tectonic.so",
-        .macos => "libvesti_tectonic.dylib",
-        else => @panic("Not supported"),
-    };
+    const dll_names = getDllName(&build_rust.target);
 
-    const source_path_rel = try path.join(alloc, &.{
-        "./vesti-tectonic/target/release/",
-        dll_name,
-    });
-    defer alloc.free(source_path_rel);
-    const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
-    defer alloc.free(source_path);
+    for (dll_names) |name| {
+        const source_path = try path.join(alloc, &.{
+            "vesti-tectonic/target/release/",
+            name,
+        });
+        defer alloc.free(source_path);
 
-    const dest_path = try path.join(alloc, &.{
-        b.exe_dir,
-        dll_name,
-    });
-    errdefer alloc.free(dest_path);
+        const dest_path = try path.join(alloc, &.{
+            "vesti-tectonic/bin/",
+            name,
+        });
+        errdefer alloc.free(dest_path);
 
-    try fs.cwd().makePath(b.exe_dir);
+        try fs.cwd().makePath(b.exe_dir);
 
-    std.debug.print(
-        \\[NOTE]
-        \\moving {s}
-        \\ into  {s}
-        \\
-    , .{ source_path, dest_path });
+        std.debug.print(
+            \\[NOTE]
+            \\coping {s}
+            \\ into  {s}
+            \\
+        , .{ source_path, dest_path });
 
-    try fs.renameAbsolute(source_path, dest_path);
+        try b.build_root.handle.copyFile(
+            source_path,
+            b.build_root.handle,
+            dest_path,
+            .{},
+        );
+    }
 }

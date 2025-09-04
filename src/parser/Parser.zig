@@ -1185,11 +1185,13 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     };
     defer mod_zon_file.close();
 
+    var buf: [1024]u8 = undefined;
+    var mod_zon_file_reader = mod_zon_file.reader(&buf);
+
     // what kind of such simple config file has 4MB size?
-    const context = mod_zon_file.readToEndAllocOptions(
+    const context = mod_zon_file_reader.interface.allocRemainingAlignedSentinel(
         self.allocator,
-        4 * 1024 * 1024,
-        null,
+        .limited(4 * 1024 * 1024),
         .of(u8),
         0,
     ) catch {
@@ -1205,7 +1207,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     };
     defer self.allocator.free(context);
-    const ves_module = try zon.parse.fromSlice(
+    const ves_module = try zon.parse.fromSliceAlloc(
         VestiModule,
         self.allocator,
         context,

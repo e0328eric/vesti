@@ -305,7 +305,10 @@ pub fn vestiToLatex(
     };
     defer vesti_file.close();
 
-    const source = vesti_file.readToEndAlloc(allocator, std.math.maxInt(usize)) catch {
+    var buf: [1024]u8 = undefined;
+    var vesti_file_reader = vesti_file.reader(&buf);
+
+    const source = vesti_file_reader.interface.allocRemaining(allocator, .unlimited) catch {
         const io_diag = try diag.IODiagnostic.init(
             diagnostic.allocator,
             null,
@@ -446,7 +449,10 @@ fn compileLatex(
     var into = try fs.cwd().createFile(main_pdf_file, .{});
     defer into.close();
 
-    const pdf_context = try from.readToEndAlloc(allocator, std.math.maxInt(usize));
+    var buf: [1024]u8 = undefined;
+    var from_reader = from.reader(&buf);
+
+    const pdf_context = try from_reader.interface.allocRemaining(allocator, .unlimited);
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
 }
