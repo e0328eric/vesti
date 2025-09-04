@@ -76,10 +76,6 @@ pub fn build(b: *Build) !void {
     };
     defer if (target.result.os.tag == .windows) alloc.free(py_include);
 
-    if (use_tectonic) {
-        try installDll(b, alloc, target);
-    }
-
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
@@ -133,6 +129,10 @@ pub fn build(b: *Build) !void {
         .version = VESTI_VERSION,
         .root_module = exe_mod,
     });
+    if (use_tectonic) {
+        const install_dll = InstallDll.create(b, target);
+        b.getInstallStep().dependOn(&install_dll.step);
+    }
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -190,38 +190,6 @@ fn getDllName(target: *const Build.ResolvedTarget) []const []const u8 {
         .macos => &.{"libvesti_tectonic.dylib"},
         else => @panic("Not supported"),
     };
-}
-
-fn installDll(
-    b: *Build,
-    alloc: Allocator,
-    target: Build.ResolvedTarget,
-) !void {
-    const dll_names = getDllName(&target);
-    const source_path_rel = try path.join(alloc, &.{
-        "./vesti-tectonic/bin/",
-        dll_names[0],
-    });
-    defer alloc.free(source_path_rel);
-    const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
-    defer alloc.free(source_path);
-
-    const dest_path = try path.join(alloc, &.{
-        b.exe_dir,
-        dll_names[0],
-    });
-    errdefer alloc.free(dest_path);
-
-    try fs.cwd().makePath(b.exe_dir);
-
-    std.debug.print(
-        \\[NOTE]
-        \\coping {s}
-        \\ into  {s}
-        \\
-    , .{ source_path, dest_path });
-
-    try fs.copyFileAbsolute(source_path, dest_path, .{});
 }
 
 const BuildRust = struct {
@@ -303,7 +271,6 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
     });
 
     const dll_names = getDllName(&build_rust.target);
-
     for (dll_names) |name| {
         const source_path = try path.join(alloc, &.{
             "vesti-tectonic/target/release/",
@@ -316,8 +283,6 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
             name,
         });
         errdefer alloc.free(dest_path);
-
-        try fs.cwd().makePath(b.exe_dir);
 
         std.debug.print(
             \\[NOTE]
@@ -332,5 +297,82 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
             dest_path,
             .{},
         );
+
+        const dll_path = try path.join(alloc, &.{
+            "bin/",
+            name,
+        });
+        errdefer alloc.free(dll_path);
+
+        // compress binary using upx
+        const upx = try Child.run(.{
+            .allocator = alloc,
+            .argv = &.{ "upx", "-9", dll_path },
+            .env_map = &envmap,
+            .max_output_bytes = 2500 * 1024,
+        });
+        defer {
+            alloc.free(upx.stdout);
+            alloc.free(upx.stderr);
+        }
+        std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+            upx.stdout,
+            upx.stderr,
+        });
     }
+}
+
+const InstallDll = struct {
+    step: Build.Step,
+    target: Build.ResolvedTarget,
+
+    fn create(owner: *Build, target: Build.ResolvedTarget) *InstallDll {
+        const install_dll = owner.allocator.create(InstallDll) catch @panic("OOM");
+
+        install_dll.* = .{
+            .step = .init(.{
+                .id = .custom,
+                .name = "install_dll",
+                .owner = owner,
+                .makeFn = makeInstallDll,
+            }),
+            .target = target,
+        };
+
+        return install_dll;
+    }
+};
+
+fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!void {
+    _ = options;
+
+    const b = step.owner;
+    const alloc = b.allocator;
+    const install_dll: *InstallDll = @fieldParentPtr("step", step);
+
+    const dll_names = getDllName(&install_dll.target);
+    const source_path_rel = try path.join(alloc, &.{
+        "./vesti-tectonic/bin/",
+        dll_names[0],
+    });
+    defer alloc.free(source_path_rel);
+    const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
+    defer alloc.free(source_path);
+
+    const dest_path = try path.join(alloc, &.{
+        b.exe_dir,
+        dll_names[0],
+    });
+    errdefer alloc.free(dest_path);
+
+    try fs.cwd().makePath(b.exe_dir);
+
+    std.debug.print(
+        \\[NOTE]
+        \\coping {s}
+        \\ into  {s}
+        \\
+    , .{ source_path, dest_path });
+
+    try fs.copyFileAbsolute(source_path, dest_path, .{});
 }
