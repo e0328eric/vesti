@@ -1,8 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const max_zig_string = "0.14.1";
-
 const UNICODE_VERSION = "16.0.0";
 
 pub fn build(b: *std.Build) void {
