@@ -20,7 +20,6 @@ allocator: Allocator,
 source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
-pycode_exports: StringArrayHashMap(ArrayList(u8)),
 py: ?Python,
 
 const Self = @This();
@@ -50,16 +49,11 @@ pub fn init(
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
-        .pycode_exports = .{},
         .py = py,
     };
 }
 
-pub fn deinit(self: *Self, allocator: Allocator) void {
-    for (self.pycode_exports.values()) |*code| {
-        code.deinit(allocator);
-    }
-    self.pycode_exports.deinit(allocator);
+pub fn deinit(self: *Self) void {
     if (self.py) |*py| py.deinit();
 }
 
@@ -214,36 +208,6 @@ fn codegenStmt(
                     cb.code.items.len,
                 );
                 errdefer new_code.deinit(self.allocator);
-
-                if (cb.code_import) |import_arr_list| {
-                    for (import_arr_list.items) |import_label| {
-                        if (self.pycode_exports.get(import_label)) |import_code| {
-                            try new_code.appendSlice(self.allocator, import_code.items);
-                            try new_code.append(self.allocator, '\n');
-                        } else {
-                            const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
-                                self.diagnostic.allocator,
-                                cb.code_span,
-                                import_label,
-                            );
-                            self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
-                            return error.PyLabelNotFound;
-                        }
-                    }
-                }
-
-                if (cb.code_export) |export_label| {
-                    if (self.pycode_exports.get(export_label) != null) {
-                        self.diagnostic.initDiagInner(.{ .ParseError = .{
-                            .err_info = .{ .DuplicatedPyLabel = export_label },
-                            .span = cb.code_span,
-                        } });
-                        return error.DuplicatedPyLabel;
-                    }
-                    try new_code.appendSlice(self.allocator, cb.code.items);
-                    try self.pycode_exports.put(self.allocator, export_label, new_code);
-                    return;
-                }
 
                 try new_code.appendSlice(self.allocator, cb.code.items);
                 try new_code.append(self.allocator, 0);

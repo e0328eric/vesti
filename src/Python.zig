@@ -212,7 +212,7 @@ export fn parseVesti(
         output_str.* = null;
         return;
     };
-    defer codegen.deinit(c_alloc);
+    defer codegen.deinit();
     codegen.codegen(&aw.writer) catch |err| {
         diagnostic.initMetadata(
             CowStr.init(.Borrowed, .{@as([]const u8, "<pycode>")}),

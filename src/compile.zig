@@ -351,7 +351,7 @@ pub fn vestiToLatex(
         engine.*,
         false, // allow initializing python
     );
-    defer codegen.deinit(allocator);
+    defer codegen.deinit();
     codegen.codegen(&aw.writer) catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);
         return err;

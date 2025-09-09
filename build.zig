@@ -7,14 +7,13 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
-const VESTI_VERSION_STR = "0.2.0";
+const VESTI_VERSION_STR = "0.2.1";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
-const VESPY_MAIN_LABEL = "MAINPY";
 
-const min_zig_string = "0.16.0-dev.164+bc7955306";
+const min_zig_string = "0.16.0-dev.205+4c0127566";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -80,7 +79,6 @@ pub fn build(b: *Build) !void {
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
-    vesti_opt.addOption([]const u8, "VESPY_MAIN_LABEL", VESPY_MAIN_LABEL);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -161,7 +159,10 @@ pub fn build(b: *Build) !void {
     });
     test_mod.addCSourceFile(.{
         .file = b.path("src/vespy.c"),
-        .flags = &.{"-std=c11"},
+        .flags = &.{
+            "-std=c11",
+            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
+        },
     });
     switch (target.result.os.tag) {
         .windows => {
@@ -172,6 +173,8 @@ pub fn build(b: *Build) !void {
         },
         else => {},
     }
+    test_mod.addOptions("vesti-info", vesti_opt);
+
     const exe_unit_tests = b.addTest(.{
         .name = "vesti-test",
         .root_module = test_mod,

@@ -45,8 +45,15 @@ pub fn expect(
     var output = try ArrayList(u8).initCapacity(allocator, 100);
     var aw: Io.Writer.Allocating = .fromArrayList(allocator, &output);
     defer aw.deinit();
-    var codegen = try Codegen.init(allocator, source, ast.items, &diagnostic);
-    defer codegen.deinit(allocator);
+    var codegen = try Codegen.init(
+        allocator,
+        source,
+        ast.items,
+        &diagnostic,
+        .pdflatex, // in the test, this does nothing
+        true, // disallow pycode
+    );
+    defer codegen.deinit();
     try codegen.codegen(&aw.writer);
 
     output = aw.toArrayList();

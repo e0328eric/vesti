@@ -118,8 +118,6 @@ pub const Stmt = union(enum(u8)) {
     FilePath: CowStr,
     PyCode: struct {
         code_span: Span,
-        code_import: ?ArrayList([]const u8),
-        code_export: ?[]const u8,
         code: ArrayList(u8),
     },
 
@@ -170,10 +168,7 @@ pub const Stmt = union(enum(u8)) {
                 ctx.args.deinit(allocator);
             },
             .FilePath => |*ctx| ctx.deinit(allocator),
-            .PyCode => |*cb| {
-                if (cb.code_import) |*imports| imports.deinit(allocator);
-                cb.code.deinit(allocator);
-            },
+            .PyCode => |*cb| cb.code.deinit(allocator),
             else => {},
         }
     }

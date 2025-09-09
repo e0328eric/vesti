@@ -22,7 +22,6 @@ const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
 const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
-const VESPY_MAIN_LABEL = @import("vesti-info").VESPY_MAIN_LABEL;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 allocator: Allocator,
@@ -1618,54 +1617,6 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
         self.nextToken();
     }
 
-    var code_import: ?ArrayList([]const u8) = null;
-    errdefer {
-        if (code_import) |*imports| imports.deinit(self.allocator);
-    }
-    if (self.expect(.peek, &.{.Lsqbrace})) {
-        code_import = try ArrayList([]const u8).initCapacity(
-            self.allocator,
-            10,
-        );
-
-        self.nextToken(); // skip ' ' token
-        self.nextToken(); // skip '[' token
-
-        while (true) : (self.nextToken()) {
-            self.eatWhitespaces(true);
-            if (self.expect(.current, &.{.Rsqbrace})) break;
-            if (!self.expect(.current, &.{.Text})) {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .TokenExpected = .{
-                        .expected = &.{.Text},
-                        .obtained = self.currToktype(),
-                    } },
-                    .span = self.curr_tok.span,
-                } });
-                return ParseError.ParseFailed;
-            }
-
-            try code_import.?.append(self.allocator, self.curr_tok.lit.in_text);
-            self.nextToken();
-            self.eatWhitespaces(true);
-
-            switch (self.currToktype()) {
-                .Comma => continue,
-                .Rsqbrace => break,
-                else => {
-                    self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .TokenExpected = .{
-                            .expected = &.{ .Comma, .Rsqbrace },
-                            .obtained = self.currToktype(),
-                        } },
-                        .span = self.curr_tok.span,
-                    } });
-                    return ParseError.ParseFailed;
-                },
-            }
-        }
-    }
-
     var pycode = try ArrayList(u8).initCapacity(self.allocator, 50);
     errdefer pycode.deinit(self.allocator);
     var it = mem.tokenizeScalar(u8, self.lexer.source[start..end], '\n');
@@ -1694,11 +1645,6 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     return Stmt{
         .PyCode = .{
             .code_span = codeblock_loc,
-            .code_import = code_import,
-            .code_export = if (mem.eql(u8, code_export, VESPY_MAIN_LABEL))
-                null
-            else
-                code_export,
             .code = pycode,
         },
     };
