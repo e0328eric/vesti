@@ -1620,8 +1620,11 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     var pycode = try ArrayList(u8).initCapacity(self.allocator, 50);
     errdefer pycode.deinit(self.allocator);
     var it = mem.tokenizeScalar(u8, self.lexer.source[start..end], '\n');
+
+    // TODO: At this moment, both `//` and `\\` are allowed to start pycode
+    // line. Later, I will choose either of them which fits more
     while (it.next()) |line| {
-        const pos = mem.indexOfScalar(u8, line, '/') orelse {
+        const pos = mem.indexOfAny(u8, line, "/\\") orelse {
             const trim_line = mem.trim(u8, line, " \t\r\n");
             if (trim_line.len == 0) continue else {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1631,6 +1634,15 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
                 return ParseError.ParseFailed;
             }
         };
+        if (!mem.eql(u8, line[pos .. pos + 2], "//") and
+            !mem.eql(u8, line[pos .. pos + 2], "\\\\"))
+        {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .InvalidPycode,
+                .span = codeblock_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
         if (pos + 2 >= line.len) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .InvalidPycode,
