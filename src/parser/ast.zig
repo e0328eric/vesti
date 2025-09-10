@@ -70,8 +70,6 @@ pub const Stmt = union(enum(u8)) {
     Latex3On,
     Latex3Off,
     ImportExpl3Pkg,
-    Int: i128, // TODO: deprecated
-    Float: f128, // TODO: deprecated
     TextLit: []const u8,
     MathLit: []const u8,
     MathCtx: struct {

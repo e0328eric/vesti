@@ -349,7 +349,7 @@ pub const ParseDiagnostic = struct {
         errdefer aw.deinit();
 
         switch (self.err_info) {
-            .None => try aw.writer.writeAll("<none>"), // TODO: is it the best?
+            .None => try aw.writer.writeAll("<none>"),
             .EofErr => try aw.writer.print("EOF character was found", .{}),
             .PremiereErr => try aw.writer.print("PremiereErr\n", .{}),
             .TokenExpected => |info| {

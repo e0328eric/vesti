@@ -232,6 +232,5 @@ fn codegenStmt(
                 new_code.deinit(self.allocator);
             }
         },
-        .Int, .Float => undefined, // TODO: deprecated
     }
 }

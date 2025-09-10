@@ -1,13 +1,17 @@
 const std = @import("std");
-const compile = @import("compile.zig");
-const pyscript = @import("pyscript.zig");
 const c = @import("c");
+const compile = @import("compile.zig");
+const diag = @import("diagnostic.zig");
+const pyscript = @import("pyscript.zig");
 const time = std.time;
 
 const assert = std.debug.assert;
+const getConfigPath = Config.getConfigPath;
 
 const ArrayList = std.ArrayList;
-const Diagnostic = @import("diagnostic.zig").Diagnostic;
+const Allocator = std.mem.Allocator;
+const Config = @import("Config.zig");
+const Diagnostic = diag.Diagnostic;
 const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -68,18 +72,18 @@ pub fn main() !void {
     const first_script = compile_subcmd.flags.get("first_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    var engine = try getEngine(.{
+    var diagnostic = Diagnostic{
+        .allocator = allocator,
+    };
+    defer diagnostic.deinit();
+
+    var engine = try getEngine(allocator, &diagnostic, .{
         .is_latex = is_latex,
         .is_pdflatex = is_pdflatex,
         .is_xelatex = is_xelatex,
         .is_lualatex = is_lualatex,
         .is_tectonic = is_tectonic,
     });
-
-    var diagnostic = Diagnostic{
-        .allocator = allocator,
-    };
-    defer diagnostic.deinit();
 
     var prev_mtime: ?i128 = null;
     try compile.compile(
@@ -110,7 +114,11 @@ const EngineTypeInput = packed struct {
     is_tectonic: bool,
 };
 
-fn getEngine(ty: EngineTypeInput) !LatexEngine {
+fn getEngine(
+    allocator: Allocator,
+    diagnostic: *Diagnostic,
+    ty: EngineTypeInput,
+) !LatexEngine {
     const is_latex_num = @as(u8, @intCast(@intFromBool(ty.is_latex))) << 0;
     const is_pdflatex_num = @as(u8, @intCast(@intFromBool(ty.is_pdflatex))) << 1;
     const is_xelatex_num = @as(u8, @intCast(@intFromBool(ty.is_xelatex))) << 2;
@@ -122,9 +130,11 @@ fn getEngine(ty: EngineTypeInput) !LatexEngine {
         is_lualatex_num |
         is_tectonic_num;
 
+    const config = try Config.init(allocator, diagnostic);
+    defer config.deinit(allocator);
+
     switch (engine_num) {
-        // TODO: read config file and replace with it
-        0 => return .pdflatex,
+        0 => return config.engine,
         1 << 0 => return .latex,
         1 << 1 => return .pdflatex,
         1 << 2 => return .xelatex,

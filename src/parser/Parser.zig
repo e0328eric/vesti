@@ -21,7 +21,9 @@ const Span = @import("../location.zig").Span;
 const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
-const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
+const getConfigPath = @import("../config.zig").getConfigPath;
+
+const vestiNameMangle = @import("../Compile.zig").vestiNameMangle;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 allocator: Allocator,
@@ -947,7 +949,7 @@ fn parseFilepathHelper(
 // - https://github.com/ziglang/zig/issues/5973
 // - https://github.com/ziglang/zig/issues/24324 [closed]
 // After these are resolved, remove this function
-fn preventBug(s: *const volatile Span) void {
+inline fn preventBug(s: *const volatile Span) void {
     _ = s;
 }
 
@@ -1881,30 +1883,6 @@ fn parseFunctionArgsCore(
     }
 
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
-}
-
-fn getConfigPath(allocator: Allocator) ParseError![]const u8 {
-    var output = try ArrayList(u8).initCapacity(allocator, 30);
-    errdefer output.deinit(allocator);
-
-    switch (builtin.os.tag) {
-        .linux, .macos => {
-            try output.appendSlice(allocator, std.posix.getenv("HOME").?);
-            try output.appendSlice(allocator, "/.config/vesti");
-        },
-        .windows => {
-            const appdata_location = try process.getEnvVarOwned(
-                allocator,
-                "APPDATA",
-            );
-            defer allocator.free(appdata_location);
-            try output.appendSlice(allocator, appdata_location);
-            try output.appendSlice(allocator, "\\vesti");
-        },
-        else => @compileError("only linux, macos and windows are supported"),
-    }
-
-    return try output.toOwnedSlice(allocator);
 }
 
 test "test vesti parser" {
