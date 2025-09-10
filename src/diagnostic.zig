@@ -241,8 +241,10 @@ pub const ParseDiagnostic = struct {
         IsNotClosed,
         IllegalUseErr,
         Deprecated,
-        LuaLabelNotFound,
-        DuplicatedPyLabel,
+        InvalidDefunKind,
+        DefunParamOverflow,
+        InvalidDefunParam,
+        EnvInsideDefun,
         InvalidPycode,
         DisallowPycode,
         PyEvalFailed,
@@ -271,8 +273,10 @@ pub const ParseDiagnostic = struct {
         },
         IllegalUseErr: []const u8,
         Deprecated: []const u8,
-        LuaLabelNotFound: ArrayList(u8),
-        DuplicatedPyLabel: []const u8,
+        InvalidDefunKind: []const u8,
+        DefunParamOverflow,
+        InvalidDefunParam: CowStr,
+        EnvInsideDefun,
         InvalidPycode,
         DisallowPycode,
         PyEvalFailed: struct {
@@ -286,7 +290,7 @@ pub const ParseDiagnostic = struct {
 
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
-                .LuaLabelNotFound => |*label| label.deinit(allocator),
+                .InvalidDefunParam => |*inner| inner.deinit(allocator),
                 .PyEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
                     inner.err_detail.deinit(allocator);
@@ -426,19 +430,21 @@ pub const ParseDiagnostic = struct {
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
             ),
+            .InvalidDefunKind => |defun_kind| try aw.writer.print(
+                "String `{s}` is not a valid defun attribute",
+                .{defun_kind},
+            ),
+            .DefunParamOverflow => try aw.writer.writeAll("too many defun parameter"),
+            .InvalidDefunParam => |val| try aw.writer.print(
+                "cannot find `{f}` in the parameter list",
+                .{val},
+            ),
+            .EnvInsideDefun => try aw.writer.writeAll("`useenv` cannot be used inside `defun` body"),
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try aw.writer.writeAll(info),
             .InvalidPycode => try aw.writer.writeAll("invalid pycode was found"),
             .DisallowPycode => try aw.writer.writeAll("nested pycode is not allowed"),
-            .LuaLabelNotFound => |label| try aw.writer.print(
-                "label `{s}` is not found",
-                .{label.items},
-            ),
-            .DuplicatedPyLabel => |label| try aw.writer.print(
-                "label `{s}` is duplicated",
-                .{label},
-            ),
             .PyEvalFailed => |inner| try aw.writer.print(
                 "python exception occured: {s}",
                 .{inner.err_msg.items},
@@ -465,17 +471,6 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
-            .LuaLabelNotFound => blk: {
-                var output = try ArrayList(u8).initCapacity(allocator, 50);
-                errdefer output.deinit(allocator);
-
-                try output.print(
-                    allocator,
-                    "labels should be declared before it is used",
-                    .{},
-                );
-                break :blk output;
-            },
             .PyEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
@@ -492,6 +487,17 @@ pub const ParseDiagnostic = struct {
                     "valid ones are `plain`, `pdf`, `xe`, and `lua`",
                     .{},
                 );
+                break :blk output;
+            },
+            .EnvInsideDefun => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(allocator,
+                    \\Internally vesti uses \def family to define latex functions.
+                    \\However, latex hates to use environment inside of \def.
+                    \\For this reason, vesti emits an error to notice to change.
+                , .{});
                 break :blk output;
             },
             else => null,

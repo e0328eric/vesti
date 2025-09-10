@@ -96,6 +96,12 @@ pub const CowStr = union(CowStrState) {
         }
     }
 
+    pub fn initPrint(allocator: Allocator, comptime fmt: []const u8, args: anytype) !Self {
+        var inner: ArrayList(u8) = .empty;
+        try inner.print(allocator, fmt, args);
+        return @unionInit(Self, "Owned", inner);
+    }
+
     pub fn deinit(self: *Self, allocator: Allocator) void {
         switch (self.*) {
             .Owned => |*inner| inner.deinit(allocator),

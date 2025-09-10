@@ -43,6 +43,7 @@ pub const TokenType = union(enum(u8)) {
         end: usize = 0,
         chr: u21 = 0,
     },
+    FntParam,
 
     // Keywords
     Docclass,
@@ -164,6 +165,7 @@ pub const TokenType = union(enum(u8)) {
             .Latex3Fnt =>                try writer.writeAll("`<ltx3fnt>`"),
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
+            .FntParam =>                 try writer.writeAll("`<fnt_param>`"),
             .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),

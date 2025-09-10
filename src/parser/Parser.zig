@@ -1,14 +1,15 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const ziglyph = @import("ziglyph");
-const fs = std.fs;
-const mem = std.mem;
-const process = std.process;
-const path = fs.path;
-const unicode = std.unicode;
-const zon = std.zon;
+const Io = std.Io;
 const ast = @import("ast.zig");
 const diag = @import("../diagnostic.zig");
+const fs = std.fs;
+const mem = std.mem;
+const path = fs.path;
+const process = std.process;
+const unicode = std.unicode;
+const ziglyph = @import("ziglyph");
+const zon = std.zon;
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -21,9 +22,10 @@ const Span = @import("../location.zig").Span;
 const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
+const assert = std.debug.assert;
 const getConfigPath = @import("../config.zig").getConfigPath;
-
 const vestiNameMangle = @import("../Compile.zig").vestiNameMangle;
+
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 allocator: Allocator,
@@ -74,6 +76,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
+    Io.Writer.Error ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ ParseFailed, ParseZon, NameMangle, LuaInitFailed };
 
@@ -300,6 +303,17 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Useenv => try self.parseEnvironment(true),
         .Begenv => try self.parseEnvironment(false),
         .Endenv => try self.parseEndPhantomEnvironment(),
+        .DefineFunction => try self.parseDefineFunction(),
+        // TODO: implement `defenv`
+        .DefineEnv => {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{
+                    .VestiInternal = "`defenv` is not implemented yet",
+                },
+                .span = self.curr_tok.span,
+            } });
+            return ParseError.ParseFailed;
+        },
         .MathMode => try self.parseMathMode(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
@@ -331,6 +345,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
+        .FntParam => self.parseDefunParam(),
         else => self.parseLiteral(),
     };
 }
@@ -340,6 +355,15 @@ fn parseLiteral(self: *Self) Stmt {
         Stmt{ .MathLit = self.curr_tok.lit.in_math }
     else
         Stmt{ .TextLit = self.curr_tok.lit.in_text };
+}
+
+// this special statement is needed when parsing the body of `defun` to exchange
+// its name into appropriate latex's one
+fn parseDefunParam(self: *Self) Stmt {
+    return Stmt{ .DefunParamLit = .{
+        .span = self.curr_tok.span,
+        .value = CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}),
+    } };
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
@@ -662,7 +686,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
 
     return Stmt{ .MathCtx = .{
         .state = getMathStmtState(open_tok),
-        .ctx = ctx,
+        .inner = ctx,
     } };
 }
 
@@ -1451,7 +1475,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
         self.nextToken();
-        self.eatWhitespaces(false);
+        self.eatWhitespaces(true);
     }
 
     if (!self.expect(.current, &.{.Lbrace})) {
@@ -1533,6 +1557,257 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     }
 
     return Stmt{ .EndPhantomEnviron = name };
+}
+
+// TODO: support nested defun with single sharp parameters
+fn parseDefineFunction(self: *Self) ParseError!Stmt {
+    const defun_location = self.curr_tok.span;
+    var defun_kind: ast.DefunKind = .{};
+
+    if (!self.expect(.current, &.{.DefineFunction})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.DefineFunction},
+                .obtained = self.currToktype(),
+            } },
+            .span = defun_location,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    // parsing defun attributes
+    if (self.expect(.current, &.{.Lsqbrace})) {
+        const kind_brace_location = self.curr_tok.span;
+        self.nextToken();
+        const kind_location = self.curr_tok.span;
+        const kind_str = switch (self.currToktype()) {
+            .Text => self.curr_tok.lit.in_text,
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = kind_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => |toktype| {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .TokenExpected = .{
+                        .expected = &.{.Text},
+                        .obtained = toktype,
+                    } },
+                    .span = kind_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+        };
+        self.nextToken();
+
+        if (!defun_kind.parseDefunKind(kind_str)) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .InvalidDefunKind = kind_str },
+                .span = kind_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+
+        if (!self.expect(.current, &.{.Rsqbrace})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Rsqbrace},
+                    .obtained = self.currToktype(),
+                } },
+                .span = kind_brace_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+        self.nextToken();
+    }
+    self.eatWhitespaces(false);
+
+    const name = blk: {
+        const tmp = switch (self.currToktype()) {
+            .Text => self.curr_tok.lit.in_text,
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = defun_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .NameMissErr = .DefineFunction },
+                    .span = defun_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+        };
+        break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
+    };
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    var out_stmt = Stmt{ .DefineFunction = .{
+        .name = name,
+        .kind = defun_kind,
+        .inner = .empty,
+    } };
+    errdefer out_stmt.deinit(self.allocator); // this deallocates `name`
+
+    // parsing defun parameter string
+    if (self.expect(.current, &.{.Lparen})) {
+        self.nextToken(); // eat `(`
+
+        var param_toks = try ArrayList(Token).initCapacity(self.allocator, 20);
+        defer param_toks.deinit(self.allocator);
+        var param_str = Io.Writer.Allocating.init(self.allocator);
+        defer param_str.deinit();
+
+        while (!self.expect(.current, &.{ .Rparen, .Eof })) : (self.nextToken()) {
+            try param_toks.append(self.allocator, self.curr_tok);
+        } else if (self.expect(.current, &.{.Eof})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .EofErr,
+                .span = defun_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+        assert(self.expect(.current, &.{.Rparen}));
+
+        var param_idx: usize = 0;
+        for (param_toks.items) |param_tok| {
+            switch (param_tok.toktype) {
+                .FntParam => if (param_idx >= 9) {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .DefunParamOverflow,
+                        .span = defun_location,
+                    } });
+                    return ParseError.ParseFailed;
+                } else {
+                    @branchHint(.likely);
+                    out_stmt.DefineFunction.params[param_idx] = CowStr.init(
+                        .Borrowed,
+                        .{param_tok.lit.in_text},
+                    );
+                    // latex parameter start from 1
+                    try param_str.writer.print("#{d}", .{param_idx + 1});
+                    param_idx += 1;
+                },
+                // treat every tokens inside param_str as a text
+                else => try param_str.writer.writeAll(param_tok.lit.in_text),
+            }
+        }
+
+        out_stmt.DefineFunction.param_str = .fromOwnedSlice(try param_str.toOwnedSlice());
+        self.nextToken(); // eat `)`
+    }
+    self.eatWhitespaces(true);
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    const body_location = self.curr_tok.span;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit(self.allocator);
+
+    // change each defun params to corresponding value
+    try changeDefunParamName(
+        self.allocator,
+        self.diagnostic,
+        inner.Braced.inner.items,
+        &out_stmt.DefineFunction.params,
+        body_location,
+    );
+
+    out_stmt.DefineFunction.inner = inner.Braced.inner;
+    return out_stmt;
+}
+
+fn changeDefunParamName(
+    allocator: Allocator,
+    diagnostic: *diag.Diagnostic,
+    stmts: []Stmt,
+    params_table: *const [9]CowStr,
+    span: Span,
+) !void {
+    for (stmts) |*stmt| {
+        switch (stmt.*) {
+            .DefunParamLit => |*val| {
+                for (params_table, 1..) |param, idx| {
+                    if (mem.eql(u8, param.toStr(), val.value.toStr())) {
+                        val.value.deinit(allocator);
+                        val.value = try .initPrint(allocator, "#{d}", .{idx});
+                        break;
+                    }
+                } else {
+                    const value = try allocator.dupe(u8, val.value.toStr());
+                    errdefer allocator.free(value);
+
+                    diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .InvalidDefunParam = .fromOwnedSlice(value),
+                        },
+                        .span = span,
+                    } });
+                    return ParseError.ParseFailed;
+                }
+            },
+            inline .MathCtx,
+            .Braced,
+            .PlainTextInMath,
+            => |*val| try changeDefunParamName(
+                allocator,
+                diagnostic,
+                val.inner.items,
+                params_table,
+                span,
+            ),
+            .Fraction => |*val| {
+                try changeDefunParamName(
+                    allocator,
+                    diagnostic,
+                    val.numerator.items,
+                    params_table,
+                    span,
+                );
+                try changeDefunParamName(
+                    allocator,
+                    diagnostic,
+                    val.denominator.items,
+                    params_table,
+                    span,
+                );
+            },
+            .Environment => {
+                diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EnvInsideDefun,
+                    .span = span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            .DefineFunction => {
+                diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .VestiInternal = 
+                    \\nested `defun` not supported yet.
+                    \\This is not a bug at this moment
+                },
+                    .span = span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {},
+        }
+    }
 }
 
 fn parsePyCode(self: *Self) ParseError!Stmt {

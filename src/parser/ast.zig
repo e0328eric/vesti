@@ -44,12 +44,24 @@ pub const ArgNeed = enum(u2) {
     StarArg,
 };
 
-pub const DefunKind = packed struct(u8) {
-    kind: u1, // \def == 1, and \newcommand == 0
-    redef: u1,
-    expand: u1,
-    long: u1,
-    outer: u1,
+pub const DefunKind = packed struct(u4) {
+    redef: bool = false,
+    expand: bool = false,
+    long: bool = false,
+    outer: bool = false,
+
+    pub fn parseDefunKind(output: *@This(), str: []const u8) bool {
+        for (str) |s| {
+            switch (s) {
+                'r', 'R' => output.redef = true,
+                'e', 'E' => output.expand = true,
+                'l', 'L' => output.long = true,
+                'o', 'O' => output.outer = true,
+                else => return false,
+            }
+        }
+        return true;
+    }
 };
 
 pub const Arg = struct {
@@ -72,9 +84,13 @@ pub const Stmt = union(enum(u8)) {
     ImportExpl3Pkg,
     TextLit: []const u8,
     MathLit: []const u8,
+    DefunParamLit: struct {
+        span: Span,
+        value: CowStr,
+    },
     MathCtx: struct {
         state: MathState,
-        ctx: ArrayList(Stmt),
+        inner: ArrayList(Stmt),
     },
     Braced: struct {
         unwrap_brace: bool = false,
@@ -102,6 +118,13 @@ pub const Stmt = union(enum(u8)) {
         delimiter: []const u8,
         kind: DelimiterKind,
     },
+    DefineFunction: struct {
+        name: CowStr,
+        params: [9]CowStr = @splat(.Empty),
+        param_str: ?CowStr = null,
+        kind: DefunKind,
+        inner: ArrayList(Stmt),
+    },
     Environment: struct {
         name: CowStr,
         args: ArrayList(Arg),
@@ -121,6 +144,7 @@ pub const Stmt = union(enum(u8)) {
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
         switch (self.*) {
+            .DefunParamLit => |*val| val.value.deinit(allocator),
             .DocumentClass => |*inner| {
                 inner.name.deinit(allocator);
                 if (inner.options) |*options| {
@@ -140,8 +164,8 @@ pub const Stmt = union(enum(u8)) {
             },
             .EndPhantomEnviron => |*name| name.deinit(allocator),
             .MathCtx => |*math_ctx| {
-                for (math_ctx.ctx.items) |*stmt| stmt.deinit(allocator);
-                math_ctx.ctx.deinit(allocator);
+                for (math_ctx.inner.items) |*stmt| stmt.deinit(allocator);
+                math_ctx.inner.deinit(allocator);
             },
             .Braced => |*bs| {
                 for (bs.inner.items) |*stmt| stmt.deinit(allocator);
@@ -158,6 +182,13 @@ pub const Stmt = union(enum(u8)) {
                 for (ctx.args.items) |*arg| arg.deinit(allocator);
                 for (ctx.inner.items) |*expr| expr.deinit(allocator);
                 ctx.args.deinit(allocator);
+                ctx.inner.deinit(allocator);
+            },
+            .DefineFunction => |*ctx| {
+                ctx.name.deinit(allocator);
+                for (&ctx.params) |*param| param.deinit(allocator);
+                if (ctx.param_str) |*str| str.deinit(allocator);
+                for (ctx.inner.items) |*expr| expr.deinit(allocator);
                 ctx.inner.deinit(allocator);
             },
             .BeginPhantomEnviron => |*ctx| {

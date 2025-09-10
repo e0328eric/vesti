@@ -6,15 +6,17 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
+const ParseError = @import("parser/Parser.zig").ParseError;
 const Python = @import("Python.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
-const Error = Allocator.Error || Io.Writer.Error || Python.Error || error{
-    PyLabelNotFound,
-    DuplicatedPyLabel,
-    PyEvalFailed,
-};
+const Error = Allocator.Error || Io.Writer.Error || Python.Error || ParseError ||
+    error{
+        PyLabelNotFound,
+        DuplicatedPyLabel,
+        PyEvalFailed,
+    };
 
 allocator: Allocator,
 source: []const u8,
@@ -90,13 +92,14 @@ fn codegenStmt(
         .Latex3Off => try writer.writeAll("\n\\ExplSyntaxOff\n"),
         .ImportExpl3Pkg => try writer.writeAll("\\usepackage{expl3, xparse}\n"),
         .TextLit, .MathLit => |ctx| try writer.writeAll(ctx),
+        .DefunParamLit => |ctx| try writer.print("{f}", .{ctx.value}),
         .MathCtx => |math_ctx| {
             const delimiter = switch (math_ctx.state) {
                 .Inline => .{ "$", "$" },
                 .Display => .{ "\\[", "\\]" },
             };
             try writer.writeAll(delimiter[0]);
-            try self.codegenStmts(math_ctx.ctx, writer);
+            try self.codegenStmts(math_ctx.inner, writer);
             try writer.writeAll(delimiter[1]);
         },
         .Braced => |bs| {
@@ -201,6 +204,48 @@ fn codegenStmt(
         .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}\n", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{f}", .{name}),
+        .DefineFunction => |ctx| {
+            const kind =
+                @as(u3, @intCast(@intFromBool(ctx.kind.expand))) << 0 |
+                @as(u3, @intCast(@intFromBool(ctx.kind.long))) << 1 |
+                @as(u3, @intCast(@intFromBool(ctx.kind.outer))) << 2;
+            const defin = switch (kind) {
+                0b000 => "\\def",
+                0b001 => "\\edef",
+                0b010 => "\\gdef",
+                0b011 => "\\xdef",
+                0b100 => "\\outer\\def",
+                0b101 => "\\outer\\edef",
+                0b110 => "\\outer\\gdef",
+                0b111 => "\\outer\\xdef",
+            };
+
+            // prologue
+            if (!ctx.kind.redef) {
+                try writer.print(
+                    \\\expandafter\ifx\csname {f}\endcsname\relax
+                    \\{s}\{f}
+                , .{ ctx.name, defin, ctx.name });
+            } else {
+                try writer.print("{s}\\{f}", .{ defin, ctx.name });
+            }
+
+            if (ctx.param_str) |str| {
+                try writer.print("{f}{{", .{str});
+            } else {
+                try writer.writeByte('{');
+            }
+
+            // body
+            try self.codegenStmts(ctx.inner, writer);
+
+            //epilogue
+            if (!ctx.kind.redef) {
+                try writer.writeAll("}\n\\else\\fi\n");
+            } else {
+                try writer.writeAll("}\n");
+            }
+        },
         .PyCode => |cb| {
             if (self.py) |*py| {
                 var new_code = try ArrayList(u8).initCapacity(

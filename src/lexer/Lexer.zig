@@ -107,6 +107,7 @@ const TokenizeState = enum {
     multiline_comment,
     verbatim,
     line_verbatim,
+    fnt_param,
     latex_function,
     text,
     integer,
@@ -114,6 +115,7 @@ const TokenizeState = enum {
     o_chr,
     percent_chr,
     backslash_chr,
+    sharp_chr,
     less_chr,
 };
 
@@ -324,6 +326,11 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .backslash_chr;
             },
+            '#' => {
+                start_chr0_idx = self.chr0_idx;
+                self.nextChar(1);
+                continue :tokenize .sharp_chr;
+            },
             '<' => {
                 self.nextChar(1);
                 continue :tokenize .less_chr;
@@ -335,7 +342,6 @@ pub fn next(self: *Self) Token {
             '+',
             '*',
             '?',
-            '#',
             '@',
             '^',
             '_',
@@ -417,6 +423,15 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .comment;
             },
+        },
+        .sharp_chr => if (ziglyph.isAlphabetic(self.getChar(.current)) or
+            ziglyph.isDecimal(self.getChar(.current)))
+        {
+            self.nextChar(1);
+            continue :tokenize .fnt_param;
+        } else {
+            self.str2Token("#", &token, start_location);
+            break :tokenize;
         },
         .backslash_chr => switch (self.getChar(.current)) {
             '\\' => {
@@ -553,6 +568,21 @@ pub fn next(self: *Self) Token {
             } else {
                 token.init(lexed_text, null, .Text, start_location, self.location);
             }
+            break :tokenize;
+        },
+        .fnt_param => if (ziglyph.isAlphabetic(self.getChar(.current)) or
+            ziglyph.isDecimal(self.getChar(.current)))
+        {
+            self.nextChar(1);
+            continue :tokenize .fnt_param;
+        } else {
+            token.init(
+                self.source[start_chr0_idx..self.chr0_idx],
+                null,
+                .FntParam,
+                start_location,
+                self.location,
+            );
             break :tokenize;
         },
         .latex_function => if (isVestiIdentChar(
