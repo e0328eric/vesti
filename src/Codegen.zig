@@ -11,7 +11,8 @@ const Python = @import("Python.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
-const Error = Allocator.Error || Io.Writer.Error || Python.Error || ParseError ||
+const Error = Allocator.Error || Io.Writer.Error ||
+    Python.Error || ParseError ||
     error{
         PyLabelNotFound,
         DuplicatedPyLabel,
@@ -201,7 +202,7 @@ fn codegenStmt(
                 try writer.writeByte('\n');
             }
         },
-        .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}\n", .{name}),
+        .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{f}", .{name}),
         .DefineFunction => |ctx| {
@@ -245,6 +246,30 @@ fn codegenStmt(
             } else {
                 try writer.writeAll("}\n");
             }
+        },
+        .DefineEnv => |ctx| {
+            // prologue
+            try writer.writeAll(if (ctx.is_redefine)
+                "\\renewenvironment"
+            else
+                "\\newenvironment");
+            try writer.print("{{{f}}}", .{ctx.name});
+            if (ctx.num_args > 0)
+                try writer.print("[{d}]", .{ctx.num_args});
+            if (ctx.default_arg) |arg| {
+                try writer.writeByte('[');
+                try self.codegenStmts(arg.ctx, writer);
+                try writer.writeByte(']');
+            }
+            try writer.writeByte('{');
+
+            // body
+            try self.codegenStmts(ctx.inner_begin, writer);
+            try writer.writeAll("}{");
+            try self.codegenStmts(ctx.inner_end, writer);
+
+            //epilogue
+            try writer.writeAll("}\n");
         },
         .PyCode => |cb| {
             if (self.py) |*py| {

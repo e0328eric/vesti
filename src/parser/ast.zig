@@ -125,6 +125,14 @@ pub const Stmt = union(enum(u8)) {
         kind: DefunKind,
         inner: ArrayList(Stmt),
     },
+    DefineEnv: struct {
+        name: CowStr,
+        is_redefine: bool,
+        num_args: usize,
+        default_arg: ?Arg,
+        inner_begin: ArrayList(Stmt),
+        inner_end: ArrayList(Stmt),
+    },
     Environment: struct {
         name: CowStr,
         args: ArrayList(Arg),
@@ -190,6 +198,14 @@ pub const Stmt = union(enum(u8)) {
                 if (ctx.param_str) |*str| str.deinit(allocator);
                 for (ctx.inner.items) |*expr| expr.deinit(allocator);
                 ctx.inner.deinit(allocator);
+            },
+            .DefineEnv => |*ctx| {
+                ctx.name.deinit(allocator);
+                if (ctx.default_arg) |*a| a.deinit(allocator);
+                for (ctx.inner_begin.items) |*expr| expr.deinit(allocator);
+                ctx.inner_begin.deinit(allocator);
+                for (ctx.inner_end.items) |*expr| expr.deinit(allocator);
+                ctx.inner_end.deinit(allocator);
             },
             .BeginPhantomEnviron => |*ctx| {
                 ctx.name.deinit(allocator);

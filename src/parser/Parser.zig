@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const Io = std.Io;
 const ast = @import("ast.zig");
 const diag = @import("../diagnostic.zig");
+const fmt = std.fmt;
 const fs = std.fs;
 const mem = std.mem;
 const path = fs.path;
@@ -32,6 +33,7 @@ allocator: Allocator,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
+more_peek_tok: Token,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
@@ -147,17 +149,20 @@ inline fn isPremiere(self: Self) bool {
 
 inline fn nextToken(self: *Self) void {
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.lexer.next();
+    self.peek_tok = self.more_peek_tok;
+    self.more_peek_tok = self.lexer.next();
 }
 
 inline fn nextRawToken(self: *Self) void {
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.lexer.nextRaw();
+    self.peek_tok = self.more_peek_tok;
+    self.more_peek_tok = self.lexer.nextRaw();
 }
 
-const ExpectKind = enum(u1) {
+const ExpectKind = enum(u2) {
     current,
     peek,
+    more_peek,
 };
 
 inline fn expect(
@@ -166,7 +171,11 @@ inline fn expect(
     comptime toktypes: []const TokenType,
 ) bool {
     var output: u1 = 0;
-    const what_token = if (is_peek == .peek) "peek_tok" else "curr_tok";
+    const what_token = switch (is_peek) {
+        .current => "curr_tok",
+        .peek => "peek_tok",
+        .more_peek => "more_peek_tok",
+    };
     inline for (toktypes) |toktype| {
         output |= @intFromBool(@intFromEnum(@field(self, what_token).toktype) ==
             @intFromEnum(toktype));
@@ -304,16 +313,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Begenv => try self.parseEnvironment(false),
         .Endenv => try self.parseEndPhantomEnvironment(),
         .DefineFunction => try self.parseDefineFunction(),
-        // TODO: implement `defenv`
-        .DefineEnv => {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{
-                    .VestiInternal = "`defenv` is not implemented yet",
-                },
-                .span = self.curr_tok.span,
-            } });
-            return ParseError.ParseFailed;
-        },
+        .DefineEnv => try self.parseDefineEnv(),
         .MathMode => try self.parseMathMode(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
@@ -899,7 +899,7 @@ fn parseFilepathHelper(
     var parse_very_first_chr = false;
 
     while (true) {
-        std.debug.assert(self.expect(.peek, &.{
+        assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
         }));
         const chr = self.peek_tok.toktype.RawChar.chr;
@@ -1156,7 +1156,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     defer mod_dir_path.deinit(self.allocator);
 
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{
+        assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
         }));
         const chr = self.peek_tok.toktype.RawChar.chr;
@@ -1324,7 +1324,7 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
     defer file_path_str.deinit(self.allocator);
 
     while (true) : (self.nextRawToken()) {
-        std.debug.assert(self.expect(.peek, &.{
+        assert(self.expect(.peek, &.{
             .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
         }));
         const chr = self.peek_tok.toktype.RawChar.chr;
@@ -1418,7 +1418,12 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
     };
     errdefer name.deinit(self.allocator);
-    self.nextToken();
+    if (!is_real) {
+        if (self.expect(.peek, &.{.Star}) or
+            (self.expect(.peek, &.{ .Space, .Tab }) and
+                self.expect(.more_peek, &.{ .Lparen, .Lsqbrace })))
+            self.nextToken();
+    } else self.nextToken();
 
     if (ENV_MATH_IDENT.has(name.Owned.items)) {
         self.doc_state.math_mode = true;
@@ -1436,23 +1441,27 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         .Lsqbrace,
         .Rsqbrace,
     );
-    errdefer args.deinit(self.allocator);
+    errdefer {
+        for (args.items) |*arg| arg.deinit(self.allocator);
+        args.deinit(self.allocator);
+    }
 
     if (!is_real) {
         if (off_math_state) {
             self.doc_state.math_mode = false;
         }
 
-        if (!self.expect(.peek, &.{ .Newline, .Eof })) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .TokenExpected = .{
-                    .expected = &.{ .Newline, .Eof },
-                    .obtained = self.peekToktype(),
-                } },
-                .span = self.peek_tok.span,
-            } });
-            return ParseError.ParseFailed;
-        }
+        // TODO: why is this code exists?
+        //if (!self.expect(.peek, &.{ .Newline, .Eof })) {
+        //    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        //        .err_info = .{ .TokenExpected = .{
+        //            .expected = &.{ .Newline, .Eof },
+        //            .obtained = self.peekToktype(),
+        //        } },
+        //        .span = self.peek_tok.span,
+        //    } });
+        //    return ParseError.ParseFailed;
+        //}
 
         return Stmt{ .BeginPhantomEnviron = .{
             .name = name,
@@ -1538,23 +1547,24 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
         break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
     };
     errdefer name.deinit(self.allocator);
-    self.nextToken();
+    if (self.expect(.peek, &.{.Star})) self.nextToken();
 
     while (self.expect(.current, &.{.Star})) : (self.nextToken()) {
         try name.append(self.allocator, "*");
     }
     self.eatWhitespaces(false);
 
-    if (!self.expect(.current, &.{ .Newline, .Eof })) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{ .Newline, .Eof },
-                .obtained = self.currToktype(),
-            } },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
+    // TODO: why is this code exists?
+    //if (!self.expect(.current, &.{ .Newline, .Eof })) {
+    //    self.diagnostic.initDiagInner(.{ .ParseError = .{
+    //        .err_info = .{ .TokenExpected = .{
+    //            .expected = &.{ .Newline, .Eof },
+    //            .obtained = self.currToktype(),
+    //        } },
+    //        .span = self.curr_tok.span,
+    //    } });
+    //    return ParseError.ParseFailed;
+    //}
 
     return Stmt{ .EndPhantomEnviron = name };
 }
@@ -1733,81 +1743,151 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     return out_stmt;
 }
 
-fn changeDefunParamName(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    stmts: []Stmt,
-    params_table: *const [9]CowStr,
-    span: Span,
-) !void {
-    for (stmts) |*stmt| {
-        switch (stmt.*) {
-            .DefunParamLit => |*val| {
-                for (params_table, 1..) |param, idx| {
-                    if (mem.eql(u8, param.toStr(), val.value.toStr())) {
-                        val.value.deinit(allocator);
-                        val.value = try .initPrint(allocator, "#{d}", .{idx});
-                        break;
-                    }
-                } else {
-                    const value = try allocator.dupe(u8, val.value.toStr());
-                    errdefer allocator.free(value);
+fn parseDefineEnv(self: *Self) ParseError!Stmt {
+    const defenv_location = self.curr_tok.span;
+    var is_redefine = false;
 
-                    diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{
-                            .InvalidDefunParam = .fromOwnedSlice(value),
-                        },
-                        .span = span,
-                    } });
-                    return ParseError.ParseFailed;
-                }
-            },
-            inline .MathCtx,
-            .Braced,
-            .PlainTextInMath,
-            => |*val| try changeDefunParamName(
-                allocator,
-                diagnostic,
-                val.inner.items,
-                params_table,
-                span,
-            ),
-            .Fraction => |*val| {
-                try changeDefunParamName(
-                    allocator,
-                    diagnostic,
-                    val.numerator.items,
-                    params_table,
-                    span,
-                );
-                try changeDefunParamName(
-                    allocator,
-                    diagnostic,
-                    val.denominator.items,
-                    params_table,
-                    span,
-                );
-            },
-            .Environment => {
-                diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EnvInsideDefun,
-                    .span = span,
-                } });
-                return ParseError.ParseFailed;
-            },
-            .DefineFunction => {
-                diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .VestiInternal = 
-                    \\nested `defun` not supported yet.
-                    \\This is not a bug at this moment
-                },
-                    .span = span,
-                } });
-                return ParseError.ParseFailed;
-            },
-            else => {},
-        }
+    if (!self.expect(.current, &.{.DefineEnv})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.DefineEnv},
+                .obtained = self.currToktype(),
+            } },
+            .span = defenv_location,
+        } });
+        return ParseError.ParseFailed;
     }
+    self.nextToken();
+
+    if (self.expect(.current, &.{.Star})) {
+        self.nextToken();
+        is_redefine = true;
+    }
+    self.eatWhitespaces(false);
+
+    var name = blk: {
+        const tmp = switch (self.currToktype()) {
+            .Text => self.curr_tok.lit.in_text,
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = defenv_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .NameMissErr = .DefineFunction },
+                    .span = defenv_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+        };
+        break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
+    };
+    errdefer name.deinit(self.allocator);
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    // parsing defenv arguments
+    const num_args = if (self.expect(.current, &.{.Lsqbrace})) blk: {
+        const kind_brace_location = self.curr_tok.span;
+        self.nextToken();
+        const num_arg_location = self.curr_tok.span;
+        const tmp = switch (self.currToktype()) {
+            .Integer => fmt.parseInt(usize, self.curr_tok.lit.in_text, 10) catch {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .VestiInternal = "given text must be an integer. Lexer issue happen I suppose..." },
+                    .span = num_arg_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = num_arg_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => |toktype| {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .TokenExpected = .{
+                        .expected = &.{.Integer},
+                        .obtained = toktype,
+                    } },
+                    .span = num_arg_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+        };
+        self.nextToken();
+
+        if (!self.expect(.current, &.{.Rsqbrace})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Rsqbrace},
+                    .obtained = self.currToktype(),
+                } },
+                .span = kind_brace_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+        self.nextToken();
+        break :blk tmp;
+    } else 0;
+    self.eatWhitespaces(false);
+
+    var arg = if (num_args > 0 and self.expect(.current, &.{.Less})) blk: {
+        const tmp = try self.parseParanthesis(.Less, .Great);
+        assert(self.expect(.current, &.{.Great}));
+        self.nextToken();
+        self.eatWhitespaces(false);
+
+        break :blk tmp;
+    } else null;
+    errdefer if (arg) |*a| a.deinit(self.allocator);
+
+    // parse begin body
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    var inner_begin = try self.parseBrace(false);
+    errdefer inner_begin.deinit(self.allocator);
+    self.nextToken(); // eat `}`
+    self.eatWhitespaces(true);
+
+    // parse end body
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    var inner_end = try self.parseBrace(false);
+    errdefer inner_end.deinit(self.allocator);
+    self.eatWhitespaces(true);
+
+    return Stmt{
+        .DefineEnv = .{
+            .name = name,
+            .is_redefine = is_redefine,
+            .num_args = num_args,
+            .default_arg = arg,
+            .inner_begin = inner_begin.Braced.inner,
+            .inner_end = inner_end.Braced.inner,
+        },
+    };
 }
 
 fn parsePyCode(self: *Self) ParseError!Stmt {
@@ -1844,7 +1924,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     }
 
     // check that peek tokentype is RawChar
-    std.debug.assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
+    assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
 
     // code_export text also works as a <BRACKET> of the pycode block
     const code_export = self.curr_tok.lit.in_text;
@@ -1863,7 +1943,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
         }
 
         // check that peek tokentype is RawChar
-        std.debug.assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
+        assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
         const chr = self.peekToktype().RawChar.chr;
 
         if (!ziglyph.isAlphabetic(chr) and !ziglyph.isDecimal(chr)) {
@@ -2060,6 +2140,35 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
     return Stmt.NopStmt;
 }
 
+// TODO: implement this function without any allocations
+fn parseParanthesis(
+    self: *Self,
+    comptime open: TokenType,
+    comptime closed: TokenType,
+) ParseError!ast.Arg {
+    var args = try ArrayList(ast.Arg).initCapacity(self.allocator, 3);
+    errdefer {
+        for (args.items) |*arg| arg.deinit(self.allocator);
+        args.deinit(self.allocator);
+    }
+
+    if (self.expect(.current, &.{open})) {
+        try self.parseFunctionArgsCore(
+            &args,
+            open,
+            closed,
+            .MainArg,
+        );
+    }
+
+    assert(args.items.len == 1);
+
+    const output = args.items[0];
+    args.deinit(self.allocator);
+
+    return output;
+}
+
 fn parseFunctionArgs(
     self: *Self,
     comptime open: TokenType,
@@ -2130,8 +2239,16 @@ fn parseFunctionArgsCore(
         tmp.deinit(self.allocator);
     }
 
+    var nested: usize = 1;
     while (switch (self.currToktype()) {
-        closed => false,
+        open => blk: {
+            nested += 1;
+            break :blk true;
+        },
+        closed => blk: {
+            nested -= 1;
+            break :blk nested > 0;
+        },
         .Eof => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .EofErr,
@@ -2158,6 +2275,83 @@ fn parseFunctionArgsCore(
     }
 
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
+}
+
+fn changeDefunParamName(
+    allocator: Allocator,
+    diagnostic: *diag.Diagnostic,
+    stmts: []Stmt,
+    params_table: *const [9]CowStr,
+    span: Span,
+) !void {
+    for (stmts) |*stmt| {
+        switch (stmt.*) {
+            .DefunParamLit => |*val| {
+                for (params_table, 1..) |param, idx| {
+                    if (mem.eql(u8, param.toStr(), val.value.toStr())) {
+                        val.value.deinit(allocator);
+                        val.value = try .initPrint(allocator, "#{d}", .{idx});
+                        break;
+                    }
+                } else {
+                    const value = try allocator.dupe(u8, val.value.toStr());
+                    errdefer allocator.free(value);
+
+                    diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .InvalidDefunParam = .fromOwnedSlice(value),
+                        },
+                        .span = span,
+                    } });
+                    return ParseError.ParseFailed;
+                }
+            },
+            inline .MathCtx,
+            .Braced,
+            .PlainTextInMath,
+            => |*val| try changeDefunParamName(
+                allocator,
+                diagnostic,
+                val.inner.items,
+                params_table,
+                span,
+            ),
+            .Fraction => |*val| {
+                try changeDefunParamName(
+                    allocator,
+                    diagnostic,
+                    val.numerator.items,
+                    params_table,
+                    span,
+                );
+                try changeDefunParamName(
+                    allocator,
+                    diagnostic,
+                    val.denominator.items,
+                    params_table,
+                    span,
+                );
+            },
+            .Environment => {
+                diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EnvInsideDefun,
+                    .span = span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            .DefineFunction => {
+                diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .VestiInternal = 
+                    \\nested `defun` not supported yet.
+                    \\This is not a bug at this moment
+                },
+                    .span = span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {},
+        }
+    }
 }
 
 test "test vesti parser" {
