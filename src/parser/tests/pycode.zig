@@ -8,13 +8,13 @@ const Parser = @import("../Parser.zig");
 
 test "basic pycode 1" {
     const source =
-        \\pycode 聖者の行進
+        \\#py:
         \\    //import vesti
         \\ 
         \\//print("Hello, World!")
         \\            //if x == 3:
         \\//    pass
-        \\    聖者の行進
+        \\    :py#
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,
@@ -53,4 +53,3 @@ test "basic pycode 1" {
 
     try testing.expectFmt(expected_pycode, "{s}", .{ast.items[0].PyCode.code.items});
 }
-

@@ -22,5 +22,5 @@ def downloadFont(fontname, font_url):
 
 downloadFont(
     "Tex Gyre Pagella", "https://www.fontsquirrel.com/fonts/download/TeX-Gyre-Pagella"
-)
+) 
 downloadFont("STIX Two Math", "https://font.download/dl/font/stix-two-math.zip")

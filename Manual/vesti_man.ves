@@ -36,7 +36,7 @@ of keywords.
 Followings are reserved as a keyword.
 useenv table [ht] {
     \centering
-    pycode MAINPY
+    #py:
     //import vesti
     //import re
 
@@ -57,7 +57,7 @@ useenv table [ht] {
     //      else:
     //          vesti.print(f"{{\\ttfamily {keyword}}}&", nl=1)
     //  vesti.print(r"\end{tabular}", nl=1)
-    MAINPY
+    :py#
 }
 
 \subsection{{\ttfamily docclass} keywords}

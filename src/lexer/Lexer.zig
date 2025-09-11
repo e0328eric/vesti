@@ -107,6 +107,8 @@ const TokenizeState = enum {
     multiline_comment,
     verbatim,
     line_verbatim,
+    pycode,
+    pycode_end,
     fnt_param,
     latex_function,
     text,
@@ -424,14 +426,34 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .comment;
             },
         },
-        .sharp_chr => if (ziglyph.isAlphabetic(self.getChar(.current)) or
-            ziglyph.isDecimal(self.getChar(.current)))
-        {
-            self.nextChar(1);
-            continue :tokenize .fnt_param;
-        } else {
-            self.str2Token("#", &token, start_location);
-            break :tokenize;
+        .sharp_chr => {
+            // mimic a `goto` statement
+            const Goto = enum { a, b };
+            goto: switch (Goto.a) {
+                .a => switch (self.getChar(.current)) {
+                    'p' => if (self.getChar(.peek1) == 'y' and
+                        self.getChar(.peek2) == ':')
+                    {
+                        self.nextChar(3);
+                        start_chr0_idx = self.chr0_idx;
+                        continue :tokenize .pycode;
+                    } else {
+                        continue :goto .b;
+                    },
+                    else => continue :goto .b,
+                },
+                .b => {
+                    if (ziglyph.isAlphabetic(self.getChar(.current)) or
+                        ziglyph.isDecimal(self.getChar(.current)))
+                    {
+                        self.nextChar(1);
+                        continue :tokenize .fnt_param;
+                    } else {
+                        self.str2Token("#", &token, start_location);
+                        break :tokenize;
+                    }
+                },
+            }
         },
         .backslash_chr => switch (self.getChar(.current)) {
             '\\' => {
@@ -714,6 +736,54 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .line_verbatim;
             },
+        },
+        .pycode => if (self.getChar(.current) == ':' and
+            self.getChar(.peek1) == 'p')
+        {
+            self.nextChar(1);
+            continue :tokenize .pycode_end;
+        } else if (self.getChar(.current) == 0) {
+            token.init(
+                self.source[start_chr0_idx..self.chr0_idx],
+                null,
+                .Illegal,
+                start_location,
+                self.location,
+            );
+            self.nextChar(1);
+            break :tokenize;
+        } else {
+            self.nextChar(1);
+            continue :tokenize .pycode;
+        },
+        .pycode_end => if (self.getChar(.current) == 'p' and
+            self.getChar(.peek1) == 'y' and
+            self.getChar(.peek2) == '#')
+        {
+            const pycode_end = self.chr0_idx - 1; // remove `:` character
+            self.nextChar(3);
+
+            token.init(
+                self.source[start_chr0_idx..pycode_end],
+                null,
+                .PyCode,
+                start_location,
+                self.location,
+            );
+            break :tokenize;
+        } else if (self.getChar(.current) == 0) {
+            token.init(
+                self.source[start_chr0_idx..self.chr0_idx],
+                null,
+                .Illegal,
+                start_location,
+                self.location,
+            );
+            self.nextChar(1);
+            break :tokenize;
+        } else {
+            self.nextChar(1);
+            continue :tokenize .pycode;
         },
     }
 

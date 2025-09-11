@@ -33,7 +33,7 @@ allocator: Allocator,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
-more_peek_tok: Token,
+peek_more_tok: Token,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
@@ -110,6 +110,7 @@ pub fn init(
     self.lexer = try Lexer.init(source);
     self.curr_tok = self.lexer.next();
     self.peek_tok = self.lexer.next();
+    self.peek_more_tok = self.lexer.next();
     self.doc_state = DocState{};
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
@@ -126,16 +127,23 @@ pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
         stmts.deinit(self.allocator);
     }
 
-    // lexer.lex_finished means that peek_tok is the "last" token from lexer
+    // lexer.lex_finished means that more_peek_tok is the "last" token from lexer
     while (!self.lexer.lex_finished) : (self.nextToken()) {
         var stmt = try self.parseStatement();
         errdefer stmt.deinit(self.allocator);
         try stmts.append(self.allocator, stmt);
     } else {
         // so we need one more step to exhaust peek_tok
-        var stmt = try self.parseStatement();
-        errdefer stmt.deinit(self.allocator);
-        try stmts.append(self.allocator, stmt);
+        var stmt1 = try self.parseStatement();
+        errdefer stmt1.deinit(self.allocator);
+        try stmts.append(self.allocator, stmt1);
+        self.nextToken();
+
+        // and to exhaust more_peek_tok
+        var stmt2 = try self.parseStatement();
+        errdefer stmt2.deinit(self.allocator);
+        try stmts.append(self.allocator, stmt2);
+
         if (self.doc_state.doc_start and !self.doc_state.prevent_end_doc)
             try stmts.append(self.allocator, Stmt.DocumentEnd);
     }
@@ -149,20 +157,20 @@ inline fn isPremiere(self: Self) bool {
 
 inline fn nextToken(self: *Self) void {
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.more_peek_tok;
-    self.more_peek_tok = self.lexer.next();
+    self.peek_tok = self.peek_more_tok;
+    self.peek_more_tok = self.lexer.next();
 }
 
 inline fn nextRawToken(self: *Self) void {
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.more_peek_tok;
-    self.more_peek_tok = self.lexer.nextRaw();
+    self.peek_tok = self.peek_more_tok;
+    self.peek_more_tok = self.lexer.nextRaw();
 }
 
 const ExpectKind = enum(u2) {
     current,
     peek,
-    more_peek,
+    peek_more,
 };
 
 inline fn expect(
@@ -174,7 +182,7 @@ inline fn expect(
     const what_token = switch (is_peek) {
         .current => "curr_tok",
         .peek => "peek_tok",
-        .more_peek => "more_peek_tok",
+        .peek_more => "peek_more_tok",
     };
     inline for (toktypes) |toktype| {
         output |= @intFromBool(@intFromEnum(@field(self, what_token).toktype) ==
@@ -1421,7 +1429,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     if (!is_real) {
         if (self.expect(.peek, &.{.Star}) or
             (self.expect(.peek, &.{ .Space, .Tab }) and
-                self.expect(.more_peek, &.{ .Lparen, .Lsqbrace })))
+                self.expect(.peek_more, &.{ .Lparen, .Lsqbrace })))
             self.nextToken();
     } else self.nextToken();
 
@@ -1902,81 +1910,11 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Text, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
-
-    if (!self.expect(.current, &.{.Text})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Text},
-                .obtained = self.currToktype(),
-            } },
-            .span = codeblock_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    // check that peek tokentype is RawChar
-    assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
-
-    // code_export text also works as a <BRACKET> of the pycode block
-    const code_export = self.curr_tok.lit.in_text;
-    const start = self.peekToktype().RawChar.start;
-
-    var end_text = try ArrayList(u8).initCapacity(self.allocator, code_export.len);
-    var buf: [4]u8 = @splat(0);
-    defer end_text.deinit(self.allocator);
-    while (true) : (self.nextRawToken()) {
-        if (self.expect(.peek, &.{.Eof})) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = codeblock_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-
-        // check that peek tokentype is RawChar
-        assert(self.expect(.peek, &.{.{ .RawChar = .{} }}));
-        const chr = self.peekToktype().RawChar.chr;
-
-        if (!ziglyph.isAlphabetic(chr) and !ziglyph.isDecimal(chr)) {
-            end_text.clearRetainingCapacity();
-            continue;
-        }
-
-        if (end_text.items.len == 0 and ziglyph.isDecimal(chr)) continue;
-
-        const len = try unicode.utf8Encode(chr, &buf);
-        try end_text.appendSlice(self.allocator, buf[0..len]);
-
-        if (mem.eql(u8, code_export, end_text.items)) break;
-    }
-    const end = self.peek_tok.toktype.RawChar.end -| end_text.items.len;
-    self.nextToken();
-    if (!self.expect(.peek, &.{ .Space, .Newline, .Eof })) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{ .Space, .Newline, .Eof },
-                .obtained = self.peekToktype(),
-            } },
-            .span = self.peek_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-    while (self.peekToktype() == .Space) {
-        self.nextToken();
-    }
+    const pycode_content = self.curr_tok.lit.in_text;
 
     var pycode = try ArrayList(u8).initCapacity(self.allocator, 50);
     errdefer pycode.deinit(self.allocator);
-    var it = mem.tokenizeScalar(u8, self.lexer.source[start..end], '\n');
+    var it = mem.tokenizeScalar(u8, pycode_content, '\n');
 
     // TODO: At this moment, both `//` and `\\` are allowed to start pycode
     // line. Later, I will choose either of them which fits more

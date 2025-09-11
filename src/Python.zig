@@ -13,11 +13,13 @@ const LatexEngine = Parser.LatexEngine;
 
 pub const Error = Allocator.Error || error{
     PyInitFailed,
+    PyInitSubInterpreterFailed,
+    PySubInterpreterIsNull,
     PyGetModFailed,
 };
 
-gil_state: ?*PyThreadState,
-vespy: ?*PyObject,
+gil_state: ?*PyThreadState = null,
+vespy: ?*PyObject = null,
 
 const Self = @This();
 
@@ -34,6 +36,7 @@ extern "c" fn Py_NewInterpreter() ?*PyThreadState;
 extern "c" fn Py_EndInterpreter(pst: ?*PyThreadState) void;
 extern "c" fn PyEval_SaveThread() ?*PyThreadState;
 extern "c" fn PyEval_RestoreThread(pst: ?*PyThreadState) void;
+extern "c" fn PyThreadState_Swap(interp: ?*PyThreadState) ?*PyThreadState;
 extern "c" fn PyImport_ImportModule(mod_name: [*:0]const u8) ?*PyObject;
 extern "c" fn PyModule_GetState(module: ?*PyObject) ?*anyopaque;
 extern "c" fn PyRun_SimpleString(code: [*:0]const u8) c_int;
@@ -58,7 +61,7 @@ extern "c" fn PyUnicode_AsUTF8(val: ?*PyObject) [*:0]const u8;
 pub fn init(engine: LatexEngine) Error!Self {
     if (pyInitVestiModule() == -1) return error.PyInitFailed;
 
-    var self: Self = undefined;
+    var self: Self = .{};
 
     Py_Initialize();
     errdefer Py_Finalize();
