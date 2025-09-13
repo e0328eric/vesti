@@ -1938,7 +1938,14 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         }
-        if (pos + 2 >= line.len) {
+
+        // this line only contains a prefix (i.e. `//` or `\\`).
+        if (pos + 2 == line.len) {
+            try pycode.append(self.allocator, '\n');
+            continue;
+        }
+
+        if (pos + 2 > line.len) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .InvalidPycode,
                 .span = codeblock_loc,
