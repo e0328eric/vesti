@@ -24,8 +24,8 @@ const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
 const assert = std.debug.assert;
-const getConfigPath = @import("../config.zig").getConfigPath;
-const vestiNameMangle = @import("../Compile.zig").vestiNameMangle;
+const getConfigPath = @import("../Config.zig").getConfigPath;
+const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
