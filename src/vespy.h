@@ -27,7 +27,6 @@ typedef struct {
 
 extern void* zigAllocatorAlloc(size_t n);
 extern void zigAllocatorFree(void* ptr, size_t n);
-extern void deinitVesPy(VesPy* self);
 extern bool appendCStr(VesPy* self, const char* str, size_t len);
 extern void dumpVesPy(VesPy* self);
 extern const char* parseVesti(

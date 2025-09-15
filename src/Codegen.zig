@@ -23,6 +23,7 @@ allocator: Allocator,
 source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
+pycode_exports: StringArrayHashMap(ArrayList(u8)),
 py: ?Python,
 
 const Self = @This();
@@ -52,11 +53,16 @@ pub fn init(
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
+        .pycode_exports = .empty,
         .py = py,
     };
 }
 
 pub fn deinit(self: *Self) void {
+    for (self.pycode_exports.values()) |*code| {
+        code.deinit(self.allocator);
+    }
+    self.pycode_exports.deinit(self.allocator);
     if (self.py) |*py| py.deinit();
 }
 
@@ -279,15 +285,44 @@ fn codegenStmt(
                 );
                 errdefer new_code.deinit(self.allocator);
 
+                if (cb.code_import) |import_arr_list| {
+                    for (import_arr_list.items) |import_label| {
+                        if (self.pycode_exports.get(import_label)) |import_code| {
+                            try new_code.appendSlice(self.allocator, import_code.items);
+                            try new_code.append(self.allocator, '\n');
+                        } else {
+                            const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
+                                self.diagnostic.allocator,
+                                cb.code_span,
+                                import_label,
+                            );
+                            self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
+                            return error.PyLabelNotFound;
+                        }
+                    }
+                }
+
+                if (cb.code_export) |export_label| {
+                    if (self.pycode_exports.get(export_label) != null) {
+                        self.diagnostic.initDiagInner(.{ .ParseError = .{
+                            .err_info = .{ .DuplicatedPyLabel = export_label },
+                            .span = cb.code_span,
+                        } });
+                        return error.DuplicatedPyLabel;
+                    }
+                    try new_code.appendSlice(self.allocator, cb.code.items);
+                    try self.pycode_exports.put(self.allocator, export_label, new_code);
+                    return;
+                }
+
                 try new_code.appendSlice(self.allocator, cb.code.items);
                 try new_code.append(self.allocator, 0);
 
-                // TODO: print appropriate error message
-                if (!py.runPyCode(@ptrCast(new_code.items))) {
+                if (!py.runPyCode(@ptrCast(new_code.items), cb.is_global)) {
                     const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
                         self.diagnostic.allocator,
                         cb.code_span,
-                        "vesti library in python emits an error",
+                        "failed to run pycode",
                         .{},
                         "see above python error message",
                     );

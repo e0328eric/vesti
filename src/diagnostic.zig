@@ -247,6 +247,8 @@ pub const ParseDiagnostic = struct {
         EnvInsideDefun,
         InvalidPycode,
         DisallowPycode,
+        PyLabelNotFound,
+        DuplicatedPyLabel,
         PyEvalFailed,
         NotLocatedInVeryFirst,
         DoubleUsed,
@@ -279,6 +281,8 @@ pub const ParseDiagnostic = struct {
         EnvInsideDefun,
         InvalidPycode,
         DisallowPycode,
+        PyLabelNotFound: ArrayList(u8),
+        DuplicatedPyLabel: []const u8,
         PyEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
@@ -291,6 +295,7 @@ pub const ParseDiagnostic = struct {
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
                 .InvalidDefunParam => |*inner| inner.deinit(allocator),
+                .PyLabelNotFound => |*inner| inner.deinit(allocator),
                 .PyEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
                     inner.err_detail.deinit(allocator);
@@ -310,7 +315,7 @@ pub const ParseDiagnostic = struct {
         try label.appendSlice(allocator, label_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .LuaLabelNotFound = label },
+            .err_info = ParseErrorInfo{ .PyLabelNotFound = label },
             .span = span,
         };
     }
@@ -445,6 +450,14 @@ pub const ParseDiagnostic = struct {
             => |info| try aw.writer.writeAll(info),
             .InvalidPycode => try aw.writer.writeAll("invalid pycode was found"),
             .DisallowPycode => try aw.writer.writeAll("nested pycode is not allowed"),
+            .PyLabelNotFound => |label| try aw.writer.print(
+                "label `{s}` is not found",
+                .{label.items},
+            ),
+            .DuplicatedPyLabel => |label| try aw.writer.print(
+                "label `{s}` is duplicated",
+                .{label},
+            ),
             .PyEvalFailed => |inner| try aw.writer.print(
                 "python exception occured: {s}",
                 .{inner.err_msg.items},
@@ -471,6 +484,17 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
+            .PyLabelNotFound => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(
+                    allocator,
+                    "labels should be declared before it is used",
+                    .{},
+                );
+                break :blk output;
+            },
             .PyEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);

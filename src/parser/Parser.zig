@@ -1,6 +1,5 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Io = std.Io;
 const ast = @import("ast.zig");
 const diag = @import("../diagnostic.zig");
 const fmt = std.fmt;
@@ -15,6 +14,7 @@ const zon = std.zon;
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const CowStr = @import("../CowStr.zig").CowStr;
+const Io = std.Io;
 const ParseErrKind = diag.ParseDiagnostic.ParseErrKind;
 const Lexer = @import("../lexer/Lexer.zig");
 const Literal = Token.Literal;
@@ -1916,6 +1916,91 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     errdefer pycode.deinit(self.allocator);
     var it = mem.tokenizeScalar(u8, pycode_content, '\n');
 
+    var is_global = false;
+    if (self.expect(.peek, &.{.Star})) {
+        self.nextToken();
+        is_global = true;
+    }
+
+    var code_import: ?ArrayList([]const u8) = null;
+    errdefer {
+        if (code_import) |*imports| imports.deinit(self.allocator);
+    }
+    if (self.expect(.peek, &.{.Lsqbrace})) {
+        code_import = try ArrayList([]const u8).initCapacity(
+            self.allocator,
+            10,
+        );
+        self.nextToken(); // skip ':py#' or '*' token
+        self.nextToken(); // skip '[' token
+
+        while (true) : (self.nextToken()) {
+            self.eatWhitespaces(true);
+            if (self.expect(.current, &.{.Rsqbrace})) break;
+            if (!self.expect(.current, &.{.Text})) {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .TokenExpected = .{
+                        .expected = &.{.Text},
+                        .obtained = self.currToktype(),
+                    } },
+                    .span = self.curr_tok.span,
+                } });
+                return ParseError.ParseFailed;
+            }
+
+            try code_import.?.append(self.allocator, self.curr_tok.lit.in_text);
+            self.nextToken();
+            self.eatWhitespaces(true);
+
+            switch (self.currToktype()) {
+                .Comma => continue,
+                .Rsqbrace => break,
+                else => {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{ .TokenExpected = .{
+                            .expected = &.{ .Comma, .Rsqbrace },
+                            .obtained = self.currToktype(),
+                        } },
+                        .span = self.curr_tok.span,
+                    } });
+                    return ParseError.ParseFailed;
+                },
+            }
+        }
+    }
+
+    var code_export: ?[]const u8 = null;
+    if (self.expect(.peek, &.{.Less})) {
+        self.nextToken(); // skip ':py#' or ']' token
+
+        const codeblock_tag_loc = self.curr_tok.span;
+        self.nextToken(); // skip '<' token
+
+        if (!self.expect(.current, &.{.Text})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Text},
+                    .obtained = self.currToktype(),
+                } },
+                .span = codeblock_tag_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+        code_export = self.curr_tok.lit.in_text;
+        self.nextToken();
+
+        if (!self.expect(.current, &.{.Great})) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .TokenExpected = .{
+                    .expected = &.{.Great},
+                    .obtained = self.currToktype(),
+                } },
+                .span = codeblock_tag_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+    }
+
     // TODO: At this moment, both `//` and `\\` are allowed to start pycode
     // line. Later, I will choose either of them which fits more
     while (it.next()) |line| {
@@ -1959,6 +2044,9 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
     return Stmt{
         .PyCode = .{
             .code_span = codeblock_loc,
+            .code_import = code_import,
+            .code_export = code_export,
+            .is_global = is_global,
             .code = pycode,
         },
     };

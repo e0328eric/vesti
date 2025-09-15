@@ -18,14 +18,16 @@ pub const Error = Allocator.Error || error{
     PyGetModFailed,
 };
 
-gil_state: ?*PyThreadState = null,
-vespy: ?*PyObject = null,
+main_tstate: ?*PyThreadState = null,
+vesti_output: ArrayList(u8) = .empty,
+engine: LatexEngine,
 
 const Self = @This();
 
 // extern functions coming from C
 const PyObject = opaque {};
 const PyThreadState = opaque {};
+const PyStatus = opaque {};
 
 extern "c" fn pyInitVestiModule() c_int;
 extern "c" fn pyDecRef(obj: ?*PyObject) void;
@@ -36,11 +38,13 @@ extern "c" fn Py_NewInterpreter() ?*PyThreadState;
 extern "c" fn Py_EndInterpreter(pst: ?*PyThreadState) void;
 extern "c" fn PyEval_SaveThread() ?*PyThreadState;
 extern "c" fn PyEval_RestoreThread(pst: ?*PyThreadState) void;
+extern "c" fn PyThreadState_Get() ?*PyThreadState;
 extern "c" fn PyThreadState_Swap(interp: ?*PyThreadState) ?*PyThreadState;
 extern "c" fn PyImport_ImportModule(mod_name: [*:0]const u8) ?*PyObject;
 extern "c" fn PyModule_GetState(module: ?*PyObject) ?*anyopaque;
 extern "c" fn PyRun_SimpleString(code: [*:0]const u8) c_int;
 extern "c" fn PyErr_Occurred() ?*PyObject;
+extern "c" fn PyErr_Print() void;
 extern "c" fn PyErr_Fetch(
     etype: ?*?*PyObject,
     evalue: ?*?*PyObject,
@@ -53,6 +57,9 @@ extern "c" fn PyErr_NormalizeException(
 ) void;
 extern "c" fn PyObject_Str(val: ?*PyObject) ?*PyObject;
 extern "c" fn PyUnicode_AsUTF8(val: ?*PyObject) [*:0]const u8;
+extern "c" fn pyNewSubInterpreter(tstate: ?*?*PyThreadState) ?*PyStatus;
+extern "c" fn deinitPyStatus(status: ?*PyStatus) void;
+extern "c" fn checkPyStatus(status: ?*PyStatus) bool;
 
 //          ╭─────────────────────────────────────────────────────────╮
 //          │                    Public Functions                     │
@@ -61,46 +68,78 @@ extern "c" fn PyUnicode_AsUTF8(val: ?*PyObject) [*:0]const u8;
 pub fn init(engine: LatexEngine) Error!Self {
     if (pyInitVestiModule() == -1) return error.PyInitFailed;
 
-    var self: Self = .{};
+    var self: Self = .{ .engine = engine };
 
     Py_Initialize();
     errdefer Py_Finalize();
 
-    self.gil_state = PyEval_SaveThread() orelse return error.PyInitFailed;
-
-    PyEval_RestoreThread(self.gil_state);
-    defer self.gil_state = PyEval_SaveThread();
-    self.vespy = PyImport_ImportModule("vesti");
-
-    const vespy = @as(*VesPy, @ptrCast(@alignCast(PyModule_GetState(self.vespy).?)));
-    vespy.vesti_output = c_alloc.create(ArrayList(u8)) catch return error.PyInitFailed;
-    vespy.vesti_output.* = ArrayList(u8).initCapacity(c_alloc, 100) catch return error.PyInitFailed;
-    vespy.engine = engine;
-
+    self.main_tstate = PyThreadState_Get();
+    self.vesti_output = try ArrayList(u8).initCapacity(c_alloc, 100);
     return self;
 }
 
 pub fn deinit(self: *Self) void {
-    PyEval_RestoreThread(self.gil_state);
-    pyDecRef(self.vespy);
+    self.vesti_output.deinit(c_alloc);
     Py_Finalize();
 }
 
-pub fn runPyCode(self: *Self, code: [:0]const u8) bool {
-    PyEval_RestoreThread(self.gil_state);
-    defer self.gil_state = PyEval_SaveThread();
-
-    return PyRun_SimpleString(@ptrCast(code.ptr)) == 0;
+pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
+    const data = try self.vesti_output.clone(outside_alloc);
+    self.vesti_output.clearRetainingCapacity();
+    return data;
 }
 
-pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
-    PyEval_RestoreThread(self.gil_state);
-    defer self.gil_state = PyEval_SaveThread();
+pub fn runPyCode(self: *Self, code: [:0]const u8, is_main: bool) bool {
+    if (is_main) {
+        const prev = PyThreadState_Swap(self.main_tstate);
+        defer _ = PyThreadState_Swap(prev);
 
-    const state_ptr = PyModule_GetState(self.vespy) orelse return error.PyGetModFailed;
-    const vespy: *VesPy = @ptrCast(@alignCast(state_ptr));
+        const vesti_mod = PyImport_ImportModule("vesti");
+        if (vesti_mod == null) {
+            PyErr_Print();
+            return false;
+        }
+        defer pyDecRef(vesti_mod);
 
-    return try vespy.vesti_output.clone(outside_alloc);
+        const state_ptr = PyModule_GetState(vesti_mod) orelse {
+            PyErr_Print();
+            return false;
+        };
+        const vespy = @as(*VesPy, @ptrCast(@alignCast(state_ptr)));
+        vespy.vesti_output = &self.vesti_output;
+        vespy.engine = self.engine;
+
+        return runPyCodeHelper(code);
+    }
+
+    var tstate: ?*PyThreadState = null;
+    defer Py_EndInterpreter(tstate);
+    const status = pyNewSubInterpreter(&tstate);
+    defer deinitPyStatus(status);
+    if (!checkPyStatus(status)) return false;
+
+    const vesti_mod = PyImport_ImportModule("vesti");
+    if (vesti_mod == null) {
+        PyErr_Print();
+        return false;
+    }
+    defer pyDecRef(vesti_mod);
+
+    const state_ptr = PyModule_GetState(vesti_mod) orelse {
+        PyErr_Print();
+        return false;
+    };
+    const vespy = @as(*VesPy, @ptrCast(@alignCast(state_ptr)));
+    vespy.vesti_output = &self.vesti_output;
+    vespy.engine = self.engine;
+
+    return runPyCodeHelper(code);
+}
+
+fn runPyCodeHelper(code: [:0]const u8) bool {
+    const rc = PyRun_SimpleString(@ptrCast(code.ptr));
+    if (rc != 0 and PyErr_Occurred() != null) PyErr_Print();
+    return rc == 0;
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
@@ -121,11 +160,6 @@ export fn zigAllocatorAlloc(n: usize) callconv(.c) ?*anyopaque {
 
 export fn zigAllocatorFree(ptr: ?*anyopaque, n: usize) callconv(.c) void {
     if (ptr) |p| c_alloc.free(@as([*]u8, @ptrCast(@alignCast(p)))[0..n]);
-}
-
-export fn deinitVesPy(self: *VesPy) callconv(.c) void {
-    self.vesti_output.deinit(c_alloc);
-    c_alloc.destroy(self.vesti_output);
 }
 
 export fn appendCStr(self: *VesPy, str: [*:0]const u8, len: usize) bool {

@@ -1,4 +1,6 @@
+#include <stdbool.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "vespy.h"
 
@@ -22,10 +24,7 @@ static int modClear(PyObject* v) {
 }
 
 static void modFree(void* v) {
-    if (!v) return;
-    
-    VesPy* vespy = (VesPy*)PyModule_GetState((PyObject*)v);
-    deinitVesPy(vespy);
+    UNUSED(v);
 }
 
 // vesti module builin methods definitions
@@ -59,20 +58,32 @@ static struct PyMethodDef VESTI_PY_BUILTINS[] = {
     {NULL, NULL, 0, NULL},
 };
 
+static int vestiExec(PyObject* m) {
+    if (PyModule_AddFunctions(m, VESTI_PY_BUILTINS) < 0) return -1;
+    return 0;
+}
+
+
+static PyModuleDef_Slot VESTI_SLOTS[] = {
+    {Py_mod_exec, vestiExec},
+    {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
+    {0, NULL}
+};
+
 static struct PyModuleDef VESTI_MODULE = {
     .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "vesti",
     .m_doc = "vesti related functions in pycode",
     .m_size = sizeof(VesPy),
-    .m_methods = VESTI_PY_BUILTINS,
+    .m_methods = NULL, // add via Py_mod_exec
+    .m_slots = VESTI_SLOTS,
     .m_traverse = &modTraverse,
     .m_clear = &modClear,
     .m_free = &modFree,
-    .m_slots = NULL,
 };
 
-static PyObject* pyInitVesti(void) {
-    return PyModule_Create(&VESTI_MODULE);
+PyMODINIT_FUNC pyInitVesti(void) {
+    return PyModuleDef_Init(&VESTI_MODULE);
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
@@ -80,7 +91,7 @@ static PyObject* pyInitVesti(void) {
 //          ╰─────────────────────────────────────────────────────────╯
 
 int pyInitVestiModule(void) {
-    return PyImport_AppendInittab("vesti", &pyInitVesti);
+    return PyImport_AppendInittab("vesti", pyInitVesti);
 }
 
 void pyDecRef(PyObject* obj) {
@@ -96,3 +107,28 @@ PyObject* raiseError(const char* fmt, ...) {
     return result;
 }
 
+PyStatus* pyNewSubInterpreter(PyThreadState** tstate) {
+    if (!tstate) return NULL;
+
+    PyStatus* status = malloc(sizeof(PyStatus));
+    PyInterpreterConfig cfg = {
+        .check_multi_interp_extensions = 1,
+        .gil = PyInterpreterConfig_OWN_GIL,
+    };
+    *status = Py_NewInterpreterFromConfig(tstate, &cfg);
+
+    return status;
+}
+
+// status must be initialized from pyNewSubInterpreter
+void deinitPyStatus(PyStatus* status) {
+    free(status);
+}
+
+bool checkPyStatus(PyStatus* status) {
+    if (PyStatus_Exception(*status)) {
+        Py_ExitStatusException(*status);
+        return false;
+    }
+    return true;
+}

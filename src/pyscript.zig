@@ -58,7 +58,7 @@ pub fn runPyCode(
     };
     defer py.deinit();
 
-    if (!py.runPyCode(pycode_contents)) {
+    if (!py.runPyCode(pycode_contents, false)) {
         const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
             diagnostic.allocator,
             null,
