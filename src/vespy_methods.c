@@ -10,7 +10,7 @@
     "sep (str, default = " ")\n"                                 \
     "    A separator between each parameters of `vesti.print`\n" \
     "\n"                                                         \
-    "nl  (int, default = 0)\n"                                   \
+    "nl  (int, default = 1)\n"                                   \
     "    Add newlines after `vesti.print` outputs\n"             \
     "    If nl > 2, then it changes into nl = 2\n"               \
 
@@ -19,31 +19,46 @@ typedef struct {
     uint8_t newline;
 } PrintKwArgs;
 
-static void parsePrintKwArgs(PrintKwArgs* output, PyObject* kwargs) {
+// this function is used on METH_FASTCALL | METH_KEYWORDS
+static bool parsePrintKwArgs(PrintKwArgs* output, PyObject* kwnames, 
+    PyObject* const* kwargs)
+{
     output->separator = " ";
-    output->newline = 1; // .in default, vesti add an newline for each print
-    if (!kwargs) return;
+    output->newline = 1; // in default, vesti add an newline for each print
+    if (!kwnames) return true;
 
-    PyObject* tmp;
-    if ((tmp = PyDict_GetItemString(kwargs, "sep")) != NULL) {
-        if (PyUnicode_CheckExact(tmp)) {
-            output->separator = PyUnicode_AsUTF8(tmp);
+    Py_ssize_t nkw = PyTuple_GET_SIZE(kwnames);
+    for (Py_ssize_t i = 0; i < nkw; ++i) {
+        PyObject* key = PyTuple_GET_ITEM(kwnames, i);
+        PyObject* val = kwargs[i];
+        if (!PyUnicode_Check(key)) {
+            PyErr_SetString(PyExc_TypeError, "kwargs key must be str");
+            return false;
+        }
+        const char* k = PyUnicode_AsUTF8(key);
+        if (!k) return false;
+
+        if (strcmp(k, "sep") == 0) {
+            if (PyUnicode_CheckExact(val)) {
+                output->separator = PyUnicode_AsUTF8(val);
+            }
+        }
+        else if (strcmp(k, "nl") == 0) {
+            if (PyLong_CheckExact(val)) {
+                output->newline = (uint8_t)PyLong_AsSize_t(val);
+                output->newline = output->newline > 2 ? 2 : output->newline;
+            }
         }
     }
 
-    if ((tmp = PyDict_GetItemString(kwargs, "nl")) != NULL) {
-        if (PyLong_CheckExact(tmp)) {
-            output->newline = (uint8_t)PyLong_AsSize_t(tmp);
-            output->newline = output->newline > 2 ? 2 : output->newline;
-        }
-    }
+    return true;
 }
 
 static PyObject* vestiPrint(
     PyObject* self,
     PyObject* const* args,
     Py_ssize_t nargs,
-    PyObject* kwargs
+    PyObject* kwnames
 ) {
     PyObject* result = Py_None;
     VesPy* vespy = (VesPy*)PyModule_GetState(self);
@@ -54,7 +69,7 @@ static PyObject* vestiPrint(
     };
 
     PrintKwArgs kwargs_data;
-    parsePrintKwArgs(&kwargs_data, kwargs);
+    if (!parsePrintKwArgs(&kwargs_data, kwnames, args + nargs)) return NULL;
 
     for (size_t i = 0; i < (size_t)nargs; ++i) {
         PyObject* val = args[i];
@@ -73,7 +88,6 @@ static PyObject* vestiPrint(
             )) return NULL; // OOM
         }
 
-        fprintf(stderr, "DEBUG: %d\n", kwargs_data.newline);
         for (uint8_t j = 0; j < kwargs_data.newline; ++j) {
             if (!appendCStr(vespy, "\n", 1)) return NULL; // OOM
         }
