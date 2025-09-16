@@ -65,6 +65,7 @@ pub const TokenType = union(enum(u8)) {
     Latex3On,
     Latex3Off,
     NonStopMode,
+    TextMode,
     MathMode,
     CompileType,
 
@@ -184,6 +185,7 @@ pub const TokenType = union(enum(u8)) {
             .Latex3On =>                 try writer.writeAll("`ltx3on`"),
             .Latex3Off =>                try writer.writeAll("`ltx3off`"),
             .NonStopMode =>              try writer.writeAll("`nonstopmode`"),
+            .TextMode =>                 try writer.writeAll("`textmode`"),
             .MathMode =>                 try writer.writeAll("`mathmode`"),
             .CompileType =>              try writer.writeAll("`compty`"),
             .DefineFunction =>           try writer.writeAll("`defun`"),
@@ -278,6 +280,7 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "ltx3on", TokenType.Latex3On },
     .{ "ltx3off", TokenType.Latex3Off },
     .{ "nonstopmode", TokenType.NonStopMode },
+    .{ "textmode", TokenType.TextMode },
     .{ "mathmode", TokenType.MathMode },
     .{ "compty", TokenType.CompileType },
     .{ "defun", TokenType.DefineFunction },

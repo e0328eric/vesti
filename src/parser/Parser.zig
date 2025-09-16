@@ -334,6 +334,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Endenv => try self.parseEndPhantomEnvironment(),
         .DefineFunction => try self.parseDefineFunction(),
         .DefineEnv => try self.parseDefineEnv(),
+        .TextMode => try self.parseTextMode(),
         .MathMode => try self.parseMathMode(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
@@ -2064,6 +2065,40 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
             .code = pycode,
         },
     };
+}
+
+fn parseTextMode(self: *Self) ParseError!Stmt {
+    const textmode_block_loc = self.curr_tok.span;
+    if (!self.expect(.current, &.{.TextMode})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.TextMode},
+                .obtained = self.currToktype(),
+            } },
+            .span = textmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.doc_state.math_mode = false;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = true;
+
+    inner.Braced.unwrap_brace = true;
+    return inner;
 }
 
 fn parseMathMode(self: *Self) ParseError!Stmt {
