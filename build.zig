@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
-const VESTI_VERSION_STR = "0.4.0";
+const VESTI_VERSION_STR = "0.4.1";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 // default constants in vesti

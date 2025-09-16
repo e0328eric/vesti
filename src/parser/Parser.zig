@@ -33,7 +33,9 @@ allocator: Allocator,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
-peek_more_tok: Token,
+prev_curr_tok: Token,
+prev_peek_tok: Token,
+already_rewinded: bool,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
@@ -110,7 +112,7 @@ pub fn init(
     self.lexer = try Lexer.init(source);
     self.curr_tok = self.lexer.next();
     self.peek_tok = self.lexer.next();
-    self.peek_more_tok = self.lexer.next();
+    self.already_rewinded = false;
     self.doc_state = DocState{};
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
@@ -134,15 +136,9 @@ pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
         try stmts.append(self.allocator, stmt);
     } else {
         // so we need one more step to exhaust peek_tok
-        var stmt1 = try self.parseStatement();
-        errdefer stmt1.deinit(self.allocator);
-        try stmts.append(self.allocator, stmt1);
-        self.nextToken();
-
-        // and to exhaust more_peek_tok
-        var stmt2 = try self.parseStatement();
-        errdefer stmt2.deinit(self.allocator);
-        try stmts.append(self.allocator, stmt2);
+        var stmt = try self.parseStatement();
+        errdefer stmt.deinit(self.allocator);
+        try stmts.append(self.allocator, stmt);
 
         if (self.doc_state.doc_start and !self.doc_state.prevent_end_doc)
             try stmts.append(self.allocator, Stmt.DocumentEnd);
@@ -156,21 +152,38 @@ inline fn isPremiere(self: Self) bool {
 }
 
 inline fn nextToken(self: *Self) void {
+    self.prev_curr_tok = self.curr_tok;
+    self.prev_peek_tok = self.peek_tok;
+    self.already_rewinded = false;
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.peek_more_tok;
-    self.peek_more_tok = self.lexer.next();
+    self.peek_tok = self.lexer.next();
 }
 
 inline fn nextRawToken(self: *Self) void {
+    self.prev_curr_tok = self.curr_tok;
+    self.prev_peek_tok = self.peek_tok;
+    self.already_rewinded = false;
     self.curr_tok = self.peek_tok;
-    self.peek_tok = self.peek_more_tok;
-    self.peek_more_tok = self.lexer.nextRaw();
+    self.peek_tok = self.lexer.nextRaw();
 }
 
-const ExpectKind = enum(u2) {
+fn rewind(self: *Self) !void {
+    if (self.already_rewinded) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .VestiInternal = "consecutive rewind function found." },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.curr_tok = self.prev_curr_tok;
+    self.peek_tok = self.prev_peek_tok;
+    self.already_rewinded = true;
+}
+
+const ExpectKind = enum(u1) {
     current,
     peek,
-    peek_more,
 };
 
 inline fn expect(
@@ -182,7 +195,6 @@ inline fn expect(
     const what_token = switch (is_peek) {
         .current => "curr_tok",
         .peek => "peek_tok",
-        .peek_more => "peek_more_tok",
     };
     inline for (toktypes) |toktype| {
         output |= @intFromBool(@intFromEnum(@field(self, what_token).toktype) ==
@@ -1427,10 +1439,12 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     };
     errdefer name.deinit(self.allocator);
     if (!is_real) {
-        if (self.expect(.peek, &.{.Star}) or
-            (self.expect(.peek, &.{ .Space, .Tab }) and
-                self.expect(.peek_more, &.{ .Lparen, .Lsqbrace })))
+        if (self.expect(.peek, &.{.Star}))
+            self.nextToken()
+        else if (self.expect(.peek, &.{ .Space, .Tab })) {
             self.nextToken();
+            if (!self.expect(.peek, &.{ .Lparen, .Lsqbrace })) try self.rewind();
+        }
     } else self.nextToken();
 
     if (ENV_MATH_IDENT.has(name.Owned.items)) {

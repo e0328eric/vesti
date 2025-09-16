@@ -524,6 +524,17 @@ pub const ParseDiagnostic = struct {
                 , .{});
                 break :blk output;
             },
+            .VestiInternal => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(allocator,
+                    \\Unexpected behavior was found.
+                    \\If this error is raised, please make an issue on github.
+                    \\addr: https://github.com/e0328eric/vesti
+                , .{});
+                break :blk output;
+            },
             else => null,
         };
     }

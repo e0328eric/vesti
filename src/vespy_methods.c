@@ -73,6 +73,7 @@ static PyObject* vestiPrint(
             )) return NULL; // OOM
         }
 
+        fprintf(stderr, "DEBUG: %d\n", kwargs_data.newline);
         for (uint8_t j = 0; j < kwargs_data.newline; ++j) {
             if (!appendCStr(vespy, "\n", 1)) return NULL; // OOM
         }
