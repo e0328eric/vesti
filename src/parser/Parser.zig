@@ -87,7 +87,10 @@ pub const ParseError = Allocator.Error ||
 pub const VestiModule = struct {
     name: []const u8,
     version: ?[]const u8,
-    exports: []const []const u8,
+    exports: []const struct {
+        name: []const u8,
+        location: ?[]const u8 = null,
+    },
 };
 
 const DocState = packed struct {
@@ -1262,27 +1265,28 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     );
     defer zon.parse.free(self.allocator, ves_module);
 
-    for (ves_module.exports) |export_file| {
+    for (ves_module.exports) |@"export"| {
         var mod_filename = try ArrayList(u8).initCapacity(
             self.allocator,
-            export_file.len + mod_dir_path.items.len,
+            @"export".name.len + mod_dir_path.items.len,
         );
         defer mod_filename.deinit(self.allocator);
         try mod_filename.print(
             self.allocator,
             "{s}/{s}",
-            .{ mod_dir_path.items, export_file },
+            .{ mod_dir_path.items, @"export".name },
         );
 
+        const location = @"export".location orelse VESTI_DUMMY_DIR;
         var into_copy_filename = try ArrayList(u8).initCapacity(
             self.allocator,
-            export_file.len + VESTI_DUMMY_DIR.len,
+            @"export".name.len + location.len,
         );
         defer into_copy_filename.deinit(self.allocator);
         try into_copy_filename.print(
             self.allocator,
             "{s}/{s}",
-            .{ VESTI_DUMMY_DIR, export_file },
+            .{ location, @"export".name },
         );
 
         fs.cwd().copyFile(

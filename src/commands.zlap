@@ -45,9 +45,9 @@
     default: false;
 
     #flag;
-    long: all;
-    short: a;
-    desc: compile all vesti files in the subdirectories;
+    long: single;
+    short: s;
+    desc: compile single vesti file given from FILENAMES;
     type: bool;
     default: false;
 
