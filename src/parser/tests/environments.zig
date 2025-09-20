@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const expect = @import("./utility.zig").expect;
+const expect = @import("utility.zig").expect;
 
 fn trim(output: []const u8) []const u8 {
     return std.mem.trim(u8, output, "\n");

@@ -7,24 +7,24 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 const ParseError = @import("parser/Parser.zig").ParseError;
-const Python = @import("Python.zig");
+const Julia = @import("julia/Julia.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
 const Error = Allocator.Error || Io.Writer.Error ||
-    Python.Error || ParseError ||
+    Julia.Error || ParseError ||
     error{
-        PyLabelNotFound,
-        DuplicatedPyLabel,
-        PyEvalFailed,
+        JlLabelNotFound,
+        DuplicatedJlLabel,
+        JlEvalFailed,
     };
 
 allocator: Allocator,
 source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
-pycode_exports: StringArrayHashMap(ArrayList(u8)),
-py: ?Python,
+jlcode_exports: StringArrayHashMap(ArrayList(u8)),
+julia: ?Julia,
 
 const Self = @This();
 
@@ -34,36 +34,36 @@ pub fn init(
     stmts: []const ast.Stmt,
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
-    comptime disallow_pycode: bool,
+    comptime disallow_jlcode: bool,
 ) !Self {
-    var py: ?Python = if (disallow_pycode) null else Python.init(engine) catch {
+    var julia: ?Julia = if (disallow_jlcode) null else Julia.init(engine) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
-            "failed to initialize python vm",
+            "failed to initialize julia vm",
             .{},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.PyInitFailed;
+        return error.JlInitFailed;
     };
-    errdefer if (py) |*p| p.deinit();
+    errdefer if (julia) |*p| p.deinit();
 
     return Self{
         .allocator = allocator,
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
-        .pycode_exports = .empty,
-        .py = py,
+        .jlcode_exports = .empty,
+        .julia = julia,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    for (self.pycode_exports.values()) |*code| {
+    for (self.jlcode_exports.values()) |*code| {
         code.deinit(self.allocator);
     }
-    self.pycode_exports.deinit(self.allocator);
-    if (self.py) |*py| py.deinit();
+    self.jlcode_exports.deinit(self.allocator);
+    if (self.julia) |*jl| jl.deinit();
 }
 
 pub fn codegen(
@@ -277,8 +277,8 @@ fn codegenStmt(
             //epilogue
             try writer.writeAll("}\n");
         },
-        .PyCode => |cb| {
-            if (self.py) |*py| {
+        .JlCode => |cb| {
+            if (self.julia) |*jl| {
                 var new_code = try ArrayList(u8).initCapacity(
                     self.allocator,
                     cb.code.items.len,
@@ -287,50 +287,50 @@ fn codegenStmt(
 
                 if (cb.code_import) |import_arr_list| {
                     for (import_arr_list.items) |import_label| {
-                        if (self.pycode_exports.get(import_label)) |import_code| {
+                        if (self.jlcode_exports.get(import_label)) |import_code| {
                             try new_code.appendSlice(self.allocator, import_code.items);
                             try new_code.append(self.allocator, '\n');
                         } else {
-                            const label_not_found = try diag.ParseDiagnostic.pyLabelNotFound(
+                            const label_not_found = try diag.ParseDiagnostic.jlLabelNotFound(
                                 self.diagnostic.allocator,
                                 cb.code_span,
                                 import_label,
                             );
                             self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
-                            return error.PyLabelNotFound;
+                            return error.JlLabelNotFound;
                         }
                     }
                 }
 
                 if (cb.code_export) |export_label| {
-                    if (self.pycode_exports.get(export_label) != null) {
+                    if (self.jlcode_exports.get(export_label) != null) {
                         self.diagnostic.initDiagInner(.{ .ParseError = .{
-                            .err_info = .{ .DuplicatedPyLabel = export_label },
+                            .err_info = .{ .DuplicatedJlLabel = export_label },
                             .span = cb.code_span,
                         } });
-                        return error.DuplicatedPyLabel;
+                        return error.DuplicatedJlLabel;
                     }
                     try new_code.appendSlice(self.allocator, cb.code.items);
-                    try self.pycode_exports.put(self.allocator, export_label, new_code);
+                    try self.jlcode_exports.put(self.allocator, export_label, new_code);
                     return;
                 }
 
                 try new_code.appendSlice(self.allocator, cb.code.items);
                 try new_code.append(self.allocator, 0);
 
-                if (!py.runPyCode(@ptrCast(new_code.items), cb.is_global)) {
-                    const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
+                if (!jl.runJlCode(@ptrCast(new_code.items))) {
+                    const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
                         self.diagnostic.allocator,
                         cb.code_span,
-                        "failed to run pycode",
+                        "failed to run jlcode",
                         .{},
-                        "see above python error message",
+                        "see above julia error message",
                     );
-                    self.diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
-                    return error.PyEvalFailed;
+                    self.diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
+                    return error.JlEvalFailed;
                 }
 
-                var ves_output = try py.getVestiOutputStr(self.allocator);
+                var ves_output = try jl.getVestiOutputStr(self.allocator);
                 defer ves_output.deinit(self.allocator);
                 try writer.writeAll(ves_output.items);
 

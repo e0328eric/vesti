@@ -5,7 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("diagnostic.zig");
-const pyscript = @import("pyscript.zig");
+const jlscript = @import("jlscript.zig");
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
@@ -29,24 +29,24 @@ pub const CompileAttribute = packed struct {
     no_exit_err: bool,
 };
 
-pub const PythonScripts = struct {
+pub const JuliaScripts = struct {
     first: []const u8,
     step: []const u8,
 };
 
-pub const PythonContents = struct {
+pub const JuliaContents = struct {
     first: ?[:0]const u8 = null,
     step: ?[:0]const u8 = null,
 
     fn init(
-        scripts: *const PythonScripts,
+        scripts: *const JuliaScripts,
         allocator: Allocator,
         diagnostic: *diag.Diagnostic,
     ) !@This() {
         var output: @This() = .{};
 
         inline for (&.{ "first", "step" }) |ty| {
-            @field(output, ty) = try pyscript.getBuildPyContents(
+            @field(output, ty) = try jlscript.getBuildJlContents(
                 allocator,
                 @field(scripts, ty),
                 diagnostic,
@@ -71,19 +71,19 @@ pub fn compile(
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    pycode_scripts: PythonScripts,
+    jlcode_scripts: JuliaScripts,
     attr: CompileAttribute,
 ) !void {
-    const pycode_contents = try PythonContents.init(
-        &pycode_scripts,
+    const jlcode_contents = try JuliaContents.init(
+        &jlcode_scripts,
         allocator,
         diagnostic,
     );
-    defer pycode_contents.deinit(allocator);
+    defer jlcode_contents.deinit(allocator);
 
-    // run first.py to "initialize" vesti projects
-    if (pycode_contents.first) |lc| {
-        try pyscript.runPyCode(allocator, diagnostic, engine.*, lc);
+    // run first.jl to "initialize" vesti projects
+    if (jlcode_contents.first) |lc| {
+        try jlscript.runJlCode(allocator, diagnostic, engine.*, lc);
     }
 
     while (true) {
@@ -94,7 +94,7 @@ pub fn compile(
             engine,
             compile_limit,
             prev_mtime,
-            pycode_contents.step,
+            jlcode_contents.step,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -129,7 +129,7 @@ fn compileInner(
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    pycode_contents: ?[:0]const u8,
+    jlcode_contents: ?[:0]const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -231,7 +231,7 @@ fn compileInner(
                     diagnostic,
                     engine.*,
                     &vesti_dummy,
-                    pycode_contents,
+                    jlcode_contents,
                     compile_limit,
                 );
             }
@@ -270,7 +270,7 @@ fn compileInner(
                 diagnostic,
                 engine.*,
                 &vesti_dummy,
-                pycode_contents,
+                jlcode_contents,
                 compile_limit,
             );
         }
@@ -349,7 +349,7 @@ pub fn vestiToLatex(
         ast.items,
         diagnostic,
         engine.*,
-        false, // allow initializing python
+        false, // allow initializing julia
     );
     defer codegen.deinit();
     codegen.codegen(&aw.writer) catch |err| {
@@ -390,7 +390,7 @@ fn compileLatex(
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    pycode_contents: ?[:0]const u8,
+    jlcode_contents: ?[:0]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -404,8 +404,8 @@ fn compileLatex(
                 vesti_dummy,
                 compile_limit,
             );
-            if (pycode_contents) |lc| {
-                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
+            if (jlcode_contents) |lc| {
+                try jlscript.runJlCode(allocator, diagnostic, engine, lc);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -433,8 +433,8 @@ fn compileLatex(
                 main_tex_file,
                 vesti_dummy,
             );
-            if (pycode_contents) |lc| {
-                try pyscript.runPyCode(allocator, diagnostic, engine, lc);
+            if (jlcode_contents) |lc| {
+                try jlscript.runJlCode(allocator, diagnostic, engine, lc);
             }
 
             std.debug.print("[compiled]\n", .{});

@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const expect = @import("./utility.zig").expect;
+const expect = @import("utility.zig").expect;
 
 test "simple docclass statement" {
     const source = "docclass article";

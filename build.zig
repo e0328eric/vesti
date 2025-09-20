@@ -7,13 +7,13 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
-const VESTI_VERSION_STR = "0.4.1";
+const VESTI_VERSION_STR = "0.5.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 
-const min_zig_string = "0.16.0-dev.205+4c0127566";
+const min_zig_string = "0.16.0-dev.238+580b6d1fa";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -62,18 +62,25 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
-    const py_libs = switch (target.result.os.tag) {
-        .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/libs"),
-        .linux => "/usr/lib",
-        else => "",
+    var envmap = try std.process.getEnvMap(alloc);
+    defer envmap.deinit();
+
+    const julia_dir_path = envmap.get("JULIA_DIR") orelse {
+        std.debug.print("`JULIA_DIR` env is not defined\n", .{});
+        return error.BuildFailed;
     };
-    defer if (target.result.os.tag == .windows) alloc.free(py_libs);
-    const py_include = switch (target.result.os.tag) {
-        .windows => try std.fs.getAppDataDir(alloc, "Programs/Python/Python313/include"),
-        .linux => "/usr/include/python3.13",
-        else => "",
-    };
-    defer if (target.result.os.tag == .windows) alloc.free(py_include);
+
+    const jl_include = try std.fs.path.join(alloc, &.{
+        julia_dir_path,
+        "include",
+        "julia",
+    });
+    defer alloc.free(jl_include);
+    const jl_libs = try std.fs.path.join(alloc, &.{
+        julia_dir_path,
+        "bin",
+    });
+    defer alloc.free(jl_libs);
 
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
@@ -93,9 +100,10 @@ pub fn build(b: *Build) !void {
         },
     });
     exe_mod.addCSourceFile(.{
-        .file = b.path("src/vespy.c"),
+        .file = b.path("src/julia/vesjulia.c"),
         .flags = &.{
             "-std=c11",
+            "-Wno-implicit-int",
             "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
         },
     });
@@ -112,12 +120,13 @@ pub fn build(b: *Build) !void {
             else => {},
         }
     }
-    exe_mod.addIncludePath(.{ .cwd_relative = py_include });
-    exe_mod.addIncludePath(b.path("src"));
-    exe_mod.addLibraryPath(.{ .cwd_relative = py_libs });
+    exe_mod.addIncludePath(.{ .cwd_relative = jl_include });
+    exe_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
     switch (target.result.os.tag) {
-        .windows => exe_mod.linkSystemLibrary("python313", .{}),
-        .linux => exe_mod.linkSystemLibrary("python3.13", .{}),
+        .windows => exe_mod.linkSystemLibrary("libjulia", .{
+            .preferred_link_mode = .dynamic,
+        }),
+        .linux => unreachable, // TOOD: implement this
         else => {},
     }
     exe_mod.addOptions("vesti-info", vesti_opt);
@@ -157,19 +166,21 @@ pub fn build(b: *Build) !void {
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
         },
     });
+    test_mod.addIncludePath(.{ .cwd_relative = jl_include });
     test_mod.addCSourceFile(.{
-        .file = b.path("src/vespy.c"),
+        .file = b.path("src/julia/vesjulia.c"),
         .flags = &.{
             "-std=c11",
+            "-Wno-implicit-int",
             "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
         },
     });
     switch (target.result.os.tag) {
         .windows => {
-            test_mod.addIncludePath(.{ .cwd_relative = py_include });
-            test_mod.addIncludePath(b.path("src"));
-            test_mod.addLibraryPath(.{ .cwd_relative = py_libs });
-            test_mod.linkSystemLibrary("python313", .{});
+            test_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
+            test_mod.linkSystemLibrary("libjulia", .{
+                .preferred_link_mode = .dynamic,
+            });
         },
         else => {},
     }

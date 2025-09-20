@@ -44,7 +44,7 @@ pub const TokenType = union(enum(u8)) {
         chr: u21 = 0,
     },
     FntParam,
-    PyCode,
+    JlCode,
 
     // Keywords
     Docclass,
@@ -168,7 +168,7 @@ pub const TokenType = union(enum(u8)) {
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
             .FntParam =>                 try writer.writeAll("`<fnt_param>`"),
             .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
-            .PyCode =>                   try writer.writeAll("`<pycode>`"),
+            .JlCode =>                   try writer.writeAll("`<jlcode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
             .ImportVesti =>              try writer.writeAll("`importves`"),
@@ -285,20 +285,8 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "compty", TokenType.CompileType },
     .{ "defun", TokenType.DefineFunction },
     .{ "defenv", TokenType.DefineEnv },
-    .{ "pycode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "%py:" } } },
-    .{ "luacode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "%py:" } } },
-    .{ "importfile", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "cpfile" } } },
-    .{ "getfilepath", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "getfp" } } },
-    .{ "redefenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },
-    .{ "endswith", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },
-    .{ "pycode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "" } } },
-    .{ "mainvesfile", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },
-    .{ "importltx3", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "useltx3" } } },
-    .{ "enddef", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "}" } } },
-    .{ "import", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "importpkg" } } },
-    .{ "endswith", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "" } } },
-    .{ "pbegenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "begenv" } } },
-    .{ "pendenv", TokenType{ .Deprecated = .{ .valid_in_text = false, .instead = "endenv" } } },
+    .{ "pycode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "#jl:" } } },
+    .{ "luacode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "#jl:" } } },
 });
 
 pub fn init(

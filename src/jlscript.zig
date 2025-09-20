@@ -1,72 +1,72 @@
 const std = @import("std");
 const fs = std.fs;
-const diag = @import("./diagnostic.zig");
+const diag = @import("diagnostic.zig");
 
 const Allocator = std.mem.Allocator;
-const Python = @import("./Python.zig");
-const LatexEngine = @import("./parser/Parser.zig").LatexEngine;
+const Julia = @import("julia/Julia.zig");
+const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
-pub fn getBuildPyContents(
+pub fn getBuildJlContents(
     allocator: Allocator,
-    pycode_path: []const u8,
+    jlcode_path: []const u8,
     diagnostic: *diag.Diagnostic,
 ) !?[:0]const u8 {
-    const pycode_file = fs.cwd().openFile(pycode_path, .{}) catch |err| switch (err) {
+    const jlcode_file = fs.cwd().openFile(jlcode_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => {
             const io_diag = try diag.IODiagnostic.init(
                 diagnostic.allocator,
                 null,
                 "failed to read {s}",
-                .{pycode_path},
+                .{jlcode_path},
             );
             diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileVesFailed;
         },
     };
-    defer pycode_file.close();
+    defer jlcode_file.close();
 
     var buf: [1024]u8 = undefined;
-    var buf_reader = pycode_file.reader(&buf);
+    var buf_reader = jlcode_file.reader(&buf);
     const reader = &buf_reader.interface;
 
-    const pycode_contents = try reader.allocRemainingAlignedSentinel(
+    const jlcode_contents = try reader.allocRemainingAlignedSentinel(
         allocator,
         .unlimited,
         .of(u8),
         0,
     );
 
-    return pycode_contents;
+    return jlcode_contents;
 }
 
-pub fn runPyCode(
+pub fn runJlCode(
     allocator: Allocator,
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
-    pycode_contents: [:0]const u8,
+    jlcode_contents: [:0]const u8,
 ) !void {
-    var py = Python.init(engine) catch {
+    var julia = Julia.init(engine) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
-            "failed to initialize python vm",
+            "failed to initialize julia vm",
             .{},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.PyInitFailed;
+        return error.JlInitFailed;
     };
-    defer py.deinit();
+    defer julia.deinit();
 
-    if (!py.runPyCode(pycode_contents, false)) {
-        const py_runtime_err = try diag.ParseDiagnostic.pyEvalFailed(
+    if (!julia.runJlCode(jlcode_contents)) {
+        const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
             diagnostic.allocator,
             null,
-            "vesti library in python emits an error",
+            "vesti library in julia emits an error",
             .{},
             "see above python error message",
         );
-        diagnostic.initDiagInner(.{ .ParseError = py_runtime_err });
-        return error.PyEvalFailed;
+        diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
+        return error.JlEvalFailed;
     }
 }

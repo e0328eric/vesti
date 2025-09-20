@@ -1,8 +1,8 @@
 .{
     .name = .vesti,
-    .version = "0.4.1",
+    .version = "0.5.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.16.0-dev.205+4c0127566",
+    .minimum_zig_version = "0.16.0-dev.238+580b6d1fa",
     .dependencies = .{
         .zlap = .{
             .url = "git+https://github.com/e0328eric/zlap.git#3a8e677c22b91844f63d84073d294af63c1d19ce",

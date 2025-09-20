@@ -39,7 +39,7 @@ already_rewinded: bool,
 doc_state: DocState,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
-allow_pycode: bool,
+allow_jlcode: bool,
 engine: ?*LatexEngine,
 
 const Self = @This();
@@ -82,7 +82,7 @@ pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
     Io.Writer.Error ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
-    error{ ParseFailed, ParseZon, NameMangle, LuaInitFailed };
+    error{ ParseFailed, ParseZon, NameMangle };
 
 pub const VestiModule = struct {
     name: []const u8,
@@ -106,7 +106,7 @@ pub fn init(
     source: []const u8,
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
-    allow_pycode: bool,
+    allow_jlcode: bool,
     engine: ?*LatexEngine,
 ) !Self {
     var self: Self = undefined;
@@ -119,7 +119,7 @@ pub fn init(
     self.doc_state = DocState{};
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
-    self.allow_pycode = allow_pycode;
+    self.allow_jlcode = allow_jlcode;
     self.engine = engine;
 
     return self;
@@ -352,11 +352,11 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .CompileType => try self.parseCompileType(),
-        .PyCode => if (self.allow_pycode)
-            try self.parsePyCode()
+        .JlCode => if (self.allow_jlcode)
+            try self.parseJlCode()
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .DisallowPycode,
+                .err_info = .DisallowJlcode,
                 .span = self.curr_tok.span,
             } });
             return ParseError.ParseFailed;
@@ -1917,29 +1917,24 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     };
 }
 
-fn parsePyCode(self: *Self) ParseError!Stmt {
+fn parseJlCode(self: *Self) ParseError!Stmt {
     const codeblock_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.PyCode})) {
+    if (!self.expect(.current, &.{.JlCode})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.PyCode},
+                .expected = &.{.JlCode},
                 .obtained = self.currToktype(),
             } },
             .span = codeblock_loc,
         } });
         return ParseError.ParseFailed;
     }
-    const pycode_content = self.curr_tok.lit.in_text;
+    const jlcode_contents = self.curr_tok.lit.in_text;
 
-    var pycode = try ArrayList(u8).initCapacity(self.allocator, 50);
-    errdefer pycode.deinit(self.allocator);
-    var it = mem.tokenizeScalar(u8, pycode_content, '\n');
-
-    var is_global = false;
-    if (self.expect(.peek, &.{.Star})) {
-        self.nextToken();
-        is_global = true;
-    }
+    // coping jlcode contents
+    var jlcode: ArrayList(u8) = .empty;
+    errdefer jlcode.deinit(self.allocator);
+    try jlcode.appendSlice(self.allocator, jlcode_contents);
 
     var code_import: ?ArrayList([]const u8) = null;
     errdefer {
@@ -1950,7 +1945,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
             self.allocator,
             10,
         );
-        self.nextToken(); // skip ':py#' or '*' token
+        self.nextToken(); // skip ':jl#' token
         self.nextToken(); // skip '[' token
 
         while (true) : (self.nextToken()) {
@@ -1990,7 +1985,7 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
 
     var code_export: ?[]const u8 = null;
     if (self.expect(.peek, &.{.Less})) {
-        self.nextToken(); // skip ':py#' or ']' token
+        self.nextToken(); // skip ':jl#' or ']' token
 
         const codeblock_tag_loc = self.curr_tok.span;
         self.nextToken(); // skip '<' token
@@ -2020,53 +2015,12 @@ fn parsePyCode(self: *Self) ParseError!Stmt {
         }
     }
 
-    // TODO: At this moment, both `//` and `\\` are allowed to start pycode
-    // line. Later, I will choose either of them which fits more
-    while (it.next()) |line| {
-        const pos = mem.indexOfAny(u8, line, "/\\") orelse {
-            const trim_line = mem.trim(u8, line, " \t\r\n");
-            if (trim_line.len == 0) continue else {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .InvalidPycode,
-                    .span = codeblock_loc,
-                } });
-                return ParseError.ParseFailed;
-            }
-        };
-        if (!mem.eql(u8, line[pos .. pos + 2], "//") and
-            !mem.eql(u8, line[pos .. pos + 2], "\\\\"))
-        {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .InvalidPycode,
-                .span = codeblock_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-
-        // this line only contains a prefix (i.e. `//` or `\\`).
-        if (pos + 2 == line.len) {
-            try pycode.append(self.allocator, '\n');
-            continue;
-        }
-
-        if (pos + 2 > line.len) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .InvalidPycode,
-                .span = codeblock_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-        try pycode.appendSlice(self.allocator, line[pos + 2 ..]);
-        try pycode.append(self.allocator, '\n');
-    }
-
     return Stmt{
-        .PyCode = .{
+        .JlCode = .{
             .code_span = codeblock_loc,
             .code_import = code_import,
             .code_export = code_export,
-            .is_global = is_global,
-            .code = pycode,
+            .code = jlcode,
         },
     };
 }
@@ -2445,5 +2399,5 @@ test "test vesti parser" {
     _ = @import("tests/importpkg.zig");
     _ = @import("tests/math_stmts.zig");
     _ = @import("tests/environments.zig");
-    _ = @import("tests/pycode.zig");
+    _ = @import("tests/jlcode.zig");
 }

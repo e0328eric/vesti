@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const expect = @import("./utility.zig").expect;
+const expect = @import("utility.zig").expect;
 
 test "single importpkg statement without any options" {
     const source = "importpkg tikz";

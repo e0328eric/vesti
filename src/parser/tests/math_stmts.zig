@@ -1,7 +1,7 @@
 const std = @import("std");
 const mem = std.mem;
 
-const expect = @import("./utility.zig").expect;
+const expect = @import("utility.zig").expect;
 
 test "text math statement" {
     const source = "startdoc $\\sum_1^oo f(x)$";

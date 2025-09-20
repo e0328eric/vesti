@@ -245,11 +245,11 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow,
         InvalidDefunParam,
         EnvInsideDefun,
-        InvalidPycode,
-        DisallowPycode,
-        PyLabelNotFound,
-        DuplicatedPyLabel,
-        PyEvalFailed,
+        InvalidJlcode,
+        DisallowJlcode,
+        JlLabelNotFound,
+        DuplicatedJlLabel,
+        JlEvalFailed,
         NotLocatedInVeryFirst,
         DoubleUsed,
         InvalidLatexEngine,
@@ -279,11 +279,11 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow,
         InvalidDefunParam: CowStr,
         EnvInsideDefun,
-        InvalidPycode,
-        DisallowPycode,
-        PyLabelNotFound: ArrayList(u8),
-        DuplicatedPyLabel: []const u8,
-        PyEvalFailed: struct {
+        InvalidJlcode,
+        DisallowJlcode,
+        JlLabelNotFound: ArrayList(u8),
+        DuplicatedJlLabel: []const u8,
+        JlEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
         },
@@ -295,8 +295,8 @@ pub const ParseDiagnostic = struct {
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
                 .InvalidDefunParam => |*inner| inner.deinit(allocator),
-                .PyLabelNotFound => |*inner| inner.deinit(allocator),
-                .PyEvalFailed => |*inner| {
+                .JlLabelNotFound => |*inner| inner.deinit(allocator),
+                .JlEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
                     inner.err_detail.deinit(allocator);
                 },
@@ -305,7 +305,7 @@ pub const ParseDiagnostic = struct {
         }
     };
 
-    pub fn pyLabelNotFound(
+    pub fn jlLabelNotFound(
         allocator: Allocator,
         span: Span,
         label_str: []const u8,
@@ -315,12 +315,12 @@ pub const ParseDiagnostic = struct {
         try label.appendSlice(allocator, label_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .PyLabelNotFound = label },
+            .err_info = ParseErrorInfo{ .JlLabelNotFound = label },
             .span = span,
         };
     }
 
-    pub fn pyEvalFailed(
+    pub fn jlEvalFailed(
         allocator: Allocator,
         span: ?Span,
         comptime fmt_str: []const u8,
@@ -336,7 +336,7 @@ pub const ParseDiagnostic = struct {
         try err_detail.appendSlice(allocator, err_detail_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .PyEvalFailed = .{
+            .err_info = ParseErrorInfo{ .JlEvalFailed = .{
                 .err_msg = err_msg,
                 .err_detail = err_detail,
             } },
@@ -448,18 +448,18 @@ pub const ParseDiagnostic = struct {
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try aw.writer.writeAll(info),
-            .InvalidPycode => try aw.writer.writeAll("invalid pycode was found"),
-            .DisallowPycode => try aw.writer.writeAll("nested pycode is not allowed"),
-            .PyLabelNotFound => |label| try aw.writer.print(
+            .InvalidJlcode => try aw.writer.writeAll("invalid julia code was found"),
+            .DisallowJlcode => try aw.writer.writeAll("nested julia code is not allowed"),
+            .JlLabelNotFound => |label| try aw.writer.print(
                 "label `{s}` is not found",
                 .{label.items},
             ),
-            .DuplicatedPyLabel => |label| try aw.writer.print(
+            .DuplicatedJlLabel => |label| try aw.writer.print(
                 "label `{s}` is duplicated",
                 .{label},
             ),
-            .PyEvalFailed => |inner| try aw.writer.print(
-                "python exception occured: {s}",
+            .JlEvalFailed => |inner| try aw.writer.print(
+                "julia exception occured: {s}",
                 .{inner.err_msg.items},
             ),
             .NotLocatedInVeryFirst => |tok| try aw.writer.print(
@@ -484,7 +484,7 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
-            .PyLabelNotFound => blk: {
+            .JlLabelNotFound => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 
@@ -495,7 +495,7 @@ pub const ParseDiagnostic = struct {
                 );
                 break :blk output;
             },
-            .PyEvalFailed => |inner| blk: {
+            .JlEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 

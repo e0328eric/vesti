@@ -103,16 +103,16 @@
     #flag;
     long: first_script;
     short:;
-    desc: run pycode once for each vesti runs.
+    desc: run julia code once for each vesti runs.
     type: string;
-    default: first.py;
+    default: first.jl;
 
     #flag;
     long: step_script;
     short:;
-    desc: custom pycode to execute for each end of vesti steps;
+    desc: custom julia code to execute for each end of vesti steps;
     type: string;
-    default: step.py;
+    default: step.jl;
 }
 {
     #name: clear;

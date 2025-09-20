@@ -6,15 +6,19 @@ const allocator = testing.allocator;
 
 const Parser = @import("../Parser.zig");
 
-test "basic pycode 1" {
+test "basic jlcode" {
     const source =
-        \\#py:
-        \\    //import vesti
-        \\ 
-        \\//print("Hello, World!")
-        \\            //if x == 3:
-        \\//    pass
-        \\    :py#
+        \\#jl:
+        \\function test(x,y)
+        \\  if x < y
+        \\    println("x is less than y")
+        \\  elseif x > y
+        \\    println("x is greater than y")
+        \\  else
+        \\    println("x and y are equal")
+        \\  end
+        \\end
+        \\:jl#
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,
@@ -27,7 +31,7 @@ test "basic pycode 1" {
         source,
         undefined,
         &diagnostic,
-        true, // allow pycode for testing
+        true, // allow jlcode for testing
         null, // disallow changing latex engine type
     );
 
@@ -43,13 +47,19 @@ test "basic pycode 1" {
         ast.deinit(allocator);
     }
 
-    const expected_pycode =
-        \\import vesti
-        \\print("Hello, World!")
-        \\if x == 3:
-        \\    pass
+    const expected_jlcode =
+        \\
+        \\function test(x,y)
+        \\  if x < y
+        \\    println("x is less than y")
+        \\  elseif x > y
+        \\    println("x is greater than y")
+        \\  else
+        \\    println("x and y are equal")
+        \\  end
+        \\end
         \\
     ;
 
-    try testing.expectFmt(expected_pycode, "{s}", .{ast.items[0].PyCode.code.items});
+    try testing.expectFmt(expected_jlcode, "{s}", .{ast.items[0].JlCode.code.items});
 }

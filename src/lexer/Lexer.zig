@@ -107,8 +107,8 @@ const TokenizeState = enum {
     multiline_comment,
     verbatim,
     line_verbatim,
-    pycode,
-    pycode_end,
+    jlcode,
+    jlcode_end,
     fnt_param,
     latex_function,
     text,
@@ -431,12 +431,12 @@ pub fn next(self: *Self) Token {
             const Goto = enum { a, b };
             goto: switch (Goto.a) {
                 .a => switch (self.getChar(.current)) {
-                    'p' => if (self.getChar(.peek1) == 'y' and
+                    'j' => if (self.getChar(.peek1) == 'l' and
                         self.getChar(.peek2) == ':')
                     {
                         self.nextChar(3);
                         start_chr0_idx = self.chr0_idx;
-                        continue :tokenize .pycode;
+                        continue :tokenize .jlcode;
                     } else {
                         continue :goto .b;
                     },
@@ -737,11 +737,11 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .line_verbatim;
             },
         },
-        .pycode => if (self.getChar(.current) == ':' and
-            self.getChar(.peek1) == 'p')
+        .jlcode => if (self.getChar(.current) == ':' and
+            self.getChar(.peek1) == 'j')
         {
             self.nextChar(1);
-            continue :tokenize .pycode_end;
+            continue :tokenize .jlcode_end;
         } else if (self.getChar(.current) == 0) {
             token.init(
                 self.source[start_chr0_idx..self.chr0_idx],
@@ -754,19 +754,19 @@ pub fn next(self: *Self) Token {
             break :tokenize;
         } else {
             self.nextChar(1);
-            continue :tokenize .pycode;
+            continue :tokenize .jlcode;
         },
-        .pycode_end => if (self.getChar(.current) == 'p' and
-            self.getChar(.peek1) == 'y' and
+        .jlcode_end => if (self.getChar(.current) == 'j' and
+            self.getChar(.peek1) == 'l' and
             self.getChar(.peek2) == '#')
         {
-            const pycode_end = self.chr0_idx - 1; // remove `:` character
+            const jlcode_end = self.chr0_idx - 1; // remove `:` character
             self.nextChar(3);
 
             token.init(
-                self.source[start_chr0_idx..pycode_end],
+                self.source[start_chr0_idx..jlcode_end],
                 null,
-                .PyCode,
+                .JlCode,
                 start_location,
                 self.location,
             );
@@ -783,7 +783,7 @@ pub fn next(self: *Self) Token {
             break :tokenize;
         } else {
             self.nextChar(1);
-            continue :tokenize .pycode;
+            continue :tokenize .jlcode;
         },
     }
 

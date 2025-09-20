@@ -26,7 +26,7 @@ pub fn expect(
         source,
         undefined,
         &diagnostic,
-        false, // disallow pycode for testing
+        false, // disallow jlcode for testing
         null, // disallow changing latex engine type
     );
 
@@ -51,7 +51,7 @@ pub fn expect(
         ast.items,
         &diagnostic,
         .pdflatex, // in the test, this does nothing
-        true, // disallow pycode
+        true, // disallow jlcode
     );
     defer codegen.deinit();
     try codegen.codegen(&aw.writer);

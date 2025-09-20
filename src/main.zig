@@ -2,7 +2,7 @@ const std = @import("std");
 const c = @import("c");
 const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
-const pyscript = @import("pyscript.zig");
+const jlscript = @import("jlscript.zig");
 const time = std.time;
 
 const assert = std.debug.assert;
@@ -30,7 +30,7 @@ pub fn main() !void {
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
 
-    var zlap = try @import("zlap").Zlap(@embedFile("./commands.zlap")).init(allocator);
+    var zlap = try @import("zlap").Zlap(@embedFile("commands.zlap")).init(allocator);
     defer zlap.deinit();
 
     if (zlap.isSubcmdActive("clear")) {
