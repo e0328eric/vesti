@@ -48,6 +48,13 @@ pub fn init(engine: LatexEngine) Error!Self {
 
     // initializing vesti
     jl_init();
+    const julia_vesti = @embedFile("vesti.jl");
+    _ = jl_eval_string(@ptrCast(julia_vesti));
+    if (jl_exception_occurred() != null) {
+        jl_printerrf("Failed to defining Vesti module\n");
+        return error.JlInitFailed;
+    }
+
     return .{};
 }
 
@@ -69,13 +76,6 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
 
 pub fn runJlCode(self: *Self, code: [:0]const u8) bool {
     _ = self;
-
-    const julia_vesti = @embedFile("vesti.jl");
-    _ = jl_eval_string(@ptrCast(julia_vesti));
-    if (jl_exception_occurred() != null) {
-        jl_printerrf("Failed to defining Vesti module\n");
-        return false;
-    }
 
     _ = jl_eval_string(@ptrCast(code));
     if (jl_exception_occurred() != null) {
