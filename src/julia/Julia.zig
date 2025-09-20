@@ -48,6 +48,8 @@ pub fn init(engine: LatexEngine) Error!Self {
 
     // initializing vesti
     jl_init();
+
+    // TODO: resolve multiple loading Vesti module
     const julia_vesti = @embedFile("vesti.jl");
     _ = jl_eval_string(@ptrCast(julia_vesti));
     if (jl_exception_occurred() != null) {
