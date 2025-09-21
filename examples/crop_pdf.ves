@@ -8,15 +8,14 @@ importpkg {
 startdoc
 \pagestyle{empty}
 
-#py:
-//import vesti
+#jl:
+import .Vesti
 
-//template = """useenv center {
-//#                               left botton right up
-//  \\includegraphics[page=%d,trim=0.5cm 3in 3.1in 0.5cm,clip,width=\\textwidth]{getfp(foo.pdf)}
-//}"""
-
-//for i in range(1,430):
-//    vesti.print(vesti.parse(template % i))
-//    vesti.print("\\newpage")
-:py#
+for i = 1:430
+    template = """useenv center {
+    \\includegraphics[page=$i,trim=0.5cm 3in 3.1in 0.5cm,clip,width=\\textwidth]{getfp(foo.pdf)}
+    }"""
+    Vesti.print(Vesti.parse(template))
+    Vesti.print("\\newpage")
+end
+:jl#
