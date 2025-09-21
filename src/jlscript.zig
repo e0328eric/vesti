@@ -64,7 +64,7 @@ pub fn runJlCode(
             null,
             "vesti library in julia emits an error",
             .{},
-            "see above python error message",
+            "see above julia error message",
         );
         diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
         return error.JlEvalFailed;

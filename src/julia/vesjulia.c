@@ -132,17 +132,40 @@ VESJL_EXPORT jl_value_t* vesti_engine_type(void) {
 }
 
 // export to zig
-void jl_printerrf(const char* fmt, ...) {
+bool run_jlcode(const char* code, const char* fmt, ...) {
+    bool result = true;
+
     va_list args;
     va_start(args, fmt);
 
-    if (jl_exception_occurred()) {
-        jl_value_t* err = jl_exception_occurred();
+    jl_eval_string(code);
+    jl_value_t* ex = jl_exception_occurred();
+    if (ex) {
+        result = false;
+        JL_GC_PUSH1(&ex);
         jl_vprintf(jl_stderr_stream(), fmt, args);
-        jl_call2(jl_get_function(jl_base_module, "showerror"),
-            jl_stderr_obj(), err);
-        jl_printf(jl_stderr_stream(), "\n");
+
+        // stderr() IO object
+        //jl_function_t* stderr_fn = jl_get_function(jl_base_module, "stderr");
+        //jl_value_t* io = jl_call0(stderr_fn);
+
+        // backtrace
+        jl_function_t* catch_bt = jl_get_function(jl_base_module, "catch_backtrace");
+        jl_value_t* bt = jl_call0(catch_bt);
+
+        {
+            JL_GC_PUSH1(&bt);
+            jl_function_t* showerror = jl_get_function(jl_base_module, "showerror");
+            jl_call2(showerror, jl_stderr_obj(), ex);
+            jl_call2(showerror, jl_stderr_obj(), bt);
+            jl_printf(jl_stderr_stream(), "\n");
+            fflush(stderr);
+            JL_GC_POP(); // bt
+        }
+        JL_GC_POP(); // ex
     }
 
+
     va_end(args);
+    return result;
 }

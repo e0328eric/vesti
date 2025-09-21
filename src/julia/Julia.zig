@@ -29,11 +29,11 @@ const uv_stream_s = opaque {};
 
 extern "c" fn jl_init() void;
 extern "c" fn jl_atexit_hook(exitcode: c_int) void;
-extern "c" fn jl_eval_string(str: [*:0]const u8) ?*jl_value_t;
 extern "c" fn jl_exception_occurred() ?*jl_value_t;
-extern "c" fn jl_printerrf(fmt: [*:0]const u8, ...) void;
 extern "c" fn jl_stderr_stream() ?*uv_stream_s;
 extern "c" fn jl_typeof_str(val: ?*jl_value_t) [*:0]const u8;
+
+extern "c" fn run_jlcode(code: [*:0]const u8, fmt: [*:0]const u8, ...) bool;
 
 //          ╭─────────────────────────────────────────────────────────╮
 //          │                    Public Functions                     │
@@ -51,11 +51,10 @@ pub fn init(engine: LatexEngine) Error!Self {
 
     // TODO: resolve multiple loading Vesti module
     const julia_vesti = @embedFile("vesti.jl");
-    _ = jl_eval_string(@ptrCast(julia_vesti));
-    if (jl_exception_occurred() != null) {
-        jl_printerrf("Failed to defining Vesti module\n");
-        return error.JlInitFailed;
-    }
+    if (!run_jlcode(
+        @ptrCast(julia_vesti),
+        "failed to initialize Vesti module\n",
+    )) return error.JlInitFailed;
 
     return .{};
 }
@@ -76,16 +75,10 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
     return data;
 }
 
+// TODO: cannot print errors occurred in step.jl
 pub fn runJlCode(self: *Self, code: [:0]const u8) bool {
     _ = self;
-
-    _ = jl_eval_string(@ptrCast(code));
-    if (jl_exception_occurred() != null) {
-        jl_printerrf("Failed to evaluate jlcode\n");
-        return false;
-    }
-
-    return true;
+    return run_jlcode(@ptrCast(code), "Failed to evaluate jlcode\n");
 }
 
 //          ╭────────────────────────────────────────────────────────╮
