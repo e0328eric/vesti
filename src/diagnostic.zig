@@ -240,6 +240,8 @@ pub const ParseDiagnostic = struct {
         IsNotOpened,
         IsNotClosed,
         IllegalUseErr,
+        TextmodeInText,
+        MathmodeInMath,
         Deprecated,
         InvalidDefunKind,
         DefunParamOverflow,
@@ -274,6 +276,8 @@ pub const ParseDiagnostic = struct {
             close: TokenType,
         },
         IllegalUseErr: []const u8,
+        TextmodeInText,
+        MathmodeInMath,
         Deprecated: []const u8,
         InvalidDefunKind: []const u8,
         DefunParamOverflow,
@@ -431,6 +435,8 @@ pub const ParseDiagnostic = struct {
                     );
                 }
             },
+            .TextmodeInText => try aw.writer.print("`textmode` found in text", .{}),
+            .MathmodeInMath => try aw.writer.print("`mathmode` found in math", .{}),
             .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},

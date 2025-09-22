@@ -1948,6 +1948,15 @@ fn parseTextMode(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
+
+    if (!self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .TextmodeInText,
+            .span = textmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
     self.doc_state.math_mode = false;
     var inner = try self.parseBrace(false);
     errdefer inner.deinit();
@@ -1982,6 +1991,15 @@ fn parseMathMode(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
+
+    if (self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .MathmodeInMath,
+            .span = mathmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
     self.doc_state.math_mode = true;
     var inner = try self.parseBrace(false);
     errdefer inner.deinit();
