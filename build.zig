@@ -23,7 +23,7 @@ const Build = blk: {
     const min_zig = std.SemanticVersion.parse(min_zig_string) catch unreachable;
     if (current_zig.order(min_zig) == .lt) {
         @compileError(std.fmt.comptimePrint(
-            "Your Zig version v{} does not meet the minimum build requirement of v{}",
+            "Your Zig version v{f} does not meet the minimum build requirement of v{f}",
             .{ current_zig, min_zig },
         ));
     }
@@ -65,22 +65,60 @@ pub fn build(b: *Build) !void {
     var envmap = try std.process.getEnvMap(alloc);
     defer envmap.deinit();
 
-    const julia_dir_path = envmap.get("JULIA_DIR") orelse {
-        std.debug.print("`JULIA_DIR` env is not defined\n", .{});
-        return error.BuildFailed;
+    const jl_include, const jl_libs = switch (target.result.os.tag) {
+        .windows => blk: {
+            const jl_dir = envmap.get("JULIA_DIR") orelse {
+                std.debug.print("`JULIA_DIR` env is not defined\n", .{});
+                return error.BuildFailed;
+            };
+            const include = try std.fs.path.join(alloc, &.{
+                jl_dir,
+                "include",
+                "julia",
+            });
+            errdefer alloc.free(include);
+            const libs = try std.fs.path.join(alloc, &.{
+                jl_dir,
+                "bin",
+            });
+            errdefer alloc.free(libs);
+            break :blk .{ include, libs };
+        },
+        else => blk: {
+            const jl_dir = envmap.get("JULIA_DIR");
+            if (jl_dir) |jd| {
+                const include = try std.fs.path.join(alloc, &.{
+                    jd,
+                    "include",
+                    "julia",
+                });
+                errdefer alloc.free(include);
+                const libs = try std.fs.path.join(alloc, &.{
+                    jd,
+                    "bin",
+                });
+                errdefer alloc.free(libs);
+                break :blk .{ include, libs };
+            } else {
+                const include = try std.fs.path.join(alloc, &.{
+                    "/usr",
+                    "include",
+                    "julia",
+                });
+                errdefer alloc.free(include);
+                const libs = try std.fs.path.join(alloc, &.{
+                    "/usr",
+                    "lib",
+                });
+                errdefer alloc.free(libs);
+                break :blk .{ include, libs };
+            }
+        },
     };
-
-    const jl_include = try std.fs.path.join(alloc, &.{
-        julia_dir_path,
-        "include",
-        "julia",
-    });
-    defer alloc.free(jl_include);
-    const jl_libs = try std.fs.path.join(alloc, &.{
-        julia_dir_path,
-        "bin",
-    });
-    defer alloc.free(jl_libs);
+    defer {
+        alloc.free(jl_include);
+        alloc.free(jl_libs);
+    }
 
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
@@ -126,8 +164,9 @@ pub fn build(b: *Build) !void {
         .windows => exe_mod.linkSystemLibrary("libjulia", .{
             .preferred_link_mode = .dynamic,
         }),
-        .linux => unreachable, // TOOD: implement this
-        else => {},
+        else => exe_mod.linkSystemLibrary("julia", .{
+            .preferred_link_mode = .dynamic,
+        }),
     }
     exe_mod.addOptions("vesti-info", vesti_opt);
 
@@ -182,7 +221,9 @@ pub fn build(b: *Build) !void {
                 .preferred_link_mode = .dynamic,
             });
         },
-        else => {},
+        else => test_mod.linkSystemLibrary("julia", .{
+            .preferred_link_mode = .dynamic,
+        }),
     }
     test_mod.addOptions("vesti-info", vesti_opt);
 
