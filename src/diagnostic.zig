@@ -435,8 +435,8 @@ pub const ParseDiagnostic = struct {
                     );
                 }
             },
-            .TextmodeInText => try aw.writer.print("`textmode` found in text", .{}),
-            .MathmodeInMath => try aw.writer.print("`mathmode` found in math", .{}),
+            .TextmodeInText => try aw.writer.print("`txtmd` found in text", .{}),
+            .MathmodeInMath => try aw.writer.print("`mthmd` found in math", .{}),
             .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
