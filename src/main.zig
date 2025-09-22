@@ -3,6 +3,7 @@ const c = @import("c");
 const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
 const jlscript = @import("jlscript.zig");
+const zlap = @import("zlap");
 const time = std.time;
 
 const assert = std.debug.assert;
@@ -31,27 +32,71 @@ pub fn main() !void {
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
 
-    var zlap = try @import("zlap").Zlap(@embedFile("commands.zlap")).init(allocator);
-    defer zlap.deinit();
+    var zlap_cmd = try zlap.Zlap(@embedFile("commands.zlap")).init(allocator);
+    defer zlap_cmd.deinit();
 
-    if (zlap.isSubcmdActive("clear")) {
+    if (zlap_cmd.isSubcmdActive("clear")) {
         try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
         std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
         return;
-    } else if (zlap.isSubcmdActive("tex2ves")) {
-        const tex2ves_subcmd = zlap.subcommands.get("tex2ves").?;
+    } else if (zlap_cmd.isSubcmdActive("tex2ves")) {
+        const tex2ves_subcmd = zlap_cmd.subcommands.get("tex2ves").?;
         const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
         // TODO: implement tex2ves
         _ = tex_files;
 
         std.debug.print("currently, this subcommand does nothing.\n", .{});
         return;
-    } else if (zlap.is_help or !zlap.isSubcmdActive("compile")) {
-        std.debug.print("{s}\n", .{zlap.help_msg});
+    } else if (zlap_cmd.is_help) {
+        std.debug.print("{s}\n", .{zlap_cmd.help_msg});
         return;
+    } else if (zlap_cmd.isSubcmdActive("compile")) {
+        const compile_subcmd = zlap_cmd.subcommands.get("compile").?;
+        try compileStep(allocator, &compile_subcmd);
+    } else if (zlap_cmd.isSubcmdActive("run")) {
+        const run_subcmd = zlap_cmd.subcommands.get("run").?;
+        try runStep(allocator, &run_subcmd);
+    } else {
+        std.debug.print("{s}\n", .{zlap_cmd.help_msg});
+        return error.InvalidSubcommand;
     }
+}
 
-    const compile_subcmd = zlap.subcommands.get("compile").?;
+fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
+    const is_latex = run_subcmd.flags.get("latex").?.value.bool;
+    const is_pdflatex = run_subcmd.flags.get("pdflatex").?.value.bool;
+    const is_xelatex = run_subcmd.flags.get("xelatex").?.value.bool;
+    const is_lualatex = run_subcmd.flags.get("lualatex").?.value.bool;
+    const is_tectonic = run_subcmd.flags.get("tectonic").?.value.bool;
+
+    const first_script = run_subcmd.flags.get("first_script").?.value.string;
+
+    var diagnostic = Diagnostic{ .allocator = allocator };
+    defer diagnostic.deinit();
+
+    const engine = try getEngine(allocator, &diagnostic, .{
+        .is_latex = is_latex,
+        .is_pdflatex = is_pdflatex,
+        .is_xelatex = is_xelatex,
+        .is_lualatex = is_lualatex,
+        .is_tectonic = is_tectonic,
+    });
+
+    // initializing Julia globally
+    var julia = try Julia.init(engine);
+    defer julia.deinit();
+
+    const first_jl = try jlscript.getBuildJlContents(
+        allocator,
+        first_script,
+        &diagnostic,
+    ) orelse return error.FirstJlNotFound;
+    defer allocator.free(first_jl);
+
+    try jlscript.runJlCode(&julia, &diagnostic, first_jl);
+}
+
+fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
     const main_filenames = compile_subcmd.args.get("FILENAMES").?;
     const compile_lim: usize = blk: {
         const tmp = compile_subcmd.flags.get("lim").?.value.number;
@@ -73,9 +118,7 @@ pub fn main() !void {
     const first_script = compile_subcmd.flags.get("first_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    var diagnostic = Diagnostic{
-        .allocator = allocator,
-    };
+    var diagnostic = Diagnostic{ .allocator = allocator };
     defer diagnostic.deinit();
 
     var engine = try getEngine(allocator, &diagnostic, .{

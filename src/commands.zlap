@@ -118,3 +118,49 @@
     #name: clear;
     #desc: Remove .vesti-dummy directory
 }
+{
+    #name: run;
+    #desc: run `first_script` without compiling vesti
+
+    #flag;
+    long: latex;
+    short: L;
+    desc: compile vesti using latex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: pdflatex;
+    short: p;
+    desc: compile vesti using pdflatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: xelatex;
+    short: x;
+    desc: compile vesti using xelatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: lualatex;
+    short: l;
+    desc: compile vesti using lualatex;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: tectonic;
+    short: T;
+    desc: compile vesti using tectonic;
+    type: bool;
+    default: false;
+
+    #flag;
+    long: first_script;
+    short:;
+    desc: run julia code once for each vesti runs.
+    type: string;
+    default: first.jl;
+}
