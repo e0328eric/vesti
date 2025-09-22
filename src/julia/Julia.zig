@@ -26,10 +26,10 @@ const c_alloc = std.heap.c_allocator;
 
 const jl_value_t = opaque {};
 
+extern "c" fn jl_disable_signal_handler() void; // must call before jl_init
 extern "c" fn jl_init() void;
 extern "c" fn jl_atexit_hook(exitcode: c_int) void;
 extern "c" fn jl_eval_string(code: [*:0]const u8) ?*jl_value_t;
-extern "c" fn jl_install_sigint_handler() void;
 
 extern "c" fn run_jlcode(code: [*:0]const u8, fmt: [*:0]const u8, ...) bool;
 
@@ -45,8 +45,8 @@ pub fn init(engine: LatexEngine) Error!Self {
     ves_jl.engine = engine;
 
     // initializing vesti
+    jl_disable_signal_handler();
     jl_init();
-    jl_install_sigint_handler();
 
     const julia_vesti = @embedFile("vesti.jl");
     if (!run_jlcode(

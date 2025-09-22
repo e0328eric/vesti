@@ -143,7 +143,9 @@ VESJL_EXPORT void vesti_download_module(const char* mod_name) {
 }
 
 
-// export to zig
+//          ╭─────────────────────────────────────────────────────────╮
+//          │                      export to zig                      │
+//          ╰─────────────────────────────────────────────────────────╯
 bool run_jlcode(const char* code, const char* fmt, ...) {
     bool result = true;
 
@@ -177,3 +179,9 @@ bool run_jlcode(const char* code, const char* fmt, ...) {
     va_end(args);
     return result;
 }
+
+// must call before jl_init
+void jl_disable_signal_handler(void) {
+    jl_options.handle_signals = JL_OPTIONS_HANDLE_SIGNALS_OFF; 
+}
+

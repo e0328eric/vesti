@@ -18,13 +18,9 @@ const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
-const jl_value_t = opaque {};
-extern "c" fn jl_eval_string(code: [*:0]const u8) ?*jl_value_t;
-
 fn signalHandler(signal: c_int) callconv(.c) noreturn {
     _ = signal;
     std.debug.print("bye!\n", .{});
-    _ = jl_eval_string("throw(InterruptException())");
     std.process.exit(0);
 }
 
