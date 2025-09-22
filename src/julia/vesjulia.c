@@ -13,6 +13,9 @@
   #define VESJL_EXPORT __attribute__((visibility("default")))
 #endif
 
+#define JL_ERR_START "=================== Julia Eval Failed ===================\n"
+#define JL_ERR_END   "=========================================================\n"
+
 // extern functions comming from zig
 typedef enum {
     LATEX_ENGINE_LATEX,
@@ -142,12 +145,9 @@ bool run_jlcode(const char* code, const char* fmt, ...) {
     jl_value_t* ex = jl_exception_occurred();
     if (ex) {
         result = false;
+        jl_printf(jl_stderr_stream(), "\n"JL_ERR_START);
         JL_GC_PUSH1(&ex);
         jl_vprintf(jl_stderr_stream(), fmt, args);
-
-        // stderr() IO object
-        //jl_function_t* stderr_fn = jl_get_function(jl_base_module, "stderr");
-        //jl_value_t* io = jl_call0(stderr_fn);
 
         // backtrace
         jl_function_t* catch_bt = jl_get_function(jl_base_module, "catch_backtrace");
@@ -158,8 +158,7 @@ bool run_jlcode(const char* code, const char* fmt, ...) {
             jl_function_t* showerror = jl_get_function(jl_base_module, "showerror");
             jl_call2(showerror, jl_stderr_obj(), ex);
             jl_call2(showerror, jl_stderr_obj(), bt);
-            jl_printf(jl_stderr_stream(), "\n");
-            fflush(stderr);
+            jl_printf(jl_stderr_stream(), "\n"JL_ERR_END"\n");
             JL_GC_POP(); // bt
         }
         JL_GC_POP(); // ex

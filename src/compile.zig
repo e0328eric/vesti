@@ -13,6 +13,7 @@ const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
 const Io = std.Io;
+const Julia = @import("julia/Julia.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
@@ -35,8 +36,8 @@ pub const JuliaScripts = struct {
 };
 
 pub const JuliaContents = struct {
-    first: ?[:0]const u8 = null,
-    step: ?[:0]const u8 = null,
+    first: ?[]const u8 = null,
+    step: ?[]const u8 = null,
 
     fn init(
         scripts: *const JuliaScripts,
@@ -67,6 +68,7 @@ pub const JuliaContents = struct {
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
+    julia: *Julia,
     diagnostic: *diag.Diagnostic,
     engine: *LatexEngine,
     compile_limit: usize,
@@ -83,13 +85,14 @@ pub fn compile(
 
     // run first.jl to "initialize" vesti projects
     if (jlcode_contents.first) |lc| {
-        try jlscript.runJlCode(allocator, diagnostic, engine.*, lc);
+        try jlscript.runJlCode(julia, diagnostic, lc);
     }
 
     while (true) {
         compileInner(
             allocator,
             main_filenames,
+            julia,
             diagnostic,
             engine,
             compile_limit,
@@ -125,11 +128,12 @@ pub fn compile(
 fn compileInner(
     allocator: Allocator,
     main_filenames: []const []const u8,
+    julia: *Julia,
     diagnostic: *diag.Diagnostic,
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    jlcode_contents: ?[:0]const u8,
+    jlcode_contents: ?[]const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -202,6 +206,7 @@ fn compileInner(
                     try vestiToLatex(
                         allocator,
                         vesti_file,
+                        julia,
                         diagnostic,
                         &vesti_dummy,
                         engine,
@@ -213,6 +218,7 @@ fn compileInner(
                 try vestiToLatex(
                     allocator,
                     vesti_file,
+                    julia,
                     diagnostic,
                     &vesti_dummy,
                     engine,
@@ -228,6 +234,7 @@ fn compileInner(
                 try compileLatex(
                     allocator,
                     filename,
+                    julia,
                     diagnostic,
                     engine.*,
                     &vesti_dummy,
@@ -255,6 +262,7 @@ fn compileInner(
             try vestiToLatex(
                 allocator,
                 vesti_file,
+                julia,
                 diagnostic,
                 &vesti_dummy,
                 engine,
@@ -267,6 +275,7 @@ fn compileInner(
             try compileLatex(
                 allocator,
                 filename,
+                julia,
                 diagnostic,
                 engine.*,
                 &vesti_dummy,
@@ -282,6 +291,7 @@ fn compileInner(
 pub fn vestiToLatex(
     allocator: Allocator,
     filename: []const u8,
+    julia: *Julia,
     diagnostic: *diag.Diagnostic,
     vesti_dummy_dir: *fs.Dir,
     engine: *LatexEngine,
@@ -343,16 +353,18 @@ pub fn vestiToLatex(
 
     var aw: Io.Writer.Allocating = try .initCapacity(allocator, 256);
     defer aw.deinit();
+
+    // change engine type via `compty`
+    julia.changeLatexEngine(engine.*);
+
     var codegen = try Codegen.init(
         allocator,
         source,
         ast.items,
         diagnostic,
-        engine.*,
-        false, // allow initializing julia
     );
     defer codegen.deinit();
-    codegen.codegen(&aw.writer) catch |err| {
+    codegen.codegen(julia, &aw.writer) catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);
         return err;
     };
@@ -387,10 +399,11 @@ pub fn vestiToLatex(
 fn compileLatex(
     allocator: Allocator,
     filename: []const u8,
+    julia: *Julia,
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    jlcode_contents: ?[:0]const u8,
+    jlcode_contents: ?[]const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -405,7 +418,7 @@ fn compileLatex(
                 compile_limit,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(allocator, diagnostic, engine, lc);
+                try jlscript.runJlCode(julia, diagnostic, lc);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -434,7 +447,7 @@ fn compileLatex(
                 vesti_dummy,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(allocator, diagnostic, engine, lc);
+                try jlscript.runJlCode(julia, diagnostic, lc);
             }
 
             std.debug.print("[compiled]\n", .{});

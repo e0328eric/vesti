@@ -25,13 +25,10 @@ const c_alloc = std.heap.c_allocator;
 //          ╰─────────────────────────────────────────────────────────╯
 
 const jl_value_t = opaque {};
-const uv_stream_s = opaque {};
 
 extern "c" fn jl_init() void;
 extern "c" fn jl_atexit_hook(exitcode: c_int) void;
-extern "c" fn jl_exception_occurred() ?*jl_value_t;
-extern "c" fn jl_stderr_stream() ?*uv_stream_s;
-extern "c" fn jl_typeof_str(val: ?*jl_value_t) [*:0]const u8;
+extern "c" fn jl_eval_string(code: [*:0]const u8) ?*jl_value_t;
 
 extern "c" fn run_jlcode(code: [*:0]const u8, fmt: [*:0]const u8, ...) bool;
 
@@ -49,7 +46,6 @@ pub fn init(engine: LatexEngine) Error!Self {
     // initializing vesti
     jl_init();
 
-    // TODO: resolve multiple loading Vesti module
     const julia_vesti = @embedFile("vesti.jl");
     if (!run_jlcode(
         @ptrCast(julia_vesti),
@@ -75,10 +71,45 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
     return data;
 }
 
-// TODO: cannot print errors occurred in step.jl
-pub fn runJlCode(self: *Self, code: [:0]const u8) bool {
+pub fn runJlCode(self: *Self, code: []const u8) !void {
     _ = self;
-    return run_jlcode(@ptrCast(code), "Failed to evaluate jlcode\n");
+
+    // base64 encoding for jlcode
+    var b64 = Io.Writer.Allocating.init(c_alloc);
+    defer b64.deinit();
+
+    try std.base64.standard.Encoder.encodeWriter(&b64.writer, code);
+
+    const rand_int = std.crypto.random.int(u64);
+    const temp_jl = try std.fmt.allocPrint(c_alloc, "tmp_{x}.jl", .{rand_int});
+    defer c_alloc.free(temp_jl);
+
+    const jlcode = try std.fmt.allocPrintSentinel(
+        c_alloc,
+        \\let m = Module(:m)
+        \\    # evaluate jlcode
+        \\    import Base64
+        \\    __jlcode_src__ = String(Base64.base64decode("{s}"))
+        \\    # make importing Main.Vesti in default
+        \\    __jlcode_src__ = """import Main.Vesti
+        \\    """ * __jlcode_src__
+        \\    Base.include_string(m, __jlcode_src__, "{s}")
+        \\    nothing
+        \\end
+    ,
+        .{ b64.written(), temp_jl },
+        0,
+    );
+    defer c_alloc.free(jlcode);
+
+    if (!run_jlcode(@ptrCast(jlcode), "Failed to evaluate jlcode\n")) {
+        return error.JlEvalFailed;
+    }
+}
+
+pub fn changeLatexEngine(self: *Self, new_engine: LatexEngine) void {
+    _ = self;
+    ves_jl.engine = new_engine;
 }
 
 //          ╭────────────────────────────────────────────────────────╮
@@ -111,7 +142,6 @@ export fn parseVesti(
     output_str_len: *usize,
     code: [*:0]const u8,
     len: usize,
-    engine: LatexEngine,
 ) void {
     const vesti_code = code[0..len];
 
@@ -174,8 +204,6 @@ export fn parseVesti(
         vesti_code,
         ast.items,
         &diagnostic,
-        engine,
-        true, // disallow nested jlcode
     ) catch |err| {
         std.debug.print(
             "codegen init failed because of {s}\n",
@@ -185,7 +213,7 @@ export fn parseVesti(
         return;
     };
     defer codegen.deinit();
-    codegen.codegen(&aw.writer) catch |err| {
+    codegen.codegen(null, &aw.writer) catch |err| {
         diagnostic.initMetadata(
             CowStr.init(.Borrowed, .{@as([]const u8, "<jlcode>")}),
             CowStr.init(.Borrowed, .{@as([]const u8, @ptrCast(vesti_code))}),

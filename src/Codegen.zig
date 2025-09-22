@@ -24,7 +24,6 @@ source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
 jlcode_exports: StringArrayHashMap(ArrayList(u8)),
-julia: ?Julia,
 
 const Self = @This();
 
@@ -33,28 +32,13 @@ pub fn init(
     source: []const u8,
     stmts: []const ast.Stmt,
     diagnostic: *diag.Diagnostic,
-    engine: LatexEngine,
-    comptime disallow_jlcode: bool,
 ) !Self {
-    var julia: ?Julia = if (disallow_jlcode) null else Julia.init(engine) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            allocator,
-            null,
-            "failed to initialize julia vm",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.JlInitFailed;
-    };
-    errdefer if (julia) |*p| p.deinit();
-
     return Self{
         .allocator = allocator,
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
         .jlcode_exports = .empty,
-        .julia = julia,
     };
 }
 
@@ -63,31 +47,33 @@ pub fn deinit(self: *Self) void {
         code.deinit(self.allocator);
     }
     self.jlcode_exports.deinit(self.allocator);
-    if (self.julia) |*jl| jl.deinit();
 }
 
 pub fn codegen(
     self: *Self,
+    julia: ?*Julia,
     writer: *Io.Writer,
 ) Error!void {
     for (self.stmts) |stmt| {
-        try self.codegenStmt(stmt, writer);
+        try self.codegenStmt(stmt, julia, writer);
     }
 }
 
 fn codegenStmts(
     self: *Self,
     stmts: ArrayList(ast.Stmt),
+    julia: ?*Julia,
     writer: *Io.Writer,
 ) Error!void {
     for (stmts.items) |stmt| {
-        try self.codegenStmt(stmt, writer);
+        try self.codegenStmt(stmt, julia, writer);
     }
 }
 
 fn codegenStmt(
     self: *Self,
     stmt: ast.Stmt,
+    julia: ?*Julia,
     writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
@@ -106,19 +92,19 @@ fn codegenStmt(
                 .Display => .{ "\\[", "\\]" },
             };
             try writer.writeAll(delimiter[0]);
-            try self.codegenStmts(math_ctx.inner, writer);
+            try self.codegenStmts(math_ctx.inner, julia, writer);
             try writer.writeAll(delimiter[1]);
         },
         .Braced => |bs| {
             if (!bs.unwrap_brace) try writer.writeByte('{');
-            try self.codegenStmts(bs.inner, writer);
+            try self.codegenStmts(bs.inner, julia, writer);
             if (!bs.unwrap_brace) try writer.writeByte('}');
         },
         .Fraction => |fraction| {
             try writer.writeAll("\\frac{");
-            try self.codegenStmts(fraction.numerator, writer);
+            try self.codegenStmts(fraction.numerator, julia, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(fraction.denominator, writer);
+            try self.codegenStmts(fraction.denominator, julia, writer);
             try writer.writeByte('}');
         },
         .DocumentStart => try writer.writeAll("\n\\begin{document}"),
@@ -151,12 +137,16 @@ fn codegenStmt(
         },
         .ImportMultiplePkgs => |usepkgs| {
             for (usepkgs.items) |usepkg|
-                try self.codegenStmt(ast.Stmt{ .ImportSinglePkg = usepkg }, writer);
+                try self.codegenStmt(
+                    ast.Stmt{ .ImportSinglePkg = usepkg },
+                    julia,
+                    writer,
+                );
         },
         .PlainTextInMath => |info| {
             try writer.writeAll("\\text{");
             if (info.add_front_space) try writer.writeByte(' ');
-            try self.codegenStmts(info.inner, writer);
+            try self.codegenStmts(info.inner, julia, writer);
             if (info.add_back_space) try writer.writeByte(' ');
             try writer.writeByte('}');
         },
@@ -173,18 +163,18 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, julia, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, julia, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
                 }
             }
-            try self.codegenStmts(info.inner, writer);
+            try self.codegenStmts(info.inner, julia, writer);
             try writer.print("\\end{{{f}}}", .{info.name});
         },
         .BeginPhantomEnviron => |info| {
@@ -193,12 +183,12 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, julia, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, writer);
+                        try self.codegenStmts(arg.ctx, julia, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -244,7 +234,7 @@ fn codegenStmt(
             }
 
             // body
-            try self.codegenStmts(ctx.inner, writer);
+            try self.codegenStmts(ctx.inner, julia, writer);
 
             //epilogue
             if (!ctx.kind.redef) {
@@ -264,21 +254,21 @@ fn codegenStmt(
                 try writer.print("[{d}]", .{ctx.num_args});
             if (ctx.default_arg) |arg| {
                 try writer.writeByte('[');
-                try self.codegenStmts(arg.ctx, writer);
+                try self.codegenStmts(arg.ctx, julia, writer);
                 try writer.writeByte(']');
             }
             try writer.writeByte('{');
 
             // body
-            try self.codegenStmts(ctx.inner_begin, writer);
+            try self.codegenStmts(ctx.inner_begin, julia, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(ctx.inner_end, writer);
+            try self.codegenStmts(ctx.inner_end, julia, writer);
 
             //epilogue
             try writer.writeAll("}\n");
         },
         .JlCode => |cb| {
-            if (self.julia) |*jl| {
+            if (julia) |jl| {
                 var new_code = try ArrayList(u8).initCapacity(
                     self.allocator,
                     cb.code.items.len,
@@ -314,21 +304,22 @@ fn codegenStmt(
                     try self.jlcode_exports.put(self.allocator, export_label, new_code);
                     return;
                 }
-
                 try new_code.appendSlice(self.allocator, cb.code.items);
-                try new_code.append(self.allocator, 0);
 
-                if (!jl.runJlCode(@ptrCast(new_code.items))) {
-                    const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
-                        self.diagnostic.allocator,
-                        cb.code_span,
-                        "failed to run jlcode",
-                        .{},
-                        "see above julia error message",
-                    );
-                    self.diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
-                    return error.JlEvalFailed;
-                }
+                jl.runJlCode(@ptrCast(new_code.items)) catch |err| switch (err) {
+                    error.JlEvalFailed => {
+                        const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
+                            self.diagnostic.allocator,
+                            cb.code_span,
+                            "failed to run jlcode",
+                            .{},
+                            "see above julia error message",
+                        );
+                        self.diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
+                        return error.JlEvalFailed;
+                    },
+                    else => return err,
+                };
 
                 var ves_output = try jl.getVestiOutputStr(self.allocator);
                 defer ves_output.deinit(self.allocator);

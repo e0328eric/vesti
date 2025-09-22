@@ -10,7 +10,7 @@ pub fn getBuildJlContents(
     allocator: Allocator,
     jlcode_path: []const u8,
     diagnostic: *diag.Diagnostic,
-) !?[:0]const u8 {
+) !?[]const u8 {
     const jlcode_file = fs.cwd().openFile(jlcode_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => {
@@ -30,43 +30,27 @@ pub fn getBuildJlContents(
     var buf_reader = jlcode_file.reader(&buf);
     const reader = &buf_reader.interface;
 
-    const jlcode_contents = try reader.allocRemainingAlignedSentinel(
-        allocator,
-        .unlimited,
-        .of(u8),
-        0,
-    );
-
+    const jlcode_contents = try reader.allocRemaining(allocator, .unlimited);
     return jlcode_contents;
 }
 
 pub fn runJlCode(
-    allocator: Allocator,
+    julia: *Julia,
     diagnostic: *diag.Diagnostic,
-    engine: LatexEngine,
-    jlcode_contents: [:0]const u8,
+    jlcode_contents: []const u8,
 ) !void {
-    var julia = Julia.init(engine) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            allocator,
-            null,
-            "failed to initialize julia vm",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.JlInitFailed;
+    julia.runJlCode(jlcode_contents) catch |err| switch (err) {
+        error.JlEvalFailed => {
+            const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
+                diagnostic.allocator,
+                null,
+                "failed to run jlcode",
+                .{},
+                "see above julia error message",
+            );
+            diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
+            return error.JlEvalFailed;
+        },
+        else => return err,
     };
-    defer julia.deinit();
-
-    if (!julia.runJlCode(jlcode_contents)) {
-        const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
-            diagnostic.allocator,
-            null,
-            "vesti library in julia emits an error",
-            .{},
-            "see above julia error message",
-        );
-        diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
-        return error.JlEvalFailed;
-    }
 }

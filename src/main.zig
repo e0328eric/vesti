@@ -12,6 +12,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Config = @import("Config.zig");
 const Diagnostic = diag.Diagnostic;
+const Julia = @import("julia/Julia.zig");
 const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -85,10 +86,15 @@ pub fn main() !void {
         .is_tectonic = is_tectonic,
     });
 
+    // initializing Julia globally
+    var julia = try Julia.init(engine);
+    defer julia.deinit();
+
     var prev_mtime: ?i128 = null;
     try compile.compile(
         allocator,
         main_filenames.value.strings.items,
+        &julia,
         &diagnostic,
         &engine,
         compile_lim,
