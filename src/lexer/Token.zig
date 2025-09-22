@@ -146,6 +146,13 @@ pub const TokenType = union(enum(u8)) {
         instead: []const u8,
     },
 
+    pub inline fn deprecated(valid_in_text: bool, instead: []const u8) @This() {
+        comptime return .{ .Deprecated = .{
+            .valid_in_text = valid_in_text,
+            .instead = instead,
+        } };
+    }
+
     pub fn format(
         self: @This(),
         writer: *std.Io.Writer,
@@ -264,29 +271,41 @@ pub const TokenType = union(enum(u8)) {
 };
 
 pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
-    .{ "docclass", TokenType.Docclass },
-    .{ "importpkg", TokenType.ImportPkg },
-    .{ "importves", TokenType.ImportVesti },
-    .{ "importmod", TokenType.ImportModule },
-    .{ "cpfile", TokenType.CopyFile },
-    .{ "useltx3", TokenType.ImportLatex3 },
-    .{ "getfp", TokenType.GetFilePath },
-    .{ "startdoc", TokenType.StartDoc },
-    .{ "useenv", TokenType.Useenv },
-    .{ "begenv", TokenType.Begenv },
-    .{ "endenv", TokenType.Endenv },
+    // zig fmt: off
+    .{ "docclass",     TokenType.Docclass },
+    .{ "importpkg",    TokenType.ImportPkg },
+    .{ "importves",    TokenType.ImportVesti },
+    .{ "importmod",    TokenType.ImportModule },
+    .{ "cpfile",       TokenType.CopyFile },
+    .{ "useltx3",      TokenType.ImportLatex3 },
+    .{ "getfp",        TokenType.GetFilePath },
+    .{ "startdoc",     TokenType.StartDoc },
+    .{ "useenv",       TokenType.Useenv },
+    .{ "begenv",       TokenType.Begenv },
+    .{ "endenv",       TokenType.Endenv },
     .{ "makeatletter", TokenType.MakeAtLetter },
-    .{ "makeatother", TokenType.MakeAtOther },
-    .{ "ltx3on", TokenType.Latex3On },
-    .{ "ltx3off", TokenType.Latex3Off },
-    .{ "nonstopmode", TokenType.NonStopMode },
-    .{ "textmode", TokenType.TextMode },
-    .{ "mathmode", TokenType.MathMode },
-    .{ "compty", TokenType.CompileType },
-    .{ "defun", TokenType.DefineFunction },
-    .{ "defenv", TokenType.DefineEnv },
-    .{ "pycode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "#jl:" } } },
-    .{ "luacode", TokenType{ .Deprecated = .{ .valid_in_text = true, .instead = "#jl:" } } },
+    .{ "makeatother",  TokenType.MakeAtOther },
+    .{ "ltx3on",       TokenType.Latex3On },
+    .{ "ltx3off",      TokenType.Latex3Off },
+    .{ "nonstopmode",  TokenType.NonStopMode },
+    .{ "txtmd",        TokenType.TextMode },
+    .{ "mthmd",        TokenType.MathMode },
+    .{ "compty",       TokenType.CompileType },
+    .{ "defun",        TokenType.DefineFunction },
+    .{ "defenv",       TokenType.DefineEnv },
+    .{ "textmode",     TokenType.deprecated(true, "txtmd") },
+    .{ "mathmode",     TokenType.deprecated(true, "mthmd") },
+    .{ "pycode",       TokenType.deprecated(true, "#jl:") },
+    .{ "luacode",      TokenType.deprecated(true, "#jl:") },
+    .{ "importfile",   TokenType.deprecated(false, "cpfile") },
+    .{ "getfilepath",  TokenType.deprecated(false, "getfp") },
+    .{ "redefenv",     TokenType.deprecated(false, "") },
+    .{ "endswith",     TokenType.deprecated(false, "") },
+    .{ "mainvesfile",  TokenType.deprecated(false, "") },
+    .{ "importltx3",   TokenType.deprecated(false, "useltx3") },
+    .{ "enddef",       TokenType.deprecated(true, "}") },
+    .{ "import",       TokenType.deprecated(true, "importpkg") },
+    // zig fmt: on
 });
 
 pub fn init(
