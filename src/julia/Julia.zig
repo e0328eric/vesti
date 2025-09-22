@@ -71,8 +71,15 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
     return data;
 }
 
-pub fn runJlCode(self: *Self, code: []const u8) !void {
+pub fn runJlCode(self: *Self, code: []const u8, is_global: bool) !void {
     _ = self;
+
+    if (is_global) {
+        if (!run_jlcode(@ptrCast(code), "Failed to evaluate jlcode\n")) {
+            return error.JlEvalFailed;
+        }
+        return;
+    }
 
     // base64 encoding for jlcode
     var b64 = Io.Writer.Allocating.init(c_alloc);
@@ -86,14 +93,14 @@ pub fn runJlCode(self: *Self, code: []const u8) !void {
 
     const jlcode = try std.fmt.allocPrintSentinel(
         c_alloc,
-        \\let m = Module(:m)
+        \\let vesjl = Module(:vesjl)
         \\    # evaluate jlcode
         \\    import Base64
         \\    __jlcode_src__ = String(Base64.base64decode("{s}"))
         \\    # make importing Main.Vesti in default
         \\    __jlcode_src__ = """import Main.Vesti
         \\    """ * __jlcode_src__
-        \\    Base.include_string(m, __jlcode_src__, "{s}")
+        \\    Base.include_string(vesjl, __jlcode_src__, "{s}")
         \\    nothing
         \\end
     ,

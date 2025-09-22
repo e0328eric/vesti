@@ -39,7 +39,7 @@ pub fn runJlCode(
     diagnostic: *diag.Diagnostic,
     jlcode_contents: []const u8,
 ) !void {
-    julia.runJlCode(jlcode_contents) catch |err| switch (err) {
+    julia.runJlCode(jlcode_contents, false) catch |err| switch (err) {
         error.JlEvalFailed => {
             const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
                 diagnostic.allocator,

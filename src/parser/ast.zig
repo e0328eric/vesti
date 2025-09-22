@@ -147,6 +147,7 @@ pub const Stmt = union(enum(u8)) {
     FilePath: CowStr,
     JlCode: struct {
         code_span: Span,
+        is_global: bool,
         code_import: ?ArrayList([]const u8),
         code_export: ?[]const u8,
         code: ArrayList(u8),

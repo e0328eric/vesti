@@ -306,7 +306,7 @@ fn codegenStmt(
                 }
                 try new_code.appendSlice(self.allocator, cb.code.items);
 
-                jl.runJlCode(@ptrCast(new_code.items)) catch |err| switch (err) {
+                jl.runJlCode(@ptrCast(new_code.items), cb.is_global) catch |err| switch (err) {
                     error.JlEvalFailed => {
                         const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
                             self.diagnostic.allocator,

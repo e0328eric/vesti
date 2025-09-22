@@ -1936,6 +1936,12 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
     errdefer jlcode.deinit(self.allocator);
     try jlcode.appendSlice(self.allocator, jlcode_contents);
 
+    var is_global = false;
+    if (self.expect(.peek, &.{.Star})) {
+        self.nextToken();
+        is_global = true;
+    }
+
     var code_import: ?ArrayList([]const u8) = null;
     errdefer {
         if (code_import) |*imports| imports.deinit(self.allocator);
@@ -1945,7 +1951,7 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
             self.allocator,
             10,
         );
-        self.nextToken(); // skip ':jl#' token
+        self.nextToken(); // skip ':jl#' or '*' token
         self.nextToken(); // skip '[' token
 
         while (true) : (self.nextToken()) {
@@ -2018,6 +2024,7 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
     return Stmt{
         .JlCode = .{
             .code_span = codeblock_loc,
+            .is_global = is_global,
             .code_import = code_import,
             .code_export = code_export,
             .code = jlcode,
