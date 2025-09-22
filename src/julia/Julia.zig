@@ -71,7 +71,12 @@ pub fn getVestiOutputStr(self: *Self, outside_alloc: Allocator) !ArrayList(u8) {
     return data;
 }
 
-pub fn runJlCode(self: *Self, code: []const u8, is_global: bool) !void {
+pub fn runJlCode(
+    self: *Self,
+    code: []const u8,
+    is_global: bool,
+    filename: ?[]const u8,
+) !void {
     _ = self;
 
     if (is_global) {
@@ -84,12 +89,11 @@ pub fn runJlCode(self: *Self, code: []const u8, is_global: bool) !void {
     // base64 encoding for jlcode
     var b64 = Io.Writer.Allocating.init(c_alloc);
     defer b64.deinit();
-
     try std.base64.standard.Encoder.encodeWriter(&b64.writer, code);
 
     const rand_int = std.crypto.random.int(u64);
-    const temp_jl = try std.fmt.allocPrint(c_alloc, "tmp_{x}.jl", .{rand_int});
-    defer c_alloc.free(temp_jl);
+    const jl_filenmae = if (filename) |fname| fname else try std.fmt.allocPrint(c_alloc, "tmp_{x}.jl", .{rand_int});
+    defer if (filename == null) c_alloc.free(jl_filenmae);
 
     const jlcode = try std.fmt.allocPrintSentinel(
         c_alloc,
@@ -104,7 +108,7 @@ pub fn runJlCode(self: *Self, code: []const u8, is_global: bool) !void {
         \\    nothing
         \\end
     ,
-        .{ b64.written(), temp_jl },
+        .{ b64.written(), jl_filenmae },
         0,
     );
     defer c_alloc.free(jlcode);
@@ -141,6 +145,23 @@ export fn zigAllocatorFree(ptr: ?*anyopaque, n: usize) callconv(.c) void {
 
 export fn appendCStr(self: *VesJl, str: [*:0]const u8, len: usize) bool {
     self.vesti_output.appendSlice(c_alloc, str[0..len]) catch return false;
+    return true;
+}
+
+export fn downloadModule(mod_name: [*:0]const u8) bool {
+    const mod_name_len = mem.len(mod_name);
+
+    var diagnostic = diag.Diagnostic{
+        .allocator = c_alloc,
+    };
+    defer diagnostic.deinit();
+
+    @import("../ves_module.zig").downloadModule(
+        c_alloc,
+        &diagnostic,
+        mod_name[0..mod_name_len],
+        null,
+    ) catch return false;
     return true;
 }
 

@@ -31,12 +31,12 @@ pub const CompileAttribute = packed struct {
 };
 
 pub const JuliaScripts = struct {
-    first: []const u8,
+    before: []const u8,
     step: []const u8,
 };
 
 pub const JuliaContents = struct {
-    first: ?[]const u8 = null,
+    before: ?[]const u8 = null,
     step: ?[]const u8 = null,
 
     fn init(
@@ -46,7 +46,7 @@ pub const JuliaContents = struct {
     ) !@This() {
         var output: @This() = .{};
 
-        inline for (&.{ "first", "step" }) |ty| {
+        inline for (&.{ "before", "step" }) |ty| {
             @field(output, ty) = try jlscript.getBuildJlContents(
                 allocator,
                 @field(scripts, ty),
@@ -59,7 +59,7 @@ pub const JuliaContents = struct {
     }
 
     fn deinit(self: *const @This(), allocator: Allocator) void {
-        inline for (&.{ "first", "step" }) |ty| {
+        inline for (&.{ "before", "step" }) |ty| {
             if (@field(self, ty)) |lf| allocator.free(lf);
         }
     }
@@ -83,9 +83,9 @@ pub fn compile(
     );
     defer jlcode_contents.deinit(allocator);
 
-    // run first.jl to "initialize" vesti projects
-    if (jlcode_contents.first) |lc| {
-        try jlscript.runJlCode(julia, diagnostic, lc);
+    // run before.jl to "initialize" vesti projects
+    if (jlcode_contents.before) |lc| {
+        try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
     }
 
     while (true) {
@@ -98,6 +98,7 @@ pub fn compile(
             compile_limit,
             prev_mtime,
             jlcode_contents.step,
+            jlcode_scripts.step,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -134,6 +135,7 @@ fn compileInner(
     compile_limit: usize,
     prev_mtime: *?i128,
     jlcode_contents: ?[]const u8,
+    jlcode_scripts: []const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -239,6 +241,7 @@ fn compileInner(
                     engine.*,
                     &vesti_dummy,
                     jlcode_contents,
+                    jlcode_scripts,
                     compile_limit,
                 );
             }
@@ -280,6 +283,7 @@ fn compileInner(
                 engine.*,
                 &vesti_dummy,
                 jlcode_contents,
+                jlcode_scripts,
                 compile_limit,
             );
         }
@@ -404,6 +408,7 @@ fn compileLatex(
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
     jlcode_contents: ?[]const u8,
+    jlcode_scripts: []const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -418,7 +423,7 @@ fn compileLatex(
                 compile_limit,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(julia, diagnostic, lc);
+                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -447,7 +452,7 @@ fn compileLatex(
                 vesti_dummy,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(julia, diagnostic, lc);
+                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
             }
 
             std.debug.print("[compiled]\n", .{});

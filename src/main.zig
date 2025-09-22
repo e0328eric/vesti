@@ -93,7 +93,7 @@ fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
     ) orelse return error.FirstJlNotFound;
     defer allocator.free(first_jl);
 
-    try jlscript.runJlCode(&julia, &diagnostic, first_jl);
+    try jlscript.runJlCode(&julia, &diagnostic, first_jl, first_script);
 }
 
 fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
@@ -115,7 +115,7 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
     const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
-    const first_script = compile_subcmd.flags.get("first_script").?.value.string;
+    const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
     var diagnostic = Diagnostic{ .allocator = allocator };
@@ -143,7 +143,7 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
         compile_lim,
         &prev_mtime,
         .{
-            .first = first_script,
+            .before = before_script,
             .step = step_script,
         },
         .{

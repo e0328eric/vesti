@@ -101,11 +101,11 @@
     default: 3;
 
     #flag;
-    long: first_script;
+    long: before_script;
     short:;
     desc: run julia code once for each vesti runs.
     type: string;
-    default: first.jl;
+    default: before.jl;
 
     #flag;
     long: step_script;

@@ -36,10 +36,10 @@ extern void* zigAllocatorAlloc(size_t n);
 extern void zigAllocatorFree(void* ptr, size_t n);
 extern bool appendCStr(VesJl* self, const char* str, size_t len);
 extern void dumpVesPy(VesJl* self);
+extern bool downloadModule(const char* mod_name);
 extern const char* parseVesti(
     const char** output, size_t* output_len,
-    const char* code, size_t len,
-    LatexEngine engine
+    const char* code, size_t len
 );
 
 // wrapper implementation
@@ -103,7 +103,7 @@ VESJL_EXPORT jl_value_t* vesti_parse(jl_value_t* s_any) {
     size_t ves_len = strlen(ves_code);
 
     const char* parsed = NULL; size_t out_len = 0;
-    parseVesti(&parsed, &out_len, ves_code, ves_len, ves_jl.engine);
+    parseVesti(&parsed, &out_len, ves_code, ves_len);
 
     if (!parsed) {
         jl_exceptionf(jl_errorexception_type, "parsing vesti code failed");
@@ -133,6 +133,15 @@ VESJL_EXPORT jl_value_t* vesti_engine_type(void) {
         return NULL;
     }
 }
+
+// === vesti.download_module(mod::AbstractString) ===
+// Returns a new Julia String with the parsed output, or throws on error.
+VESJL_EXPORT void vesti_download_module(const char* mod_name) {
+    if (!downloadModule(mod_name)) {
+        jl_exceptionf(jl_errorexception_type, "failed to download module name %s", mod_name);
+    }
+}
+
 
 // export to zig
 bool run_jlcode(const char* code, const char* fmt, ...) {

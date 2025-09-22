@@ -11,5 +11,9 @@ end
 parse(s::AbstractString)::String = ccall(:vesti_parse, Any, (Any,), String(s))
 get_dummy_dir()::String = ccall(:vesti_get_dummy_dir, Any, ())
 engine_type()::String = ccall(:vesti_engine_type, Any, ())
+function download_module(mod::AbstractString)
+    ccall(:vesti_download_module, Cvoid, (Cstring,), mod)
+    nothing
+end
 
 end

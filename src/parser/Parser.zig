@@ -82,16 +82,7 @@ pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
     Io.Writer.Error ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
-    error{ ParseFailed, ParseZon, NameMangle };
-
-pub const VestiModule = struct {
-    name: []const u8,
-    version: ?[]const u8,
-    exports: []const struct {
-        name: []const u8,
-        location: ?[]const u8 = null,
-    },
-};
+    error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
 const DocState = packed struct {
     latex3_included: bool = false,
@@ -1201,113 +1192,13 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
     const mod_dir_path_str = try mod_dir_path.toOwnedSlice(self.allocator);
     defer self.allocator.free(mod_dir_path_str);
-    const config_path = try getConfigPath(self.allocator);
-    defer self.allocator.free(config_path);
 
-    try mod_dir_path.print(
+    try @import("../ves_module.zig").downloadModule(
         self.allocator,
-        "{s}/{s}",
-        .{
-            config_path,
-            mem.trimLeft(u8, mem.trim(u8, mod_dir_path_str, " \t"), "/\\"),
-        },
+        self.diagnostic,
+        mem.trimLeft(u8, mem.trim(u8, mod_dir_path_str, " \t"), "/\\"),
+        import_file_loc,
     );
-
-    var mod_data_path = try ArrayList(u8).initCapacity(
-        self.allocator,
-        mod_dir_path.items.len + 15,
-    );
-    defer mod_data_path.deinit(self.allocator);
-    try mod_data_path.print(self.allocator, "{s}/vesti.zon", .{mod_dir_path.items});
-
-    var mod_zon_file = fs.cwd().openFile(mod_data_path.items, .{}) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            self.allocator,
-            import_file_loc,
-            "cannot open file {s}",
-            .{
-                mod_data_path.items,
-            },
-        );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return ParseError.ParseFailed;
-    };
-    defer mod_zon_file.close();
-
-    var buf: [1024]u8 = undefined;
-    var mod_zon_file_reader = mod_zon_file.reader(&buf);
-
-    // what kind of such simple config file has 4MB size?
-    const context = mod_zon_file_reader.interface.allocRemainingAlignedSentinel(
-        self.allocator,
-        .limited(4 * 1024 * 1024),
-        .of(u8),
-        0,
-    ) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            self.allocator,
-            import_file_loc,
-            "cannot read context from {s}",
-            .{
-                mod_data_path.items,
-            },
-        );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return ParseError.ParseFailed;
-    };
-    defer self.allocator.free(context);
-    const ves_module = try zon.parse.fromSliceAlloc(
-        VestiModule,
-        self.allocator,
-        context,
-        null,
-        .{},
-    );
-    defer zon.parse.free(self.allocator, ves_module);
-
-    for (ves_module.exports) |@"export"| {
-        var mod_filename = try ArrayList(u8).initCapacity(
-            self.allocator,
-            @"export".name.len + mod_dir_path.items.len,
-        );
-        defer mod_filename.deinit(self.allocator);
-        try mod_filename.print(
-            self.allocator,
-            "{s}/{s}",
-            .{ mod_dir_path.items, @"export".name },
-        );
-
-        const location = @"export".location orelse VESTI_DUMMY_DIR;
-        var into_copy_filename = try ArrayList(u8).initCapacity(
-            self.allocator,
-            @"export".name.len + location.len,
-        );
-        defer into_copy_filename.deinit(self.allocator);
-        try into_copy_filename.print(
-            self.allocator,
-            "{s}/{s}",
-            .{ location, @"export".name },
-        );
-
-        fs.cwd().copyFile(
-            mod_filename.items,
-            fs.cwd(),
-            into_copy_filename.items,
-            .{},
-        ) catch {
-            const io_diag = try diag.IODiagnostic.init(
-                self.allocator,
-                import_file_loc,
-                "cannot copy from {s} into {s}",
-                .{
-                    mod_filename.items,
-                    into_copy_filename.items,
-                },
-            );
-            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return ParseError.ParseFailed;
-        };
-    }
 
     return Stmt.NopStmt;
 }
