@@ -469,7 +469,7 @@ pub const ParseDiagnostic = struct {
                 .{inner.err_msg.items},
             ),
             .NotLocatedInVeryFirst => |tok| try aw.writer.print(
-                "{f} must located in the very first line of the vesti code",
+                "{f} must be located in the very first line of the vesti code",
                 .{tok},
             ),
             .DoubleUsed => |tok| try aw.writer.print(
