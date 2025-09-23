@@ -32,7 +32,7 @@ pub fn main() !void {
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
 
-    var zlap_cmd = try zlap.Zlap(@embedFile("commands.zlap")).init(allocator);
+    var zlap_cmd = try zlap.Zlap(@embedFile("commands.zlap"), null).init(allocator);
     defer zlap_cmd.deinit();
 
     if (zlap_cmd.isSubcmdActive("clear")) {

@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.16.0-dev.238+580b6d1fa",
     .dependencies = .{
         .zlap = .{
-            .url = "git+https://github.com/e0328eric/zlap.git#e3af4762d8b5f336702a80c3c3d89a7a488cbee8",
-            .hash = "zlap-0.7.0-boKVXLqlAAAfb8Qqdc4Dmi-kyIHyQhDrVWBkiYRq3KPS",
+            .url = "git+https://github.com/e0328eric/zlap.git#5b2a5b7d63bacf96d0025cc83fa85a5708a9b4a9",
+            .hash = "zlap-0.8.0-boKVXF6mAAD3V1DNZ0f2sMBD8JH71w8zN-MY6jLV-bRR",
         },
         .ziglyph = .{
             .path = "./thirdparty/ziglyph",
