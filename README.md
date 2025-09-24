@@ -57,8 +57,8 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
+This project uses the latest zig (developer version).
 On Windows, TeX Live (or related software) and Julia are required. If one uses vesti with the Tectonic backend, TeX Live is not needed.
-
 On Linux and macOS, `freetype2` and `fontconfig` are additionally required.
 
 ## Compilation
