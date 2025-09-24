@@ -95,7 +95,7 @@ pub fn build(b: *Build) !void {
                 errdefer alloc.free(include);
                 const libs = try std.fs.path.join(alloc, &.{
                     jd,
-                    "bin",
+                    "lib",
                 });
                 errdefer alloc.free(libs);
                 break :blk .{ include, libs };
