@@ -18,10 +18,13 @@ const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
-const TectonicFnt = fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
-
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
+
+const compileLatexWithTectonic = switch (builtin.os.tag) {
+    .macos => @import("tectonic/macos.zig").compileLatexWithTectonic,
+    else => @import("tectonic/else.zig").compileLatexWithTectonic,
+};
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -473,45 +476,6 @@ fn compileLatex(
     const pdf_context = try from_reader.interface.allocRemaining(allocator, .unlimited);
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
-}
-
-extern fn compile_latex_with_tectonic(
-    latex_filename_ptr: [*]const u8,
-    latex_filename_len: usize,
-    vesti_local_dummy_dir_ptr: [*]const u8,
-    vesti_local_dummy_dir_len: usize,
-    compile_limit: usize,
-) bool;
-
-fn compileLatexWithTectonic(
-    diagnostic: *diag.Diagnostic,
-    main_tex_file: []const u8,
-    vesti_dummy: *fs.Dir,
-    compile_limit: usize,
-) !void {
-    var curr_dir = try fs.cwd().openDir(".", .{});
-    defer curr_dir.close();
-    try vesti_dummy.setAsCwd();
-    defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
-
-    if (!compile_latex_with_tectonic(
-        main_tex_file.ptr,
-        main_tex_file.len,
-        @ptrCast(VESTI_DUMMY_DIR),
-        VESTI_DUMMY_DIR.len,
-        compile_limit,
-    )) {
-        const io_diag = try diag.IODiagnostic.initWithNote(
-            diagnostic.allocator,
-            null,
-            "tectonic gaves an error while processing",
-            .{},
-            "",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.CompileLatexFailed;
-    }
 }
 
 fn compileLatexWithInner(
