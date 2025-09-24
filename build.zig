@@ -65,55 +65,23 @@ pub fn build(b: *Build) !void {
     var envmap = try std.process.getEnvMap(alloc);
     defer envmap.deinit();
 
-    const jl_include, const jl_libs = switch (target.result.os.tag) {
-        .windows => blk: {
-            const jl_dir = envmap.get("JULIA_DIR") orelse {
-                std.debug.print("`JULIA_DIR` env is not defined\n", .{});
-                return error.BuildFailed;
-            };
-            const include = try std.fs.path.join(alloc, &.{
-                jl_dir,
-                "include",
-                "julia",
-            });
-            errdefer alloc.free(include);
-            const libs = try std.fs.path.join(alloc, &.{
-                jl_dir,
-                "bin",
-            });
-            errdefer alloc.free(libs);
-            break :blk .{ include, libs };
-        },
-        else => blk: {
-            const jl_dir = envmap.get("JULIA_DIR");
-            if (jl_dir) |jd| {
-                const include = try std.fs.path.join(alloc, &.{
-                    jd,
-                    "include",
-                    "julia",
-                });
-                errdefer alloc.free(include);
-                const libs = try std.fs.path.join(alloc, &.{
-                    jd,
-                    "lib",
-                });
-                errdefer alloc.free(libs);
-                break :blk .{ include, libs };
-            } else {
-                const include = try std.fs.path.join(alloc, &.{
-                    "/usr",
-                    "include",
-                    "julia",
-                });
-                errdefer alloc.free(include);
-                const libs = try std.fs.path.join(alloc, &.{
-                    "/usr",
-                    "lib",
-                });
-                errdefer alloc.free(libs);
-                break :blk .{ include, libs };
-            }
-        },
+    const jl_include, const jl_libs = blk: {
+        const jl_dir = envmap.get("JULIA_DIR") orelse {
+            std.debug.print("`JULIA_DIR` env is not defined\n", .{});
+            return error.BuildFailed;
+        };
+        const include = try std.fs.path.join(alloc, &.{
+            jl_dir,
+            "include",
+            "julia",
+        });
+        errdefer alloc.free(include);
+        const libs = try std.fs.path.join(alloc, &.{
+            jl_dir,
+            if (target.result.os.tag == .windows) "bin" else "lib",
+        });
+        errdefer alloc.free(libs);
+        break :blk .{ include, libs };
     };
     defer {
         alloc.free(jl_include);
