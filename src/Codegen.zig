@@ -1,3 +1,5 @@
+const USE_JULIA = @import("vesti-info").USE_JULIA;
+
 const std = @import("std");
 const diag = @import("diagnostic.zig");
 const ast = @import("parser/ast.zig");
@@ -7,13 +9,13 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 const ParseError = @import("parser/Parser.zig").ParseError;
-const Julia = @import("julia/Julia.zig");
+const Julia = if (USE_JULIA) @import("julia/Julia.zig") else anyopaque;
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
-const Error = Allocator.Error || Io.Writer.Error ||
-    Julia.Error || ParseError ||
+const Error = Allocator.Error || Io.Writer.Error || ParseError ||
     error{
+JuliaInitFailed,
         JlLabelNotFound,
         DuplicatedJlLabel,
         JlEvalFailed,
@@ -267,7 +269,9 @@ fn codegenStmt(
             //epilogue
             try writer.writeAll("}\n");
         },
-        .JlCode => |cb| {
+        .JlCode => |cb| blk: {
+            if (!USE_JULIA) break :blk;
+
             if (julia) |jl| {
                 var new_code = try ArrayList(u8).initCapacity(
                     self.allocator,

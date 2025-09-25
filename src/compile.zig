@@ -1,3 +1,5 @@
+const USE_JULIA = @import("vesti-info").USE_JULIA;
+
 const std = @import("std");
 const builtin = @import("builtin");
 const mem = std.mem;
@@ -5,7 +7,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("diagnostic.zig");
-const jlscript = @import("jlscript.zig");
+const jlscript = if (USE_JULIA) @import("jlscript.zig") else {};
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
@@ -13,13 +15,18 @@ const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
 const Io = std.Io;
-const Julia = @import("julia/Julia.zig");
+const Julia = if (USE_JULIA) @import("julia/Julia.zig") else anyopaque;
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
+
+const compileLatexWithTectonic = switch (builtin.os.tag) {
+    .macos => @import("tectonic/macos.zig").compileLatexWithTectonic,
+    else => @import("tectonic/else.zig").compileLatexWithTectonic,
+};
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -42,6 +49,8 @@ pub const JuliaContents = struct {
         allocator: Allocator,
         diagnostic: *diag.Diagnostic,
     ) !@This() {
+        if (!USE_JULIA) return .{};
+
         var output: @This() = .{};
 
         inline for (&.{ "before", "step" }) |ty| {
@@ -83,7 +92,9 @@ pub fn compile(
 
     // run before.jl to "initialize" vesti projects
     if (jlcode_contents.before) |lc| {
-        try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
+        if (USE_JULIA) {
+            try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
+        }
     }
 
     while (true) {
@@ -357,7 +368,9 @@ pub fn vestiToLatex(
     defer aw.deinit();
 
     // change engine type via `compty`
-    julia.changeLatexEngine(engine.*);
+    if (USE_JULIA) {
+        julia.changeLatexEngine(engine.*);
+    }
 
     var codegen = try Codegen.init(
         allocator,
@@ -421,7 +434,9 @@ fn compileLatex(
                 compile_limit,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+                if (USE_JULIA) {
+                    try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+                }
             }
         } else {
             const io_diag = try diag.IODiagnostic.initWithNote(
@@ -450,7 +465,9 @@ fn compileLatex(
                 vesti_dummy,
             );
             if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+                if (USE_JULIA) {
+                    try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+                }
             }
 
             std.debug.print("[compiled]\n", .{});
@@ -471,45 +488,6 @@ fn compileLatex(
     const pdf_context = try from_reader.interface.allocRemaining(allocator, .unlimited);
     defer allocator.free(pdf_context);
     try into.writeAll(pdf_context);
-}
-
-extern fn compile_latex_with_tectonic(
-    latex_filename_ptr: [*]const u8,
-    latex_filename_len: usize,
-    vesti_local_dummy_dir_ptr: [*]const u8,
-    vesti_local_dummy_dir_len: usize,
-    compile_limit: usize,
-) bool;
-
-fn compileLatexWithTectonic(
-    diagnostic: *diag.Diagnostic,
-    main_tex_file: []const u8,
-    vesti_dummy: *fs.Dir,
-    compile_limit: usize,
-) !void {
-    var curr_dir = try fs.cwd().openDir(".", .{});
-    defer curr_dir.close();
-    try vesti_dummy.setAsCwd();
-    defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
-
-    if (!compile_latex_with_tectonic(
-        main_tex_file.ptr,
-        main_tex_file.len,
-        @ptrCast(VESTI_DUMMY_DIR),
-        VESTI_DUMMY_DIR.len,
-        compile_limit,
-    )) {
-        const io_diag = try diag.IODiagnostic.initWithNote(
-            diagnostic.allocator,
-            null,
-            "tectonic gaves an error while processing",
-            .{},
-            "",
-            .{},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.CompileLatexFailed;
-    }
 }
 
 fn compileLatexWithInner(
