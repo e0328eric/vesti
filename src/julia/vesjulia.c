@@ -5,11 +5,18 @@
 #include <stdarg.h>
 #include <assert.h>
 
+// XXX: can I define like that?
+#if defined(__linux__) && defined(__GLIBC__)
+#define sigjmp_buf jmp_buf
+#endif
+
+#ifndef _WIN32
 #ifndef _GNU_SOURCE
 #  define _GNU_SOURCE
 #endif
 #ifndef _POSIX_C_SOURCE
 #  define _POSIX_C_SOURCE 200809L
+#endif
 #endif
 
 #include <julia.h>

@@ -61,11 +61,6 @@ This project uses the latest zig (developer version).
 On Windows, TeX Live (or related software) and Julia are required. If one uses vesti with the Tectonic backend, TeX Live is not needed.
 On Linux and macOS, `freetype2` and `fontconfig` are additionally required.
 
-### For Linux Users
-After including julia language in vesti, one cannot compile with `glibc` because
-zig emits error `unknown type name 'sigjmp_buf'`, and I don't know yet.
-So while compiling, use `musl` instead.
-
 ## Compilation
 If you do not want to compile the Tectonic backend, just run the following command:
 
