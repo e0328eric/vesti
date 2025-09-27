@@ -14,6 +14,7 @@ const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
+const DynLib = std.DynLib;
 const Io = std.Io;
 const Julia = if (USE_JULIA) @import("julia/Julia.zig") else anyopaque;
 const LatexEngine = Parser.LatexEngine;
@@ -22,11 +23,7 @@ const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
-
-const compileLatexWithTectonic = switch (builtin.os.tag) {
-    .macos => @import("tectonic/macos.zig").compileLatexWithTectonic,
-    else => @import("tectonic/else.zig").compileLatexWithTectonic,
-};
+const TECTONIC_DLL = @import("vesti-info").TECTONIC_DLL;
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -607,4 +604,61 @@ fn changeExtension(
     output[idx] = '.';
     @memcpy(output[idx + 1 .. idx + 1 + into.len], into);
     return output;
+}
+
+// tectonic dlopen
+const TectonicFnt = *const fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
+
+fn compileLatexWithTectonic(
+    diagnostic: *diag.Diagnostic,
+    main_tex_file: []const u8,
+    vesti_dummy: *fs.Dir,
+    compile_limit: usize,
+) !void {
+    var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
+        const io_diag = try diag.IODiagnostic.initWithNote(
+            diagnostic.allocator,
+            null,
+            "cannot find {s}, critical error!!!",
+            .{TECTONIC_DLL},
+            \\if this error message apprears, please make an issue on vesti github
+            \\repo url: https://github.com/e0328eric/vesti
+        ,
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.CompileLatexFailed;
+    };
+    defer tectonic_dll.close();
+
+    const compile_latex_with_tectonic = tectonic_dll.lookup(
+        TectonicFnt,
+        "compile_latex_with_tectonic",
+    );
+
+    var curr_dir = try fs.cwd().openDir(".", .{});
+    defer curr_dir.close();
+    try vesti_dummy.setAsCwd();
+    defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
+
+    if (compile_latex_with_tectonic) |fnt| {
+        if (!fnt(
+            main_tex_file.ptr,
+            main_tex_file.len,
+            @ptrCast(VESTI_DUMMY_DIR),
+            VESTI_DUMMY_DIR.len,
+            compile_limit,
+        )) {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                diagnostic.allocator,
+                null,
+                "tectonic gaves an error while processing",
+                .{},
+                "",
+                .{},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
+        }
+    } else return error.FindTectonicFunctionFailed;
 }

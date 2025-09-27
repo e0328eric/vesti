@@ -91,11 +91,13 @@ pub fn build(b: *Build) !void {
         if (jl_libs) |s| alloc.free(s);
     }
 
+    const tectonic_dll_name = try getDllName(&target);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
     vesti_opt.addOption(bool, "USE_JULIA", use_julia);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
+    vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[0]);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -131,19 +133,7 @@ pub fn build(b: *Build) !void {
             }),
         }
     }
-    if (use_tectonic) {
-        switch (target.result.os.tag) {
-            .windows => {
-                exe_mod.addLibraryPath(b.path("vesti-tectonic/bin"));
-                exe_mod.linkSystemLibrary("vesti_tectonic.dll", .{});
-            },
-            .linux => {
-                exe_mod.addLibraryPath(.{ .cwd_relative = b.exe_dir });
-                exe_mod.linkSystemLibrary("vesti_tectonic", .{});
-            },
-            else => {},
-        }
-    }
+    if (use_tectonic) exe_mod.addRPath(.{ .cwd_relative = b.exe_dir });
     exe_mod.addOptions("vesti-info", vesti_opt);
 
     const exe = b.addExecutable(.{
@@ -214,18 +204,6 @@ pub fn build(b: *Build) !void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
-}
-
-fn getDllName(target: *const Build.ResolvedTarget) []const []const u8 {
-    //const os_tag = target.result.os.tag;
-    //const cpu_arch_tag = target.result.cpu.arch;
-
-    return switch (target.result.os.tag) {
-        .windows => &.{ "vesti_tectonic.dll", "vesti_tectonic.dll.lib" },
-        .linux => &.{"libvesti_tectonic.so"},
-        .macos => &.{"libvesti_tectonic.dylib"},
-        else => @panic("Not supported"),
-    };
 }
 
 const BuildRust = struct {
@@ -306,7 +284,7 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
         cargo_result.stderr,
     });
 
-    const dll_names = getDllName(&build_rust.target);
+    const dll_names = try getDllName(&build_rust.target);
     for (dll_names) |name| {
         const source_path = try path.join(alloc, &.{
             "vesti-tectonic/target/release/",
@@ -388,7 +366,7 @@ fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!v
     const alloc = b.allocator;
     const install_dll: *InstallDll = @fieldParentPtr("step", step);
 
-    const dll_names = getDllName(&install_dll.target);
+    const dll_names = try getDllName(&install_dll.target);
     const source_path_rel = try path.join(alloc, &.{
         "./vesti-tectonic/bin/",
         dll_names[0],
@@ -413,4 +391,50 @@ fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!v
     , .{ source_path, dest_path });
 
     try fs.copyFileAbsolute(source_path, dest_path, .{});
+}
+
+fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
+    const os_tag = target.result.os.tag;
+    const cpu_arch_tag = target.result.cpu.arch;
+
+    return switch (os_tag) {
+        .windows => switch (cpu_arch_tag) {
+            .x86_64 => &.{
+                "vesti_tectonic_x86_64.dll",
+                "vesti_tectonic_x86_64.dll.lib",
+            },
+            .aarch64 => &.{
+                "vesti_tectonic_aarch64.dll",
+                "vesti_tectonic_aarch64.dll.lib",
+            }, // TODO: compile prebuilt dll
+            else => blk: {
+                std.debug.print(
+                    "Not supported for cpu architecture {} on Windows",
+                    .{cpu_arch_tag},
+                );
+                break :blk error.NotSupport;
+            },
+        },
+        .linux => switch (cpu_arch_tag) {
+            .x86_64 => &.{"libvesti_tectonic_x86_64.so"},
+            .x86 => &.{"libvesti_tectonic_x86.so"}, // TODO: compile prebuilt dll
+            .aarch64 => &.{"libvesti_tectonic_aarch64.so"}, // TODO: compile prebuilt dll
+            .arm => &.{"libvesti_tectonic_arm.so"}, // TODO: compile prebuilt dll
+            else => blk: {
+                std.debug.print(
+                    "Not supported for cpu architecture {} on Linux",
+                    .{cpu_arch_tag},
+                );
+                break :blk error.NotSupport;
+            },
+        },
+        .macos => switch (cpu_arch_tag) {
+            .aarch64 => &.{"libvesti_tectonic.dylib"},
+            else => blk: {
+                std.debug.print("Only arm MacOs is supported", .{});
+                break :blk error.NotSupport;
+            },
+        },
+        else => @panic("Not supported"),
+    };
 }
