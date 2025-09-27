@@ -284,57 +284,55 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
         cargo_result.stderr,
     });
 
-    const dll_names = try getDllName(&build_rust.target);
-    for (dll_names) |name| {
-        const source_path = try path.join(alloc, &.{
-            "vesti-tectonic/target/release/",
-            name,
+    const dll_name = try getDllName(&build_rust.target);
+    const source_path = try path.join(alloc, &.{
+        "vesti-tectonic/target/release/",
+        dll_name[0],
+    });
+    defer alloc.free(source_path);
+
+    const dest_path = try path.join(alloc, &.{
+        "vesti-tectonic/bin/",
+        dll_name[1],
+    });
+    errdefer alloc.free(dest_path);
+
+    std.debug.print(
+        \\[NOTE]
+        \\coping {s}
+        \\ into  {s}
+        \\
+    , .{ source_path, dest_path });
+
+    try b.build_root.handle.copyFile(
+        source_path,
+        b.build_root.handle,
+        dest_path,
+        .{},
+    );
+
+    const dll_path = try path.join(alloc, &.{
+        "bin/",
+        dll_name[1],
+    });
+    errdefer alloc.free(dll_path);
+
+    // compress binary using upx
+    if (build_rust.target.result.os.tag == .windows) {
+        const upx = try Child.run(.{
+            .allocator = alloc,
+            .argv = &.{ "upx", "-9", dll_path },
+            .env_map = &envmap,
+            .max_output_bytes = 2500 * 1024,
         });
-        defer alloc.free(source_path);
-
-        const dest_path = try path.join(alloc, &.{
-            "vesti-tectonic/bin/",
-            name,
-        });
-        errdefer alloc.free(dest_path);
-
-        std.debug.print(
-            \\[NOTE]
-            \\coping {s}
-            \\ into  {s}
-            \\
-        , .{ source_path, dest_path });
-
-        try b.build_root.handle.copyFile(
-            source_path,
-            b.build_root.handle,
-            dest_path,
-            .{},
-        );
-
-        const dll_path = try path.join(alloc, &.{
-            "bin/",
-            name,
-        });
-        errdefer alloc.free(dll_path);
-
-        // compress binary using upx
-        if (build_rust.target.result.os.tag == .windows) {
-            const upx = try Child.run(.{
-                .allocator = alloc,
-                .argv = &.{ "upx", "-9", dll_path },
-                .env_map = &envmap,
-                .max_output_bytes = 2500 * 1024,
-            });
-            defer {
-                alloc.free(upx.stdout);
-                alloc.free(upx.stderr);
-            }
-            std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-                upx.stdout,
-                upx.stderr,
-            });
+        defer {
+            alloc.free(upx.stdout);
+            alloc.free(upx.stderr);
         }
+        std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+            upx.stdout,
+            upx.stderr,
+        });
     }
 }
 
@@ -366,10 +364,10 @@ fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!v
     const alloc = b.allocator;
     const install_dll: *InstallDll = @fieldParentPtr("step", step);
 
-    const dll_names = try getDllName(&install_dll.target);
+    const dll_name = try getDllName(&install_dll.target);
     const source_path_rel = try path.join(alloc, &.{
         "./vesti-tectonic/bin/",
-        dll_names[0],
+        dll_name[1],
     });
     defer alloc.free(source_path_rel);
     const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
@@ -377,7 +375,7 @@ fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!v
 
     const dest_path = try path.join(alloc, &.{
         b.exe_dir,
-        dll_names[0],
+        dll_name[1],
     });
     errdefer alloc.free(dest_path);
 
@@ -400,12 +398,12 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
     return switch (os_tag) {
         .windows => switch (cpu_arch_tag) {
             .x86_64 => &.{
+                "vesti_tectonic.dll",
                 "vesti_tectonic_x86_64.dll",
-                "vesti_tectonic_x86_64.dll.lib",
             },
             .aarch64 => &.{
+                "vesti_tectonic.dll",
                 "vesti_tectonic_aarch64.dll",
-                "vesti_tectonic_aarch64.dll.lib",
             }, // TODO: compile prebuilt dll
             else => blk: {
                 std.debug.print(
@@ -416,10 +414,22 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .linux => switch (cpu_arch_tag) {
-            .x86_64 => &.{"libvesti_tectonic_x86_64.so"},
-            .x86 => &.{"libvesti_tectonic_x86.so"}, // TODO: compile prebuilt dll
-            .aarch64 => &.{"libvesti_tectonic_aarch64.so"}, // TODO: compile prebuilt dll
-            .arm => &.{"libvesti_tectonic_arm.so"}, // TODO: compile prebuilt dll
+            .x86_64 => &.{
+                "libvesti_tectonic.so",
+                "libvesti_tectonic_x86_64.so",
+            },
+            .x86 => &.{
+                "libvesti_tectonic.so",
+                "libvesti_tectonic_x86.so",
+            }, // TODO: compile prebuilt dll
+            .aarch64 => &.{
+                "libvesti_tectonic.so",
+                "libvesti_tectonic_aarch64.so",
+            }, // TODO: compile prebuilt dll
+            .arm => &.{
+                "libvesti_tectonic.so",
+                "libvesti_tectonic_arm.so",
+            }, // TODO: compile prebuilt dll
             else => blk: {
                 std.debug.print(
                     "Not supported for cpu architecture {} on Linux",
@@ -429,7 +439,10 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .macos => switch (cpu_arch_tag) {
-            .aarch64 => &.{"libvesti_tectonic.dylib"},
+            .aarch64 => &.{
+                "libvesti_tectonic.dylib",
+                "libvesti_tectonic.dylib",
+            },
             else => blk: {
                 std.debug.print("Only arm MacOs is supported", .{});
                 break :blk error.NotSupport;
