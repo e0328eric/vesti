@@ -1,0 +1,24 @@
+useenv lemma { \label{lemma:lemma:4.9}
+    Let $\Fc_t=\Wc_t\vee\Bc_t$ for $t>=0$, assume that
+    $\sigma$-fields $\Wc_t$ and $\Bc_t$ form independent increasing
+    filtrations, and $\Pc_\Fc$, $\Pc_\Wc$ are $\Fc_t$-predictable and
+    $\Wc_t$-predictable
+    Furthermore, $(w_t,\Wc_t)$ is an one-dimensional Wiener
+    process. Then for any $u\in \bigcap_{T>0}L_2(\llo0,T\rrc,\Pc_\Fc,\R)$, there
+    exists a $\Pc_\Wc$-measurable process $\bar u$ such that
+    $$
+        \bar u(t) = \Eb[u(t) | \Wc_t] \quad "("\Pb\times\ell"-a.e.)",
+    $$
+    and for almost all $t$,
+    $$
+        \int_0^t \bar u(s)ds = \Eb?[\int_0^t u(s)ds \Bigg| \Wc_t ]?
+        \quad "(a.s.)",\qquad
+        \int_0^t \bar u(s)dw_s = \Eb?[\int_0^t u(s)dw_s \Bigg| \Wc_t ]?
+        \quad "(a.s.)".
+    $$
+    \proof
+    Following proof is inspired from \cite{RL}.
+    To write simply, symbolically denote $Uu(t)$ by $\bar u(t)$ in the statement
+    of the lemma.
+}
+

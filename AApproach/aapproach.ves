@@ -1,0 +1,165 @@
+% This is a comment. vesti also supports multiline comments
+%*
+ * Like this
+ *%
+%*
+ * `compty` tells to vesti transpiler to compile vesti with specified backend.
+ * possible inputs are `plain`, `pdf`, `xe`, `lua`, and `tect`.
+ *%
+%compty (tect)
+
+% It copy-paste contents $CONFIG/vesti/coprime.
+% Here, $CONFIG is defined by
+% linux / macos : ~/.config
+% windows : %APPDATA%
+%
+% Also, one can download coprime in here:
+% url: https://github.com/e0328eric/coprime.git
+importmod (coprime)
+docclass coprime (10pt, item, geometry, fancy, tikz)
+
+importpkg {
+    xcolor,
+    graphicx,
+    fontspec,
+    unicode-math,
+}
+
+importves (font.ves)
+
+\settitle{AApproach Seminar}{Sungbae Jeong}
+\setgeometry{a4paper, margin=2.2cm}
+
+\let\remark=\relax
+\let\endremark=\relax
+\allocthmcnt{Remark}
+\maketheorem{remark}{Remark}{\bfseries Remark\ \theRemark}
+\crefname{Remark}{\lowercase{Remark}}{\lowercase{Remark}}
+\Crefname{Remark}{Remark}{Remark}
+
+\allocthmcnt{Example}
+\maketheorem{example}{Example}{\bfseries Example\ \theExample}
+\crefname{Example}{\lowercase{Example}}{\lowercase{Example}}
+\Crefname{Example}{Example}{Example}
+
+\allocthmcnt{Assumption}
+\maketheorem{assump}{Assumption}{\bfseries Assumption\ \theAssumption}
+\crefname{Assumption}{\lowercase{Assumption}}{\lowercase{Assumption}}
+\Crefname{Assumption}{Assumption}{Assumption}
+
+startdoc
+\fancyon
+\tableofcontents
+
+\section{Introduction}
+We want to solve the following SPDE
+useenv equation { \label{eq:the-spde}
+    du = (Lu + f)dt + (\Lambda^ku + g^k)dw_t^k,\quad t>0,
+}
+where
+$$
+    Lu = a^{ij}u_{x^ix^j} + b^iu_{x^i} + cu,\quad
+    \Lambda^ku = \sigma^{ik}u_{x^i} + \nu^ku.
+$$
+Recall that we are using the summation convention.
+
+\section{Generalities}
+In this section, $\R^d$ denotes a $d$-dimensional Euclidean space of points
+$x=(x^1,...,x^d)$. By a distribution or a generalized function on $\R^d$ we mean
+an element of the space $\Dc$ of real-valued Schwartz distributions defined
+on $C_0^oo$, where $C_0^oo=C_0^oo(\R^d)$ is the set of all infinitely
+differentiable functions with compact support.
+
+\subsection{Definition of $H_p^n$}
+importves (chapter2/bessel-potential-def.ves)
+
+\subsection{Definition of $H_p^{1,2}(T)$ and solvability of deterministic PDE}
+importves (chapter2/solvability-pde.ves)
+
+\section{The Stochastic Banach Spaces}
+importves (chapter3/stochastic-banach.ves)
+
+\section{Model Equations}
+importves (chapter4/prologue.ves)
+
+\subsection{Particular Case $a^{ij}=\delta^{ij}$, $\sigma=0$} \label{sec:4.1}
+importves (chapter4/particular-case.ves)
+
+\subsection{Relation of the Solutions of \cref{eq:simp-spde} to the Solutions of
+the Heat Equation} \label{sec:4.2}
+importves (chapter4/relation.ves)
+
+\subsection{General Equation \cref{eq:simp-spde} with Coefficients Independent
+of $x$.}
+importves (chapter4/general-case.ves)
+
+\section{Equations with Variable Coefficients}
+importves (chapter5/variable-coeff.ves)
+
+\section{Proof of \Cref{thm:sol-the-spde-nonlin}}
+importves (chapter6/proof.ves)
+
+\section{Appendix}
+\subsection{Sobolev-Slobodeckij space}
+importves (appendix/slobodeckij.ves)
+
+\subsection{Checking whether two spaces are same}
+importves (appendix/compare-spaces.ves)
+
+\subsection{The Heat Kernel} \label{sec:heat-kernel}
+importves (appendix/heat-kernel.ves)
+
+\subsection{Multiple of two distributions} \label{sect:multiple-distribs}
+importves (appendix/multiple-distribs.ves)
+
+\subsection{Brief introduction to Bochner integral}
+importves (appendix/bochner-integral.ves)
+
+\subsection{Auxiliary Lemmas}
+importves (appendix/aux-lemmas.ves)
+
+\goodbreak
+\subsection{Stochastic Fubini's theorem}
+importves (appendix/stochastic-fubini.ves)
+
+\subsection{Recipies to prove \cref{lemma:generalized-littlewood-paley}} \label{sec:sharp-maximal}
+importves (appendix/sharp-maximal.ves)
+
+\hbox{}
+\vfill
+useenv reference {
+  \book{Kra}{Integral operators in spaces of summable functions}
+  {Krasnosel'ski\u i M. A. and Zabre\u iko P. P. and Pustyl'nik E. I. and
+  Sobolevski\u i P. E.}{1976}{Noordhoff International Publishing, Leiden}
+  \book{Yosida}{Functional analysis}{K. Yosida}{1980}{Springer Verlag}
+  \book{Tri1}{Theory of Function spaces}{H. Triebel}{1983}{Birkh\"auser Verlag}
+  \book{Tri2}{Theory of Function spaces II}{H. Triebel}{1992}{Birkh\"auser Verlag}
+  \book{TriI}{Interpolation Theory, Function Spaces, Differential Operators}
+  {H. Triebel}{1978}{North-Holland Publishing Company}
+  \book{Stein}{Harmonic Analysis: Real-Variable Methods, Orthogonality, and
+  Oscillatory Integrals}{Elias M. Stein}{1993}{Princeton University Press}
+  \book{Kry1}{Lectures on Elliptic and Parabolic Equations in Sobolev Spaces}
+  {N. V. Krylov}{2000}{American Mathematical Society}
+  \book{Kry2}{Introduction to the theory of Diffusion Processes}
+  {N. V. Krylov}{1995}{American Mathematical Society}
+  \article{Kry3}{On the Foundation of the $L_p$-Theory of SPDE}{N. V.
+  Krylov}{2005}
+  \article{Kry4}{A Generalization of the Littlewood-Paley Inequality and Some
+  Other Results Related to Stochastic Partial Differential Equations}{N. V.
+  Krylov}{1994}
+  \article{Kry5}{A Parabolic Littlewood-Paley Inequality with Applications to
+  Parabolic Equations}{N. V. Krylov}{1994}
+  \book{Evans}{Measure Theory and Fine Properties of Functions -- Revised
+  Edition}{L. C. Evans, R. F. Gariepy}{2015}{CRC Press}
+  \book{LSU}{Linear and quasi-linear equations of parabolic type}
+  {O. A. Lady\v zenskaja, V. A. Solonnikov, N. N. Ural'ceva}{1968}{AMS}
+  \book{Yor}{Continuous Martingales and Brownian Motion}{Daniel Revuz and Marc
+  Yor}{1999}{Springer Verlag}
+  \article{SF}{On the It\^o-Wentzell formula for distribution-valued processes
+  and related topics}{N. V. Krylov}{2010}
+  \book{Protter}{Stochastic Integration and Differential Equations}{Philip E.
+  Protter}{1999}{Springer Verlag}
+  \book{RL}{Stochastic Evolution Systems -- Linear Theory and Applications to
+  Non-Linear Filtering: Second Edition}{Boris L. Rozovsky, Sergey V. Lototsky}{2018}{Springer Verlag}
+}
+

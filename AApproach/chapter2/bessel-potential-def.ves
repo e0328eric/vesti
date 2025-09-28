@@ -1,0 +1,58 @@
+We fix $p\in(1,oo)$ and $n\in\R$. We first define a space $H_p^n=H_p^n(\R^d)$,
+the Bessel potential space, which is defined by
+$$
+  H_p^n(\R^d) \defeq \{ u\in\Dc : \exists f\in L_p = L_p(\R^d),\
+  (1-\Delta)^{-n/2}f=u\},
+$$
+and the norm on $H_p^n$ by
+$$
+  ||u||_{n,p} \defeq ||(1-\Delta)^{n/2}u||_p,
+$$
+where $||\cdot||_p$ is the norm in $L_p$.
+
+The meaning of $(1-\Delta)^{n/2}$ is already discussed before by defining
+$$
+  (1-\Delta)^{n/2}f \defeq [(1+|\xi|^2)^{n/2}\hat f(\xi)]^\vee.
+$$
+However in this paper, we will introduce another definition by using semigroup.
+Define a family of operators $T_t$ in $L_p$ for $t\in[0,oo)$ by
+useenv equation { \label{eq:heat-trans}
+    T_0 \equiv I,\quad
+    T_tf(x) \defeq {1//(4\pi t)^{d/2}}\int_{\R^d}f(y)e^{-{1//4t}|x-y|^2}dy
+    \eqdef \int_{\R^d}f(y)p_t(x-y)dy.
+}
+Then $T_t$ forms a strongly continuous semigroup. In addition, by the Young's
+inequality, $||T_t||_{L_p->L_p}<=1$ holds. Then the generator $A$ of the
+semigroup $\{e^{-t}T_t\}_t$ satisfies
+$$
+    ||(tI-A)^{-1}||_{L_p->L_p} <= {1//t+1},
+$$
+and thus
+$$
+    A^{-z} = {1//\Gamma(z)}\int_0^oo t^{z}e^{-t}T_t{dt//t},\quad \Re z > 0
+$$
+by Theorem 13.1 and Theorem 14.10 of \cite{Kra}. On the other hand, notice that
+$A^{-1} = (1-\Delta)^{-1}$ (see \cite{Kry1}).
+Therefore we can \it{define} $(1-\Delta)^{-\alpha}$ for $\alpha>0$ by
+useenv equation { \label{eq:fractional-lap-1}
+    (1-\Delta)^{-\alpha}u
+    \defeq {1//\Gamma(\alpha)}\int_0^oo t^\alpha e^{-t}T_tu{dt//t},\quad
+    \forall u\in C_0^oo.
+}
+In addition by \cite{Yosida}, we can also \it{define} $(1-\Delta)^\alpha$ for
+$\alpha\in(0,1)$ by
+useenv equation { \label{eq:fractional-lap-2}
+    (1-\Delta)^\alpha u
+    \defeq {1//\Gamma(-\alpha)}\int_0^oo {e^{-t}T_tu-u//t^\alpha}{dt//t}, \quad
+    \forall u\in C_0^oo.
+}
+It turns out that (see \cite{Kra}) that formulas \cref{eq:fractional-lap-1} and
+\cref{eq:fractional-lap-2} are sufficient to consistently define
+$(1-\Delta)^{n/2}$ for any $n\in(-oo,oo)$.
+The result of application of $(1-\Delta)^{n/2}$ to an $f\in L_p$ is defined as a
+limit of truncated integrals in \cref{eq:fractional-lap-1} and
+\cref{eq:fractional-lap-2}.
+
+It is known that $H_p^n$ is a Banach space with norm $||\cdot||_{n,p}$ and
+$C_0^oo$ is dense in $H_p^n$ (see, for instance, \cite{Tri1}, \cite{Tri2}).
+

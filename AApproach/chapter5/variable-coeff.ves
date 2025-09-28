@@ -1,0 +1,456 @@
+Take a stopping time $\tau<=T$ with $T$ belong a finite constant. Fix $n\in\R$
+and fix a number $\gamma\in[0,1)$ such that $\gamma=0$ if $n\in\Z$; otherwise
+$\gamma>0$ and is such that $|n|+\gamma$ is not an integer. Define
+$$
+    B^{|n|+\gamma} = useenv cases {
+        B(\R^d) & "if"# n=0, \\
+        C^{|n|-1,1}(\R^d) & "if"# n\in\Z--\{0\},\\
+        C^{|n|+\gamma}(\R^d) & "otherwise";
+    }
+$$
+$$
+    B^{|n|+\gamma}(l_2) = useenv cases {
+        B(\R^d,l_2) & "if"# n=0, \\
+        C^{|n|-1,1}(\R^d,l_2) & "if"# n\in\Z--\{0\},\\
+        C^{|n|+\gamma}(\R^d,l_2) & "otherwise",
+    }
+$$
+where $B(\R^d)$ is the Banach space of bounded functions on $\R^d$,
+$C^{|n|-1,1}(\R^d)$ is the Banach space of $|n|-1$ times continuously
+differentiable functions whose derivatives of $(|n|-1)$st order satisfy the
+Lipschitz condition on $\R^d$, $C^{|n|+\gamma}(\R^d)$ is the usual H\"older
+space, and $l_2$ means that instead of real-valued functions we consider
+$l_2$-valued ones.
+
+Consider the following nonlinear equation on $[0,\tau]$:
+useenv equation { \label{eq:the-spde-nonlin}
+    du(t,x) = [a^{ij}(t,x)u_{x^ix^j}(t,x) + f(u,t,x)]dt
+    + [\sigma^{ik}(t,x)u_{x^i}(t,x) + g^k(u,t,x)]dw_t^k,
+}
+where $a^{ij}$ and $f$ are real-valued, and $\sigma^i$ and $g$ are $l_2$-valued
+functions defined for $\omega\in\Omega$, $t>=0$, $x\in\R^d$, $u\in H_p^{n+2}$,
+$i,j=1,...,d$.\footnote{
+    More presicely for $f$ and $g$, their signature are
+    $$
+        f : \Omega\times H_p^{n+2}\times [0,oo) -> H_p^n,\quad
+        g : \Omega\times H_p^{n+2}\times [0,oo) -> H_p^{n+1}(\R^d,l_2).
+    $$
+}
+We consider this equation in the sense of \Cref{defin:3.5} (where we take $n+2$
+instead of $n$).
+We make the following assumptions, where, as in Section 4, we define
+useenv equation { \label{eq:define-alpha}
+    \alpha^{ij}(t,x) = {1//2}(\sigma^i(t,x),\sigma^j(t,x))_{l_2}.
+}
+
+useenv assump [coercivity] { \label{assump:5-1}
+    For any $\omega\in\Omega$, $t>=0$, $x,\lambda\in\R^d$, we have
+    $$
+        K|\lambda|^2 >= [a^{ij}(t,x) - \alpha^{ij}(t,x)]\lambda^i\lambda^j
+        >= \delta|\lambda|^2,
+    $$
+    where $K,\delta$ are fixed strictly positive constants.
+}
+
+useenv assump [uniform continuity of $a$ and $\sigma$] { \label{assump:5-2}
+    For any $\epsilon>0,i,j$, there exists a $\kappa_\epsilon>0$ such that
+    useenv equation { \label{eq:uniform-continuity}
+        |a^{ij}(t,x) - a^{ij}(t,y)| + |\sigma^i(t,x) - \sigma^i(t,y)|_{l_2}^2
+        <=\epsilon
+    }
+    whenever $|x-y|<=\kappa_\epsilon$, $t>=0$, $\omega\in\Omega$.
+}
+
+This assumption is actually used only if $n=0$, and even then we need a stronger
+condition on $\sigma$. For other values of $n$ we impose stronger conditions on
+$a$ and $\sigma$.
+
+useenv assump { \label{assump:5-3}
+    For any $i,j,k$, the functions $a^{ij}(t,x)$ and $\sigma^{ik}(t,x)$ are
+    real-valued $\Pc\otimes\Bf(\R^d)$-measurable functions, and for any
+    $\omega\in\Omega$ and $t>=0$, we have
+    $$
+        a^{ij}(t,\cdot)\in B^{|n|+\gamma},\quad
+        \sigma^i(t,\cdot)\in B^{|n+1|+\gamma}(l_2).
+    $$
+}
+
+useenv assump { \label{assump:5-4}
+    For any $u\in H_p^{n+2}$, the functions $f(u,t,\cdot)$ and $g(u,t,\cdot)$ are
+    predictable as functions taking values in $H_p^n$ and $H_p^{n+1}(\R^d,l_2)$,
+    respectively.
+}
+
+useenv assump { \label{assump:5-5}
+    For any $t>=0,\omega,i,j$,
+    $$
+        ||a^{ij}(t,\cdot)||_{B^{|n|+\gamma}} +
+        ||\sigma^i(t,\cdot)||_{B^{|n+1|+\gamma}(l_2)} <= K,\quad
+        (f(0,\cdot,\cdot),g(0,\cdot,\cdot)) \in \Fc_p^n(\tau).
+    $$
+}
+
+useenv assump { \label{assump:5-6}
+    The functions $f$, $g$ are continuous in $u$. Moreover, for any
+    $\epsilon>0$, there exists a constant $K_\epsilon$ such that, for any
+    $u,v\in H_p^{n+2},t,\omega$, we have
+    useenv equation { \label{eq:uniform-continuity-2}
+        ||f(u,t,\cdot) - f(v,t,\cdot)||_{n,p}
+        + ||g(u,t,\cdot) - g(v,t,\cdot)||_{n+1,p}
+        <= \epsilon||u-v||_{n+2,p}
+        + K_\epsilon ||u-v||_{n,p}.
+    }
+}
+
+useenv thm { \label{thm:sol-the-spde-nonlin}
+    Let \Cref{assump:5-1} through \Cref{assump:5-6} be satisfied and let
+    $$
+        u_0 \in L_p(\Omega,\Fc_0,H_p^{n+2-2/p}).
+    $$
+    Then the Cauchy problem form \cref{eq:the-spde-nonlin} on $[0,\tau]$ with
+    the initial condition $u(0,\cdot)=u_0$ has a unique solution
+    $u\in\Hc_p^{n+2}(\tau)$. For this solution, we have
+    $$
+        ||u||_{\Hc_p^{n+2}(\tau)}
+        <= N[||f(0,\cdot,\cdot)||_{\Hb_p^n(\tau)} +
+        ||g(0,\cdot,\cdot)||_{\Hb_p^{n+1}(\tau,l_2)}
+        + (\Eb||u_0||_{n+2-2/p,p}^p)^{1/p}],
+    $$
+    where the constant $N$ depends only on $d,n,\gamma,p,\delta,K,T$, and the
+    functions $\kappa_\epsilon$ and $K_\epsilon$.
+}
+
+To discuss the theorem, we need the following lemma.
+
+useenv lemma { \label{lemma:5.2}
+    Let $\zeta\in C_0^oo$ be a nonnegative function such that $\int\zeta=1$ and
+    define $\zeta_k(x) = k^d\zeta(kx)$, $k=1,2,3,...$. We assert that, for any
+    $u\in H_p^n$, we have the following:
+    useenv enumerate [label=(\roman*)] {
+        \item $||au||_{n,p} <= N\bar a||u||_{n,p}$, where $\bar a =
+        ||a||_{B^{|n|+\gamma}}$ and the constant $N$ depends only on $d,p,n$, and
+        $\gamma$.
+        \item $||u*\zeta_k||_{n,p} <= ||u||_{n,p}$, $||u-u*\zeta_k||_{n,p}->0$.
+    }
+    The same assertions hold true for Banach-space valued a with natural
+    definition of $\bar a$.
+    \proof
+    If $n$ is not an integer (and $\gamma>0$), then one gets (i) by Corollary
+    2.8.2 (ii) of \cite{Tri1}. Indeed, since $p>=2$, actually we have
+    $$
+        ||au||_{n,p} <= ||a||_{\Ce^{|n|+\gamma}}||u||_{n,p}
+    $$
+    where $\Ce^s$ ($s>0$) denotes the Zygmund space (recall that $H_p^n =
+    F_{p,2}^n$). Now recall that $B^{|n|+\gamma} = C^{|n|+\gamma}\subset
+    \Ce^{|n|+\gamma}$.
+    If $n$ is nonnegative integer, then (i) follows from the Leibnitz rule, the
+    fact that $H_p^n=W_p^n$, and notice that for (a.a.) $x\in\R^d$,
+    $$
+        \sum_{|\alpha| = |n|} |D^\alpha a(x)| <=
+        N\sum_{|\alpha|=|n|-1}\sup_{t,s\in\R^d\atop t!=s}
+        {|D^\alpha a(t)-D^\alpha a(s)|//|t-s|}.
+    $$
+    For negative integers $n$ (and generally for negative $n$) (i) follows easily by
+    duality, that is, by using the fact that if $u = (1-\Delta)^{-n/2}f$, then
+    $$
+        (au,\phi) = (f,(1-\Delta)^{-n/2}(a\phi))
+        <= ||f||_p||a\phi||_{-n,q},\quad q = {p//p-1}.
+    $$
+    In this equation, we should study the meaning of the first equality, whose
+    detail is in \Cref{sect:multiple-distribs}.
+    This gives, therefore,
+    $$
+        ||au||_{n,p} = \sup\{|(au,\phi)| : \phi\in C_0^oo,\ ||\phi||_{-n,q}<=1\}
+        <= \bar a||u||_{n,p}.
+    $$
+
+    For (ii), the first inequality follows from Minkowski's inequality and the
+    second one comes from the denseness of $C_0^oo$ in $H_p^n$.
+}
+
+useenv remark {
+    As we have said above, by solution to the Cauchy problem for equation
+    \cref{eq:the-spde-nonlin} on $[0,\tau]$ with the given initial condition
+    $u_0$, we understand a function $u\in\Hc_p^{n+2}(\tau)$ such that for any
+    test function $\phi\in C_0^oo$, one has almost surely
+    $$
+        (u(t,\cdot),\phi)
+        = (u_0,\phi) +
+        \int_0^t(a^{ij}(s,\cdot)u_{x^ix^j}(s,\cdot)+f(u,s,\cdot),\phi)ds +
+        \int_0^t(\sigma^{ik}(s,\cdot)u_{x^i}(s,\cdot)+g^k(u,s,\cdot),\phi)dw_s^k
+    $$
+    for every $t\in[0,\tau]$. It is important that, under our assumptions, the
+    equation makes sense for $u\in\Hc_p^{n+2}(\tau)$, since by \Cref{lemma:5.2}
+    we have $a^{ij}u_{x^ix^j}\in H_p^n$, $\sigma^iu_{x^i}\in
+    H_p^{n+1}(\R^d,l_2)$ whenever $u\in H_p^{n+2}$.
+}
+
+useenv remark {
+    Two main ideas in the proof of this theorem are quite standard. The first
+    one, reduction to equations with constant coefficients, will be seen very
+    clearly. The second one, which is somewhat hidden, consists of introducing
+    the new unknown function $v=(1-\Delta)^{n/2}u$, which reduces the case of
+    general $n$ to the case $n=0$. Then function $v$ satisfies
+    $$
+        dv =
+        ?[(1-\Delta)^{n/2}(a^{ij}(1-\Delta)^{-n/2}v_{x^ix^j}) +
+        (1-\Delta)^{n/2}f]?dt +
+        ?[(1-\Delta)^{n/2}(\sigma^{ik}(1-\Delta)^{-n/2}v_{x^i}) +
+        (1-\Delta)^{n/2}g^k]?dw_t^k.
+    $$
+    This is a pseudo-differential equation, and we note that more general
+    pseudo-differential equations can be considered too. Also, this equations
+    shows a need to have smoothness assumptions on $a$, $\sigma$ in $x$ if we
+    are interested in $n!=0$ both positive or negative.
+}
+
+useenv remark { \label{remark:5.5}
+    Let $X_0$, $X_1$ be complex Banach spaces. Assume that there exists a linear
+    complex Hausdorff space $X$ such that $X_j\hookrightarrow X$, $j=0,1$, where
+    $\hookrightarrow$ means that there is a continuous linear embedding.
+    Then it is known that for $0<\theta<1$,
+    $$
+        ||a||_{[X_0,X_1]_\theta} <= N(\theta)||a||_{X_0}^{1-\theta}||a||_{X_1}^\theta,
+    $$
+    where $[X_0,X_1]_\theta$ denotes the complex interpolation of two spaces
+    $X_0$ and $X_1$.
+    (see Theorem 1.9.3 of \cite{TriI}). In addition, by the theory of function
+    spaces, for $p_0,p_1\in(1,oo)$, and $s_0,s_1\in\R$,
+    $$
+        [H_{p_0}^{s_0},H_{p_1}^{s_1}]_\theta = H_p^s
+    $$
+    where $\theta\in (0,1)$, and
+    $$
+        s = (1-\theta)s_0 + \theta s_1,\quad {1//p} = {1-\theta//p_0} +
+        {\theta//p_1}.
+    $$
+    One can see Remark 2.4.7/2 of \cite{Tri1}, or page 182-185 of \cite{TriI}.
+
+    From these facts, for any $u\in H_p^{n+2}$ and $m\in[n,n+2]$, we have
+    $$
+        ||u||_{m,p} <= N||u||_{n+2,p}^\theta||u||_{n,p}^{1-\theta}
+        <= N\theta\epsilon||u||_{n+2,p} +
+        N(1-\theta)\epsilon^{-\theta/(1-\theta)}||u||_{n,p},
+    $$
+    where $\theta=(m-n)/2$ and $N$ depends only on $d$, $n$, $m$, and
+    $p$.\footnote{
+        By the Jensen's inequality, one can easily prove the second inequality.
+    }
+    This shows that the right-hand side in \cref{eq:uniform-continuity-2} can be
+    replaced by $||u-v||_{n+\epsilon+1,p}$ once $|\epsilon|<1$.
+    As an example, one can take $f=f_0(x)\sup_x|u_x|$ if $(n+1)p>d$ and $f_0\in
+    H_p^n$. Indeed, by Sobolev's embedding theorems, $H_p^{n+1+\epsilon}\subset
+    C^1$ if $(n+\epsilon)p > d$. Therefore,
+    $$
+        ||f(u,t,\cdot) - f(v,t,\cdot)||_{n,p}
+        <= ||f_0||_{n,p}\sup_x|(u-v)_x|<= N||u-v||_{n+1+\epsilon,p}.
+    $$
+}
+
+useenv remark {
+    A typical application of \Cref{thm:sol-the-spde-nonlin} occurs when
+    $f(u,t,x)=b^i(t,x)u_{x^i}+c(t,x)u+f(t,x)$ and $g(u,t,x) = \nu(t,x)u+g(t,x)$,
+    so that \cref{eq:the-spde-nonlin} becomes
+    useenv equation { \label{eq:the-spde-lin}
+        du = (a^{ij}u_{x^ix^j}+b^iu_{x^i} + cu + f)dt
+        + (\sigma^{ik}u_{x^i} + \nu^ku + g^k)dw_t^k.
+    }
+    To describe the appropriate assumptions, we take $\epsilon\in(0,1)$ and
+    denote
+    useenv center {%-
+    \leavevmode\vbox{\halign{&\tabskip=1em$#$\hfil&if#&$#$\hfil\tabskip=2em\cr
+        n_b = n+\gamma && n\geq 0, & n_b = 0 && n\in(-1,0],\cr
+        n_\nu = n+1+\gamma && n\geq -1, & n_\nu = 0 && n\in(-2,-1],\cr
+        n_c = n+\gamma && n\geq 0, & n_c = 0 && n\in(-2,0],\cr
+    }}-%}
+    useenv center {%-
+    \leavevmode\vbox{\halign{&\tabskip=1em$#$\hfil&if#&$#$\hfil\tabskip=2em\cr
+        n_b = -n-1+\epsilon && n\leq -1,\cr
+        n_\nu = -n-2+\epsilon && n\leq -2,\cr
+        n_c = -n-2+\epsilon && n\leq -2.\cr
+    }}-%}
+
+    Assume that $b$, $c$, and $\nu$ are appropriately measurable and
+    $$
+        b^i(t,\cdot)\in B^{n_b},\quad
+        c(t,\cdot)\in B^{n_c},\quad
+        \nu(t,\cdot)\in B^{n_\nu}(\R^d,l_2),
+    $$
+    $$
+        f(t,\cdot) \in H_p^n,\quad g(t,\cdot)\in H_p^{n+1}(\R^d,l_2).
+    $$
+    $$
+        ||b^i(t,\cdot)||_{B^{n_b}}
+        + ||c(t,\cdot)||_{B^{n_c}}
+        + ||\nu(t,\cdot)||_{B^{n_\nu}(\R^d,l_2)}
+        <= K,\quad
+        (f(\cdot,\cdot),g(\cdot,\cdot))\in\Fc_p^n(\tau).
+    $$
+    It turns out then that assumptions of \Cref{thm:sol-the-spde-nonlin} about
+    $f(u,t,x)$ and $g(u,t,x)$ are satisfied.
+    To show this, it suffices to apply \cref{remark:5.5}. For the part $g$,
+    notice that, for instance, if $n>=-1$, then $||\nu
+    u||_{n+1,p}<=N||u||_{n+1,p}$ by \Cref{lemma:5.2}; if $n\in(-2,-1]$, then
+    $n+1\in(-1,0]$ and $\nu\in B(\R^d,l_2)$, thus
+    $$
+        ||\nu u||_{n+1,p} <= ||\nu u||_p <= N||u||_p = N||u||_{n+1+(-n-1),p};
+    $$
+    if $n<=-2$, then \Cref{lemma:5.2} yields $||\nu u||_{n+1,p}<= ||\nu
+    u||_{n+2-\epsilon_1,p}<=N||u||_{n+2-\epsilon_1,p}$, where
+    $\epsilon_1\in(0,\epsilon)$. For the term $f$, we use $||\cdot||_{n,p}$
+    instead of $||\cdot||_{n+1,p}$, and terms $||b^iu_{x^i}||_{n,p}$ and
+    $||cu||_{n,p}$ are considered similarly.
+}
+
+Actually, the above conditions on $b$, $c$, and $\nu$ can be considerably
+relaxed if one makes use of deeper theorems about multipliers from \cite{Tri1}.
+
+Conditions \cref{eq:5.7.1} and \cref{eq:5.7.2} of the following theorem are
+discussed in \Cref{remark:5.8} and \Cref{remark:5.9}.
+
+useenv thm { \label{thm:5.7}
+    Assume that for $m=1,2,3,...$, we are given $a_m^{ij}$, $\sigma_m^i$, $f_m$,
+    $g_m$, and $u_{0m}$ having the same sense as in
+    \Cref{thm:sol-the-spde-nonlin} and verifying the same assumptions as
+    $a^{ij}$, $\sigma^i$, $f$, $g$, and $u_0$ with the same constants $\delta$,
+    $K$, $\kappa_\epsilon$, and $K_\epsilon$. Let $\zeta(x)$ be a real function
+    of class $C_0^oo$ such that $\zeta(x)=1$ if $|x|<=1$ and $\zeta(x)=0$ if
+    $|x|>=2$. Define $\zeta_r(x)=\zeta(x/r)$ and assume that, for any
+    $r=1,2,3,...$, $i,j=1,..,d$, $t>=0$, and $\omega\in\Omega$,
+    useenv equation { \label{eq:5.7.1}
+        ||\zeta_r[a^{ij}(t,\cdot) - a_m^{ij}(t,\cdot)]||_{n,p}
+        + ||\zeta_r[\sigma^{i}(t,\cdot) - \sigma_m^{i}(t,\cdot)]||_{n,p}->0
+    }
+    as $m->oo$. Finally, let $\Eb||u_{0m}-u_0||_{n+2-2/p,p}^p->0$ and
+    useenv equation { \label{eq:5.7.2}
+        ||f(u,\cdot,\cdot) - f_m(u,\cdot,\cdot)||_{\Hb_p^n(\tau)} -> 0,\quad
+        ||g(u,\cdot,\cdot) - g_m(u,\cdot,\cdot)||_{\Hb_p^{n+1}(\tau,l_2)} -> 0
+    }
+    whenever $u\in\Hc_p^{n+2}(\tau)$. Take the function $u$ from
+    \Cref{thm:sol-the-spde-nonlin} and for any $m$ define
+    $u_m\in\Hc_p^{n+2}(\tau)$ as the (unique) solution of the Cauchy problem for
+    the equation
+    useenv equation { \label{eq:5.7.3}
+        du_m(t,x) = [a_m^{ij}(t,x)u_{mx^ix^j}(t,x) + f_m(u_m,t,x)]dt
+        + [\sigma_m^{ik}(t,x)u_{mx^i}(t,x) + g_m^k(u_m,t,x)]dw_t^k
+    }
+    on $[0,\tau]$ with initial condition $u_m(0,\cdot)=u_{0m}$. Then
+    $||u-u_m||_{\Hc_p^{n+2}(\tau)}->0$ as $m->oo$.
+    \proof
+    For $v_m = u-u_m$ we have
+    $$
+        dw_m(t) = [a_m^{ij}v_{mx^ix^j}+F_m(v_m)]dt
+        + [\sigma_m^{ik}v_{mx^i}+G_m^k(v_m)]dw_t^k,
+    $$
+    where
+    $$
+        F_m(v) = (a^{ij}-a_m^{ij})u_{x^ix^j}+f(u) - f_m(u-v),\quad
+        G_m^k(v) = (\sigma^{ik}-\sigma_m^{ik})u_{x^i}+ g^k(u) - h^k_m(u-v).
+    $$
+    Hence, from our assumptions and by \Cref{thm:sol-the-spde-nonlin}, we obtain
+    $$
+        ||u-u_m||_{\Hc_p^{n+2}(\tau)}<=NI_m,
+    $$
+    where $N$ is independent of $m$ and
+    useenv align* {
+        I_m
+        &= ||(a^{ij}-a_m^{ij})u_{x^ix^j}||_{\Hb_p^n(\tau)}
+        + ||f(u) - f_m(u)||_{\Hb_p^n(\tau)}
+        + ||(\sigma^{i}-\sigma_m^{i})u_{x^i}||_{\Hb_p^{n+1}(\tau,l_2)} \\
+        &\kern2cm+ ||g(u) - g_m(u)||_{\Hb_p^{n+1}(\tau,l_2)}
+        + (\Eb||u_0 - u_{0m}||_{n+2-2/p,p}^p)^{1/p}.
+    }
+    Next, by our assumptions about convergence of $f_m$, $g_m$, $u_{0m}$,
+    useenv equation { \label{eq:5.7.4}
+        \limsup_{m->oo}I_m
+        <= \limsup_{m->oo}[||(a^{ij}-a_m^{ij})u_{x^ix^j}||_{\Hb_p^n(\tau)}
+        +||(\sigma^i-\sigma^i_m)u_{x^i}||_{\Hb_p^{n+1}(\tau,l_2)}].
+    }
+
+    Here, by \Cref{lemma:5.2}, for any $v\in C_0^oo$ and $r$ so large that
+    $v\zeta_r=v$, we have
+    useenv equation { \label{eq:5.7.5}
+        ||(a^{ij}-a_m^{ij})u_{x^ix^j}||_{n,p}
+        <= N||(u-v)_{x^ix^j}||_{n,p} + ||(a^{ij}-a_m^{ij})v_{x^ix^j}||_{n,p},
+    }
+    $$
+        ||(a^{ij} - a^{ij}_m)v_{x^ix^j}||_{n,p}
+        = ||\zeta_r(a^{ij}-a^{ij}_m)v_{x^ix^j}||_{n,p}
+        <= N||\zeta_r(a^{ij}-a^{ij}_m)||_{n,p} ||v||_{B^{|n|+2+\gamma}},
+    $$
+    where the constants $N$ do not depend on $m$ and $r$. Thus
+    $$
+        \limsup_{m->oo}||(a^{ij} - a_m^{ij})u_{x^ix^j}||_{n,p}
+        <= N||(u-v)_{x^ix^j}||_{n,p},
+    $$
+    and from the arbitrariness of $v$, we conclude that the left hand side is
+    zero for those $\omega$ and $t$ for which $u\in H_p^{n+2}$.
+    If we again apply \Cref{lemma:5.2}, then we see that the $p$th power of the
+    left hand side of \cref{eq:5.7.5} is bounded by an integrable function.
+    This and the DCT imply that
+    $$
+        \lim_{m->oo}||(a^{ij} - a_m^{ij}u_{x^ix^j}||_{\Hb_p^n(\tau)} = 0.
+    $$
+
+    Similar arguments take care of remaining term in \cref{eq:5.7.4}.
+}
+
+useenv remark {
+    Condition \cref{eq:5.7.2} is satisfied for any $u\in\Hc_p^{n+2}(\tau)$ if
+    and only if it is satisfied for $u(t,x)\equiv \phi(x)$ with any $\phi\in
+    C_0^oo$. Indeed, the \lq\lq only if\rq\rq\ part is obvious. In the proof of
+    \lq\lq if\rq\rq\ part notice that, under the \lq\lq if\rq\rq\ assumption,
+    \cref{eq:5.7.2} is automatically satisfied for $u$ of type
+    $$
+        v = \sum_{i=1}^j\I_{(\tau_{i-1},\tau_i]}(t)v_i(x),
+    $$
+    where $\tau_i$ are bounded stopping times and $v_i\in C_0^oo$.\footnote{
+        Since each time interval is pairwise disjoint, \cref{eq:5.7.2} is
+        automatically holds.
+    }
+    By \Cref{thm:3.10}, one can approximate any
+    $u\in\Hc_p^{n+2}(\tau)\subset\Hb_p^{n+2}(\tau)$ with functions like $v$.
+    It remains only to notice that, by the assumption of the theorem, for
+    instance,
+    useenv align* {
+        ||f(u,\cdot,\cdot) - f_m(u,\cdot,\cdot)||_{\Hb_p^n(\tau)}
+        &<= ||f(u,\cdot,\cdot) - f(v,\cdot,\cdot)||_{\Hb_p^n(\tau)}
+        + ||f(v,\cdot,\cdot) - f_m(v,\cdot,\cdot)||_{\Hb_p^n(\tau)}
+        + ||f_m(v,\cdot,\cdot) - f_m(u,\cdot,\cdot)||_{\Hb_p^n(\tau)} \\
+        &<= N||u-v||_{\Hb_p^{n+2}(\tau)}
+        + ||f(v,\cdot,\cdot) - f_m(v,\cdot,\cdot)||_{\Hb_p^n(\tau)}.
+    }
+}
+
+useenv remark {
+    While checking conditions \cref{eq:5.7.1} and \cref{eq:5.7.2}, it is useful
+    to bear in mind that, if one defines $\sigma_m^{ik}=\sigma^{ik}$ and
+    $g_m^k=g^k$ for $k<=m$ and $\sigma_m^{ik}=g_m^k=0$ for $k>m$, then
+    $$
+        ||\zeta_r[\sigma^i(t,\cdot)-\sigma_m^i(t,\cdot)]||_{n+1,p}->0,\quad
+        ||g(u,\cdot,\cdot)-g_m(u,\cdot,\cdot)]||_{\Hb_p^{n+1}(\tau,l_2)}->0.
+    $$
+    Indeed, for instance,
+    $$
+        ||g(u,\cdot,\cdot)-g_m(u,\cdot,\cdot)||_{\Hb_p^{n+1}(\tau,l_2)}^p
+        = \Eb\int_0^\tau
+        ?||?(\sum_{k>m}|(1-\Delta)^{(n+1)/2}g^k(u,t,\cdot)|^2)?^{1/2}||?_p^pdt,
+    $$
+    which goes to zero by the dominated convergence theorem because the
+    integrand is bounded by $||g(u,t,\cdot)||_{n+1,p}$.
+
+    This fact allows one to approximate solutions of \cref{eq:the-spde-nonlin}
+    by solutions of
+    useenv equation { \label{eq:5.9.1}
+        du_m(t,x) = [a^{ij}(t,x)u_{mx^ix^j}(t,x) + f(u_m,t,x)]dt
+        + \sum_{k<=m}[\sigma^{ik}(t,x)u_{mx^i}(t,x)+g^k(u_m,t,x)]dw_s^k.
+    }
+}
+
+Before starting the following corollary, take the functions $\zeta_k$ from
+\Cref{lemma:5.2} and, for a function $h=h(u,t,x)$ defined for $t>=0$,
+$x\in\R^d$, and $u$ in a function space, let
+useenv equation { \label{eq:hat-conv}
+    \hat h_m(u,t,x) = \int_{\R^d}h(u(\cdot+y),t,x-y)\zeta_m(y)dy.
+}
+To get a better idea about

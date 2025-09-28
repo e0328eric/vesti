@@ -1,0 +1,44 @@
+The proof we present here is quite typical for proofs of solvability of
+equations with variable coefficients on the basis of solvability of equations
+with constant ones. The same type of arguments is commonly used in the theory of
+partial differential equations for proving the solvability in Sobolev or
+H\"older spaces. First we need some auxiliary constructions. Fix a $T\in(0,oo)$.
+
+useenv defin { \label{defin:6.1}
+    Assume that, for $\omega\in\Omega$ and $t>=0$, we are given operators
+    $$
+        L(t,\cdot) : H_p^{n+2} -> H_p^n,\quad
+        \Lambda(t,\cdot) : H_p^{n+2} -> H_p^{n+1}(\R^d,l_2).
+    $$
+    Assume that
+    useenv enumerate [label=(\roman*)] {
+        \item for any $\omega$ and $t$, the operators $L(t,u)$ and
+        $\Lambda(t,u)$ are continuous (with respect to $u$);
+        \item for any $u\in H_p^{n+2}$, the processes $L(t,u)$ and $\Lambda(t,u)$
+        are predictable.
+        \item for any $\omega\in\Omega$, $t>=0$, and $u\in H_p^{n+2}$, we have
+        $$
+            ||L(t,u)||_{n,p} + ||\Lambda(t,u)||_{n+1,p}
+            <= N_{L,\Lambda}(1+||u||_{n+2,p}),
+        $$
+        where $N_{L,\Lambda}$ is a constant.
+    }
+
+    Then for a function $u\in\Hc_p^{n+2}(T)$, we write
+    $$
+        (L,\Lambda)u = -(f,g)
+    $$
+    if $(f,g)\in\Fc_p^n(T)$, and, in the sense of \Cref{defin:3.5}, for
+    $t\in[0,T]$, we have that $\Db u(t) = L(t,u(t))+f(t)$ and $\Sb u(t) =
+    \Lambda(t,u(t))+g(t)$, or put otherwise
+    $$
+        u(t) = u(0) + \int_0^t (L(s,u(s))+f(s))ds
+        + \int_0^t(\Lambda^k(s,u(s))+g^k(s))dw_s^k\quad "(a.s.)".
+    $$
+}
+
+useenv remark { \label{remark:6.2}
+    By virtue of our conditions on $L$ and $\Lambda$, for any
+    $u\in\Hc_p^{n+2}(T)$, we have $(L(u),\Lambda(u))\in\Fc_p^n(T)$. Also,
+    $(L,\Lambda)u = $
+}
