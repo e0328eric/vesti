@@ -183,11 +183,15 @@ fn getEngine(
         is_lualatex_num |
         is_tectonic_num;
 
-    const config = try Config.init(allocator, diagnostic);
-    defer config.deinit(allocator);
+    const default_engine = blk: {
+        const config = Config.init(allocator, diagnostic) catch
+            break :blk .tectonic; // default engine is tectonic
+        defer config.deinit(allocator);
+        break :blk config.engine;
+    };
 
     switch (engine_num) {
-        0 => return config.engine,
+        0 => return default_engine,
         1 << 0 => return .latex,
         1 << 1 => return .pdflatex,
         1 << 2 => return .xelatex,
