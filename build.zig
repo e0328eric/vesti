@@ -97,7 +97,7 @@ pub fn build(b: *Build) !void {
     vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
     vesti_opt.addOption(bool, "USE_JULIA", use_julia);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
-    vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[0]);
+    vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
