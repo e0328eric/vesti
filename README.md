@@ -58,24 +58,22 @@ The code above is a figure using TikZ.
 
 ## Prerequisites
 This project uses the latest zig (developer version).
-On Windows, TeX Live (or related software) and Julia are required. If one uses vesti with the Tectonic backend, TeX Live is not needed.
+On Windows, TeX Live (or related software) and Julia are required.
 On Linux and macOS, `freetype2` and `fontconfig` are additionally required.
 
 ## Compilation
-If you do not want to compile the Tectonic backend, just run the following command:
+First, `JULIA_DIR` should be defined to find julia dll and julia C api header.
+
+If you want to compile with Tectonic backend, just run the following command:
 
 ```console
 $ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
 ```
 
-Otherwise, two additional tools are needed:
-- Rust compiler (with Cargo)
-- cargo-vcpkg
-
-Then run the following command:
+If you do not want tectonic backend, then run the following.
 
 ```console
-$ zig build --prefix-exe-dir <path to install> -Dtectonic=true -Doptimize=ReleaseSafe
+$ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
 ```
 
 ## Warning
