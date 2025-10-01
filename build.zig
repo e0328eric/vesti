@@ -7,13 +7,13 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
-const VESTI_VERSION_STR = "0.5.0";
+const VESTI_VERSION_STR = "0.6.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 
-const min_zig_string = "0.16.0-dev.238+580b6d1fa";
+const min_zig_string = "0.16.0-dev.393+dd4be26f5";
 const program_name = "vesti";
 
 // NOTE: This code came from
