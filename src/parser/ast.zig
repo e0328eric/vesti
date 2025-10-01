@@ -44,11 +44,13 @@ pub const ArgNeed = enum(u2) {
     StarArg,
 };
 
-pub const DefunKind = packed struct(u4) {
+pub const DefunKind = packed struct(u6) {
     redef: bool = false,
     expand: bool = false,
     long: bool = false,
     outer: bool = false,
+    trim_left: bool = true,
+    trim_right: bool = true,
 
     pub fn parseDefunKind(output: *@This(), str: []const u8) bool {
         for (str) |s| {
@@ -57,6 +59,8 @@ pub const DefunKind = packed struct(u4) {
                 'e', 'E' => output.expand = true,
                 'l', 'L' => output.long = true,
                 'o', 'O' => output.outer = true,
+                '<' => output.trim_left = false,
+                '>' => output.trim_right = false,
                 else => return false,
             }
         }
@@ -84,10 +88,6 @@ pub const Stmt = union(enum(u8)) {
     ImportExpl3Pkg,
     TextLit: []const u8,
     MathLit: []const u8,
-    DefunParamLit: struct {
-        span: Span,
-        value: CowStr,
-    },
     MathCtx: struct {
         state: MathState,
         inner: ArrayList(Stmt),
@@ -118,9 +118,13 @@ pub const Stmt = union(enum(u8)) {
         delimiter: []const u8,
         kind: DelimiterKind,
     },
+    DefunParamList: struct {
+        nested: usize, // 0: #, 1: ##, 2: ####, etc.
+        arg_num: usize, // must be from 1 to 9
+        span: Span,
+    },
     DefineFunction: struct {
         name: CowStr,
-        params: [9]CowStr = @splat(.Empty),
         param_str: ?CowStr = null,
         kind: DefunKind,
         inner: ArrayList(Stmt),
@@ -155,7 +159,6 @@ pub const Stmt = union(enum(u8)) {
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
         switch (self.*) {
-            .DefunParamLit => |*val| val.value.deinit(allocator),
             .DocumentClass => |*inner| {
                 inner.name.deinit(allocator);
                 if (inner.options) |*options| {
@@ -197,7 +200,6 @@ pub const Stmt = union(enum(u8)) {
             },
             .DefineFunction => |*ctx| {
                 ctx.name.deinit(allocator);
-                for (&ctx.params) |*param| param.deinit(allocator);
                 if (ctx.param_str) |*str| str.deinit(allocator);
                 for (ctx.inner.items) |*expr| expr.deinit(allocator);
                 ctx.inner.deinit(allocator);

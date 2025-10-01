@@ -43,7 +43,7 @@ pub const TokenType = union(enum(u8)) {
         end: usize = 0,
         chr: u21 = 0,
     },
-    FntParam,
+    Attribute: []const u8,
     JlCode,
 
     // Keywords
@@ -173,7 +173,7 @@ pub const TokenType = union(enum(u8)) {
             .Latex3Fnt =>                try writer.writeAll("`<ltx3fnt>`"),
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
-            .FntParam =>                 try writer.writeAll("`<fnt_param>`"),
+            .Attribute => |val|          try writer.print("`<attr: {s}>`", .{val}),
             .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
             .JlCode =>                   try writer.writeAll("`<jlcode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
@@ -305,6 +305,18 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "importltx3",   TokenType.deprecated(false, "useltx3") },
     .{ "enddef",       TokenType.deprecated(true, "}") },
     .{ "import",       TokenType.deprecated(true, "importpkg") },
+    // zig fmt: on
+});
+
+// #<only_numbers> are preserved as function parameters
+// `val` should not contain `#` character
+pub fn isFunctionParam(val: []const u8) ?usize {
+    return fmt.parseInt(usize, val, 10) catch null;
+}
+
+pub const VESTI_ATTRS = std.StaticStringMap(void).initComptime(.{
+    // zig fmt: off
+    .{ "item" },
     // zig fmt: on
 });
 

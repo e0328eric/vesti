@@ -109,7 +109,7 @@ const TokenizeState = enum {
     line_verbatim,
     jlcode,
     jlcode_end,
-    fnt_param,
+    attribute,
     latex_function,
     text,
     integer,
@@ -447,7 +447,7 @@ pub fn next(self: *Self) Token {
                         ziglyph.isDecimal(self.getChar(.current)))
                     {
                         self.nextChar(1);
-                        continue :tokenize .fnt_param;
+                        continue :tokenize .attribute;
                     } else {
                         self.str2Token("#", &token, start_location);
                         break :tokenize;
@@ -592,16 +592,20 @@ pub fn next(self: *Self) Token {
             }
             break :tokenize;
         },
-        .fnt_param => if (ziglyph.isAlphabetic(self.getChar(.current)) or
-            ziglyph.isDecimal(self.getChar(.current)))
-        {
+        .attribute => if (ziglyph.isAlphaNum(self.getChar(.current))) {
             self.nextChar(1);
-            continue :tokenize .fnt_param;
+            continue :tokenize .attribute;
         } else {
+            const attr_name = self.source[start_chr0_idx..self.chr0_idx];
+            if (self.getChar(.current) == ' ' and
+                (ziglyph.isAlphaNum(self.getChar(.peek1)) or self.getChar(.peek1) == ' '))
+            {
+                self.nextChar(1);
+            }
             token.init(
                 self.source[start_chr0_idx..self.chr0_idx],
                 null,
-                .FntParam,
+                .{ .Attribute = attr_name[1..] }, // remove # character
                 start_location,
                 self.location,
             );

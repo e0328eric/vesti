@@ -1,5 +1,3 @@
-const USE_JULIA = @import("vesti-info").USE_JULIA;
-
 const std = @import("std");
 const diag = @import("diagnostic.zig");
 const ast = @import("parser/ast.zig");
@@ -9,13 +7,13 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 const ParseError = @import("parser/Parser.zig").ParseError;
-const Julia = if (USE_JULIA) @import("julia/Julia.zig") else anyopaque;
+const Julia = @import("julia/Julia.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
 const Error = Allocator.Error || Io.Writer.Error || ParseError ||
     error{
-JuliaInitFailed,
+        JuliaInitFailed,
         JlLabelNotFound,
         DuplicatedJlLabel,
         JlEvalFailed,
@@ -79,6 +77,7 @@ fn codegenStmt(
     writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
+        //.DefunParamLit => |ctx| try writer.print("{f}", .{ctx.value}),
         .NopStmt => {},
         .NonStopMode => try writer.writeAll("\n\\nonstopmode\n"),
         .MakeAtLetter => try writer.writeAll("\n\\makeatletter\n"),
@@ -87,7 +86,6 @@ fn codegenStmt(
         .Latex3Off => try writer.writeAll("\n\\ExplSyntaxOff\n"),
         .ImportExpl3Pkg => try writer.writeAll("\\usepackage{expl3, xparse}\n"),
         .TextLit, .MathLit => |ctx| try writer.writeAll(ctx),
-        .DefunParamLit => |ctx| try writer.print("{f}", .{ctx.value}),
         .MathCtx => |math_ctx| {
             const delimiter = switch (math_ctx.state) {
                 .Inline => .{ "$", "$" },
@@ -203,6 +201,17 @@ fn codegenStmt(
         .EndPhantomEnviron => |name| try writer.print("\\end{{{f}}}", .{name}),
         .ImportVesti => |name| try writer.print("\\input{{{s}}}", .{name.items}),
         .FilePath => |name| try writer.print("{f}", .{name}),
+        .DefunParamList => |info| {
+            const num_of_sharp = std.math.powi(usize, 2, info.nested) catch {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .DefunParamOverflow = info.nested },
+                    .span = info.span,
+                } });
+                return ParseError.ParseFailed;
+            };
+            for (0..num_of_sharp) |_| try writer.writeByte('#');
+            try writer.print("{d}", .{info.arg_num});
+        },
         .DefineFunction => |ctx| {
             const kind =
                 @as(u3, @intCast(@intFromBool(ctx.kind.expand))) << 0 |
@@ -236,13 +245,24 @@ fn codegenStmt(
             }
 
             // body
-            try self.codegenStmts(ctx.inner, julia, writer);
+            var body = Io.Writer.Allocating.init(self.allocator);
+            defer body.deinit();
+            try self.codegenStmts(ctx.inner, julia, &body.writer);
+
+            var body_content: []const u8 = body.written();
+            if (ctx.kind.trim_left) {
+                body_content = std.mem.trimLeft(u8, body_content, " \t\r\n");
+            }
+            if (ctx.kind.trim_right) {
+                body_content = std.mem.trimRight(u8, body_content, " \t\r\n");
+            }
+            try writer.writeAll(body_content);
 
             //epilogue
             if (!ctx.kind.redef) {
-                try writer.writeAll("}\n\\else\\fi\n");
+                try writer.writeAll("}\n\\else\\fi ");
             } else {
-                try writer.writeAll("}\n");
+                try writer.writeAll("}");
             }
         },
         .DefineEnv => |ctx| {
@@ -269,9 +289,7 @@ fn codegenStmt(
             //epilogue
             try writer.writeAll("}\n");
         },
-        .JlCode => |cb| blk: {
-            if (!USE_JULIA) break :blk;
-
+        .JlCode => |cb| {
             if (julia) |jl| {
                 var new_code = try ArrayList(u8).initCapacity(
                     self.allocator,

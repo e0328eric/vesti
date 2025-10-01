@@ -243,6 +243,7 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated,
+        WrongAttr,
         InvalidDefunKind,
         DefunParamOverflow,
         InvalidDefunParam,
@@ -279,9 +280,10 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated: []const u8,
+        WrongAttr: []const u8,
         InvalidDefunKind: []const u8,
-        DefunParamOverflow,
-        InvalidDefunParam: CowStr,
+        DefunParamOverflow: usize,
+        InvalidDefunParam: usize,
         EnvInsideDefun,
         InvalidJlcode,
         DisallowJlcode,
@@ -298,7 +300,6 @@ pub const ParseDiagnostic = struct {
 
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
-                .InvalidDefunParam => |*inner| inner.deinit(allocator),
                 .JlLabelNotFound => |*inner| inner.deinit(allocator),
                 .JlEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
@@ -445,9 +446,16 @@ pub const ParseDiagnostic = struct {
                 "String `{s}` is not a valid defun attribute",
                 .{defun_kind},
             ),
-            .DefunParamOverflow => try aw.writer.writeAll("too many defun parameter"),
+            .DefunParamOverflow => |val| try aw.writer.print(
+                "2 to the power of {d} exceeds max value of 2^{d}",
+                .{ val, @sizeOf(usize) },
+            ),
+            .WrongAttr => |attr| try aw.writer.print(
+                "wrong location for attribute `{s}`",
+                .{attr},
+            ),
             .InvalidDefunParam => |val| try aw.writer.print(
-                "cannot find `{f}` in the parameter list",
+                "parameter number `{d}` is wrong one for a function parameter",
                 .{val},
             ),
             .EnvInsideDefun => try aw.writer.writeAll("`useenv` cannot be used inside `defun` body"),
@@ -516,6 +524,28 @@ pub const ParseDiagnostic = struct {
                     allocator,
                     "valid ones are `plain`, `pdf`, `xe`, and `lua`",
                     .{},
+                );
+                break :blk output;
+            },
+            .WrongAttr => |attr| blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(
+                    allocator,
+                    "attribute `{s}` cannot be used in that place",
+                    .{attr},
+                );
+                break :blk output;
+            },
+            .InvalidDefunParam => |val| blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(
+                    allocator,
+                    "because of the LaTeX and Vesti internal, only values not divisible by 10 are valid for a function parameter. But you gave `{d}`.",
+                    .{val},
                 );
                 break :blk output;
             },
@@ -608,8 +638,8 @@ pub const ParseDiagnostic = struct {
                 );
 
                 var note_msg = try self.noteMsg(allocator);
-                if (note_msg) |*nm| {
-                    defer nm.deinit(allocator);
+                defer if (note_msg) |*nm| nm.deinit(allocator);
+                if (note_msg) |nm| {
                     try stderr.interface.print(
                         ansi.note ++ "note: " ++ ansi.reset ++ "{s}\n",
                         .{nm.items},

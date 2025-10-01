@@ -1,4 +1,4 @@
-compty(xe)
+compty (xe)
 docclass article (10pt)
 importpkg {
     geometry (a4paper, margin = 2.2cm),

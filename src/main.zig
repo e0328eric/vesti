@@ -1,10 +1,8 @@
-const USE_JULIA = @import("vesti-info").USE_JULIA;
-
 const std = @import("std");
 const c = @import("c");
 const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
-const jlscript = if (USE_JULIA) @import("jlscript.zig") else {};
+const jlscript = @import("jlscript.zig");
 const zlap = @import("zlap");
 const time = std.time;
 
@@ -15,7 +13,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Config = @import("Config.zig");
 const Diagnostic = diag.Diagnostic;
-const Julia = if (USE_JULIA) @import("julia/Julia.zig") else {};
+const Julia = @import("julia/Julia.zig");
 const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -65,8 +63,6 @@ pub fn main() !void {
 }
 
 fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
-    if (!USE_JULIA) return;
-
     const is_latex = run_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = run_subcmd.flags.get("pdflatex").?.value.bool;
     const is_xelatex = run_subcmd.flags.get("xelatex").?.value.bool;
@@ -134,8 +130,8 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
     });
 
     // initializing Julia globally
-    var julia = if (USE_JULIA) try Julia.init(engine) else {};
-    defer if (USE_JULIA) julia.deinit();
+    var julia = try Julia.init(engine);
+    defer julia.deinit();
 
     var prev_mtime: ?i128 = null;
     try compile.compile(

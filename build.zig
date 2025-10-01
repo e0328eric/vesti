@@ -39,9 +39,6 @@ pub fn build(b: *Build) !void {
         else => false,
     };
 
-    const use_tectonic = b.option(bool, "tectonic", "use tectonic backend") orelse true;
-    const use_julia = b.option(bool, "julia", "use jlcode") orelse true;
-
     const zlap = b.dependency("zlap", .{
         .target = target,
         .optimize = optimize,
@@ -67,8 +64,6 @@ pub fn build(b: *Build) !void {
     defer envmap.deinit();
 
     const jl_include, const jl_libs = blk: {
-        if (!use_julia) break :blk .{ null, null };
-
         const jl_dir = envmap.get("JULIA_DIR") orelse {
             std.debug.print("`JULIA_DIR` env is not defined\n", .{});
             return error.BuildFailed;
@@ -87,15 +82,13 @@ pub fn build(b: *Build) !void {
         break :blk .{ include, libs };
     };
     defer {
-        if (jl_include) |s| alloc.free(s);
-        if (jl_libs) |s| alloc.free(s);
+        alloc.free(jl_include);
+        alloc.free(jl_libs);
     }
 
     const tectonic_dll_name = try getDllName(&target);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
-    vesti_opt.addOption(bool, "USE_TECTONIC", use_tectonic);
-    vesti_opt.addOption(bool, "USE_JULIA", use_julia);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
 
@@ -111,27 +104,25 @@ pub fn build(b: *Build) !void {
             .{ .name = "c", .module = vesti_c },
         },
     });
-    if (use_julia) {
-        exe_mod.addCSourceFile(.{
-            .file = b.path("src/julia/vesjulia.c"),
-            .flags = &.{
-                "-std=c11",
-                "-Wno-implicit-int",
-                "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
-            },
-        });
+    exe_mod.addCSourceFile(.{
+        .file = b.path("src/julia/vesjulia.c"),
+        .flags = &.{
+            "-std=c11",
+            "-Wno-implicit-int",
+            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
+        },
+    });
 
-        // note that both jl_include and jl_libs are well-defined in this scope
-        exe_mod.addIncludePath(.{ .cwd_relative = jl_include.? });
-        exe_mod.addLibraryPath(.{ .cwd_relative = jl_libs.? });
-        switch (target.result.os.tag) {
-            .windows => exe_mod.linkSystemLibrary("libjulia", .{
-                .preferred_link_mode = .dynamic,
-            }),
-            else => exe_mod.linkSystemLibrary("julia", .{
-                .preferred_link_mode = .dynamic,
-            }),
-        }
+    // note that both jl_include and jl_libs are well-defined in this scope
+    exe_mod.addIncludePath(.{ .cwd_relative = jl_include });
+    exe_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
+    switch (target.result.os.tag) {
+        .windows => exe_mod.linkSystemLibrary("libjulia", .{
+            .preferred_link_mode = .dynamic,
+        }),
+        else => exe_mod.linkSystemLibrary("julia", .{
+            .preferred_link_mode = .dynamic,
+        }),
     }
     exe_mod.addOptions("vesti-info", vesti_opt);
 
@@ -140,10 +131,8 @@ pub fn build(b: *Build) !void {
         .version = VESTI_VERSION,
         .root_module = exe_mod,
     });
-    if (use_tectonic) {
-        const install_dll = InstallDll.create(b, target);
-        b.getInstallStep().dependOn(&install_dll.step);
-    }
+    const install_dll = InstallDll.create(b, target);
+    b.getInstallStep().dependOn(&install_dll.step);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -170,27 +159,25 @@ pub fn build(b: *Build) !void {
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
         },
     });
-    if (use_julia) {
-        test_mod.addCSourceFile(.{
-            .file = b.path("src/julia/vesjulia.c"),
-            .flags = &.{
-                "-std=c11",
-                "-Wno-implicit-int",
-                "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
-            },
-        });
-        test_mod.addIncludePath(.{ .cwd_relative = jl_include.? });
-        switch (target.result.os.tag) {
-            .windows => {
-                test_mod.addLibraryPath(.{ .cwd_relative = jl_libs.? });
-                test_mod.linkSystemLibrary("libjulia", .{
-                    .preferred_link_mode = .dynamic,
-                });
-            },
-            else => test_mod.linkSystemLibrary("julia", .{
+    test_mod.addCSourceFile(.{
+        .file = b.path("src/julia/vesjulia.c"),
+        .flags = &.{
+            "-std=c11",
+            "-Wno-implicit-int",
+            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
+        },
+    });
+    test_mod.addIncludePath(.{ .cwd_relative = jl_include });
+    switch (target.result.os.tag) {
+        .windows => {
+            test_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
+            test_mod.linkSystemLibrary("libjulia", .{
                 .preferred_link_mode = .dynamic,
-            }),
-        }
+            });
+        },
+        else => test_mod.linkSystemLibrary("julia", .{
+            .preferred_link_mode = .dynamic,
+        }),
     }
     test_mod.addOptions("vesti-info", vesti_opt);
 

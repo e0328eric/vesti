@@ -360,7 +360,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
-        .FntParam => self.parseDefunParam(),
+        .Attribute => |attr| self.parseAttribute(attr),
         else => self.parseLiteral(),
     };
 }
@@ -370,15 +370,6 @@ fn parseLiteral(self: *Self) Stmt {
         Stmt{ .MathLit = self.curr_tok.lit.in_math }
     else
         Stmt{ .TextLit = self.curr_tok.lit.in_text };
-}
-
-// this special statement is needed when parsing the body of `defun` to exchange
-// its name into appropriate latex's one
-fn parseDefunParam(self: *Self) Stmt {
-    return Stmt{ .DefunParamLit = .{
-        .span = self.curr_tok.span,
-        .value = CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}),
-    } };
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
@@ -902,6 +893,39 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
     }
 }
 
+fn parseAttribute(self: *Self, attr: []const u8) !Stmt {
+    const attr_location = self.curr_tok.span;
+
+    // parsing function parameter attributes
+    if (Token.isFunctionParam(attr)) |fnt_param| {
+        if (fnt_param % 10 == 0) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .InvalidDefunParam = fnt_param },
+                .span = attr_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+
+        const nested = fnt_param / 10;
+        const arg_num = fnt_param % 10; // it is in between 1 to 9
+        return Stmt{ .DefunParamList = .{
+            .nested = nested,
+            .arg_num = arg_num,
+            .span = attr_location,
+        } };
+    }
+
+    // for now, attributes are not supported. So if one find an attribute,
+    // raise an internal error
+    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        .err_info = .{
+            .VestiInternal = "Attributes are not supported yet",
+        },
+        .span = attr_location,
+    } });
+    return ParseError.ParseFailed;
+}
+
 // <return>[1] points <return>[0]
 fn parseFilepathHelper(
     self: *Self,
@@ -984,7 +1008,7 @@ fn parseFilepathHelper(
     return .{ file_path_str, fs.path.basename(file_path_str.items) };
 }
 
-// TODO: This special function is needed because of following zig compiler bug:
+// NOTE: This special function is needed because of following zig compiler bug:
 // - https://github.com/ziglang/zig/issues/5973
 // - https://github.com/ziglang/zig/issues/24324 [closed]
 // After these are resolved, remove this function
@@ -1488,6 +1512,9 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
 }
 
 // TODO: support nested defun with single sharp parameters
+// one way to achive this is that using integers bigger than 9.
+// For instance, #11 refers to ##1, #23 refers to ####3, etc.
+// However, in this case, what is the best way to handle #10, #30 stuffs?
 fn parseDefineFunction(self: *Self) ParseError!Stmt {
     const defun_location = self.curr_tok.span;
     var defun_kind: ast.DefunKind = .{};
@@ -1604,24 +1631,34 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
         }
         assert(self.expect(.current, &.{.Rparen}));
 
-        var param_idx: usize = 0;
         for (param_toks.items) |param_tok| {
             switch (param_tok.toktype) {
-                .FntParam => if (param_idx >= 9) {
+                .Attribute => |attr| if (Token.isFunctionParam(attr)) |fnt_param| {
+                    if (fnt_param % 10 == 0) {
+                        self.diagnostic.initDiagInner(.{ .ParseError = .{
+                            .err_info = .{ .InvalidDefunParam = fnt_param },
+                            .span = param_tok.span,
+                        } });
+                        return ParseError.ParseFailed;
+                    }
+
+                    const num_of_sharp = std.math.powi(usize, 2, fnt_param / 10) catch {
+                        self.diagnostic.initDiagInner(.{ .ParseError = .{
+                            .err_info = .{ .DefunParamOverflow = fnt_param / 10 },
+                            .span = param_tok.span,
+                        } });
+                        return ParseError.ParseFailed;
+                    };
+                    const param = fnt_param % 10; // it is in between 1 to 9
+
+                    for (0..num_of_sharp) |_| try param_str.writer.writeByte('#');
+                    try param_str.writer.print("{d}", .{param});
+                } else {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .DefunParamOverflow,
-                        .span = defun_location,
+                        .err_info = .{ .WrongAttr = attr },
+                        .span = param_tok.span,
                     } });
                     return ParseError.ParseFailed;
-                } else {
-                    @branchHint(.likely);
-                    out_stmt.DefineFunction.params[param_idx] = CowStr.init(
-                        .Borrowed,
-                        .{param_tok.lit.in_text},
-                    );
-                    // latex parameter start from 1
-                    try param_str.writer.print("#{d}", .{param_idx + 1});
-                    param_idx += 1;
                 },
                 // treat every tokens inside param_str as a text
                 else => try param_str.writer.writeAll(param_tok.lit.in_text),
@@ -1644,18 +1681,8 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    const body_location = self.curr_tok.span;
     var inner = try self.parseBrace(false);
     errdefer inner.deinit(self.allocator);
-
-    // change each defun params to corresponding value
-    try changeDefunParamName(
-        self.allocator,
-        self.diagnostic,
-        inner.Braced.inner.items,
-        &out_stmt.DefineFunction.params,
-        body_location,
-    );
 
     out_stmt.DefineFunction.inner = inner.Braced.inner;
     return out_stmt;
@@ -1715,7 +1742,9 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
         const tmp = switch (self.currToktype()) {
             .Integer => fmt.parseInt(usize, self.curr_tok.lit.in_text, 10) catch {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .VestiInternal = "given text must be an integer. Lexer issue happen I suppose..." },
+                    .err_info = .{
+                        .VestiInternal = "given text must be an integer. Lexer issue happen I suppose...",
+                    },
                     .span = num_arg_location,
                 } });
                 return ParseError.ParseFailed;
@@ -2096,7 +2125,6 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
     return Stmt.NopStmt;
 }
 
-// TODO: implement this function without any allocations
 fn parseParanthesis(
     self: *Self,
     comptime open: TokenType,
@@ -2231,83 +2259,6 @@ fn parseFunctionArgsCore(
     }
 
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
-}
-
-fn changeDefunParamName(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    stmts: []Stmt,
-    params_table: *const [9]CowStr,
-    span: Span,
-) !void {
-    for (stmts) |*stmt| {
-        switch (stmt.*) {
-            .DefunParamLit => |*val| {
-                for (params_table, 1..) |param, idx| {
-                    if (mem.eql(u8, param.toStr(), val.value.toStr())) {
-                        val.value.deinit(allocator);
-                        val.value = try .initPrint(allocator, "#{d}", .{idx});
-                        break;
-                    }
-                } else {
-                    const value = try allocator.dupe(u8, val.value.toStr());
-                    errdefer allocator.free(value);
-
-                    diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{
-                            .InvalidDefunParam = .fromOwnedSlice(value),
-                        },
-                        .span = span,
-                    } });
-                    return ParseError.ParseFailed;
-                }
-            },
-            inline .MathCtx,
-            .Braced,
-            .PlainTextInMath,
-            => |*val| try changeDefunParamName(
-                allocator,
-                diagnostic,
-                val.inner.items,
-                params_table,
-                span,
-            ),
-            .Fraction => |*val| {
-                try changeDefunParamName(
-                    allocator,
-                    diagnostic,
-                    val.numerator.items,
-                    params_table,
-                    span,
-                );
-                try changeDefunParamName(
-                    allocator,
-                    diagnostic,
-                    val.denominator.items,
-                    params_table,
-                    span,
-                );
-            },
-            .Environment => {
-                diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EnvInsideDefun,
-                    .span = span,
-                } });
-                return ParseError.ParseFailed;
-            },
-            .DefineFunction => {
-                diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .VestiInternal = 
-                    \\nested `defun` not supported yet.
-                    \\This is not a bug at this moment
-                },
-                    .span = span,
-                } });
-                return ParseError.ParseFailed;
-            },
-            else => {},
-        }
-    }
 }
 
 test "test vesti parser" {

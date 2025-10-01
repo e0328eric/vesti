@@ -1,5 +1,3 @@
-const USE_JULIA = @import("vesti-info").USE_JULIA;
-
 const std = @import("std");
 const builtin = @import("builtin");
 const mem = std.mem;
@@ -7,7 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("diagnostic.zig");
-const jlscript = if (USE_JULIA) @import("jlscript.zig") else {};
+const jlscript = @import("jlscript.zig");
 const win = if (builtin.os.tag == .windows) @import("c") else {};
 
 const Allocator = mem.Allocator;
@@ -16,7 +14,7 @@ const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
 const DynLib = std.DynLib;
 const Io = std.Io;
-const Julia = if (USE_JULIA) @import("julia/Julia.zig") else anyopaque;
+const Julia = @import("julia/Julia.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
@@ -46,8 +44,6 @@ pub const JuliaContents = struct {
         allocator: Allocator,
         diagnostic: *diag.Diagnostic,
     ) !@This() {
-        if (!USE_JULIA) return .{};
-
         var output: @This() = .{};
 
         inline for (&.{ "before", "step" }) |ty| {
@@ -89,9 +85,7 @@ pub fn compile(
 
     // run before.jl to "initialize" vesti projects
     if (jlcode_contents.before) |lc| {
-        if (USE_JULIA) {
-            try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
-        }
+        try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
     }
 
     while (true) {
@@ -365,9 +359,7 @@ pub fn vestiToLatex(
     defer aw.deinit();
 
     // change engine type via `compty`
-    if (USE_JULIA) {
-        julia.changeLatexEngine(engine.*);
-    }
+    julia.changeLatexEngine(engine.*);
 
     var codegen = try Codegen.init(
         allocator,
@@ -423,29 +415,14 @@ fn compileLatex(
     defer allocator.free(main_tex_file);
 
     if (engine == .tectonic) {
-        if (@import("vesti-info").USE_TECTONIC) {
-            try compileLatexWithTectonic(
-                diagnostic,
-                main_tex_file,
-                vesti_dummy,
-                compile_limit,
-            );
-            if (jlcode_contents) |lc| {
-                if (USE_JULIA) {
-                    try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
-                }
-            }
-        } else {
-            const io_diag = try diag.IODiagnostic.initWithNote(
-                diagnostic.allocator,
-                null,
-                "this vesti executable does not supports tectonic",
-                .{},
-                "build vesti again with tectonic support",
-                .{},
-            );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.CompileLatexFailed;
+        try compileLatexWithTectonic(
+            diagnostic,
+            main_tex_file,
+            vesti_dummy,
+            compile_limit,
+        );
+        if (jlcode_contents) |lc| {
+            try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
         }
     } else {
         for (0..compile_limit) |i| {
@@ -462,9 +439,7 @@ fn compileLatex(
                 vesti_dummy,
             );
             if (jlcode_contents) |lc| {
-                if (USE_JULIA) {
-                    try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
-                }
+                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
             }
 
             std.debug.print("[compiled]\n", .{});
