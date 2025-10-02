@@ -1,24 +1,12 @@
-compty (xe)
 docclass article (10pt)
 importpkg {
     geometry (a4paper, margin = 2.2cm),
-    fontspec,
-    unicode-math,
 }
 
 \title{Vesti Transpiler User Manual}
 \author{Sungbae Jeong}
 
-\setmainfont{texgyrepagella}[
-    Path,
-    Extension = .otf,
-    UprightFont  = *-regular,
-    BoldFont  = *-bold,
-]
-\setmathfont{STIXTwoMath-Regular}[
-    Path,
-    Extension = .ttf,
-]
+importves (font.ves)
 
 startdoc
 \maketitle
@@ -35,29 +23,30 @@ of keywords.
 \subsection{Keywords}
 Followings are reserved as a keyword.
 useenv table [ht] {
-    \centering
-    #py:
-    //import vesti
-    //import re
+    \centering 
+    #jl:
+    # Read file
+    content = read("../src/lexer/Token.zig", String)
 
-    //with open("../src/lexer/Token.zig", "r") as f:
-    //  content = f.read()
+    # Match .{ "keyword", TokenType.<Identifier> } but EXCLUDE TokenType.deprecated(...)
+    # Explanation:
+    #   TokenType\.(?!deprecated\b)  -> negative lookahead blocks 'deprecated'
+    pattern = r"\.\{\s*\"([^\"]+)\"\s*,\s*TokenType\.(?!deprecated\b)(\w+)"
 
-    //  # Regex: match .{ "keyword", TokenType.<Identifier> }
-    //  pattern = r'\.\{\s*"([^"]+)"\s*,\s*TokenType\.(\w+)'
-    //  matches = re.findall(pattern, content)
+    # Extract just the keyword names (first capture) and sort
+    keywords = sort([m.captures[1] for m in eachmatch(pattern, content)])
 
-    //  # Just extract the keyword names
-    //  keywords = sorted([m[0] for m in matches])
-
-    //  vesti.print(r"\begin{tabular}{ccccc}", nl=1)
-    //  for i, keyword in enumerate(keywords):
-    //      if i % 5 == 4:
-    //          vesti.print(f"{{\\ttfamily {keyword}}}\\\\", nl=1)
-    //      else:
-    //          vesti.print(f"{{\\ttfamily {keyword}}}&", nl=1)
-    //  vesti.print(r"\end{tabular}", nl=1)
-    :py#
+    # Emit LaTeX table, 6 columns
+    Vesti.print(raw"\begin{tabular}{cccccc}", nl=1)
+    for (i, keyword) in enumerate(keywords)
+        if i % 6 == 0           # 1-based indexing in Julia
+            Vesti.print("{\\ttfamily $(keyword)}\\\\", nl=1)
+        else
+            Vesti.print("{\\ttfamily $(keyword)}&", nl=1)
+        end
+    end
+    Vesti.print(raw"\end{tabular}", nl=1)
+    :jl#
 }
 
 \subsection{{\ttfamily docclass} keywords}

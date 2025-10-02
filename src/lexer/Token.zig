@@ -64,9 +64,6 @@ pub const TokenType = union(enum(u8)) {
     MakeAtOther,
     Latex3On,
     Latex3Off,
-    NonStopMode,
-    TextMode,
-    MathMode,
     CompileType,
 
     // Symbols
@@ -191,9 +188,6 @@ pub const TokenType = union(enum(u8)) {
             .MakeAtOther =>              try writer.writeAll("`makeatother`"),
             .Latex3On =>                 try writer.writeAll("`ltx3on`"),
             .Latex3Off =>                try writer.writeAll("`ltx3off`"),
-            .NonStopMode =>              try writer.writeAll("`nonstopmode`"),
-            .TextMode =>                 try writer.writeAll("`textmode`"),
-            .MathMode =>                 try writer.writeAll("`mathmode`"),
             .CompileType =>              try writer.writeAll("`compty`"),
             .DefineFunction =>           try writer.writeAll("`defun`"),
             .DefineEnv =>                try writer.writeAll("`defenv`"),
@@ -287,14 +281,14 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "makeatother",  TokenType.MakeAtOther },
     .{ "ltx3on",       TokenType.Latex3On },
     .{ "ltx3off",      TokenType.Latex3Off },
-    .{ "nonstopmode",  TokenType.NonStopMode },
-    .{ "txtmd",        TokenType.TextMode },
-    .{ "mthmd",        TokenType.MathMode },
     .{ "compty",       TokenType.CompileType },
     .{ "defun",        TokenType.DefineFunction },
     .{ "defenv",       TokenType.DefineEnv },
-    .{ "textmode",     TokenType.deprecated(true, "txtmd") },
-    .{ "mathmode",     TokenType.deprecated(true, "mthmd") },
+    .{ "nonstopmode",  TokenType.deprecated(false, "#nonstopmode") },
+    .{ "txtmd",        TokenType.deprecated(false, "#textmode") },
+    .{ "mthmd",        TokenType.deprecated(false, "#mathmode") },
+    .{ "textmode",     TokenType.deprecated(true, "#textmode") },
+    .{ "mathmode",     TokenType.deprecated(true, "#mathmode") },
     .{ "pycode",       TokenType.deprecated(true, "#jl:") },
     .{ "luacode",      TokenType.deprecated(true, "#jl:") },
     .{ "importfile",   TokenType.deprecated(false, "cpfile") },
@@ -316,7 +310,9 @@ pub fn isFunctionParam(val: []const u8) ?usize {
 
 pub const VESTI_ATTRS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
-    .{ "item" },
+    .{ "mathmode" },
+    .{ "textmode" },
+    .{ "nonstopmode" },
     // zig fmt: on
 });
 

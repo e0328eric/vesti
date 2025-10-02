@@ -1,0 +1,363 @@
+importmod (coprime)
+
+docclass coprime (10pt, item, geometry, fancy, tikz)
+
+importpkg {
+    xcolor,
+    graphicx,
+    fontspec,
+    unicode-math,
+}
+
+importves (font.ves)
+
+\settitle{Set Theory TF 1}{Sungbae Jeong}
+\setgeometry{a4paper, margin=2.2cm}
+
+\allocthmcnt{Exercise}
+\maketheorem{exercise}{Exercise}{\bfseries Exercise\ \theExercise}
+\crefname{Exercise}{\lowercase{Exercise}}{\lowercase{Exercise}}
+\Crefname{Exercise}{Exercise}{Exercise}
+
+startdoc
+\fancyon
+
+\section{Historical Introduction}
+useenv exercise [1.2] {
+    Suggest a way to solve Russell's paradox.
+    \proof
+    There are two well-known way to solve it. The first way is introduced by
+    Zermelo and Fraenkel. The idea is that every \lq\lq object\rq\rq\ is not a
+    set, and they made the axiomatic system (in present, we call it as ZF axiom)
+    to describe what is a set. In ZF, one can prove that for any set
+    $x$, $x\notin x$ holds. Hence, actually, the collection
+    $$
+        S = \{x : x\notin x\}
+    $$
+    means in ZF is that $S$ is the collection of \it{all} sets $x$ with $x\notin
+    x$, and it actually contains \it{all} sets. Hence, in ZF, $S$ is not
+    a set, and notations $S\in S$ and $S\notin S$ are meaningless.
+
+    Another way to solve the paradox is that introduce two types of objects
+    \it{classes} and \it{sets}.
+}
+
+useenv exercise [1.5] {
+    Suggest a way to solve Berry's paradox.
+    \proof
+    The word \lq\lq describe\rq\rq\ is ambiguous notion in mathematics. So
+    mathematics introduces a \lq\lq formal language\rq\rq.
+}
+
+\section{Sentence and Logic}
+useenv exercise [2.2] {
+    Is \lq\lq Korea university is the top university in Korea\rq\rq\ a sentence?
+    \proof
+    The word \lq\lq top\rq\rq\ is ambiguous.
+}
+
+#jl:
+# helper function
+foo = x -> (!x[1]) || x[2]
+
+# logic table
+function logic_table(vars, fnts)
+    if isempty(vars) error("vars should not be empty") end
+    if isempty(fnts) error("vars should not be empty") end
+
+    Vesti.print([string(var) for var in vars]...; sep="&", nl=0)
+    Vesti.print("&", nl=0)
+    Vesti.print([string(fn(vars)) for fn in fnts]...; sep="&", nl=0)
+    Vesti.print("\\\\")
+end
+:jl#<logic>
+
+useenv exercise [2.9] {
+    Let $\N$ be the natural number system. Determine if the following two
+    statements are true or false:
+    useenv enumerate [label=(\alph*)] {
+        \item $A\subset\N => "all elements of $!A$! are integers"$
+        \item $A\subset\N => "all elements of $!A$! are even numbers"$
+    }
+    \proof
+    Recall the truth table for the implication:
+    useenv table [ht] {
+    \centering
+    useenv tabular (cc|c) {
+        $P$ & $Q$ & $P => Q$ \\ \hline
+        #jl:
+        logic_table([true, true], [foo])
+        logic_table([true, false], [foo])
+        logic_table([false, true], [foo])
+        logic_table([false, false], [foo])
+        :jl#[logic]
+    }}
+    Hence to assure whether the implication is true or not, it suffices to
+    assume that the premise is true.
+
+    useenv enumerate [label=(\alph*)] {
+        \item Suppose that $A\subset\N$. Then by the definition of the integer
+        (we did not study about the definition of the integer number system),
+        every elements of $A$ is an integer. Hence, the statement is true.
+        \item Consider $A=\{1\}$. Clearly $A\subset\N$ but we know that $1$ is
+        an odd number. Hence, the statement is false.
+    }
+}
+
+useenv exercise [2.16] {
+    Prove (2) in Theorem 2.14, which is the following:
+    Let $P,Q$, and $R$ be statements. Assume that $Q=>R$ is true. Then $P\land
+    Q=>P\land R$ is true.
+    \proof
+    We shell fill the truth table for the statement $P\land Q=>P\land R$.
+    useenv table [ht] {
+    \centering
+    useenv tabular (ccc|cc|c) {
+        $P$ & $Q$ & $R$ & $P \land Q$ & $P\land R$ & $P\land Q=>P\land R$\\ \hline
+        #jl:
+        a = x -> x[1] && x[2]
+        b = x -> x[1] && x[3]
+        c = x -> foo([a(x), b(x)])
+        :jl#<abc>
+        #jl:
+        logic_table([true, true, true], [a,b,c])
+        logic_table([true, true, false], [a,b,c])
+        logic_table([true, false, true], [a,b,c])
+        logic_table([true, false, false], [a,b,c])
+        logic_table([false, true, true], [a,b,c])
+        logic_table([false, true, false], [a,b,c])
+        logic_table([false, false, true], [a,b,c])
+        logic_table([false, false, false], [a,b,c])
+        :jl#[logic,abc]
+    }}
+
+    Here, we assume that the statement $Q=>R$ is true. Let us remind the truth
+    table for that statement.
+    useenv table [ht] {
+    \centering
+    useenv tabular (cc|c) {
+        $Q$ & $R$ & $Q => R$ \\ \hline
+        #jl:
+        logic_table([true, true], [foo])
+        logic_table([true, false], [foo])
+        logic_table([false, true], [foo])
+        logic_table([false, false], [foo])
+        :jl#[logic]
+    }}
+    From this, we notice that it is impossible when $Q$ is false and $R$ is
+    true. By discarding the case in the very first truth table, we obtain the
+    following.
+    useenv table [ht] {
+    \centering
+    useenv tabular (ccc|cc|c) {
+        $P$ & $Q$ & $R$ & $P \land Q$ & $P\land R$ & $P\land Q=>P\land R$\\ \hline
+        #jl:
+        logic_table([true, true, true], [a,b,c])
+        logic_table([true, false, true], [a,b,c])
+        logic_table([true, false, false], [a,b,c])
+        logic_table([false, true, true], [a,b,c])
+        logic_table([false, false, true], [a,b,c])
+        logic_table([false, false, false], [a,b,c])
+        :jl#[logic,abc]
+    }}
+    Therefore we find that $P\land Q=>P\land R$ is true provided that $Q=>R$ is
+    true.
+}
+
+useenv exercise [2.20] {
+    Show that for every statement $P$,
+    $$
+        P <==> \neg\neg P.
+    $$
+    \proof
+    One can easily show this by using the truth table.
+    useenv center {
+    useenv tabular (c|c|c) {
+        $P$ & $\neg P$ & $\neg\neg P$ \\ \hline
+        #jl:
+        neg = x -> !x[1]
+        double_neg = x -> neg([x[1]])
+        :jl#<negs>
+        #jl:
+        logic_table([true], [neg, double_neg])
+        logic_table([false], [neg, double_neg])
+        :jl#[logic,negs]
+    }}
+}
+
+useenv exercise [2.21] {
+    Let $P$ and $Q$ be statements. Show that
+    $$
+        \neg(P\lor Q) <==> \neg P \land \neg Q,
+    $$
+    and
+    $$
+        \neg(P\land Q) <==> \neg P \lor \neg Q.
+    $$
+    \proof
+    We first prove that the first statement is true. Here is the truth table for
+    it.
+    useenv center {
+    useenv tabular (cc|cc|c|cc|c) {
+        $P$ & $Q$ & $\neg P$ & $\neg Q$ & $P\lor Q$
+        & $\neg(P\lor Q)$ & $\neg P \land \neg Q$
+        & $\neg(P\lor Q) <=> \neg P \land \neg Q$\\ \hline
+        #jl:
+        neg1 = x -> !x[2]
+        a = x -> x[1] || x[2]
+        b = x -> !a(x)
+        c = x -> !x[1] && !x[2]
+        d = x -> foo([b(x),c(x)]) && foo([c(x),b(x)])
+        logic_table([true, true],   [neg, neg1, a, b, c, d])
+        logic_table([true, false],  [neg, neg1, a, b, c, d])
+        logic_table([false, true],  [neg, neg1, a, b, c, d])
+        logic_table([false, false], [neg, neg1, a, b, c, d])
+        :jl#[logic,negs]
+    }}
+    One can prove the second part similarly. But there is another way to prove
+    by using the first one. As in the Remark 2.11, for statements $P$ and $Q$,
+    $$
+        (P => Q) <==> (\neg Q => \neg P).
+    $$
+    This, Exercise 2.20, and the first result shows that
+    $$
+        \neg(\neg P\lor \neg Q)
+        <==> (\neg\neg P) \land (\neg\neg Q)
+        <==> P\land Q.
+    $$
+    Hence,
+    $$
+        \neg(P\land Q) <==> \neg\neg(\neg P\lor \neg Q) <==> \neg P\lor \neg Q.
+    $$
+}
+
+\section{Classes and Sets}
+useenv exercise [3.7] {
+    Let $A$ and $B$ are proper classes. Then prove that $A=B$.
+    \proof
+    Recall the definition of equality between classes. In the formal language,
+    useenv equation { \label{eq:3.7.1}
+        (A = B) <==> \forall X,[A\in X <=> B\in X].
+    }
+    Since $A$ is a proper class, there is no such $X$. Similarly, there is no
+    such $X$ satisfying $B\in X$ because $B$ is also a proper class.
+    Hence the right hand side of \cref{eq:3.7.1} is true, and thus $A=B$.
+}
+
+Actually, upper exercise is false because the original book refered from our
+lecture note makes an error. The definition of the equality between classes is
+actually false in the NBG axiomatic system.
+
+useenv exercise [3.10] {
+    Let $A$ and $B$ are classes. Explain the meaning of $A!=B$ on the basis of
+    the axiom of extent.
+    \proof
+    $$
+    (A!=B)
+    <==> \exists x,[[(x\in A) \land (x\notin B)] \lor [(x\in B) \land (x\notin
+    A)]].
+    $$
+}
+
+useenv exercise [3.14] {
+    Let $A$, $B$, and $C$ are classes. Prove that
+    useenv enumerate [label=(\arabic*)] {
+        \addtocounter{enumi}{3}
+        \item $(A\subset B)\land(B\subset A) <==> A = B$.
+        \item $(A\subset B)\land(B\subset C) ==> A \subset C$.
+    }
+    \proof
+    useenv enumerate [label=(\arabic*)] {
+        \addtocounter{enumi}{3}
+        \item By the definition of $<==>$, Definition 3.11, and the axiom of
+        extent, we have
+        useenv align {
+            (A\subset B)\land(B\subset A)
+            &<==> (x\in A => x\in B) \land (x\in B => x\in A) \tag{Definition
+            3.11} \\
+            &<==> (x\in A <=> x\in B) \tag{The definition of "$<=>$"} \\
+            &<==> A = B. \tag{Axiom of Extent}
+        }
+        \item By Definition 3.11 and Theorem 2.17
+        useenv align {
+            (A\subset B)\land(B\subset C)
+            &<==> (x\in A => x\in B) \land (x\in B => x\in C) \tag{Definition
+            3.11} \\
+            &==> (x\in A => x\in C) \tag{Theorem 2.17} \\
+            &<==> A \subset C. \tag{Definition 3.11}
+        }
+    }
+}
+
+useenv exercise [3.15] {
+    Let $A$, $B$, and $C$ are classes. Then
+    useenv enumerate [label=(\arabic*)] {
+        \item $A = A$;
+        \item $A = B <==> B = A$;
+        \item $(A = B)\land(B = C) ==> A = C$.
+    }
+    Prove these facts without using the axiom of extent.
+    \proof
+    useenv enumerate [label=(\arabic*)] {
+        \item By the definition of the equality, we should show that the
+        following statement is true.
+        $$
+            \forall X,[A\in X <=> A\in X].
+        $$
+        However, notice that $P<=>P$ is true for every statement $P$.
+        \item We have the following.
+        useenv align {
+            A = B
+            &<==> \forall X,[A\in X <=> B\in X]
+            \tag{The definition of #textmode{$=$}} \\
+            &<==> \forall X,[(A\in X => B\in X)\land(B\in X=>A\in X)]
+            \tag{The definition of #textmode{$<=>$}} \\
+            &<==> \forall X,[(B\in X => A\in X)\land(A\in X=>B\in X)]
+            \tag{Theorem 2.19(4)} \\
+            &<==> \forall X,[B\in X <=> A\in X]
+            \tag{The definition of #textmode{$<=>$}} \\
+            &<==> B = A. \tag{The definition of #textmode{$=$}}
+        }
+        \item
+        We will use the following:
+        For every statements $P$, $Q$, and $R$, $(P<=>Q)\land(Q<=>R)==>(P<=>R)$.
+        One can use the truth table to prove this. On the other hand, using
+        theorems we are already taught,
+        useenv align {
+            (P<=>Q)\land (Q<=>R)
+            &<==> [(P=>Q)\land (Q=>P)]\land [(Q=>R)\land(R=>Q)]
+            \tag{The definition of #textmode{$<=>$}} \\
+            &<==> [(P=>Q)\land (Q=>R)]\land [(R=>Q)\land(Q=>P)]
+            \tag{Theorem 2.19 (4) and (6)} \\
+            &==> [(P=>R)]\land [(R=>P)]
+            \tag{Theorem 2.17} \\
+            &<==> (P<=>R).
+            \tag{The definition of #textmode{$<=>$}}
+        }
+        Then we obtain the following.
+        useenv align {
+            (A=B)\land (B=C)
+            &<==> \forall X,Y,[(A\in X <=> B\in X)\land(B\in Y <=> C\in Y)]
+            \tag{The definition of #textmode{$=$}} \\
+            &==> \forall X,[(A\in X <=> C\in X)]
+            \tag{Above result} \\
+            &<==> A = C.
+            \tag{The definition of #textmode{$=$}}
+        }
+    }
+}
+
+useenv exercise [3.18] {
+    Explain why the class of all the classes $x$ which satisfy $P(x)$ cannot
+    exists in general.
+    \proof
+    If such situation is allowed, then one can make the following \lq\lq
+    class\rq\rq.
+    $$
+        S = \{x : "$x$ is a class and $x\notin x$" \}.
+    $$
+    Since $S$ is still a class, either $S\in S$ or $S\notin S$ should be
+    satisfied. However one can easily check that the \lq\lq class\rq\rq\ makes
+    Russell's paradox.
+}
+

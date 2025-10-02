@@ -243,6 +243,7 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated,
+        InvalidAttr,
         WrongAttr,
         InvalidDefunKind,
         DefunParamOverflow,
@@ -280,6 +281,7 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated: []const u8,
+        InvalidAttr: []const u8,
         WrongAttr: []const u8,
         InvalidDefunKind: []const u8,
         DefunParamOverflow: usize,
@@ -436,8 +438,8 @@ pub const ParseDiagnostic = struct {
                     );
                 }
             },
-            .TextmodeInText => try aw.writer.print("`txtmd` found in text", .{}),
-            .MathmodeInMath => try aw.writer.print("`mthmd` found in math", .{}),
+            .TextmodeInText => try aw.writer.print("`#textmode` found in text", .{}),
+            .MathmodeInMath => try aw.writer.print("`#mathmode` found in math", .{}),
             .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
@@ -449,6 +451,10 @@ pub const ParseDiagnostic = struct {
             .DefunParamOverflow => |val| try aw.writer.print(
                 "2 to the power of {d} exceeds max value of 2^{d}",
                 .{ val, @sizeOf(usize) },
+            ),
+            .InvalidAttr => |attr| try aw.writer.print(
+                "attribute `{s}` is not defined",
+                .{attr},
             ),
             .WrongAttr => |attr| try aw.writer.print(
                 "wrong location for attribute `{s}`",

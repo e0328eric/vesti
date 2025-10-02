@@ -215,10 +215,6 @@ fn eatWhitespaces(self: *Self, comptime handle_newline: bool) void {
 
 fn parseStatement(self: *Self) ParseError!Stmt {
     return switch (self.currToktype()) {
-        .NonStopMode => blk: {
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.NonStopMode;
-        },
         .MakeAtLetter => blk: {
             if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
             break :blk Stmt.MakeAtLetter;
@@ -328,8 +324,6 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Endenv => try self.parseEndPhantomEnvironment(),
         .DefineFunction => try self.parseDefineFunction(),
         .DefineEnv => try self.parseDefineEnv(),
-        .TextMode => try self.parseTextMode(),
-        .MathMode => try self.parseMathMode(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
         else
@@ -915,12 +909,18 @@ fn parseAttribute(self: *Self, attr: []const u8) !Stmt {
         } };
     }
 
-    // for now, attributes are not supported. So if one find an attribute,
-    // raise an internal error
+    // parsing attributes
+    inline for (comptime Token.VESTI_ATTRS.keys()) |key| {
+        const callback = @field(Self, "parseAttr_" ++ key);
+        const ReturnType = @typeInfo(@TypeOf(callback)).@"fn".return_type.?;
+        if (mem.eql(u8, key, attr)) {
+            if (ReturnType == Stmt) return callback(self) else return try callback(self);
+        }
+    }
+
+    // this code runs if `attr` is an invalid attribute name
     self.diagnostic.initDiagInner(.{ .ParseError = .{
-        .err_info = .{
-            .VestiInternal = "Attributes are not supported yet",
-        },
+        .err_info = .{ .InvalidAttr = attr },
         .span = attr_location,
     } });
     return ParseError.ParseFailed;
@@ -1952,92 +1952,6 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
     };
 }
 
-fn parseTextMode(self: *Self) ParseError!Stmt {
-    const textmode_block_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.TextMode})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.TextMode},
-                .obtained = self.currToktype(),
-            } },
-            .span = textmode_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-    self.nextToken();
-    self.eatWhitespaces(false);
-
-    if (!self.expect(.current, &.{.Lbrace})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lbrace},
-                .obtained = self.currToktype(),
-            } },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    if (!self.doc_state.math_mode) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .TextmodeInText,
-            .span = textmode_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    self.doc_state.math_mode = false;
-    var inner = try self.parseBrace(false);
-    errdefer inner.deinit();
-    self.doc_state.math_mode = true;
-
-    inner.Braced.unwrap_brace = true;
-    return inner;
-}
-
-fn parseMathMode(self: *Self) ParseError!Stmt {
-    const mathmode_block_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.MathMode})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.MathMode},
-                .obtained = self.currToktype(),
-            } },
-            .span = mathmode_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-    self.nextToken();
-    self.eatWhitespaces(false);
-
-    if (!self.expect(.current, &.{.Lbrace})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lbrace},
-                .obtained = self.currToktype(),
-            } },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    if (self.doc_state.math_mode) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .MathmodeInMath,
-            .span = mathmode_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    self.doc_state.math_mode = true;
-    var inner = try self.parseBrace(false);
-    errdefer inner.deinit();
-    self.doc_state.math_mode = false;
-
-    inner.Braced.unwrap_brace = true;
-    return inner;
-}
-
 fn parseCompileType(self: *Self) ParseError!Stmt {
     const comp_ty_loc = self.curr_tok.span;
     if (comp_ty_loc.start.row != 1) {
@@ -2259,6 +2173,82 @@ fn parseFunctionArgsCore(
     }
 
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
+}
+
+//          ╭─────────────────────────────────────────────────────────╮
+//          │                   Parsing Attributes                    │
+//          ╰─────────────────────────────────────────────────────────╯
+// NOTE: All functions should have a name parseAttr_<attr name>.
+
+pub fn parseAttr_nonstopmode(self: *Self) Stmt {
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+    return Stmt.NonStopMode;
+}
+
+pub fn parseAttr_textmode(self: *Self) ParseError!Stmt {
+    const textmode_block_loc = self.curr_tok.span;
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    if (!self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .TextmodeInText,
+            .span = textmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.doc_state.math_mode = false;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = true;
+
+    inner.Braced.unwrap_brace = true;
+    return inner;
+}
+
+pub fn parseAttr_mathmode(self: *Self) ParseError!Stmt {
+    const mathmode_block_loc = self.curr_tok.span;
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Lbrace})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lbrace},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    if (self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .MathmodeInMath,
+            .span = mathmode_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.doc_state.math_mode = true;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = false;
+
+    inner.Braced.unwrap_brace = true;
+    return inner;
 }
 
 test "test vesti parser" {
