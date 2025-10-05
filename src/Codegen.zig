@@ -178,6 +178,9 @@ fn codegenStmt(
                     .StarArg => try writer.writeByte('*'),
                 }
             }
+            if (info.label) |label| {
+                try writer.print("\\label{{{s}}}", .{label.items});
+            }
             try self.codegenStmts(info.inner, julia, writer);
             try writer.print("\\end{{{f}}}", .{info.name});
         },

@@ -282,7 +282,10 @@ pub const ParseDiagnostic = struct {
         MathmodeInMath,
         Deprecated: []const u8,
         InvalidBuiltin: []const u8,
-        WrongBuiltin: []const u8,
+        WrongBuiltin: struct {
+            name: []const u8,
+            note: []const u8,
+        },
         InvalidDefunKind: []const u8,
         DefunParamOverflow: usize,
         InvalidDefunParam: usize,
@@ -457,8 +460,8 @@ pub const ParseDiagnostic = struct {
                 .{builtin_fnt},
             ),
             .WrongBuiltin => |builtin_fnt| try aw.writer.print(
-                "wrong location for builtin `#{s}`",
-                .{builtin_fnt},
+                "wrong usage for builtin `#{s}`",
+                .{builtin_fnt.name},
             ),
             .InvalidDefunParam => |val| try aw.writer.print(
                 "parameter number `{d}` is wrong one for a function parameter",
@@ -537,11 +540,7 @@ pub const ParseDiagnostic = struct {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 
-                try output.print(
-                    allocator,
-                    "builtin function `#{s}` cannot be used in that place",
-                    .{builtin_fnt},
-                );
+                try output.print(allocator, "{s}", .{builtin_fnt.note});
                 break :blk output;
             },
             .InvalidDefunParam => |val| blk: {

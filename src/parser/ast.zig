@@ -143,6 +143,7 @@ pub const Stmt = union(enum(u8)) {
         name: CowStr,
         args: ArrayList(Arg),
         inner: ArrayList(Stmt),
+        label: ?ArrayList(u8) = null,
     },
     BeginPhantomEnviron: struct {
         name: CowStr,
@@ -200,6 +201,7 @@ pub const Stmt = union(enum(u8)) {
                 for (ctx.inner.items) |*expr| expr.deinit(allocator);
                 ctx.args.deinit(allocator);
                 ctx.inner.deinit(allocator);
+                if (ctx.label) |*label| label.deinit(allocator);
             },
             .DefineFunction => |*ctx| {
                 ctx.name.deinit(allocator);

@@ -258,6 +258,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
+        .BuiltinFunction => |builtin_fnt| self.parseBuiltins(builtin_fnt),
         .Docclass => blk: {
             break :blk if (self.isPremiere())
                 try self.parseDocclass()
@@ -354,7 +355,6 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
-        .BuiltinFunction => |builtin_fnt| self.parseBuiltins(builtin_fnt),
         else => self.parseLiteral(),
     };
 }
@@ -1651,7 +1651,10 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
                     try param_str.writer.print("{d}", .{param});
                 } else {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .WrongBuiltin = builtin_fnt },
+                        .err_info = .{ .WrongBuiltin = .{
+                            .name = builtin_fnt,
+                            .note = "this is not a valid function parameter",
+                        } },
                         .span = param_tok.span,
                     } });
                     return ParseError.ParseFailed;
@@ -2251,14 +2254,17 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
     const eq_block_loc = self.curr_tok.span;
     if (self.doc_state.math_mode) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .WrongBuiltin = "eq" },
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "eq",
+                .note = "`#eq` cannot be used inside math mode",
+            } },
             .span = eq_block_loc,
         } });
         return ParseError.ParseFailed;
     }
 
     self.nextToken(); // eat `#eq`
-    self.eatWhitespaces(true);
+    self.eatWhitespaces(false);
 
     var label = if (self.expect(.current, &.{.Lparen})) blk: {
         var label_tmp = Io.Writer.Allocating.init(self.allocator);
@@ -2290,6 +2296,58 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
         .inner = inner.Braced.inner,
         .label = label,
     } };
+}
+
+fn parseBuiltin_label(self: *Self) ParseError!Stmt {
+    const label_block_loc = self.curr_tok.span;
+    self.nextToken(); // eat `#label`
+    self.eatWhitespaces(false);
+
+    var label = Io.Writer.Allocating.init(self.allocator);
+    errdefer label.deinit();
+
+    if (self.expect(.current, &.{.Lparen})) {
+        self.nextToken(); // eat `(`
+        while (!self.expect(.current, &.{.Rparen})) : (self.nextToken()) {
+            if (self.currToktype() == .Eof) {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = label_block_loc,
+                } });
+                return ParseError.ParseFailed;
+            }
+            try label.writer.writeAll(self.curr_tok.lit.in_text);
+        }
+        self.nextToken(); // eat `)`
+        self.eatWhitespaces(true);
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "label",
+                .note = "`#label` should have a parameter such as `#label(foo)`",
+            } },
+            .span = label_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    if (self.currToktype() != .Useenv) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "label",
+                .note = "`#label` must be located before `useenv`",
+            } },
+            .span = label_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    var env = try self.parseEnvironment(true);
+    errdefer env.deinit();
+
+    // add a label
+    env.Environment.label = label.toArrayList();
+    return env;
 }
 
 test "test vesti parser" {
