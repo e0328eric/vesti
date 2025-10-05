@@ -354,7 +354,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
-        .Attribute => |attr| self.parseAttribute(attr),
+        .BuiltinFunction => |builtin_fnt| self.parseBuiltins(builtin_fnt),
         else => self.parseLiteral(),
     };
 }
@@ -887,15 +887,15 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
     }
 }
 
-fn parseAttribute(self: *Self, attr: []const u8) !Stmt {
-    const attr_location = self.curr_tok.span;
+fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
+    const builtin_location = self.curr_tok.span;
 
     // parsing function parameter attributes
-    if (Token.isFunctionParam(attr)) |fnt_param| {
+    if (Token.isFunctionParam(builtin_fnt)) |fnt_param| {
         if (fnt_param % 10 == 0) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .InvalidDefunParam = fnt_param },
-                .span = attr_location,
+                .span = builtin_location,
             } });
             return ParseError.ParseFailed;
         }
@@ -905,23 +905,23 @@ fn parseAttribute(self: *Self, attr: []const u8) !Stmt {
         return Stmt{ .DefunParamList = .{
             .nested = nested,
             .arg_num = arg_num,
-            .span = attr_location,
+            .span = builtin_location,
         } };
     }
 
-    // parsing attributes
-    inline for (comptime Token.VESTI_ATTRS.keys()) |key| {
-        const callback = @field(Self, "parseAttr_" ++ key);
+    // parsing builtin functions
+    inline for (comptime Token.VESTI_BUILTINS.keys()) |key| {
+        const callback = @field(Self, "parseBuiltin_" ++ key);
         const ReturnType = @typeInfo(@TypeOf(callback)).@"fn".return_type.?;
-        if (mem.eql(u8, key, attr)) {
+        if (mem.eql(u8, key, builtin_fnt)) {
             if (ReturnType == Stmt) return callback(self) else return try callback(self);
         }
     }
 
     // this code runs if `attr` is an invalid attribute name
     self.diagnostic.initDiagInner(.{ .ParseError = .{
-        .err_info = .{ .InvalidAttr = attr },
-        .span = attr_location,
+        .err_info = .{ .InvalidBuiltin = builtin_fnt },
+        .span = builtin_location,
     } });
     return ParseError.ParseFailed;
 }
@@ -1511,10 +1511,6 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     return Stmt{ .EndPhantomEnviron = name };
 }
 
-// TODO: support nested defun with single sharp parameters
-// one way to achive this is that using integers bigger than 9.
-// For instance, #11 refers to ##1, #23 refers to ####3, etc.
-// However, in this case, what is the best way to handle #10, #30 stuffs?
 fn parseDefineFunction(self: *Self) ParseError!Stmt {
     const defun_location = self.curr_tok.span;
     var defun_kind: ast.DefunKind = .{};
@@ -1633,7 +1629,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
 
         for (param_toks.items) |param_tok| {
             switch (param_tok.toktype) {
-                .Attribute => |attr| if (Token.isFunctionParam(attr)) |fnt_param| {
+                .BuiltinFunction => |builtin_fnt| if (Token.isFunctionParam(builtin_fnt)) |fnt_param| {
                     if (fnt_param % 10 == 0) {
                         self.diagnostic.initDiagInner(.{ .ParseError = .{
                             .err_info = .{ .InvalidDefunParam = fnt_param },
@@ -1655,7 +1651,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
                     try param_str.writer.print("{d}", .{param});
                 } else {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .WrongAttr = attr },
+                        .err_info = .{ .WrongBuiltin = builtin_fnt },
                         .span = param_tok.span,
                     } });
                     return ParseError.ParseFailed;
@@ -2176,16 +2172,16 @@ fn parseFunctionArgsCore(
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
-//          │                   Parsing Attributes                    │
+//          │                   Parsing Builtins                      │
 //          ╰─────────────────────────────────────────────────────────╯
-// NOTE: All functions should have a name parseAttr_<attr name>.
+// NOTE: All functions should have a name parseBuiltin_<builtin name>.
 
-pub fn parseAttr_nonstopmode(self: *Self) Stmt {
+fn parseBuiltin_nonstopmode(self: *Self) Stmt {
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
     return Stmt.NonStopMode;
 }
 
-pub fn parseAttr_textmode(self: *Self) ParseError!Stmt {
+fn parseBuiltin_textmode(self: *Self) ParseError!Stmt {
     const textmode_block_loc = self.curr_tok.span;
     self.nextToken();
     self.eatWhitespaces(false);
@@ -2218,7 +2214,7 @@ pub fn parseAttr_textmode(self: *Self) ParseError!Stmt {
     return inner;
 }
 
-pub fn parseAttr_mathmode(self: *Self) ParseError!Stmt {
+fn parseBuiltin_mathmode(self: *Self) ParseError!Stmt {
     const mathmode_block_loc = self.curr_tok.span;
     self.nextToken();
     self.eatWhitespaces(false);
@@ -2249,6 +2245,69 @@ pub fn parseAttr_mathmode(self: *Self) ParseError!Stmt {
 
     inner.Braced.unwrap_brace = true;
     return inner;
+}
+
+fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
+    const eq_block_loc = self.curr_tok.span;
+    if (self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = "eq" },
+            .span = eq_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.nextToken(); // eat `#eq`
+    self.eatWhitespaces(true);
+
+    var label = if (self.expect(.current, &.{.Lparen})) blk: {
+        var label_tmp = Io.Writer.Allocating.init(self.allocator);
+        errdefer label_tmp.deinit();
+        self.nextToken(); // eat `(`
+        while (!self.expect(.current, &.{.Rparen})) : (self.nextToken()) {
+            if (self.currToktype() == .Eof) {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = eq_block_loc,
+                } });
+                return ParseError.ParseFailed;
+            }
+            try label_tmp.writer.writeAll(self.curr_tok.lit.in_text);
+        }
+        self.nextToken(); // eat `)`
+        self.eatWhitespaces(true);
+        break :blk label_tmp.toArrayList();
+    } else null;
+    errdefer if (label) |*l| l.deinit(self.allocator);
+
+    self.doc_state.math_mode = true;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = false;
+
+    return Stmt{ .MathCtx = .{
+        .state = .Labeled,
+        .inner = inner.Braced.inner,
+        .label = label,
+    } };
+}
+
+// TODO: implement this
+fn parseBuiltin_halign(self: *Self) ParseError!Stmt {
+    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        .err_info = .{ .VestiInternal = "not supported" },
+        .span = self.curr_tok.span,
+    } });
+    return ParseError.ParseFailed;
+}
+
+// TODO: implement this
+fn parseBuiltin_valign(self: *Self) ParseError!Stmt {
+    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        .err_info = .{ .VestiInternal = "not supported" },
+        .span = self.curr_tok.span,
+    } });
+    return ParseError.ParseFailed;
 }
 
 test "test vesti parser" {

@@ -27,9 +27,10 @@ pub const TrimWhitespace = struct {
     end: bool = true,
 };
 
-pub const MathState = enum(u1) {
+pub const MathState = enum(u2) {
     Inline,
     Display,
+    Labeled,
 };
 
 pub const DelimiterKind = enum(u2) {
@@ -91,6 +92,7 @@ pub const Stmt = union(enum(u8)) {
     MathCtx: struct {
         state: MathState,
         inner: ArrayList(Stmt),
+        label: ?ArrayList(u8) = null,
     },
     Braced: struct {
         unwrap_brace: bool = false,
@@ -178,6 +180,7 @@ pub const Stmt = union(enum(u8)) {
             },
             .EndPhantomEnviron => |*name| name.deinit(allocator),
             .MathCtx => |*math_ctx| {
+                if (math_ctx.label) |*label| label.deinit(allocator);
                 for (math_ctx.inner.items) |*stmt| stmt.deinit(allocator);
                 math_ctx.inner.deinit(allocator);
             },

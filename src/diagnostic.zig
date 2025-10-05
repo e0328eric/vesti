@@ -243,8 +243,8 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated,
-        InvalidAttr,
-        WrongAttr,
+        InvalidBuiltin,
+        WrongBuiltin,
         InvalidDefunKind,
         DefunParamOverflow,
         InvalidDefunParam,
@@ -281,8 +281,8 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated: []const u8,
-        InvalidAttr: []const u8,
-        WrongAttr: []const u8,
+        InvalidBuiltin: []const u8,
+        WrongBuiltin: []const u8,
         InvalidDefunKind: []const u8,
         DefunParamOverflow: usize,
         InvalidDefunParam: usize,
@@ -452,13 +452,13 @@ pub const ParseDiagnostic = struct {
                 "2 to the power of {d} exceeds max value of 2^{d}",
                 .{ val, @sizeOf(usize) },
             ),
-            .InvalidAttr => |attr| try aw.writer.print(
-                "attribute `{s}` is not defined",
-                .{attr},
+            .InvalidBuiltin => |builtin_fnt| try aw.writer.print(
+                "builtin `#{s}` is not defined",
+                .{builtin_fnt},
             ),
-            .WrongAttr => |attr| try aw.writer.print(
-                "wrong location for attribute `{s}`",
-                .{attr},
+            .WrongBuiltin => |builtin_fnt| try aw.writer.print(
+                "wrong location for builtin `#{s}`",
+                .{builtin_fnt},
             ),
             .InvalidDefunParam => |val| try aw.writer.print(
                 "parameter number `{d}` is wrong one for a function parameter",
@@ -533,14 +533,14 @@ pub const ParseDiagnostic = struct {
                 );
                 break :blk output;
             },
-            .WrongAttr => |attr| blk: {
+            .WrongBuiltin => |builtin_fnt| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 
                 try output.print(
                     allocator,
-                    "attribute `{s}` cannot be used in that place",
-                    .{attr},
+                    "builtin function `#{s}` cannot be used in that place",
+                    .{builtin_fnt},
                 );
                 break :blk output;
             },

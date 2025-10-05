@@ -90,8 +90,12 @@ fn codegenStmt(
             const delimiter = switch (math_ctx.state) {
                 .Inline => .{ "$", "$" },
                 .Display => .{ "\\[", "\\]" },
+                .Labeled => .{ "\\begin{equation}", "\\end{equation}" },
             };
             try writer.writeAll(delimiter[0]);
+            if (math_ctx.label) |label| {
+                try writer.print("\\label{{{s}}}", .{label.items});
+            }
             try self.codegenStmts(math_ctx.inner, julia, writer);
             try writer.writeAll(delimiter[1]);
         },

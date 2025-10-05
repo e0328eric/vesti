@@ -43,7 +43,7 @@ pub const TokenType = union(enum(u8)) {
         end: usize = 0,
         chr: u21 = 0,
     },
-    Attribute: []const u8,
+    BuiltinFunction: []const u8,
     JlCode,
 
     // Keywords
@@ -170,7 +170,7 @@ pub const TokenType = union(enum(u8)) {
             .Latex3Fnt =>                try writer.writeAll("`<ltx3fnt>`"),
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
-            .Attribute => |val|          try writer.print("`<attr: {s}>`", .{val}),
+            .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
             .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
             .JlCode =>                   try writer.writeAll("`<jlcode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
@@ -308,11 +308,14 @@ pub fn isFunctionParam(val: []const u8) ?usize {
     return fmt.parseInt(usize, val, 10) catch null;
 }
 
-pub const VESTI_ATTRS = std.StaticStringMap(void).initComptime(.{
+pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
     .{ "mathmode" },
     .{ "textmode" },
     .{ "nonstopmode" },
+    .{ "eq" },
+    .{ "halign" },
+    .{ "valign" },
     // zig fmt: on
 });
 
