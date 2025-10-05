@@ -314,8 +314,6 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "textmode" },
     .{ "nonstopmode" },
     .{ "eq" },
-    .{ "halign" },
-    .{ "valign" },
     // zig fmt: on
 });
 

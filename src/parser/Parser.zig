@@ -2292,24 +2292,6 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
     } };
 }
 
-// TODO: implement this
-fn parseBuiltin_halign(self: *Self) ParseError!Stmt {
-    self.diagnostic.initDiagInner(.{ .ParseError = .{
-        .err_info = .{ .VestiInternal = "not supported" },
-        .span = self.curr_tok.span,
-    } });
-    return ParseError.ParseFailed;
-}
-
-// TODO: implement this
-fn parseBuiltin_valign(self: *Self) ParseError!Stmt {
-    self.diagnostic.initDiagInner(.{ .ParseError = .{
-        .err_info = .{ .VestiInternal = "not supported" },
-        .span = self.curr_tok.span,
-    } });
-    return ParseError.ParseFailed;
-}
-
 test "test vesti parser" {
     _ = @import("tests/docclass.zig");
     _ = @import("tests/importpkg.zig");
