@@ -42,6 +42,8 @@ defun [r] eqdef {\eqcolon}
 \tableofcontents
 
 \section{Introduction}
+This paper is for personal purpose to study \cite{Kry0}.
+
 We want to solve the following SPDE
 useenv equation { \label{eq:the-spde}
     du = (Lu + f)dt + (\Lambda^ku + g^k)dw_t^k,\quad t>0,
@@ -128,6 +130,7 @@ useenv reference {
   {H. Triebel}{1978}{North-Holland Publishing Company}
   \book{Stein}{Harmonic Analysis: Real-Variable Methods, Orthogonality, and
   Oscillatory Integrals}{Elias M. Stein}{1993}{Princeton University Press}
+  \article{Kry0}{An analytic approach to SPDEs}{N. V. Krylov}{1999}
   \book{Kry1}{Lectures on Elliptic and Parabolic Equations in Sobolev Spaces}
   {N. V. Krylov}{2000}{American Mathematical Society}
   \book{Kry2}{Introduction to the theory of Diffusion Processes}

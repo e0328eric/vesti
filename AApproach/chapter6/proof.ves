@@ -145,9 +145,25 @@ useenv remark {
     (i) of \Cref{lemma:5.2} is that if $\bar a = ||a||_{B^{|n|+\gamma}}<oo$,
     then there exists a new norm $\lfooo\cdot\rfooo_{n,p}$ in $H_p^n$ such that
     $$
-        \lfoo au\rfoo_{n,p} <= 2N||a||_B\lfoo u\rfoo_{n,p}
+        \lfooo au\rfooo_{n,p} <= 2N||a||_B\lfooo u\rfooo_{n,p}
         \quad (||a||_B = \sup_{x\in\R^d}|a(x)|),
     $$
-    where $N$ is the same constant as in \Cref{lemma:5.2}.
+    where $N$ is the same constant as in \Cref{lemma:5.2}. To show this, it
+    suffices to observe that, for $a_m(x) = a(x/m)$, $u_m(x) = u(x/m)$, and
+    $m>=1$, we have
+    useenv align* {
+        ||(m^2-\Delta)^{n/2}(au)||_p
+        &= m^{n-d/p}||(1-\Delta)^{n/2}(a_mu_m)||_p \\
+        &<= N\bar{a}_mm^{n-d/p}||(1-\Delta)^{n/2}u_m||_p \\
+        &= N\bar{a}_m||(m^2-\Delta)^{n/2}u||_p \\
+        &<= N?(||a||_B + {1//m^{(|n|+\gamma)\land 1}}\bar a)?
+        ||(m^2-\Delta)^{n/2}u||_p.
+    }
+    Alternatively, it would be sufficient for our needs to know that
+    $$
+        ||au||_{n,p} <= N(||a||_B||u||_{n,p} +
+        ||a||_{B^{|n|+\gamma}}||u||_{n-1,p}).
+    $$
+    The author of \cite{Kry0} could not
 }
 
