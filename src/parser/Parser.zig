@@ -363,7 +363,7 @@ fn parseLiteral(self: *Self) Stmt {
     return if (self.doc_state.math_mode)
         Stmt{ .MathLit = self.curr_tok.lit.in_math }
     else
-        Stmt{ .TextLit = self.curr_tok.lit.in_text };
+        Stmt{ .TextLit = CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}) };
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
@@ -1787,7 +1787,7 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     var arg = if (num_args > 0 and self.expect(.current, &.{.Less})) blk: {
-        const tmp = try self.parseParanthesis(.Less, .Great);
+        const tmp = try self.parseParanthesisStmt(.Less, .Great);
         assert(self.expect(.current, &.{.Great}));
         self.nextToken();
         self.eatWhitespaces(false);
@@ -2041,7 +2041,8 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
     return Stmt.NopStmt;
 }
 
-fn parseParanthesis(
+// parse (<stmts>)
+fn parseParanthesisStmt(
     self: *Self,
     comptime open: TokenType,
     comptime closed: TokenType,
@@ -2177,10 +2178,65 @@ fn parseFunctionArgsCore(
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
 }
 
+fn parseParenthesis(self: *Self, span: Span) ParseError!ArrayList(u8) {
+    var inner = Io.Writer.Allocating.init(self.allocator);
+    errdefer inner.deinit();
+
+    if (!self.expect(.current, &.{.Lparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken(); // eat `(`
+
+    var nested: usize = 1;
+    while (switch (self.currToktype()) {
+        .Lparen => blk: {
+            nested += 1;
+            break :blk true;
+        },
+        .Rparen => blk: {
+            nested -= 1;
+            break :blk nested > 0;
+        },
+        else => true,
+    }) : (self.nextToken()) {
+        if (self.currToktype() == .Eof) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .EofErr,
+                .span = span,
+            } });
+            return ParseError.ParseFailed;
+        }
+        try inner.writer.writeAll(self.curr_tok.lit.in_text);
+    }
+
+    if (!self.expect(.current, &.{.Rparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Rparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken(); // eat `)`
+    self.eatWhitespaces(true);
+
+    return inner.toArrayList();
+}
+
 //          ╭─────────────────────────────────────────────────────────╮
 //          │                   Parsing Builtins                      │
 //          ╰─────────────────────────────────────────────────────────╯
-// NOTE: All functions should have a name parseBuiltin_<builtin name>.
+// NOTE: All functions should have a name parseBuiltin_<builtin_name>
+// where <builtin_name> can be found at Token.VESTI_BUILTINS.
 
 fn parseBuiltin_nonstopmode(self: *Self) Stmt {
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
@@ -2269,24 +2325,10 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
     self.nextToken(); // eat `#eq`
     self.eatWhitespaces(false);
 
-    var label = if (self.expect(.current, &.{.Lparen})) blk: {
-        var label_tmp = Io.Writer.Allocating.init(self.allocator);
-        errdefer label_tmp.deinit();
-        self.nextToken(); // eat `(`
-        while (!self.expect(.current, &.{.Rparen})) : (self.nextToken()) {
-            if (self.currToktype() == .Eof) {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EofErr,
-                    .span = eq_block_loc,
-                } });
-                return ParseError.ParseFailed;
-            }
-            try label_tmp.writer.writeAll(self.curr_tok.lit.in_text);
-        }
-        self.nextToken(); // eat `)`
-        self.eatWhitespaces(true);
-        break :blk label_tmp.toArrayList();
-    } else null;
+    var label = if (self.expect(.current, &.{.Lparen}))
+        try self.parseParenthesis(eq_block_loc)
+    else
+        null;
     errdefer if (label) |*l| l.deinit(self.allocator);
 
     self.doc_state.math_mode = true;
@@ -2306,33 +2348,8 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     self.nextToken(); // eat `#label`
     self.eatWhitespaces(false);
 
-    var label = Io.Writer.Allocating.init(self.allocator);
-    errdefer label.deinit();
-
-    if (self.expect(.current, &.{.Lparen})) {
-        self.nextToken(); // eat `(`
-        while (!self.expect(.current, &.{.Rparen})) : (self.nextToken()) {
-            if (self.currToktype() == .Eof) {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EofErr,
-                    .span = label_block_loc,
-                } });
-                return ParseError.ParseFailed;
-            }
-            try label.writer.writeAll(self.curr_tok.lit.in_text);
-        }
-        self.nextToken(); // eat `)`
-        self.eatWhitespaces(true);
-    } else {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .WrongBuiltin = .{
-                .name = "label",
-                .note = "`#label` should have a parameter such as `#label(foo)`",
-            } },
-            .span = label_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
+    var label = try self.parseParenthesis(label_block_loc);
+    errdefer label.deinit(self.allocator);
 
     if (self.currToktype() != .Useenv) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -2349,8 +2366,221 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     errdefer env.deinit();
 
     // add a label
-    env.Environment.label = label.toArrayList();
+    env.Environment.label = label;
     return env;
+}
+
+fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
+    const showfont_loc = self.curr_tok.span;
+    self.nextToken(); // eat `#showfont`
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Lparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken();
+
+    if (!self.expect(.current, &.{.Integer})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "showfont",
+                .note = "only integer values are possible",
+            } },
+            .span = showfont_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "umathchardef",
+                .note = "integer should be in 0 to 255",
+            } },
+            .span = showfont_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+    self.nextToken();
+
+    if (!self.expect(.current, &.{.Rparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Rparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    var output = try ArrayList(u8).initCapacity(self.allocator, 50);
+    errdefer output.deinit(self.allocator);
+    try output.print(
+        self.allocator,
+        " {{\\ttfamily\\expandafter\\meaning\\the\\textfont{d}}}",
+        .{num},
+    );
+
+    return Stmt{ .TextLit = .fromOwnedSlice(try output.toOwnedSlice(self.allocator)) };
+}
+
+const MathClass = enum(u3) {
+    ordinary = 0,
+    largeop = 1,
+    binary = 2,
+    relation = 3,
+    opening = 4,
+    closing = 5,
+    punct = 6,
+    variable = 7,
+};
+
+fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
+    const mchardef_loc = self.curr_tok.span;
+    self.nextToken(); // eat `#umathchardef`
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Period})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Period},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.nextToken();
+
+    if (!self.expect(.current, &.{.Text})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Text},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const kind_txt = self.curr_tok.lit.in_text;
+    const kind_txt_z = try self.allocator.allocSentinel(u8, kind_txt.len + 1, 0);
+    defer self.allocator.free(kind_txt_z);
+
+    kind_txt_z[0] = '.';
+    @memcpy(kind_txt_z[1..], kind_txt);
+
+    const math_class =
+        zon.parse.fromSlice(MathClass, self.allocator, kind_txt_z, null, .{}) catch {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = "umathchardef",
+                    .note =
+                    \\invalid math class was found. Here is the list of math class available:
+                    \\.ordinary  .largeop  .binary  .relation
+                    \\.opening   .closing  .punct   .variable
+                    \\here, the prefix `.` is needed
+                    ,
+                } },
+                .span = mchardef_loc,
+            } });
+            return ParseError.ParseFailed;
+        };
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Integer})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Integer},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const font_num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "umathchardef",
+                .note = "integer should be in 0 to 255",
+            } },
+            .span = mchardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Text})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Text},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    const unicode_codepoint = fmt.parseInt(usize, self.curr_tok.lit.in_text, 16) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "umathchardef",
+                .note = "hexdecimal number expected in the third argument",
+            } },
+            .span = mchardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.LatexFunction})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.LatexFunction},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const latex_function = self.curr_tok.lit.in_text;
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Newline})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "umathchardef",
+                .note = "this builtin must end with the newline",
+            } },
+            .span = mchardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    var output = try ArrayList(u8).initCapacity(self.allocator, 50);
+    errdefer output.deinit(self.allocator);
+    try output.print(
+        self.allocator,
+        "\\Umathchardef{s} {d} {d} \"{X}\n",
+        .{
+            latex_function,
+            @intFromEnum(math_class),
+            font_num,
+            unicode_codepoint,
+        },
+    );
+
+    return Stmt{ .TextLit = .fromOwnedSlice(try output.toOwnedSlice(self.allocator)) };
 }
 
 test "test vesti parser" {

@@ -87,7 +87,7 @@ pub const Stmt = union(enum(u8)) {
     Latex3On,
     Latex3Off,
     ImportExpl3Pkg,
-    TextLit: []const u8,
+    TextLit: CowStr,
     MathLit: []const u8,
     MathCtx: struct {
         state: MathState,
@@ -162,6 +162,7 @@ pub const Stmt = union(enum(u8)) {
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
         switch (self.*) {
+            .TextLit => |*inner| inner.deinit(allocator),
             .DocumentClass => |*inner| {
                 inner.name.deinit(allocator);
                 if (inner.options) |*options| {

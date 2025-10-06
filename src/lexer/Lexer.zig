@@ -365,7 +365,7 @@ pub fn next(self: *Self) Token {
                 self.str2Token(&[1]u8{@intCast(chr)}, &token, start_location);
                 break :tokenize;
             },
-            else => |chr| if (ziglyph.isDecimal(chr)) {
+            else => |chr| if (ziglyph.isAsciiDigit(chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .integer;
@@ -629,12 +629,15 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .integer => if (ziglyph.isDecimal(self.getChar(.current))) {
+        .integer => if (ziglyph.isAsciiDigit(self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .integer;
         } else if (self.getChar(.current) == '.') {
             self.nextChar(1);
             continue :tokenize .float;
+        } else if (ziglyph.isAlphabetic(self.getChar(.current))) {
+            self.nextChar(1);
+            continue :tokenize .text;
         } else {
             token.init(
                 self.source[start_chr0_idx..self.chr0_idx],
@@ -645,7 +648,7 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .float => if (ziglyph.isDecimal(self.getChar(.current))) {
+        .float => if (ziglyph.isAsciiDigit(self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .float;
         } else {
@@ -830,7 +833,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "]",    .{ "]", null, .Rsqbrace } },
     .{ "(",    .{ "(", null, .Lparen } },
     .{ ")",    .{ ")", null, .Rparen } },
-    .{ "{<",   .{ "{>", "\\langle ", .Langle } },
+    .{ "{<",   .{ "{<", "\\langle ", .Langle } },
     .{ ">}",   .{ ">}", "\\rangle ", .Rangle } },
     .{ "\\{",  .{ "\\{", null, .MathLbrace } },
     .{ "\\}",  .{ "\\}", null, .MathRbrace } },
