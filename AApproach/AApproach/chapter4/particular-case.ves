@@ -1,0 +1,555 @@
+We start with the equation
+useenv equation { \label{eq:very-simple-spde}
+    du(t,x) = (\Delta u(t,x) + f(t,x))dt
+    + g^k(t,x)dw_t^k,\quad t>0.
+}
+
+We need a lemma from . Remember that the operators $T_t$ are defined by
+\cref{eq:heat-trans} and, as always, $p>=2$.
+
+useenv lemma { \label{lemma:generalized-littlewood-paley}
+    Let $-oo<=a<b<=oo$, $g\in L_p((a,b)\times\R^d,l_2)$. Then
+    $$
+        \int_{\R^d}\int_a^b?[\int_a^t |\nabla
+        T_{t-s}g(s,\cdot)(x)|_{l_2}^2ds]?^{p/2}dtdx <=
+        N(d,p)\int_{\R^d}\int_a^b|g(t,x)|_{l_2}^pdtdx.
+    $$
+    \proof
+    First of all, assume that $g\in C_0^oo((a,b)\times\R^d,l_2)$.
+    For each $j=1,...,d$ define
+    $$
+        \phi_j(x) \defeq {-x_j//2(4\pi)^{d/2}}e^{-|x|^2/4}.
+    $$
+    Then one can easily checked that
+    $$
+        \nabla T_tg(x) =
+        {1//\sqrt{t}}t^{-d/2}\sum_{j=1}^d[\phi_j(x/\sqrt{t})*g(x)]\bbb{e}_j,
+    $$
+    where $\{\bbb{e}_j\}_1^d$ is the ordered basis of $\R^d$.
+    and $\phi_j$ satisfies all conditions in
+    \cref{sec:generalized-littlewood-paley}. If we define
+    $$
+        \Phi_tg(x) \defeq t^{-d/2}\sum_{j=1}^d[\phi(x/\sqrt{t})*g(x)]\bbb{e}_j
+    $$
+    then by \cref{thm:generalized-littlewood-paley},
+    useenv align* {
+        \int_{\R^d}\int_a^b?[\int_a^t |\nabla
+        T_{t-s}g(s,\cdot)(x)|_{l_2}^2ds]?^{p/2}dtdx
+        &= \int_{\R^d}\int_a^b?[\int_a^t
+        |\Phi_{t-s}g(s,\cdot)(x)|_{l_2}^2{ds//t-s}]?^{p/2}dtdx \\
+        &<= N(d,p)\int_{\R^d}\int_a^b|g(t,x)|_{l_2}^pdtdx.
+    }
+    For any $L_p((a,b)\times\R^d,l_2)$ functions, approximate with smooth
+    functions.
+}
+
+useenv thm { \label{thm:very-simple-spde-sol}
+    Take $f\in\Hb^{-1}_p$, $g\in\Lb_p(l_2)$. Then
+    useenv enumerate [label=(\roman*)] {
+        \item equation \cref{eq:very-simple-spde} with zero initial condition
+        has a unique solution $u\in\Hc_p^1$;
+        \item for this solution, we have
+        useenv equation { \label{eq:thm:very-simple-spde-sol-1}
+            ||u_{xx}||_{\Hb_p^{-1}} <= N(d,p)(||f||_{\Hb_p^{-1}} +
+            ||g||_{\Lb_p(l_2)});
+        }
+        \item for this solution, we have $u\in C_"loc"([0,oo),L_p)$ almost
+        surely, and, for any $\lambda,T>0$,
+        useenv equation { \label{eq:thm:very-simple-spde-sol-2}
+            \Eb\sup_{t<=T}(e^{-p\lambda t}||u(t,\cdot)||_p^p)
+            + \Eb\int_0^Te^{-p\lambda t}||
+            |u|^{(p-2)/p}|u_x|^{2/p}(t,\cdot)||_p^pdt
+            <= N(d,p,\lambda)(||e^{-\lambda t}f||_{\Hb_p^{-1}}^p + ||e^{-\lambda
+            t}g||_{\Lb_p(T,l_2)}^p).
+        }
+    }
+    \proof
+    It is well known that there exists a continuous linear operator
+    $$
+        P : H^{-1}_p -> (L_p)^{d+1}
+    $$
+    such that if $h\in H_p^{-1}$ and $Ph = (h_0,\tilde h^1,...,\tilde h^d)$,
+    then $h = h_0 + "div"\tilde h$ and
+    useenv equation { \label{eq:negative-one-operator}
+        ||\tilde h||_p + ||h_0||_p <= N(d,p)||h||_{-1,p},\quad
+        ||h||_{-1,p} <= N(d,p)\{||\tilde h||_p + ||h_0||_p\}.
+    }
+    
+    Actually, one can take $\tilde h = -\nabla(1-\Delta)^{-1}h$ and $h_0 = h -
+    "div"\tilde h = (1-\Delta)^{-1}h$. Indeed, $||h_0||_p = ||h||_{-2,p} <=
+    ||h||_{-1,p}$. Also, the fact that $\diff/\diff x^j$ is a bounded operator
+    from $H_p^n$ to $H_p^{n+1}$ for any $n$ means that $(\diff/\diff
+    x^i)(1-\Delta)^{-1/2}$ is a bounded operator from $H_p^n$ to $H_p^n$ and
+    $(\diff/\diff x^i)(1-\Delta)^{-1}$ is a bounded operator from $H_p^n$ to
+    $H_p^{n-1}$. This is why $||\tilde h||_p <= N(d,p)||h||_{-1,p}$.
+    On the other hand, $(1-\Delta)^{-1/2}h = (1-\Delta)^{-1/2}h_0 +
+    "div"(1-\Delta)^{-1/2}\tilde h$, and both operators $(1-\Delta)^{-1/2}$ and
+    $"div"(1-\Delta)^{-1/2}$ are bounded on $L_p$.
+
+    Define $(f_0,\tilde f)=Pf$. Then equation \cref{eq:very-simple-spde} takes
+    the form
+    useenv equation { \label{eq:very-simple-spde-alt}
+        du = (\Delta u + f_0 + "div"\tilde f)dt + g^kdw_t^k,
+    }
+    and we supply with zero initial condition. We will prove that, for arbitrary
+    $f_0, \tilde f\in \Lb_p$, our assertion hold for
+    \cref{eq:very-simple-spde-alt} in place of \cref{eq:very-simple-spde}. Of
+    course, in \cref{eq:thm:very-simple-spde-sol-1} and
+    \cref{eq:thm:very-simple-spde-sol-2}, by $f$ we mean $f_0+"div"\tilde f$.\\
+
+    \noindent\bf{[A particular case]} First we consider the case in which
+    useenv equation { \label{eq:thm:simple-functions}
+    useenv aligned {
+        &f_0(t,x) = \sum_{i=1}^m\I_{(\tau_{i-1},\tau_i]}(t)f_{0i}(x),\quad
+        \tilde f(t,x) = \sum_{i=1}^m\I_{(\tau_{i-1},\tau_i]}(t)\tilde
+        f_{i}(x),\\
+        &g(t,x) = \sum_{k=1}^mg^k(t,x)h_k,\quad
+        g^k(t,x) = \sum_{i=1}^m\I_{(\tau_{i-1},\tau_i]}(t)g^{ik}(x),\\
+    }}
+    where $(h_k)_k$ is the standard orthonormal basis in $l_2$, $m < oo$,
+    $\tau_i$ are bounded stopping times, $\tau_{i-1}<=\tau_i$, and
+    $f_{0i},g^{ik}\in C_0^oo$ and $\tilde f_i\in C_0^oo(\R^d,\R^d)$.
+
+    Set
+    $$
+        v(t,x) = \int_0^t g^k(s,x)dw_s^k = \sum_{i,k=1}^m g^{ik}(x)(w^k_{t\land
+        \tau_i} - w^k_{t\land\tau_{i-1}}),
+    $$
+    useenv equation { \label{eq:thm:particular-sol}
+        u(t,x) = v(t,x) + \int_0^t T_{t-s}[\Delta v+f](s,\cdot)(x)ds,\quad
+        \forall t>=0.
+    }
+    
+    The function $u-v$ is infinitely differentiable in $x$, differentiable once
+    in $t$ and satisfies the equation (for any $\omega$)\footnote{
+        The main paper said that $u-v$ is infinitely differentiable in $(t,x)$,
+        but personally thinking, it is an error.
+    }
+    $$
+        {\diff z//\diff t} = \Delta z + \Delta v + f.
+    $$
+    It follows that, for any $x$ and $\omega$, the function $u(t,x)$ satisfies
+    the following form of \cref{eq:very-simple-spde-alt}:
+    useenv equation { \label{eq:stochastic-banach-form}
+        u(t,x) = \int_0^t(\Delta u(s,x) + f(s,x))ds +
+        \sum_{k=1}^m\int_0^tg^k(s,x)dw_s^k.
+    }
+    
+    Next, we want to obtain some bounds on norms of $u$. Let
+    $$
+        u_1(t,x) = \int_0^t T_{t-s}f(s,x)ds.
+    $$
+    Since each $\tilde f_i$ is in $C_0^oo$, we have
+    useenv align* {
+        u_1(t,x)
+        &= \int_0^t T_{t-s}f(s,x)ds \\
+        &= \int_0^t T_{t-s}f_0(s,x)ds
+        + \int_0^t T_{t-s}("div"\tilde f)(s,x)ds \\
+        &= \int_0^t T_{t-s}f_0(s,x)ds
+        + "div"\int_0^t T_{t-s}\tilde f(s,x)ds \\
+        &\eqdef u_{10}(t,x) + "div"\tilde u_1(t,x).
+    }
+
+    According to \cref{thm:2.1} (for any $\omega$),
+    useenv equation { \label{eq:estimate-double-derivative-1}
+    useenv aligned {
+        ||u_{1xx}||_{L_p(\R_+,H_p^{-1})}
+        &<= ||u_{10xx}||_{L_p((0,oo)\times\R^d)}
+        + ||\tilde u_{1xx}||_{L_p((0,oo)\times\R^d)} \\
+        &<= N[||f_{0}||_{L_p((0,oo)\times\R^d)}
+        + ||\tilde f||_{L_p((0,oo)\times\R^d)}] \\
+        &<= N ||f||_{L_p(\R_+,H_p^{-1})}.
+    }}
+    Furthermore, use again that the operators $(\diff/\diff
+    x^i)(1-\Delta)^{-1/2}\kern5pt (=(1-\Delta)^{-1/2}(\diff/\diff x^i))$ are
+    bounded in $L_p$ for any $p>1$. Then
+    useenv equation { \label{eq:estimate-double-derivative-2}
+        ||u_{xx}-u_{1xx}||_{\Hb_p^{-1}}^p
+        <= N||u_{x}-u_{1x}||_{\Lb_p}^p
+        = N\int_0^oo\int_{\R^d}\Eb|u_x - u_{1x}|^p(t,x)dxdt.
+    }
+    To make some further transformations of this formula, consider
+    a bounded Borel function $z^k=z^k(x)$ and
+    $$
+        \xi_r^k = ?(\int_r^tT_{t-s}z^kds)?(w_{r\land\tau_2}^k - w_{r\land\tau_1}^k)
+    $$
+    (with no summation in $k$) as a function of $r$, we obtain (a.s.)
+    $$
+        0 = -\int_0^t(w_{r\land\tau_2}^k - w_{r\land\tau_1}^k)T_{t-r}z^kdr
+        + \int_0^t \I_{(\tau_1,\tau_2]}(r) ?(\int_r^t T_{t-s}z^kds)?dw_r^k.
+    $$
+    By using this for our particular $g$,\footnote{
+        One can also use stochastic Fubini's theorem to obtain it. However,
+        because $g$ is a simple function in the sense that calculating
+        stochastic integral is easy, we can obtain the equality without
+        using the stochastic Fubini's theorem.
+    } we get
+    useenv align* {
+        u_x(t,x) - u_{1x}(t,x)
+        &= v_x(t,x) + \int_0^t T_{t-s}(D_x\Delta v)(s,\cdot)(x)ds \\
+        &= v_x(t,x) + \int_0^t T_{t-s}(\Delta D_xv)(s,\cdot)(x)ds \\
+        &= v_x(t,x) + \sum_{i,k=1}^m
+        \int_0^t (w_{t\land\tau_i}^k - w_{t\land\tau_{i-1}}^k)
+        T_{t-s}(\Delta g_x^{ik})(x)ds \\
+        &= v_x(t,x) + \sum_{i,k=1}^m
+        \int_0^t \I_{(\tau_{i-1},\tau_i]}(r) ?(\int_r^t T_{t-s}(\Delta
+        g_x^{ik})(x)ds)?dw_r^k \\
+        &= v_x(t,x) + \sum_{k=1}^m
+        \int_0^t\int_r^t T_{t-s} [\I_{(\tau_{i-1},\tau_i]}(r)(\Delta
+        g_x^{ik})](x)dsdw_r^k \\
+        &= v_x(t,x) + \sum_{k=1}^m
+        \int_0^t\int_r^t \Delta T_{t-s} g_x^{k}(r,\cdot)(x)dsdw_r^k \\
+        &= v_x(t,x) - \sum_{k=1}^m
+        \int_0^t\int_r^t {\diff//\diff s} T_{t-s} g_x^{k}(r,\cdot)(x)dsdw_r^k \\
+        &= \sum_{k=1}^m \int_0^t T_{t-r} g_x^{k}(r,\cdot)(x)dw_r^k
+        \quad "(a.s.)".
+    }
+    Hence, by the Burkholder--Davis--Gundy's inequality,
+    $$
+        \Eb|u_x - u_{1x}|^p(t,x)
+        <= N\Eb?[\int_0^t \sum_{k=1}^m |T_{t-r}g_x^k(r,x)|^2dr]?^{p/2}
+        = N\Eb?[\int_0^t |T_{t-r}g_x(r,x)|^2_{l_2}dr]?^{p/2}.
+    $$
+    By plugging this into \cref{eq:estimate-double-derivative-2} and applying
+    \cref{lemma:generalized-littlewood-paley}, we obtain
+    $$
+        ||u_{xx}-u_{1xx}||_{\Hb_p^{-1}}^p
+        <= N\Eb\int_0^oo\int_{\R^d}?[\int_0^t |\nabla
+        T_{t-s}g(s,x)|_{l_2}^2ds]?^{p/2}dxdt <= N||g||_{\Lb_p(l_2)}^p.
+    $$
+    This along with \cref{eq:estimate-double-derivative-1} gives us
+    \cref{eq:thm:very-simple-spde-sol-1}. However, we do not know yet that
+    $u\in\Hc_p^1$.
+
+    Our next step is to prove \cref{eq:thm:very-simple-spde-sol-2} for
+    sufficiently large $\lambda$. From \cref{eq:thm:particular-sol} and It\^o's
+    formula,\footnote{
+        Notice that since $p>=2$, we have $D_x|x|^p = p|x|^{p-2}x$, and
+        $D_x^2|x|^p = p(p-1)|x|^{p-2}$ for all $x\in\R$. One can easily obtain
+        by splitting cases $x>=0$ and $x<0$.
+    } for each $x\in\R^d$ (a.s.),
+    useenv align* {
+        |u(t,x)|^pe^{-\lambda t}
+        &= \int_0^t e^{-\lambda s}(p|u|^{p-2}u\Delta u + p|u|^{p-2}uf
+        + {1//2}p(p-1)|u|^{p-2}|g|_{l_2}^2-\lambda|u|^p)(s,x)ds \\
+        &\kern1cm+p\sum_{k=1}^m\int_0^t e^{-\lambda s}|u|^{p-2}ug^k(s,x)dw_s^k.
+    }
+    We integrate with respect to $x$ and use the stochastic Fubini's theorem and
+    the fact that $u(t,x)$, $g(t,x)$, and their derivatives decreases very fast
+    when $|x| ->oo$.\footnote{
+        The case $g$ is clear. For $u$, it is explained in the appendix.
+    } Then we integrate by parts in $\int|u|^{p-2}u\Delta udx$,\footnote{
+        Since $|u| + |u_x| -> 0$ as $|x| -> oo$, we have
+        $
+            \int_{\R^d}|u|^{p-2}u\Delta udx =
+            -(p-1)\int_{\R^d}|u|^{p-2}|u_x|^2dx.
+        $
+    } continuity of the operator $P$, and also notice that, for
+    $q=p/(p-1)$,\footnote{
+        In addition, we use the following inequality:
+        for every $a>=0$ and $b>=0$,
+        $$
+            ab <= {a^p // p} + {b^q //q} <= a^p + b^q,
+        $$
+        where $p\in(1,oo)$ and $q=p/(p-1)$.
+    }
+    $$
+        \int_{\R^d}|u|^{p-2}uf(s,x)dx = -(p-1)\int_{\R^d}|u|^{p-2}u_x\cdot\tilde
+        f(s,x)dx + \int_{\R^d}|u|^{p-2}uf_0(s,x)dx,
+    $$
+    useenv align* {
+        ?|\int_{\R^d}|u|^{p-2}u_x\cdot\tilde f(s,x)dx|?
+        &<= \int_{\R^d}(|u|^{(p-2)/2}|u_x|)^q |u|^{q(p-2)/2}dx + ||\tilde
+        f(s,\cdot)||_p^p \\
+        &<= N||f(s,\cdot)||_{-1,p}^p + (1-{q//2})\eta^{2//q-2}||u(s,\cdot)||_p^p
+        + {q//2}\eta^{2//q}|| |u|^{(p-2)/p}|u_x|^{2/p}(s,\cdot)||_p^p \\
+        &\eqdef N||f(s,\cdot)||_{-1,p}^p + N_1||u(s,\cdot)||_p^p
+        + {1//2}|| |u|^{(p-2)/p}|u_x|^{2/p}(s,\cdot)||_p^p, 
+    }
+    $$
+        \int_{\R^d}|u(s,x)|^{p-2}u(s,x)f_0(s,x)dx
+        <= ||f_0(s,\cdot)||_p^p + ||u(s,\cdot)||_p^p
+        <= N||f(s,\cdot)||_{-1,p}^p + ||u(s,\cdot)||_p^p.
+    $$
+    
+    Combining all these, we have
+    useenv align* {
+        &e^{-\lambda t}||u(t,\cdot)||_p^p
+        + {p(p-1)//2}\int_0^t e^{-\lambda s}|| |u|^{(p-2)/p} |u_x|^{2/p} ||_p^pds
+        + \lambda\int_0^t e^{-\lambda s}||u(s,\cdot)||_p^p ds \\
+        &<=N\int_0^t e^{-\lambda s}[||f(s,\cdot)||_{-1,p}^p +
+        ||g(s,\cdot)||_p^p]ds + [N_1p(p-1)+p+{p(p-1)//2}]\int_0^t e^{-\lambda
+        s}||u(s,\cdot)||_p^pds \\
+        &\kern2cm+p\sum_{k=1}^m\int_0^t e^{-\lambda
+        s}[\int_{\R^d}|u|^{p-2}ug^k(s,x)dx]dw_s^k.
+    }
+    If we let
+    $$
+        G' \defeq p|u|^{p-2}u,\quad G'' \defeq p(p-1)|u|^{p-2},
+    $$
+    one can check that $|G'| = |u|^{p/2}(q|G''|)^{1/2}$.
+    This and the Burkholder--Davis--Gundy's inequalities give
+    useenv align* {
+        &\Eb\sup_{t<=T}?|\sum_{k=1}^m\int_0^t e^{-\lambda
+        s}|u|^{p-2}g^k(s,x)dw_s^k|? \\
+        &\kern2cm<= N(p)\Eb?(\int_0^T\sum_{k=1}^m ?(\int_{\R^d}e^{-\lambda
+        s}|u|^{p-2}ug^k(s,x)dx )?^2 ds )?^{1/2} \\
+        &\kern2cm<= N(p)p^{-1}\Eb?(\int_0^T\sum_{k=1}^m ?(\int_{\R^d}e^{-\lambda s}
+        |G'| |g^k|(s,x)dx )?^2 ds )?^{1/2} \\
+        &\kern2cm<= N(p)p^{-1}\Eb?(\int_0^T\sum_{k=1}^m
+        ?(\int_{\R^d}e^{-\lambda s} |u(s,x)|^pdx)?
+        ?(\int_{\R^d}e^{-\lambda s} q|G''| |g^k|^2(s,x)dx)? ds)?^{1/2} \\
+        &\kern2cm= N(p)\Eb?(\int_0^T e^{-\lambda s}||u(s,\cdot)||_p^p
+        ?(\int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx)? ds)?^{1/2} \\
+        &\kern2cm= N(p)\Eb ?(\sup_{t<=T}e^{-\lambda t}||u(t,\cdot)||_p^p)?^{1/2}
+        ?(\int_0^T 
+        \int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx ds)?^{1/2} \\
+        &\kern2cm<= {1//2p}\Eb\sup_{t<=T}(e^{-\lambda t}||u(t,\cdot)||_p^p)
+        + N_2 \int_0^T \int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx ds \\
+        &\kern2cm<= {1//2p} \Eb\sup_{t<=T}(e^{-\lambda t}||u(t,\cdot)||_p^p)
+        + N_2 \int_0^T 
+        e^{-\lambda s} [||u(s,\cdot)||_p^p + ||g(s,\cdot)||_p^p] ds.
+    }
+
+    Therefore, taking a supremum over $t$ with range $[0,T]$ and applying the
+    expectation, we have the following result:
+    useenv align* {
+        &{1//2}\Eb\sup_{t<=T}(e^{-\lambda t}||u(t,\cdot)||_p^p)
+        + {p(p-1)//2}\Eb\int_0^T e^{-\lambda s}|| |u|^{(p-2)/p} |u_x|^{2/p} ||_p^pds
+        + \lambda\Eb\int_0^T e^{-\lambda s}||u(s,\cdot)||_p^p ds \\
+        &\kern1cm<=N\Eb\int_0^T e^{-\lambda s}[||f(s,\cdot)||_{-1,p}^p +
+        ||g(s,\cdot)||_p^p]ds
+        + [N_1p(p-1) + N_2p+p+{p(p-1)//2}]\Eb\int_0^T e^{-\lambda
+        s}||u(s,\cdot)||_p^pds.
+    }
+
+    Letting $\lambda >= p(p-1)N_1 + N_2p + p + p(p-1)/2$ gives, therefore, the desired
+    inequality.\footnote{
+        Notice that we proved the inequality for sufficiently large $\lambda$.
+        After that, replace $p\lambda$ instead of $\lambda$, and this is
+        legitimate because $p>=2$ (so clearly $p\lambda >= p$).
+    }
+
+    The assertion about the arbitrariness of $\lambda$ in
+    \cref{eq:thm:very-simple-spde-sol-2} can be easily justified by rescaling
+    arguments when instead of $f$, $g$, and $w$ one takes $(c^2f,cg)(c^2t,cx)$
+    and $c^{-1}w_{c^2t}$ and gets $u(c^2t,cx)$ instead of $u(t,x)$.\footnote{
+        For any bounded stopping time $\tau$, one have
+        $$
+            \int_0^{c^2t}\I_{\llo0,\tau\rrc}(s)dw_s
+            = \int_0^{t}\I_{\llo0,\tau\rrc}(c^2s)d\theta_s,
+        $$
+        where $\theta_t = c^{-1}w_{c^2t}$. One can extend this result for any
+        predictable functions.
+    }
+
+    \predisplaypenalty=-100
+    From our explicit formulas and from the particular choice of $f$ and $g$, we
+    have for every positive integer $n$ that
+    $$
+    useenv aligned {
+        ?|| \int_0^t T_{t-s}[\Delta v + f](s,\cdot)ds ||?_{2n,p}
+        &= ?||(1-\Delta)^{n}\int_0^t T_{t-s}[\Delta v + f](s,\cdot)ds ||?_{p} \\
+        &= ?||\int_0^t T_{t-s}[(1-\Delta)^n(\Delta v + f)](s,\cdot)ds ||?_{p} \\
+        &<= \int_0^t ||T_{t-s}[(1-\Delta)^n(\Delta v + f)](s,\cdot)||_p ds \\
+        &= \int_0^t ?||\int_{\R^d} {1//(4\pi(t-s))^{d/2}}e^{-|y|^2//4(t-s)}
+        [(1-\Delta)^n(\Delta v + f)](s,\cdot-y) dy||?_p ds \\
+        &<= \int_0^t \int_{\R^d} {1//(4\pi(t-s))^{d/2}}e^{-|y|^2//4(t-s)}
+        ||[(1-\Delta)^n(\Delta v + f)](s,\cdot-y)||_p dyds \\
+        &= \int_0^t \int_{\R^d} {1//(4\pi(t-s))^{d/2}}e^{-|y|^2//4(t-s)}
+        ||[(1-\Delta)^n(\Delta v + f)](s,\cdot)||_p dyds.
+    }
+    $$
+    \predisplaypenalty=10000
+    By recalling the type of $f$ and $v$, one can easily checked that the last
+    integration is finite, and we have $u(t,\cdot)\in H_p^n$ for any $n$ (and
+    for any $\omega$). Since $u$ is infinitely differentiable in $x$, we have by
+    \cref{eq:stochastic-banach-form},
+    useenv align* {
+        ||u(t,\cdot) - u(s,\cdot)||_{2n,p}
+        &<= \int_{t\land s}^{t\lor s}||\Delta u(a,\cdot) + f(a,\cdot)||_{2n,p}da
+        \\
+        &\kern2cm+ \sum_{i,k=1}^m||g^{ik}||_{2n,p}
+        [|w_{(t\lor s)\land\tau_i}^k - w_{(t\land s)\land\tau_i}^k|
+        + |w_{(t\lor s)\land\tau_{i-1}}^k - w_{(t\land s)\land\tau_{i-1}}^k|] \\
+        &->0
+    }
+    as $s->t$, and thus $u\in C_"loc"([0,oo),H_p^n)$ for every $n$ (and for
+    every $\omega$). This proves (iii).
+
+    From estimates \cref{eq:thm:very-simple-spde-sol-1} and
+    \cref{eq:thm:very-simple-spde-sol-2}, we obtain
+    useenv align* { 
+        ||u||_{\Hb_p^1(T)}   
+        &= \Eb\int_0^T ||(1-\Delta)u(t,\cdot)||_{-1,p}^pdt \\
+        &<= N\Eb\int_0^T [||u(t,\cdot)||_{p}^p + ||u_xx(t,\cdot)||_{-1,p}^p]dt \\
+        &<= N[||u_xx||_{\Hb_p^{-1}}^p +
+        e^T\Eb\sup_{t<=T}(e^{-t}||u(t,\cdot)||_p^p)] < oo,
+    }
+    so that $u\in\bigcap_{T>0}\Hb_p^1(T)$. Furthermore, from the pointwise
+    equation \cref{eq:stochastic-banach-form}, and notice that $\Delta u + f\in
+    \bigcap_{T>0}\Hb_p^{-1}(T)$, we have for every $\phi\in C_0^oo$ that
+    useenv align* {
+        (u(t,\cdot),\phi)
+        &= ?(\int_0^t(\Delta u(s,\cdot) + f(s,\cdot))ds,\phi)?
+        + \sum_{k=1}^m?(\int_0^t g^k(s,\cdot)dw_s^k,\phi)? \\
+        &= ?(\int_0^t(\Delta u(s,\cdot) + f(s,\cdot))ds,\phi)?
+        + \sum_{k=1}^m?(\sum_{i=1}^m (w_{t\land\tau_i}^k -
+        w_{t\land\tau_{i-1}}^k)g^{ik},\phi)? \\
+        &= \int_0^t ((\Delta u(s,\cdot) + f(s,\cdot)), \phi)ds
+        + \sum_{k=1}^m\sum_{i=1}^m (w_{t\land\tau_i}^k -
+        w_{t\land\tau_{i-1}}^k)(g^{ik},\phi) \\
+        &= \int_0^t ((\Delta u(s,\cdot) + f(s,\cdot)), \phi)ds
+        +
+        \sum_{k=1}^m\int_0^t\sum_{i=1}^m(g^{ik},\phi)\I_{(\tau_{i-1},\tau_i]}dw_s^k
+        \\
+        &= \int_0^t ((\Delta u(s,\cdot) + f(s,\cdot)), \phi)ds
+        + \sum_{k=1}^m\int_0^t (g^{k}(s,\cdot),\phi)dw_s^k.
+    }
+    Here, recall that $(\cdot,\phi)$ is an linear transformation on $H_p^{-1}$.
+    Hence $u\in\Hc_p^1$, which proves a part of assertion (i).
+    The uniqueness in (i) follows from the fact that for $f\equiv 0$, $g\equiv
+    0$ we have the heat equation and the uniqueness of its solution in our class
+    of functions is a standard fact. This completes the proof in the case of
+    step functions $f$, $g$. \\ 
+
+    \noindent\bf{[General case]} In the case of general $f$, $g$, we observe
+    that the uniqueness in (i) is proved as above. As far as other assertions
+    are concerned we are going to use \Cref{thm:3.10} and \Cref{remark:3.6}.
+
+    If we consider all functions $f_0$, $\tilde f^i$, $g^k$ as one sequence,
+    then, by \Cref{thm:3.10}, we can approximate them by functions $f_{0j}$,
+    $\tilde f_j^i$, $g_j^k$ of type \cref{eq:thm:simple-functions}. Let $u_j$ be
+    the corresponding solutions of \cref{eq:very-simple-spde-alt}.
+    By the result for the particular case, $(u_j)_j$ is a Cauchy sequence in
+    $\Hc_p^1$, and being Banach space (by \Cref{thm:3.7}, there is a
+    $u\in\Hc_p^1$ to which $u_j$ converges in $\Hc_p^1$. \Cref{remark:3.6} and
+    the convergence $||u_{xx}-u_{jxx}||_{\Hb_p^{-1}}->0$ prove that $\Db u =
+    \Delta u + f$ and $\Sb u = g$. In particular, this proves (i).
+    Assertion (ii) follows from the construction of $u$. From assertion (iii)
+    available in the particular case, we get that $u_j$ is a Cauchy sequence in
+    $L_p(\Omega,C([0,T],L_p))$ for any $T$. Therefore, it converges in this
+    space to a function $\bar u$.
+
+    Notice that for any $T>0$ and $\phi\in C_0^oo$,
+    $$
+        \Eb\sup_{t<=T}|(u_j(t,\cdot),\phi) - (\bar u(t,\cdot),\phi)|
+        <= ||\phi||_q \Eb\sup_{t<=T}||u_j - \bar u||_p -> 0,
+    $$
+    $$
+        \Eb\int_0^T|(u_j(t,\cdot),\phi) - (\bar u(t,\cdot),\phi)|dt
+        <= T||\phi||_q \Eb\sup_{t<=T}||u_j - \bar u||_p -> 0,
+    $$
+    Together this with operators $I$ and $SI$ defined in the proof of
+    \Cref{thm:3.11}, we have for every $\phi\in C_0^oo$ that
+    $$
+        (\bar u(t,\cdot),\phi)
+        = \int_0^t[(\bar u(s,\cdot),\Delta\phi) + (f(s,\cdot),\phi)]ds
+        + \int_0^t (g^k(s,\cdot),\phi)dw_s^k
+    $$
+    for all $t$ (a.s.). Therefore, $u-\bar u$ is a generalized solution of the
+    heat equation with zero initial condition and with bounded $L_p$-norm
+    (a.s.). This implies that $||(u-\bar u)(t,\cdot)||_p=0$ for all $t$ (a.s.),
+    so that $u\in C([0,T],L_p)$ for all $T$ (a.s.).
+    Finally, by \cref{thm:3.7}, we have
+    useenv align* {
+        \int_0^T\int_{\R^d}|\nabla(u-u_j)|^pdxdt
+        &= \int_0^T\int_{\R^d}|\nabla(1-\Delta)^{-1/2}(1-\Delta)^{1/2}(u-u_j)|^pdxdt \\
+        &<= N\int_0^T\int_{\R^d}|(1-\Delta)^{1/2}(u-u_j)|^pdxdt \\
+        &= N\int_0^T ||(u-u_j)(t,\cdot)||_{1,p}^pdt,
+    }
+    $$
+        \Eb\int_0^T ||(u-u_j)(t,\cdot)||_{1,p}^p
+        = ||u_j-u||_{\Hb_p^1(T)} <= N||u_j-u||_{\Hc_p^1}->0.
+    $$
+    This and the H\"older's inequality yield that
+    $$
+        \int_0^T\int_{\R^d}|u_j|^{p-2}|u_{jx}|^2(t,x)dxdt
+        -> \int_0^T\int_{\R^d}|u|^{p-2}|u_{x}|^2(t,x)dxdt
+    $$
+    as $j->oo$ in probability for any $T$.
+
+    By the previous result, one can obtain that $u_j->u$ in
+    $L_p(\Omega,C([0,T],L_p))$ for every $T$. This gives
+    $$
+        \Eb\sup_{t<=T}(e^{-pt\lambda}||u_j(t,\cdot)-u(t,\cdot)||_p^p)
+        <= \Eb\sup_{t<=T} ||u_j(t,\cdot)-u(t,\cdot)||_p^p -> 0.
+    $$
+    Finally, by the Fatou's lemma, we prove
+    \cref{eq:thm:very-simple-spde-sol-2}, and the theorem is proved.
+}
+
+useenv remark {
+    Although \cref{eq:heat-priori-esti} holds for all $p\in(1,oo)$, it follows
+    from \cite{Kry4} that for $p<2$, \Cref{thm:generalized-littlewood-paley} is
+    false even if $d=1$, $H=\R$.
+
+    Define $\psi(x) = -x(4\pi)^{-1/2}\exp(-x^2/4)$ and $f(t,x) =
+    \psi(x)e^{-\lambda t}$ where $\lambda > 0$.
+    One can easily checked that $\psi$ satisfies all conditions in
+    \cref{sec:sharp-maximal}. Then if $\bar\psi=(4\pi)^{1/2}\psi$
+    and recalling that $\Fc(e^{-a|x|^2}) = (2\pi)^{-d/2}e^{-|\xi|^2/(4a)}$,
+    we have\footnote{
+        Notice that our Fourier transform is defined by
+        $$
+            \Fc f(\xi)\defeq {1//(2\pi)^{d/2}}\int_{\R^d}e^{-ix\cdot\xi}f(x)dx.
+        $$
+        Then it is a basic fact that $\Fc(f*g)=(2\pi)^{d/2}\hat f\hat g$,
+        $\Fc(D^\alpha f)(\xi) = (i\xi)^\alpha\hat f(\xi)$, and $D^\alpha\hat
+        f(\xi) = \Fc[(-i\xi)^\alpha f](\xi)$.
+    }
+    useenv align* {
+        \bar\psi(x/\sqrt{t})*\bar\psi(x)
+        &= \sqrt{2\pi}\Fc^{-1}[\Fc(\bar\psi)\Fc(\bar\psi(\cdot/\sqrt{t}))] \\
+        &=
+        \sqrt{2\pi}\Fc^{-1}[\sqrt{t}\hat{\bar\psi}(\sqrt{t}\xi)\hat{\bar\psi}(\xi)]
+        \\
+        &= -8t\sqrt{2\pi}\Fc^{-1}[\xi^2e^{-(t+1)\xi^2}] \\
+        &= 2t\sqrt{\pi}{x^2//(t+1)^{5/2}}\exp?(-{x^2//4(t+1)})?,
+    }
+    $$
+        \Psi_tf(s,x) = t^{-1/2}\psi(x/\sqrt{t})*f(s,x)
+        = t^{-1/2}(4\pi)^{-1}\bar\psi(x/\sqrt{t})*\bar\psi(x)
+        = {\sqrt{t}//2\sqrt{\pi}}{x^2//(t+1)^{5/2}}\exp?(-{x^2//4(t+1)})?.
+    $$
+    
+    Then the left hand side of \cref{eq:glp} multiplyed by $\lambda^{p/2}$ is
+    useenv equation { \label{eq:remark-glp-p-small}
+        \int_{\R}\int_0^b
+        ?[{1//2\sqrt{\pi}}\int_0^t e^{-2\lambda s}{\lambda
+        x^4//(t-s+1)^5}\exp?(-{x^2//2(t-s+1)})?ds]?^{p/2}dtdx.
+    }
+    Here, notice that
+    $$
+        \int_0^t e^{-2\lambda s}{\lambda
+        x^4//(t-s+1)^5}\exp?(-{x^2//2(t-s+1)})?ds
+        <= x^4e^{-x^2/(2(t+1))}
+    $$
+    for every $\lambda >= 1$, and we have
+    useenv align* {
+        \int_\R\int_0^b x^{2p}e^{-px^2/(4(t+1))}dtdx
+        &= 2\int_0^b\int_0^oo x^{2p}e^{-px^2/(4(t+1))}dxdt \\
+        &= 2\int_0^b ?({4(t+1)//p})?^{p-1/2}
+        \int_0^oo x^{p-1/2}e^{-x}dxdt \\
+        &= 2\Gamma(p+1/2)\int_0^b ?({4(t+1)//p})?^{p-1/2}dt \\
+        &< oo.
+    }
+    This allows us to evaluate \cref{eq:remark-glp-p-small} letting
+    $\lambda->oo$ by using the dominated convergence theorem and the theorem
+    related to the convolution,\footnote{
+        Consider $\phi(t)=\I_{t>0}e^{-t}$ and $\phi_\lambda(t) = 2\lambda
+        \I_{t>0}e^{-2\lambda t}$.
+        Since $\int_\R\phi=1$, the well-known fact about convolution property
+        gives the result.
+    } we have
+    $$
+        \int_{\R}\int_0^b
+        ?[{1//4\sqrt{\pi}}{x^4//(t+1)^5}\exp?(-{x^2//2(t+1)})?]?^{p/2}dtdx,
+    $$
+    which is finite and nonzero.
+
+    Thus the left hand side of \cref{eq:glp} is of order $\lambda^{-p/2}$. At
+    the same time the right hand side of \cref{eq:glp} is of order
+    $\lambda^{-1}$, and the former is much bigger than the latter one if
+    $p\in(1,2)$ and $\lambda->oo$.
+}

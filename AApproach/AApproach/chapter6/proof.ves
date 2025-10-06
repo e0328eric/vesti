@@ -1,0 +1,213 @@
+The proof we present here is quite typical for proofs of solvability of
+equations with variable coefficients on the basis of solvability of equations
+with constant ones. The same type of arguments is commonly used in the theory of
+partial differential equations for proving the solvability in Sobolev or
+H\"older spaces. First we need some auxiliary constructions. Fix a $T\in(0,oo)$.
+
+#label(defin:6.1)
+useenv defin {
+    Assume that, for $\omega\in\Omega$ and $t>=0$, we are given operators
+    $$
+        L(t,\cdot) : H_p^{n+2} -> H_p^n,\quad
+        \Lambda(t,\cdot) : H_p^{n+2} -> H_p^{n+1}(\R^d,l_2).
+    $$
+    Assume that
+    useenv enumerate [label=(\roman*)] {
+        \item for any $\omega$ and $t$, the operators $L(t,u)$ and
+        $\Lambda(t,u)$ are continuous (with respect to $u$);
+        \item for any $u\in H_p^{n+2}$, the processes $L(t,u)$ and $\Lambda(t,u)$
+        are predictable.
+        \item for any $\omega\in\Omega$, $t>=0$, and $u\in H_p^{n+2}$, we have
+        $$
+            ||L(t,u)||_{n,p} + ||\Lambda(t,u)||_{n+1,p}
+            <= N_{L,\Lambda}(1+||u||_{n+2,p}),
+        $$
+        where $N_{L,\Lambda}$ is a constant.
+    }
+
+    Then for a function $u\in\Hc_p^{n+2}(T)$, we write
+    $$
+        (L,\Lambda)u = -(f,g)
+    $$
+    if $(f,g)\in\Fc_p^n(T)$, and, in the sense of \Cref{defin:3.5}, for
+    $t\in[0,T]$, we have that $\Db u(t) = L(t,u(t))+f(t)$ and $\Sb u(t) =
+    \Lambda(t,u(t))+g(t)$, or put otherwise
+    $$
+        u(t) = u(0) + \int_0^t (L(s,u(s))+f(s))ds
+        + \int_0^t(\Lambda^k(s,u(s))+g^k(s))dw_s^k\quad "(a.s.)".
+    $$
+}
+
+#label(remark:6.2)
+useenv remark {
+    By virtue of our conditions on $L$ and $\Lambda$, for any
+    $u\in\Hc_p^{n+2}(T)$, we have $(L(u),\Lambda(u))\in\Fc_p^n(T)$. Also,
+    $(L,\Lambda)u = (L(u)-\Db u,\Lambda(u)-\Sb u)$. In particular, the operator
+    $(L,\Lambda)$ \it{is well-defined} on $\Hb_p^{n+2}(T)$, and, as follows
+    easily from \Cref{defin:6.1} (iii),
+    $$
+        ||(L,\Lambda)u)||_{\Fc_p^n(T)}
+        <= (1+2N_{L,\Lambda})||u||_{\Hc_p^{n+2}(T)} + 2N_{T,\Lambda}T^{1/p}.
+    $$
+}
+
+In terms of \Cref{defin:6.1}, \Cref{thm:4.10} has the following version.
+
+#label(thm:6.3)
+useenv thm {
+    Let $a$ and $\sigma$ satisfy the assumptions from the begining of Section 4.
+    Define
+    $$
+        Lu = a^{ij}u_{x^ix^j},\quad \Lambda u = \sigma^{i}u_{x^i}.
+    $$
+    Then the operator $(L,\Lambda)$ is a 1-1 operator from $\Hc_{p,0}^{n+2}(T)$
+    onto $\Fc_p^n(T)$ and the norm of its inverse is less than a constant
+    depending only on $d,p,\delta$, and $K$ \it{(thus independent of $T$)}.
+}
+
+Next, we prove a pertubation result. It needs a proof because we do not allow
+$\epsilon$ to depend on $T$.
+
+#label(thm:6.4) 
+useenv thm {
+    Take the operators $L$ and $\Lambda$ from \Cref{thm:6.3}, and let some
+    operators $L_1$ and $\Lambda_1$ satisfy the requirements from
+    \Cref{defin:6.1}. We assert that there exists a constant $\epsilon\in(0,1)$
+    depending only on $d,p,\delta$, and $K$ such that if, for a constant $K_1$
+    and any $u,v\in H_p^{n+2}$, $t>=0$, $\omega\in\Omega$, we have
+    #eq (eq:6.4.1) {
+        ||L_1(t,u)-L_1(t,v)||_{n,p} + ||\Lambda_1(t,u) - \Lambda(t,v)||_{n+1,p}
+        <= \epsilon||u_{xx} - v_{xx}||_{n,p} + K_1||u-v||_{n+1,p},
+    }
+    then, for any $(f,g)\in\Fc_p^n(T)$, there exists a unique solution
+    $u\in\Hc_{p,0}^{n+2}(T)$ of the equation
+    #eq (eq:6.4.2) {
+        (L+L_1,\Lambda+\Lambda_1)u = -(f,g).
+    }
+    Furthermore, for this solution $u$, we have
+    #eq (eq:6.4.3) {
+        ||u||_{\Hc_p^{n+2}(T)} <=
+        N||(L_1(\cdot,0)+f,\Lambda_1(\cdot,0)+g)||_{\Fc_p^n(T)},
+    }
+    where $N$ depends only on $d,p,\delta,K,K_1$, and $T$ and $N$ is independent
+    of $T$ if $K_1=0$.
+    \proof
+    First notice that, by interpolation theorems\footnote{
+        It uses $||u_x||_p <= \epsilon ||u_{xx}||_p + N(\epsilon)||u||_p$.
+    } $||u||_{n+1,p} <= \epsilon||u_{xx}||_{n,p}+N(\epsilon,d,p)||u||_{n,p}$.
+    Therefore, without loss of generality we assume that instead of
+    \cref{eq:6.4.1} we have
+    $$
+        ||L_1(t,u)-L_1(t,v)||_{n,p} + ||\Lambda_1(t,u) - \Lambda(t,v)||_{n+1,p}
+        <= \epsilon||u_{xx} - v_{xx}||_{n,p} + K_1||u-v||_{n,p}.
+    $$
+
+    Now fix $(f,g)\in\Fc_p^n(T)$. Take $u\in\Hc_{p,0}^{n+2}(T)$, observe that
+    $(L_1(u),\Lambda_1(u))\in\Fc_p^n(T)$, and, by using \Cref{thm:6.3}, define
+    $v\in\Hc_{p,0}^{n+2}(T)$ as the unique solution of the equation
+    $(L,\Lambda)v = -(f+L_1(u),g+\Lambda(u))$. By denoting $v=Ru$, we define an
+    operator $R:\Hc_{p,0}^{n+2}(T)->\Hc_{p,0}^{n+2}(T)$. \Cref{eq:6.4.2} is
+    equivalent to the equation $u=Ru$. Therefore, to prove the existence and the
+    uniqueness of solutions to \Cref{eq:6.4.2}, if suffices to show that, for
+    an integer $m>0$, the operator $R^m$ is a contraction in
+    $\Hc_{p,0}^{n+2}(T)$.\footnote{
+        Indeed, if $X$ is a Banach space, $f:X->X$ a function such that
+        there exists an integer $m>0$ such that $f^m$ is a contraction, then $f$
+        is also has a unique fixed point. Indeed, let $x$ be a unique fixed
+        point of $f^m$ (because it is a contraction). Notice that
+        $$
+            f^m(fx) = f^{m+1}x = f(f^m x) = fx,
+        $$
+        so that $fx$ is also a fixed point of $f^m$. By the uniqueness,
+        therefore, we have $fx = x$.
+    }
+
+    By \Cref{thm:6.3}, for $t<=T$,
+    useenv align* {
+        ||Ru - Rv||_{\Hc_p^{n+2}(t)}^p
+        &<= N||(L_1(u)-L_1(v),\Lambda_1(u)-\Lambda_1(v))||_{\Fc_p^n(t)}^p \\
+        &<= N_0\epsilon ||u - v||_{\Hc_p^{n+2}(t)}^p
+        + N_0K_1^p\int_0^t \Eb||u(s) - v(s)||_{n,p}^pds,
+    }
+    with a constant $N_0$ depending only on $d,p,\delta$, and $K$. This gives
+    the desired result if $K_1=0$ by taking $\epsilon$ sufficiently small.
+    Also, in case estimate \cref{eq:6.4.3} follows obviously with $N$
+    independent of $T$.
+
+    In the general case, by \Cref{thm:3.7},
+    $$
+        \Eb||u(s) - v(s)||_{n,p}^p <= N_1||u-v||_{\Hc_p^{n+2}(s)}^p,
+    $$
+    where $s<=T$ and $N_1$ depends only on $d,p$, and $T$. It follows that, for
+    $t<=T$ and $\theta\defeq N_0\epsilon^p$, we have
+    $$
+        ||Ru-Rv||_{\Hc_p^{n+2}(t)}^p
+        <= \theta||u-v||_{\Hc_p^{n+2}(t)}^p
+        + N_2\int_0^t ||u-v||_{\Hc_p^{n+2}(s)}^pds,
+    $$
+    where $N_2$ depends only on $d,p,\delta,K,K_1$, and $T$. Now we are going to
+    use the following fact. For a integrable function $h$ on $[0,oo)$, if we
+    define
+    $$
+        I_\alpha h(x) \defeq {1//\Gamma(\alpha)}\int_0^x(x-t)^{\alpha-1}h(t)dt,
+    $$
+    where $x>=0$ and $\alpha>0$, then $D^nI_nh = h$ for every positive integer
+    $n$. Hence, by induction,
+    useenv align* {
+        ||R^mu - R^mv||_{\Hc_p^{n+2}(t)}^p
+        &<= \theta^m||u-v||_{\Hc_p^{n+2}(t)}^p
+        + \sum_{k=1}^m
+        \binom{m}{k}\theta^{m-k}N_2^k\int_0^t{(t-s)^{k-1}//(k-1)!}||u-v||_{\Hc_p^{n+2}(s)}^pds,
+        \\
+        ||R^mu - R^mv||_{\Hc_p^{n+2}(T)}^p
+        &<=
+        \sum_{k=0}^m\binom{m}{k}\theta^{m-k}{1//k!}(TN_2)^k||u-v||_{\Hc_p^{n+2}(T)}^p
+        <=2^m\theta^m\max_k{1//k!}(TN_2/\theta)^k||u-v||_{\Hc_p^{n+2}(T)}^p.
+    }
+    This allows us to find $\epsilon$ depending only on $d,p,\delta$, and $K$
+    and $m$ depending on the same things plus $K_1$ and $T$, so that $R^m$ is a
+    contraction in $\Hc_{p,0}^{n+2}(T)$ with coefficient $1/2$. Of course, this
+    yields all our assertions.
+}
+
+We finish our preparations by showing how \Cref{lemma:5.2} will be used.
+
+#label(remark:6.5)
+useenv remark {
+    To some extent, in what follows, the most important consequence of assertion
+    (i) of \Cref{lemma:5.2} is that if $\bar a = ||a||_{B^{|n|+\gamma}}<oo$,
+    then there exists a new norm $\lfooo\cdot\rfooo_{n,p}$ in $H_p^n$ such that
+    $$
+        \lfooo au\rfooo_{n,p} <= 2N||a||_B\lfooo u\rfooo_{n,p}
+        \quad (||a||_B = \sup_{x\in\R^d}|a(x)|),
+    $$
+    where $N$ is the same constant as in \Cref{lemma:5.2}. To show this, it
+    suffices to observe that, for $a_m(x) = a(x/m)$, $u_m(x) = u(x/m)$, and
+    $m>=1$, we have
+    useenv align* {
+        ||(m^2-\Delta)^{n/2}(au)||_p
+        &= m^{n-d/p}||(1-\Delta)^{n/2}(a_mu_m)||_p \\
+        &<= N\bar{a}_mm^{n-d/p}||(1-\Delta)^{n/2}u_m||_p \\
+        &= N\bar{a}_m||(m^2-\Delta)^{n/2}u||_p \\
+        &<= N?(||a||_B + {1//m^{(|n|+\gamma)\land 1}}\bar a)?
+        ||(m^2-\Delta)^{n/2}u||_p.
+    }
+    Alternatively, it would be sufficient for our needs to know that
+    $$
+        ||au||_{n,p} <= N(||a||_B||u||_{n,p} +
+        ||a||_{B^{|n|+\gamma}}||u||_{n-1,p}).
+    $$
+}
+
+Now we perform the main step in proving \Cref{thm:sol-the-spde-nonlin}.
+
+#label(lemma:6.6)
+useenv lemma {
+    Let \Cref{assump:5-1,assump:5-3,assump:5-4,assump:5-5} be satisfied.
+    Then there exists $\epsilon=\epsilon(d,p,n,\gamma,\delta,K)>0$ such that if
+    $\tau=T$ and
+    #enum ((\roman*)) {
+        \item inequality \cref{eq:uniform-continuity}
+    }
+}
+

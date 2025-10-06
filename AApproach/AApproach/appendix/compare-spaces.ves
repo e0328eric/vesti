@@ -1,0 +1,36 @@
+Define two spaces
+$$
+    \bar H_p^{1,2}(T) := \{u = u(t,x) : ||u||_{1,2,p}^p \defeq
+    \int_0^T?||{\diff u // \diff t}(t,\cdot)||?_p^pdt
+    + \int_0^T ||u(t,\cdot)||_{2,p}^pdt < oo\},
+$$
+$$
+    \tilde H_p^{1,2}(T) := \{u : u(t,x) = u(0,x) + \int_0^t f(s,x)ds,\
+    u,u_x,u_{xx},f\in L_p((0,T)\times\R^d)\}.
+$$
+In this section, we shall show that two definitions are same.
+Fix $u\in\tilde H_p^{1,2}(T)$ first and take $f$ in the definition of $\tilde
+H_p^{1,2}(T)$. Since $f\in L_p((0,T)\times\R^d)$, there exists a Lebesgue
+measurable set $E\subset\R^d$ such that $|\R^d--E|=0$ and for each $x\in E$,
+$$
+    \int_0^T f(s,x)ds <= T^{1-1/p}||f(\cdot,x)||_{L_p((0,T))} < oo.
+$$
+Hence by the fundamental theorem of calculus, for every $\phi\in C_0^oo((0,T))$
+and $x\in E$,
+$$
+    \int_0^T \phi'(t)u(t,x)dt
+    = u(0,x)\int_0^T \phi'(t)dt + \int_0^T\int_0^t f(s,x)\phi'(t)dsdt
+    = -\int_0^T \phi(t)f(t,x)dt.
+$$
+This yields that $(\diff/\diff t)u(\cdot,x) = f(\cdot,x)$ for each $x\in E$.
+As $f\in L_p((0,T)\times\R^d)$, this therefore implies $u\in\bar H_p^{1,2}(T)$.
+
+Conversely, if $u\in\bar H_p^{1,2}(T)$, fix $t\in(0,T)$ and apply Corollary
+11.7.5 in \cite{Kry1} to obtain that for any $\phi\in C_0^oo$,
+$$
+    \int_{\R^d}\phi(x)[u(t,x) - u(0,x)]dx =
+    \int_{\R^d}\phi(x)\int_0^t{\diff//\diff t}u(s,x)dsdx,
+$$
+which implies $u(t,x) - u(0,x) = \int_0^t u_t(s,x)ds$ (a.e.) $x$, and this
+proves $u\in\tilde H_p^{1,2}(T)$.
+
