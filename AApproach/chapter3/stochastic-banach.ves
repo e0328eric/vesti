@@ -42,12 +42,13 @@ $$
     ||(f,g)||_{\Fc_p^n(\tau)} \defeq ||f||_{\Hb_p^n(\tau)} +
     ||g||_{\Hb_p^{n+1}(\tau,l_2)}.
 $$
-useenv defin { \label{defin:3.1}
+#label(defin:3.1)
+useenv defin {
     For a $\Dc$-valued function $u\in\bigcap_{T>0}\Hb_p^n(\tau\land T)$, we
     write $u\in\Hc_p^n(\tau)$ if $u_{xx}\in\Hb_p^{n-2}(\tau)$, $u(0,\cdot)\in
     L_p(\Omega,\Fc_0,H_p^{n-2/p})$, and there exists $(f,g)\in\Fc_p^{n-2}(\tau)$
     such that, for any $\phi\in C_0^oo$, the equality
-    useenv equation { \label{eq:3.1.1}
+    #eq (eq:3.1.1) {
         (u(t,\cdot),\phi)
         = (u(0,\cdot),\phi) + \int_0^t (f(s,\cdot),\phi)ds
         + \sum_{k=1}^oo\int_0^t (g^k(s,\cdot),\phi)dw_s^k
@@ -55,7 +56,7 @@ useenv defin { \label{defin:3.1}
     holds for all $t<=\tau$ with probability 1.
     We also define $\Hc_{p,0}^n(\tau)\defeq
     \Hc_p^n(\tau)\cap\{u:u(0,\cdot)=0\}$,
-    useenv equation { \label{eq:3.1.2}
+    #eq (eq:3.1.2) {
         ||u||_{\Hc_p^n(\tau)}
         \defeq ||u_{xx}||_{\Hb_p^{n-2}(\tau)}
         + ||(f,g)||_{\Fc_p^{n-2}(\tau)} + (\Eb||u(0,\cdot)||_{n-2/p,p}^p)^{1/p}.
@@ -74,7 +75,8 @@ useenv remark {
     $(u(t,\cdot),\phi)\in\bigcap_{T>0}L_p(\llo0,\tau\land T\rrc,\Pc)$.
 }
 
-useenv remark { \label{remark:3.2}
+#label(remark:3.2)
+useenv remark {
     It is worth nothing that the elements of $\Hc_p^n(\tau)$ are assumed to be
     define for $(\omega,t)$ and take values in $\Dc$. Obviously, $\Hc_p^n(\tau)$
     is a linear space. As usual, we identify two elements $u_1$ and $u_2$ of
@@ -146,7 +148,7 @@ useenv remark {
     $$
         |(u(0,\cdot),h)| <= ||h||_{2/p-n,q}||u(0,\cdot)||_{n-2/p,p},
     $$
-    useenv equation { \label{eq:3.3.2}
+    #eq (eq:3.3.2) {
         \sup_{t<=\tau\land T}?|\int_0^t (f(s,\cdot),h)ds|?
         <= ||h||_{2-n,q}\int_0^{\tau\land T} ||f(s,\cdot)||_{n-2,p}ds.
     }
@@ -170,7 +172,7 @@ useenv remark {
         -> (u(t,\cdot),\phi) - (u(0,\cdot),\phi) - \int_0^t (f(s,\cdot),\phi)ds
     $$
     uniformly in $t$ on $[0,\tau\land T]$. We \it{define}
-    useenv equation { \label{eq:uni-def}
+    #eq (eq:uni-def) {
         \sum_{k=1}^oo\int_0^t(g^k(s,\cdot),\phi)w_s^k
         \defeq \lim_{n->oo} ?[(u(t,\cdot),\phi_n)
         - (u(0,\cdot),\phi_n) - \int_0^t(f(s,\cdot),\phi_n)ds]?
@@ -195,12 +197,11 @@ useenv remark {
     Proposition IV.1.2 of \cite{Yor}).
 
     Fix a constant $T\in (0,oo)$. What we get is for each $\phi\in C_0^oo$,
-    useenv equation { \label{eq:3.3.1}
+    #eq (eq:3.3.1) {
         \int_0^t (f(s,\cdot),\phi)ds = 0,\quad
         \sum_{k=1}^oo \int_0^t (g^k(s,\cdot),\phi)dw_s^k = 0\quad
         \forall t<=\tau\land T\ "(a.s.)".
     }
-
     This inequality and \cref{eq:3.3.1} implies that for every $h\in H_q^{2-n}$,
     $\int_0^t(f(s,\cdot),h)ds=0$ holds for all $t<=\tau\land T$ with full probability.
     Notice that the Bessel potential space $H_p^n$ is
@@ -222,7 +223,7 @@ useenv remark {
     $t<=\tau\land T$ on $E$, and this implies that $f = 0$ on
     $\Hb_p^{n-2}(\tau\land T)$. As $T$ is arbitrary, we have $f = 0$ on
     $\Hb_p^{n-2}(\tau)$.
-    
+
     Since sum of stochastic integrals part converges uniformly, by the
     Burkholder--Davis--Gundy inequalities together with \cref{eq:3.3.1} implies
     that for each $\phi\in C_0^oo$,
@@ -239,7 +240,8 @@ useenv remark {
     $||u||_{\Hc_p^n(\tau)}$ in \cref{eq:3.1.2} makes sense.
 }
 
-useenv remark { \label{remark:3.4}
+#label(remark:3.4)
+useenv remark {
     It is known that the operator $(1-\Delta)^{m/2}$ makes isometrically $H_p^n$
     onto $H_p^{n-m}$ for any $n,m$. Recall that the norm on $\Hb_p^n(\tau)$ is
     defined by
@@ -250,7 +252,7 @@ useenv remark { \label{remark:3.4}
     isometrically $\Hb_p^n(\tau)$ onto $\Hb_p^{n-m}(\tau)$.
     Similarly recall that
     $$
-        ||u||_{\Hb_p^n(\tau,l_2)}^p 
+        ||u||_{\Hb_p^n(\tau,l_2)}^p
         := \Eb\int_{\llo0,\tau\rrc}|| |(1-\Delta)^{n/2}u(t,\cdot)|_{l_2} ||_{p}^pdt.
     $$
     This implies that $(1-\Delta)^{m/2}$ maps isometrically $\Hb_p^n(\tau,l_2)$ onto
@@ -266,7 +268,8 @@ useenv remark { \label{remark:3.4}
     isometrically $\Hc_p^n(\tau)$ onto $\Hc_p^{n-m}(\tau)$ for any $n$, $m$.
 }
 
-useenv defin { \label{defin:3.5}
+#label(defin:3.5)
+useenv defin {
     For $u\in\Hc_p^n(\tau)$, if \cref{eq:3.1.1} holds, then we write $f=\Db u$,
     $g=\Sb u$ (for ``deterministic'' and ``stochastic'' parts of $u$) and we
     also write
@@ -276,7 +279,8 @@ useenv defin { \label{defin:3.5}
     $$
 }
 
-useenv remark { \label{remark:3.6}
+#label(remark:3.6)
+useenv remark {
     It follows from \cref{defin:3.1,defin:3.5} that the operators $\Db$ and
     $\Sb$ are continuous operators from $\Hc_p^n(\tau)$ to $\Hb_p^{n-2}(\tau)$
     and $\Hb_p^{n-1}(\tau,l_2)$ respectively. From \cref{thm:4.2} and
@@ -286,13 +290,14 @@ useenv remark { \label{remark:3.6}
     $H_p^{1,2}(T)\subset\Hc_p^2(T)$.
 }
 
-useenv thm { \label{thm:3.7}
+#label(thm:3.7)
+useenv thm {
     \postdisplaypenalty=0
     The spaces $\Hc_p^n(\tau)$ and $\Hc_{p,0}^n(\tau)$ are Banach spaces with
     norm \cref{eq:3.1.2}.
     In addition if $\tau<=T$, where $T$ is a finite constant, then for
     $u\in\Hc_p^n(\tau)$
-    useenv equation { \label{eq:3.7.1}
+    #eq (eq:3.7.1) {
         ||u||_{\Hb_p^n(\tau)} <= N(d,T)||u||_{\Hc_p^n(\tau)},\quad
         \Eb\sup_{t<=\tau}||u(t,\cdot)||_{n-2,p}^p <= N(d,T)||u||_{\Hc_p^n(\tau)}^p.
     }
@@ -304,7 +309,7 @@ useenv thm { \label{thm:3.7}
         <= ||u||_{\Hb_p^{n-2}(\tau)} + ||u||_{\Hc_p^n(\tau)},
     $$
     so that to prove \cref{eq:3.7.1} we only need to prove that
-    useenv equation { \label{eq:3.7.2}
+    #eq (eq:3.7.2) {
         \Eb\sup_{t<=\tau}||u(t,\cdot)||_{n-2,p}^p <= N(d,T)||u||_{\Hc_p^n(\tau)}^p.
     }
     Indeed, we have
@@ -324,13 +329,13 @@ useenv thm { \label{thm:3.7}
     Observe that $u^{(\epsilon)}(x)$ is continuous (infinitely differentiable)
     function of $x$ for any distribution $u$. Plugging $\zeta_\epsilon(x-\cdot)$
     instead of $\phi$ in \cref{eq:3.3.1}, we get that  for any $x$ the equality
-    useenv equation { \label{eq:3.7.1}
+    #eq (eq:3.7.3) {
         u^{(\epsilon)}(t,x) = u^{(\epsilon)}(0,x)
         + \int_0^t f^{(\epsilon)}(s,x)ds + \sum_{k=1}^oo\int_0^t
         g^{(\epsilon)k}(s,x)dw_s^k
     }
     holds almost surely for all $t<=\tau$. If necessary, we redefine the
-    stochastic integrals in \cref{eq:3.7.1} in a such way that \cref{eq:3.7.1}
+    stochastic integrals in \cref{eq:3.7.3} in a such way that \cref{eq:3.7.3}
     would hold for all $\omega$, $t$, and $x$ such that $t<=\tau$. Here
     $$
         \Eb||u^{(\epsilon)}(0,\cdot)||_p^p
@@ -380,7 +385,8 @@ useenv remark {
 We also need the following properties of the spaces $\Hc_p^n(\tau)$ and
 $\Hb_p^n(\tau)$.
 
-useenv thm { \label{thm:3.10}
+#label(thm:3.10)
+useenv thm {
     Take $g\in\Hb_p^n(l_2)$. Then there exists a sequence $g_j\in\Hb_p^n(l_2)$,
     $j=1,2,...$, such that $||g-g_j||_{\Hb_n^p(l_2)}->0$ as $j->oo$ and
     $$
@@ -449,7 +455,8 @@ useenv thm { \label{thm:3.10}
     contradiction because $h!=0$. This proves the lemma. \proved
 }
 
-useenv thm { \label{thm:3.11}
+#label(thm:3.11)
+useenv thm {
     Let $T\in(0,oo)$. If $u_j\in\Hc_p^n(T)$, $j=1,2,...$, and
     $||u_j||_{\Hc_p^n(T)}<=K$, where $K$ is a finite constant, then there
     exists a subsequence $j'$ and a function $u\in\Hc_p^n(T)$ such that
@@ -533,7 +540,7 @@ useenv thm { \label{thm:3.11}
     Hence both operators are (strongly) continuous in each spaces. Since every strongly
     continuous operator is weakly continuous, we have that, for any $\phi\in
     C_0^oo$,
-    useenv equation { \label{eq:3.11.1}
+    #eq (eq:3.11.1) {
         (u(t,\cdot),\phi) = (u_0,\phi) + \int_0^t (f(s,\cdot),\phi)ds
         + \sum_{k=1}^oo\int_0^t (g^k(s,\cdot),\phi)dw_s^k
     }
@@ -604,4 +611,3 @@ useenv thm { \label{thm:3.11}
     }
     which proves (iii) and the theorem.
 }
-

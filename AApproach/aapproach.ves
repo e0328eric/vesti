@@ -1,20 +1,4 @@
-% This is a comment. vesti also supports multiline comments
-%*
- * Like this
- *%
-%*
- * `compty` tells to vesti transpiler to compile vesti with specified backend.
- * possible inputs are `plain`, `pdf`, `xe`, `lua`, and `tect`.
- *%
 %compty (tect)
-
-% It copy-paste contents $CONFIG/vesti/coprime.
-% Here, $CONFIG is defined by
-% linux / macos : ~/.config
-% windows : %APPDATA%
-%
-% Also, one can download coprime in here:
-% url: https://github.com/e0328eric/coprime.git
 importmod (coprime)
 docclass coprime (10pt, item, geometry, fancy, tikz)
 
@@ -47,7 +31,13 @@ importves (font.ves)
 \crefname{Assumption}{\lowercase{Assumption}}{\lowercase{Assumption}}
 \Crefname{Assumption}{Assumption}{Assumption}
 
+#umathchardef .opening 0 29d8 \lfooo
+#umathchardef .closing 0 29D9 \rfooo
+
 startdoc
+defun [r] defeq {\coloneq}
+defun [r] eqdef {\eqcolon}
+
 \fancyon
 \tableofcontents
 

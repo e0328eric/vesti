@@ -23,7 +23,7 @@ space, and $l_2$ means that instead of real-valued functions we consider
 $l_2$-valued ones.
 
 Consider the following nonlinear equation on $[0,\tau]$:
-useenv equation { \label{eq:the-spde-nonlin}
+#eq (eq:the-spde-nonlin) {
     du(t,x) = [a^{ij}(t,x)u_{x^ix^j}(t,x) + f(u,t,x)]dt
     + [\sigma^{ik}(t,x)u_{x^i}(t,x) + g^k(u,t,x)]dw_t^k,
 }
@@ -39,11 +39,12 @@ $i,j=1,...,d$.\footnote{
 We consider this equation in the sense of \Cref{defin:3.5} (where we take $n+2$
 instead of $n$).
 We make the following assumptions, where, as in Section 4, we define
-useenv equation { \label{eq:define-alpha}
+#eq (eq:define-alpha) {
     \alpha^{ij}(t,x) = {1//2}(\sigma^i(t,x),\sigma^j(t,x))_{l_2}.
 }
 
-useenv assump [coercivity] { \label{assump:5-1}
+#label(assump:5-1)
+useenv assump [coercivity] {
     For any $\omega\in\Omega$, $t>=0$, $x,\lambda\in\R^d$, we have
     $$
         K|\lambda|^2 >= [a^{ij}(t,x) - \alpha^{ij}(t,x)]\lambda^i\lambda^j
@@ -52,9 +53,10 @@ useenv assump [coercivity] { \label{assump:5-1}
     where $K,\delta$ are fixed strictly positive constants.
 }
 
-useenv assump [uniform continuity of $a$ and $\sigma$] { \label{assump:5-2}
+#label(assump:5-2)
+useenv assump [uniform continuity of $a$ and $\sigma$] {
     For any $\epsilon>0,i,j$, there exists a $\kappa_\epsilon>0$ such that
-    useenv equation { \label{eq:uniform-continuity}
+    #eq (eq:uniform-continuity) {
         |a^{ij}(t,x) - a^{ij}(t,y)| + |\sigma^i(t,x) - \sigma^i(t,y)|_{l_2}^2
         <=\epsilon
     }
@@ -65,7 +67,8 @@ This assumption is actually used only if $n=0$, and even then we need a stronger
 condition on $\sigma$. For other values of $n$ we impose stronger conditions on
 $a$ and $\sigma$.
 
-useenv assump { \label{assump:5-3}
+#label(assump:5-3)
+useenv assump {
     For any $i,j,k$, the functions $a^{ij}(t,x)$ and $\sigma^{ik}(t,x)$ are
     real-valued $\Pc\otimes\Bf(\R^d)$-measurable functions, and for any
     $\omega\in\Omega$ and $t>=0$, we have
@@ -75,13 +78,15 @@ useenv assump { \label{assump:5-3}
     $$
 }
 
-useenv assump { \label{assump:5-4}
+#label(assump:5-4)
+useenv assump {
     For any $u\in H_p^{n+2}$, the functions $f(u,t,\cdot)$ and $g(u,t,\cdot)$ are
     predictable as functions taking values in $H_p^n$ and $H_p^{n+1}(\R^d,l_2)$,
     respectively.
 }
 
-useenv assump { \label{assump:5-5}
+#label(assump:5-5)
+useenv assump {
     For any $t>=0,\omega,i,j$,
     $$
         ||a^{ij}(t,\cdot)||_{B^{|n|+\gamma}} +
@@ -90,11 +95,12 @@ useenv assump { \label{assump:5-5}
     $$
 }
 
-useenv assump { \label{assump:5-6}
+#label(assump:5-6)
+useenv assump {
     The functions $f$, $g$ are continuous in $u$. Moreover, for any
     $\epsilon>0$, there exists a constant $K_\epsilon$ such that, for any
     $u,v\in H_p^{n+2},t,\omega$, we have
-    useenv equation { \label{eq:uniform-continuity-2}
+    #eq (eq:uniform-continuity-2) {
         ||f(u,t,\cdot) - f(v,t,\cdot)||_{n,p}
         + ||g(u,t,\cdot) - g(v,t,\cdot)||_{n+1,p}
         <= \epsilon||u-v||_{n+2,p}
@@ -102,7 +108,8 @@ useenv assump { \label{assump:5-6}
     }
 }
 
-useenv thm { \label{thm:sol-the-spde-nonlin}
+#label(thm:sol-the-spde-nonlin)
+useenv thm {
     Let \Cref{assump:5-1} through \Cref{assump:5-6} be satisfied and let
     $$
         u_0 \in L_p(\Omega,\Fc_0,H_p^{n+2-2/p}).
@@ -257,18 +264,18 @@ useenv remark {
     }
     To describe the appropriate assumptions, we take $\epsilon\in(0,1)$ and
     denote
-    useenv center {%-
+    useenv center {%#
     \leavevmode\vbox{\halign{&\tabskip=1em$#$\hfil&if#&$#$\hfil\tabskip=2em\cr
         n_b = n+\gamma && n\geq 0, & n_b = 0 && n\in(-1,0],\cr
         n_\nu = n+1+\gamma && n\geq -1, & n_\nu = 0 && n\in(-2,-1],\cr
         n_c = n+\gamma && n\geq 0, & n_c = 0 && n\in(-2,0],\cr
-    }}-%}
-    useenv center {%-
+    }}#%}
+    useenv center {%#
     \leavevmode\vbox{\halign{&\tabskip=1em$#$\hfil&if#&$#$\hfil\tabskip=2em\cr
         n_b = -n-1+\epsilon && n\leq -1,\cr
         n_\nu = -n-2+\epsilon && n\leq -2,\cr
         n_c = -n-2+\epsilon && n\leq -2.\cr
-    }}-%}
+    }}#%}
 
     Assume that $b$, $c$, and $\nu$ are appropriately measurable and
     $$
@@ -451,6 +458,9 @@ Before starting the following corollary, take the functions $\zeta_k$ from
 \Cref{lemma:5.2} and, for a function $h=h(u,t,x)$ defined for $t>=0$,
 $x\in\R^d$, and $u$ in a function space, let
 useenv equation { \label{eq:hat-conv}
-    \hat h_m(u,t,x) = \int_{\R^d}h(u(\cdot+y),t,x-y)\zeta_m(y)dy.
+    \hat{h}_m(u,t,x) = \int_{\R^d}h(u(\cdot+y),t,x-y)\zeta_m(y)dy.
 }
-To get a better idea about
+To get a better idea about this definition, notice that if, for instance,
+$h(u,t,x)=c(t,x)u(t,x)$, where $c(t,x)$ is a given function, then
+$h(u(\cdot+y),t,x-y) = c(t,x-y)u(t,x)$, so that $\hat{h}_m(u,t,x) =
+c_m(t,x)u(t,x)$ with $c_m(t,\cdot) = c(t,\cdot)*\zeta_m$.

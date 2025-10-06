@@ -1,4 +1,4 @@
-useenv thm {
+useenv thm { \label{thm:4.10}
     Take $n\in\R$ and let $f\in\Hb_p^{n-1}$, $g\in\Hb_p^n(l_2)$. Then
     useenv enumerate [label=(\roman*)] {
         \item equation \cref{eq:simp-spde} with zero initial condition has a

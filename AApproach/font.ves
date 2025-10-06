@@ -22,13 +22,13 @@ importpkg {
     Extension = .ttf,
 ]
 
-\Umathchardef\diff "0 "0 "2202
+#umathchardef .ordinary 0 2202 \diff
 \def\thefootnote{(\roman{footnote})}
 
 defun defeq {\coloneq}
 defun eqdef {\eqcolon}
-defun [r] Re {mthmd{\mathop{"Re"}}}
-defun [r] Im {mthmd{\mathop{"Im"}}}
+defun [r] Re {#mathmode{\mathop{"Re"}}}
+defun [r] Im {#mathmode{\mathop{"Im"}}}
 defun I {\bbb{1}}
 defun llo {\lParen}
 defun rro {\rParen}

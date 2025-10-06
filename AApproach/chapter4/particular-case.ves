@@ -333,7 +333,15 @@ useenv thm { \label{thm:very-simple-spde-sol}
     The assertion about the arbitrariness of $\lambda$ in
     \cref{eq:thm:very-simple-spde-sol-2} can be easily justified by rescaling
     arguments when instead of $f$, $g$, and $w$ one takes $(c^2f,cg)(c^2t,cx)$
-    and $c^{-1}w_{c^2t}$ and gets $u(c^2t,cx)$ instead of $u(t,x)$.
+    and $c^{-1}w_{c^2t}$ and gets $u(c^2t,cx)$ instead of $u(t,x)$.\footnote{
+        For any bounded stopping time $\tau$, one have
+        $$
+            \int_0^{c^2t}\I_{\llo0,\tau\rrc}(s)dw_s
+            = \int_0^{t}\I_{\llo0,\tau\rrc}(c^2s)d\theta_s,
+        $$
+        where $\theta_t = c^{-1}w_{c^2t}$. One can extend this result for any
+        predictable functions.
+    }
 
     \predisplaypenalty=-100
     From our explicit formulas and from the particular choice of $f$ and $g$, we
@@ -355,12 +363,19 @@ useenv thm { \label{thm:very-simple-spde-sol}
     \predisplaypenalty=10000
     By recalling the type of $f$ and $v$, one can easily checked that the last
     integration is finite, and we have $u(t,\cdot)\in H_p^n$ for any $n$ (and
-    for any $\omega$).
-    useenv center {
-        \bf{\color{red}[Why $u\in C_"loc"([0,oo),H_p^n)$ for any $n$ (and for any
-    $\omega$)?]}
+    for any $\omega$). Since $u$ is infinitely differentiable in $x$, we have by
+    \cref{eq:stochastic-banach-form},
+    useenv align* {
+        ||u(t,\cdot) - u(s,\cdot)||_{2n,p}
+        &<= \int_{t\land s}^{t\lor s}||\Delta u(a,\cdot) + f(a,\cdot)||_{2n,p}da
+        \\
+        &\kern2cm+ \sum_{i,k=1}^m||g^{ik}||_{2n,p}
+        [|w_{(t\lor s)\land\tau_i}^k - w_{(t\land s)\land\tau_i}^k|
+        + |w_{(t\lor s)\land\tau_{i-1}}^k - w_{(t\land s)\land\tau_{i-1}}^k|] \\
+        &->0
     }
-    This proves (iii).
+    as $s->t$, and thus $u\in C_"loc"([0,oo),H_p^n)$ for every $n$ (and for
+    every $\omega$). This proves (iii).
 
     From estimates \cref{eq:thm:very-simple-spde-sol-1} and
     \cref{eq:thm:very-simple-spde-sol-2}, we obtain

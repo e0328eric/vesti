@@ -19,19 +19,21 @@ the space $H_p^{1,2}(T)$ is Banach.
 
 Before dive into the SPDE theory, we want to discuss the deterministic
 counterpart of \cref{eq:the-spde}
-useenv equation { \label{eq:para-pde}
+#eq (eq:para-pde) {
     {\diff u//\diff t} = Lu + f
 }
 with zero initial condition. We can prove the existence and uniqueness of the
 equation in the following way. First, for the simplest equation
-useenv equation { \label{eq:heat-eq}
+#eq (eq:heat-eq) {
     {\diff u // \diff t} = \Delta u + f,
 }
 its solvability in $H_p^{1,2}(T)$ is proved by means of explicit formulas and
 some estimates of heat potentials, provided that $f\in L_p(T)$. Below theorem
 is proved in \cite{LSU} but the spaces in the theorem stated is are different.
 For details, see the appendix.
-useenv thm { \label{thm:2.1}
+
+#label(thm:2.1)
+useenv thm {
     For any $f\in L_p(T)$ and $u_0\in H_p^{2-2/p}$\footnote{
         Actually, this is wrong. See appendix.
     } there exists a unique
@@ -78,7 +80,7 @@ See the appendix for more information.
 Now the guess is natural that a stochastic counterpart $\Hc_p^2(T)$ of the
 spaces $H_p^{1,2}(T)$ could be the space of functions $u=u(\omega,t,x)$ such
 that
-useenv equation { \label{eq:stochastic-banach}
+#eq (eq:stochastic-banach) {
     u(t,x) = u(0,x) + \int_0^t f(s,x)ds + \sum_k\int_0^t g^k(s,x)dw_s^k,
 }
 $$

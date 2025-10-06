@@ -16,7 +16,7 @@ $$
 $$
 However in this paper, we will introduce another definition by using semigroup.
 Define a family of operators $T_t$ in $L_p$ for $t\in[0,oo)$ by
-useenv equation { \label{eq:heat-trans}
+#eq (eq:heat-trans) {
     T_0 \equiv I,\quad
     T_tf(x) \defeq {1//(4\pi t)^{d/2}}\int_{\R^d}f(y)e^{-{1//4t}|x-y|^2}dy
     \eqdef \int_{\R^d}f(y)p_t(x-y)dy.
@@ -34,14 +34,14 @@ $$
 by Theorem 13.1 and Theorem 14.10 of \cite{Kra}. On the other hand, notice that
 $A^{-1} = (1-\Delta)^{-1}$ (see \cite{Kry1}).
 Therefore we can \it{define} $(1-\Delta)^{-\alpha}$ for $\alpha>0$ by
-useenv equation { \label{eq:fractional-lap-1}
+#eq (eq:fractional-lap-1) {
     (1-\Delta)^{-\alpha}u
     \defeq {1//\Gamma(\alpha)}\int_0^oo t^\alpha e^{-t}T_tu{dt//t},\quad
     \forall u\in C_0^oo.
 }
 In addition by \cite{Yosida}, we can also \it{define} $(1-\Delta)^\alpha$ for
 $\alpha\in(0,1)$ by
-useenv equation { \label{eq:fractional-lap-2}
+#eq (eq:fractional-lap-2) {
     (1-\Delta)^\alpha u
     \defeq {1//\Gamma(-\alpha)}\int_0^oo {e^{-t}T_tu-u//t^\alpha}{dt//t}, \quad
     \forall u\in C_0^oo.
