@@ -402,15 +402,10 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .multiline_comment;
             },
-            '#' => {
-                self.nextChar(1);
+            '#' => if (self.getChar(.peek1) == '#') {
+                self.nextChar(2);
                 start_chr0_idx = self.chr0_idx;
                 continue :tokenize .line_verbatim;
-            },
-            '-' => if (self.getChar(.peek1) == '#') {
-                self.nextChar(2);
-                self.str2Token("%-#", &token, start_location);
-                break :tokenize;
             } else {
                 self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
@@ -687,7 +682,7 @@ pub fn next(self: *Self) Token {
             self.nextChar(1);
             continue :tokenize .multiline_comment;
         },
-        .verbatim => if (self.getChar(.current) == '-' and
+        .verbatim => if (self.getChar(.current) == '#' and
             self.getChar(.peek1) == '%')
         {
             token.init(
@@ -873,7 +868,6 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "\"",   .{ "\"", null, .DoubleQuote } },
     .{ "...",  .{ "...", "\\cdots ", .CenterDots } },
     .{ "oo",   .{ "oo", "\\infty ", .InfinitySym } },
-    .{ "%-#",  .{ "", "", TokenType.deprecated(false, "%#") } },
     // zig fmt: on
 });
 

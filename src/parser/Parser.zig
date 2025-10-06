@@ -919,8 +919,11 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
     }
 
     // this code runs if `attr` is an invalid attribute name
+    std.debug.print("FOO: {s}\n", .{builtin_fnt});
     self.diagnostic.initDiagInner(.{ .ParseError = .{
-        .err_info = .{ .InvalidBuiltin = builtin_fnt },
+        .err_info = .{
+            .InvalidBuiltin = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
+        },
         .span = builtin_location,
     } });
     return ParseError.ParseFailed;

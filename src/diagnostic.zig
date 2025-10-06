@@ -281,7 +281,7 @@ pub const ParseDiagnostic = struct {
         TextmodeInText,
         MathmodeInMath,
         Deprecated: []const u8,
-        InvalidBuiltin: []const u8,
+        InvalidBuiltin: CowStr,
         WrongBuiltin: struct {
             name: []const u8,
             note: []const u8,
@@ -305,6 +305,7 @@ pub const ParseDiagnostic = struct {
 
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
+                .InvalidBuiltin => |*inner| inner.deinit(allocator),
                 .JlLabelNotFound => |*inner| inner.deinit(allocator),
                 .JlEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
@@ -456,7 +457,7 @@ pub const ParseDiagnostic = struct {
                 .{ val, @sizeOf(usize) },
             ),
             .InvalidBuiltin => |builtin_fnt| try aw.writer.print(
-                "builtin `#{s}` is not defined",
+                "builtin `#{f}` is not defined",
                 .{builtin_fnt},
             ),
             .WrongBuiltin => |builtin_fnt| try aw.writer.print(
