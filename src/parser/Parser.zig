@@ -2415,7 +2415,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     const num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "umathchardef",
+                .name = "showfont",
                 .note = "integer should be in 0 to 255",
             } },
             .span = showfont_loc,
@@ -2446,6 +2446,74 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     return Stmt{ .TextLit = .fromArrayList(output) };
 }
 
+fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
+    const chardef_loc = self.curr_tok.span;
+    self.nextToken(); // eat `#chardef`
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{ .Text, .Integer })) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{ .Text, .Integer },
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    const unicode_codepoint = fmt.parseInt(usize, self.curr_tok.lit.in_text, 16) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "chardef",
+                .note = "hexdecimal number expected in the third argument",
+            } },
+            .span = chardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.LatexFunction})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.LatexFunction},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const latex_function = self.curr_tok.lit.in_text;
+    self.nextToken();
+    self.eatWhitespaces(false);
+
+    if (!self.expect(.current, &.{.Newline})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "chardef",
+                .note = "this builtin must end with the newline",
+            } },
+            .span = chardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    var output = try ArrayList(u8).initCapacity(self.allocator, 50);
+    errdefer output.deinit(self.allocator);
+    try output.print(
+        self.allocator,
+        "\\chardef{s}=\"{X}\n",
+        .{
+            latex_function,
+            unicode_codepoint,
+        },
+    );
+
+    return Stmt{ .TextLit = .fromArrayList(output) };
+}
+
 const MathClass = enum(u3) {
     ordinary = 0,
     largeop = 1,
@@ -2457,9 +2525,9 @@ const MathClass = enum(u3) {
     variable = 7,
 };
 
-fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
+fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     const mchardef_loc = self.curr_tok.span;
-    self.nextToken(); // eat `#umathchardef`
+    self.nextToken(); // eat `#mathchardef`
     self.eatWhitespaces(false);
 
     if (!self.expect(.current, &.{.Period})) {
@@ -2495,7 +2563,7 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
         zon.parse.fromSlice(MathClass, self.allocator, kind_txt_z, null, .{}) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = "umathchardef",
+                    .name = "mathchardef",
                     .note =
                     \\invalid math class was found. Here is the list of math class available:
                     \\.ordinary  .largeop  .binary  .relation
@@ -2523,7 +2591,7 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
     const font_num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "umathchardef",
+                .name = "mathchardef",
                 .note = "integer should be in 0 to 255",
             } },
             .span = mchardef_loc,
@@ -2547,7 +2615,7 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
     const unicode_codepoint = fmt.parseInt(usize, self.curr_tok.lit.in_text, 16) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "umathchardef",
+                .name = "mathchardef",
                 .note = "hexdecimal number expected in the third argument",
             } },
             .span = mchardef_loc,
@@ -2574,7 +2642,7 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
     if (!self.expect(.current, &.{.Newline})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "umathchardef",
+                .name = "mathchardef",
                 .note = "this builtin must end with the newline",
             } },
             .span = mchardef_loc,
@@ -2586,7 +2654,7 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
     errdefer output.deinit(self.allocator);
     try output.print(
         self.allocator,
-        "\\Umathchardef{s} {d} {d} \"{X}\n",
+        "\\Umathchardef{s}={d} {d} \"{X}\n",
         .{
             latex_function,
             @intFromEnum(math_class),
