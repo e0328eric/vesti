@@ -37,10 +37,12 @@ prev_curr_tok: Token,
 prev_peek_tok: Token,
 already_rewinded: bool,
 doc_state: DocState,
+enum_depth: u8,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
 allow_jlcode: bool,
-engine: ?*LatexEngine,
+current_engine: LatexEngine,
+engine_ptr: ?*LatexEngine,
 
 const Self = @This();
 
@@ -98,7 +100,9 @@ pub fn init(
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
     allow_jlcode: bool,
-    engine: ?*LatexEngine,
+    engine: anytype,
+    //current_engine: LatexEngine,
+    //engine: ?*LatexEngine,
 ) !Self {
     var self: Self = undefined;
 
@@ -108,10 +112,21 @@ pub fn init(
     self.peek_tok = self.lexer.next();
     self.already_rewinded = false;
     self.doc_state = DocState{};
+    self.enum_depth = 0;
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
     self.allow_jlcode = allow_jlcode;
-    self.engine = engine;
+
+    const typeinfo = @typeInfo(@TypeOf(engine));
+    comptime assert(typeinfo == .@"struct");
+    comptime assert(typeinfo.@"struct".is_tuple);
+
+    self.engine_ptr = engine[0];
+    if (@TypeOf(engine[0]) == *LatexEngine) {
+        self.current_engine = engine[0].*;
+    } else {
+        self.current_engine = engine[1];
+    }
 
     return self;
 }
@@ -919,7 +934,6 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
     }
 
     // this code runs if `attr` is an invalid attribute name
-    std.debug.print("FOO: {s}\n", .{builtin_fnt});
     self.diagnostic.initDiagInner(.{ .ParseError = .{
         .err_info = .{
             .InvalidBuiltin = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
@@ -2026,8 +2040,9 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    if (self.engine) |e| {
+    if (self.engine_ptr) |e| {
         e.* = engine;
+        self.current_engine = engine;
     } else {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .DoubleUsed = .CompileType },
@@ -2037,7 +2052,7 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
     }
 
     // tells to parser that `compty` keyword is already used
-    self.engine = null;
+    self.engine_ptr = null;
     return Stmt.NopStmt;
 }
 
@@ -2428,7 +2443,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
         .{num},
     );
 
-    return Stmt{ .TextLit = .fromOwnedSlice(try output.toOwnedSlice(self.allocator)) };
+    return Stmt{ .TextLit = .fromArrayList(output) };
 }
 
 const MathClass = enum(u3) {
@@ -2580,7 +2595,101 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
         },
     );
 
-    return Stmt{ .TextLit = .fromOwnedSlice(try output.toOwnedSlice(self.allocator)) };
+    return Stmt{ .TextLit = .fromArrayList(output) };
+}
+
+fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
+    const enum_loc = self.curr_tok.span;
+
+    // TODO: without using `enumitem`, the maximum depth of enum is 4.
+    if (self.enum_depth >= 5) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "enum",
+                .note = "`#enum` builtin cannot be nested more than four times",
+            } },
+            .span = enum_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    // increment enum depth
+    self.enum_depth += 1;
+
+    self.nextToken(); // eat `#enum`
+    self.eatWhitespaces(false);
+
+    var label_kind = if (self.expect(.current, &.{.Lparen}))
+        try self.parseParenthesis(enum_loc)
+    else
+        null;
+    defer if (label_kind) |*l| l.deinit(self.allocator);
+
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit(self.allocator);
+
+    const env = Stmt{ .Environment = .{
+        .name = CowStr.init(.Borrowed, .{"enumerate"}),
+        .args = .empty,
+        .inner = inner.Braced.inner,
+    } };
+
+    var output_inner = try ArrayList(Stmt).initCapacity(self.allocator, 5);
+    errdefer output_inner.deinit(self.allocator);
+
+    if (label_kind) |lk| {
+        // TODO: indexOf -> findPos
+        if (mem.indexOf(u8, lk.items, "**") != null) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = "enum",
+                    .note = "consequtive `*` is not allowed",
+                } },
+                .span = enum_loc,
+            } });
+            return ParseError.ParseFailed;
+        }
+
+        var reset_label = Io.Writer.Allocating.init(self.allocator);
+        errdefer reset_label.deinit();
+
+        try reset_label.writer.print("\\renewcommand{{\\{s}}}{{", .{switch (self.enum_depth) {
+            1 => "labelenumi",
+            2 => "labelenumii",
+            3 => "labelenumiii",
+            4 => "labelenumiv",
+            else => unreachable,
+        }});
+
+        var iter = mem.splitScalar(u8, lk.items, '*');
+        while (iter.next()) |s| {
+            try reset_label.writer.writeAll(s);
+            if (iter.peek() == null) break;
+            try reset_label.writer.print("{{{s}}}", .{switch (self.enum_depth) {
+                1 => "enumi",
+                2 => "enumii",
+                3 => "enumiii",
+                4 => "enumiv",
+                else => unreachable,
+            }});
+        }
+        try reset_label.writer.writeAll("}\n");
+
+        try output_inner.append(
+            self.allocator,
+            Stmt{ .TextLit = .fromArrayList(reset_label.toArrayList()) },
+        );
+    }
+
+    try output_inner.append(self.allocator, env);
+
+    // back to the previous state of enum depth
+    self.enum_depth -= 1;
+
+    return Stmt{ .Braced = .{
+        .unwrap_brace = true,
+        .inner = output_inner,
+    } };
 }
 
 test "test vesti parser" {

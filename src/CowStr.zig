@@ -109,6 +109,10 @@ pub const CowStr = union(CowStrState) {
         }
     }
 
+    pub fn fromArrayList(arr_list: ArrayList(u8)) Self {
+        return @unionInit(Self, "Owned", arr_list);
+    }
+
     pub fn fromOwnedSlice(owned_str: []u8) Self {
         const inner = ArrayList(u8).fromOwnedSlice(owned_str);
         return @unionInit(Self, "Owned", inner);

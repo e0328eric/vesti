@@ -187,7 +187,7 @@ export fn parseVesti(
         &cwd_dir,
         &diagnostic,
         false, // disallow nested jlcode
-        null, // disallow changing engine type
+        .{ null, ves_jl.engine }, // disallow changing engine type
     ) catch |err| {
         std.debug.print(
             "parse init failed because of {s}\n",

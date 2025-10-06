@@ -340,7 +340,7 @@ pub fn vestiToLatex(
         &vesti_file_dir,
         diagnostic,
         true,
-        engine,
+        .{engine},
     );
 
     var ast = parser.parse() catch |err| switch (err) {

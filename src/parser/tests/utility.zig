@@ -27,7 +27,7 @@ pub fn expect(
         undefined,
         &diagnostic,
         false, // disallow jlcode for testing
-        null, // disallow changing latex engine type
+        .{ null, .pdflatex }, // disallow changing latex engine type
     );
 
     var ast = parser.parse() catch |err| switch (err) {
