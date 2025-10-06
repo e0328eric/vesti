@@ -2518,10 +2518,10 @@ fn parseBuiltin_umathchardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    if (!self.expect(.current, &.{.Text})) {
+    if (!self.expect(.current, &.{ .Text, .Integer })) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Text},
+                .expected = &.{ .Text, .Integer },
                 .obtained = self.currToktype(),
             } },
             .span = self.curr_tok.span,
