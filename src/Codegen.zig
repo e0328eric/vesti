@@ -77,14 +77,7 @@ fn codegenStmt(
     writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
-        //.DefunParamLit => |ctx| try writer.print("{f}", .{ctx.value}),
         .NopStmt => {},
-        .NonStopMode => try writer.writeAll("\n\\nonstopmode\n"),
-        .MakeAtLetter => try writer.writeAll("\n\\makeatletter\n"),
-        .MakeAtOther => try writer.writeAll("\n\\makeatother\n"),
-        .Latex3On => try writer.writeAll("\n\\ExplSyntaxOn\n"),
-        .Latex3Off => try writer.writeAll("\n\\ExplSyntaxOff\n"),
-        .ImportExpl3Pkg => try writer.writeAll("\\usepackage{expl3, xparse}\n"),
         .TextLit => |ctx| try writer.print("{f}", .{ctx}),
         .MathLit => |ctx| try writer.writeAll(ctx),
         .MathCtx => |math_ctx| {

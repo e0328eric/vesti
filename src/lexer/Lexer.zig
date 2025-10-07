@@ -574,20 +574,15 @@ pub fn next(self: *Self) Token {
         } else {
             const lexed_text = self.source[start_chr0_idx..self.chr0_idx];
             if (Token.VESTI_KEYWORDS.get(lexed_text)) |toktype| {
-                switch (toktype) {
-                    .MakeAtLetter => self.make_at_letter = true,
-                    .MakeAtOther => self.make_at_letter = false,
-                    .Latex3On => self.is_latex3_on = true,
-                    .Latex3Off => self.is_latex3_on = false,
-                    else => {},
-                }
                 token.init(lexed_text, null, toktype, start_location, self.location);
             } else {
                 token.init(lexed_text, null, .Text, start_location, self.location);
             }
             break :tokenize;
         },
-        .builtin_function => if (ziglyph.isAlphaNum(self.getChar(.current))) {
+        .builtin_function => if (ziglyph.isAlphaNum(self.getChar(.current)) or
+            self.getChar(.current) == '_')
+        {
             self.nextChar(1);
             continue :tokenize .builtin_function;
         } else {

@@ -230,49 +230,6 @@ fn eatWhitespaces(self: *Self, comptime handle_newline: bool) void {
 
 fn parseStatement(self: *Self) ParseError!Stmt {
     return switch (self.currToktype()) {
-        .MakeAtLetter => blk: {
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.MakeAtLetter;
-        },
-        .MakeAtOther => blk: {
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.MakeAtOther;
-        },
-        .ImportLatex3 => if (self.isPremiere()) blk: {
-            self.doc_state.latex3_included = true;
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.ImportExpl3Pkg;
-        } else {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .PremiereErr,
-                .span = self.curr_tok.span,
-            } });
-            return ParseError.ParseFailed;
-        },
-        .Latex3On => if (self.doc_state.latex3_included) blk: {
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.Latex3On;
-        } else {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{
-                    .IllegalUseErr = "must use `useltx3` to use this keyword",
-                },
-                .span = self.curr_tok.span,
-            } });
-            return ParseError.ParseFailed;
-        },
-        .Latex3Off => if (self.doc_state.latex3_included) blk: {
-            if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-            break :blk Stmt.Latex3Off;
-        } else {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{
-                    .IllegalUseErr = "must use `useltx3` to use this keyword",
-                },
-                .span = self.curr_tok.span,
-            } });
-            return ParseError.ParseFailed;
-        },
         .BuiltinFunction => |builtin_fnt| self.parseBuiltins(builtin_fnt),
         .Docclass => blk: {
             break :blk if (self.isPremiere())
@@ -348,7 +305,6 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             try self.parseTextInMath(true)
         else
             self.parseLiteral(),
-        .GetFilePath => try self.parseFilepath(),
         .ImportVesti => try self.parseImportVesti(),
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
@@ -941,169 +897,6 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
         .span = builtin_location,
     } });
     return ParseError.ParseFailed;
-}
-
-// <return>[1] points <return>[0]
-fn parseFilepathHelper(
-    self: *Self,
-    left_parn_loc: Span,
-) ParseError!struct { ArrayList(u8), []const u8 } {
-    var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
-    errdefer file_path_str.deinit(self.allocator);
-
-    var inside_config_dir = false;
-    var parse_very_first_chr = false;
-
-    while (true) {
-        assert(self.expect(.peek, &.{
-            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-        }));
-        const chr = self.peek_tok.toktype.RawChar.chr;
-        const chr_str = self.peek_tok.lit.in_text;
-
-        if (chr == ')') {
-            break;
-        } else if (chr_str.len == 1 and std.ascii.isWhitespace(chr_str[0])) {
-            self.nextRawToken();
-            continue;
-        } else if (!parse_very_first_chr and chr == '@') {
-            inside_config_dir = true;
-            self.nextRawToken();
-
-            if (self.peek_tok.toktype.RawChar.chr != '/') {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{
-                        .IllegalUseErr = "The next token for `@` should be `/`",
-                    },
-                    .span = left_parn_loc,
-                } });
-                return ParseError.ParseFailed;
-            }
-            continue;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .IsNotClosed = .{
-                    .open = &.{.Lparen},
-                    .close = .Rparen,
-                } },
-                .span = left_parn_loc,
-            } });
-            return ParseError.ParseFailed;
-        } else {
-            @branchHint(.likely);
-            try file_path_str.appendSlice(self.allocator, chr_str);
-        }
-        parse_very_first_chr = true;
-        self.nextRawToken();
-    }
-    self.nextToken();
-
-    const file_path_str_raw = try file_path_str.toOwnedSlice(self.allocator);
-    defer self.allocator.free(file_path_str_raw);
-    if (inside_config_dir) {
-        const config_path = try getConfigPath(self.allocator);
-        defer self.allocator.free(config_path);
-        try file_path_str.print(
-            self.allocator,
-            "{s}/{s}",
-            .{ config_path, mem.trim(u8, file_path_str_raw, " \t") },
-        );
-    } else if (path.isAbsolute(file_path_str_raw)) {
-        try file_path_str.print(
-            self.allocator,
-            "{s}",
-            .{mem.trim(u8, file_path_str_raw, " \t")},
-        );
-    } else {
-        try file_path_str.print(
-            self.allocator,
-            "./{s}",
-            .{mem.trim(u8, file_path_str_raw, " \t")},
-        );
-    }
-
-    return .{ file_path_str, fs.path.basename(file_path_str.items) };
-}
-
-// NOTE: This special function is needed because of following zig compiler bug:
-// - https://github.com/ziglang/zig/issues/5973
-// - https://github.com/ziglang/zig/issues/24324 [closed]
-// After these are resolved, remove this function
-inline fn preventBug(s: *const volatile Span) void {
-    _ = s;
-}
-
-fn parseFilepath(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.GetFilePath})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.GetFilePath},
-                .obtained = self.currToktype(),
-            } },
-            .span = import_file_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lparen, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
-
-    if (!self.expect(.current, &.{.Lparen})) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lparen},
-                .obtained = self.currToktype(),
-            } },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    const left_parn_loc = self.curr_tok.span;
-    preventBug(&left_parn_loc);
-    var file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
-    defer file_name_str.deinit(self.allocator);
-
-    const filepath_diff = path.relative(
-        self.allocator,
-        VESTI_DUMMY_DIR,
-        file_name_str.items,
-    ) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            self.allocator,
-            import_file_loc,
-            "cannot get the relative path from {s} to {s}",
-            .{
-                VESTI_DUMMY_DIR,
-                file_name_str.items,
-            },
-        );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return ParseError.ParseFailed;
-    };
-    errdefer self.allocator.free(filepath_diff);
-
-    // why windows path separator is not a slash??
-    return if (builtin.os.tag == .windows) blk: {
-        const filepath_diff_win = try self.allocator.alloc(u8, filepath_diff.len);
-        errdefer self.allocator.free(filepath_diff_win);
-        _ = mem.replace(u8, filepath_diff, "\\", "/", filepath_diff_win);
-
-        // we do not need filepath_diff anymore in here
-        self.allocator.free(filepath_diff);
-        break :blk Stmt{
-            .FilePath = .fromOwnedSlice(filepath_diff_win),
-        };
-    } else Stmt{
-        .FilePath = .fromOwnedSlice(filepath_diff),
-    };
 }
 
 fn parseCopyFile(self: *Self) ParseError!Stmt {
@@ -2247,6 +2040,96 @@ fn parseParenthesis(self: *Self, span: Span) ParseError!ArrayList(u8) {
     return inner.toArrayList();
 }
 
+// <return>[1] points <return>[0]
+fn parseFilepathHelper(
+    self: *Self,
+    left_parn_loc: Span,
+) ParseError!struct { ArrayList(u8), []const u8 } {
+    var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
+    errdefer file_path_str.deinit(self.allocator);
+
+    var inside_config_dir = false;
+    var parse_very_first_chr = false;
+
+    while (true) {
+        assert(self.expect(.peek, &.{
+            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
+        }));
+        const chr = self.peek_tok.toktype.RawChar.chr;
+        const chr_str = self.peek_tok.lit.in_text;
+
+        if (chr == ')') {
+            break;
+        } else if (chr_str.len == 1 and std.ascii.isWhitespace(chr_str[0])) {
+            self.nextRawToken();
+            continue;
+        } else if (!parse_very_first_chr and chr == '@') {
+            inside_config_dir = true;
+            self.nextRawToken();
+
+            if (self.peek_tok.toktype.RawChar.chr != '/') {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{
+                        .IllegalUseErr = "The next token for `@` should be `/`",
+                    },
+                    .span = left_parn_loc,
+                } });
+                return ParseError.ParseFailed;
+            }
+            continue;
+        } else if (chr == 0) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .IsNotClosed = .{
+                    .open = &.{.Lparen},
+                    .close = .Rparen,
+                } },
+                .span = left_parn_loc,
+            } });
+            return ParseError.ParseFailed;
+        } else {
+            @branchHint(.likely);
+            try file_path_str.appendSlice(self.allocator, chr_str);
+        }
+        parse_very_first_chr = true;
+        self.nextRawToken();
+    }
+    self.nextToken();
+
+    const file_path_str_raw = try file_path_str.toOwnedSlice(self.allocator);
+    defer self.allocator.free(file_path_str_raw);
+    if (inside_config_dir) {
+        const config_path = try getConfigPath(self.allocator);
+        defer self.allocator.free(config_path);
+        try file_path_str.print(
+            self.allocator,
+            "{s}/{s}",
+            .{ config_path, mem.trim(u8, file_path_str_raw, " \t") },
+        );
+    } else if (path.isAbsolute(file_path_str_raw)) {
+        try file_path_str.print(
+            self.allocator,
+            "{s}",
+            .{mem.trim(u8, file_path_str_raw, " \t")},
+        );
+    } else {
+        try file_path_str.print(
+            self.allocator,
+            "./{s}",
+            .{mem.trim(u8, file_path_str_raw, " \t")},
+        );
+    }
+
+    return .{ file_path_str, fs.path.basename(file_path_str.items) };
+}
+
+// NOTE: This special function is needed because of following zig compiler bug:
+// - https://github.com/ziglang/zig/issues/5973
+// - https://github.com/ziglang/zig/issues/24324 [closed]
+// After these are resolved, remove this function
+inline fn preventBug(s: *const volatile Span) void {
+    _ = s;
+}
+
 //          ╭─────────────────────────────────────────────────────────╮
 //          │                   Parsing Builtins                      │
 //          ╰─────────────────────────────────────────────────────────╯
@@ -2255,7 +2138,71 @@ fn parseParenthesis(self: *Self, span: Span) ParseError!ArrayList(u8) {
 
 fn parseBuiltin_nonstopmode(self: *Self) Stmt {
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-    return Stmt.NonStopMode;
+    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\nonstopmode\n"}) };
+}
+
+fn parseBuiltin_makeatletter(self: *Self) Stmt {
+    self.lexer.make_at_letter = true;
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatletter\n"}) };
+}
+
+fn parseBuiltin_makeatother(self: *Self) Stmt {
+    self.lexer.make_at_letter = false;
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatother\n"}) };
+}
+
+fn parseBuiltin_ltx3_on(self: *Self) ParseError!Stmt {
+    self.lexer.is_latex3_on = true;
+    if (self.doc_state.latex3_included) {
+        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOn\n"}) };
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{
+                .WrongBuiltin = .{
+                    .name = "ltx3_on",
+                    .note = "must use `#ltx3_import` to use this keyword",
+                },
+            },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+}
+
+fn parseBuiltin_ltx3_off(self: *Self) ParseError!Stmt {
+    self.lexer.is_latex3_on = false;
+    if (self.doc_state.latex3_included) {
+        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOff\n"}) };
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{
+                .WrongBuiltin = .{
+                    .name = "ltx3_off",
+                    .note = "must use `#ltx3_import` to use this keyword",
+                },
+            },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+}
+
+fn parseBuiltin_ltx3_import(self: *Self) ParseError!Stmt {
+    if (self.isPremiere()) {
+        self.doc_state.latex3_included = true;
+        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\usepackage{expl3, xparse}\n"}) };
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .PremiereErr,
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
 }
 
 fn parseBuiltin_textmode(self: *Self) ParseError!Stmt {
@@ -2758,6 +2705,69 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
         .unwrap_brace = true,
         .inner = output_inner,
     } };
+}
+
+fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
+    const import_file_loc = self.curr_tok.span;
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+
+    while (self.expect(.current, &.{ .Space, .Tab }) and
+        !self.expect(.peek, &.{ .Lparen, .Eof }))
+    {
+        self.nextToken();
+    } else {
+        self.nextRawToken();
+    }
+
+    if (!self.expect(.current, &.{.Lparen})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{.Lparen},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    const left_parn_loc = self.curr_tok.span;
+    preventBug(&left_parn_loc);
+    var file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
+    defer file_name_str.deinit(self.allocator);
+
+    const filepath_diff = path.relative(
+        self.allocator,
+        VESTI_DUMMY_DIR,
+        file_name_str.items,
+    ) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            self.allocator,
+            import_file_loc,
+            "cannot get the relative path from {s} to {s}",
+            .{
+                VESTI_DUMMY_DIR,
+                file_name_str.items,
+            },
+        );
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return ParseError.ParseFailed;
+    };
+    errdefer self.allocator.free(filepath_diff);
+
+    // why windows path separator is not a slash??
+    return if (builtin.os.tag == .windows) blk: {
+        const filepath_diff_win = try self.allocator.alloc(u8, filepath_diff.len);
+        errdefer self.allocator.free(filepath_diff_win);
+        _ = mem.replace(u8, filepath_diff, "\\", "/", filepath_diff_win);
+
+        // we do not need filepath_diff anymore in here
+        self.allocator.free(filepath_diff);
+        break :blk Stmt{
+            .FilePath = .fromOwnedSlice(filepath_diff_win),
+        };
+    } else Stmt{
+        .FilePath = .fromOwnedSlice(filepath_diff),
+    };
 }
 
 test "test vesti parser" {

@@ -37,15 +37,44 @@ useenv table [ht] {
     keywords = sort([m.captures[1] for m in eachmatch(pattern, content)])
 
     # Emit LaTeX table, 6 columns
-    Vesti.print(raw"\begin{tabular}{cccccc}", nl=1)
+    Vesti.print(raw"\begin{tabular}{cccc}", nl=1)
     for (i, keyword) in enumerate(keywords)
-        if i % 6 == 0           # 1-based indexing in Julia
+        if i % 4 == 0           # 1-based indexing in Julia
             Vesti.print("{\\ttfamily $(keyword)}\\\\", nl=1)
         else
             Vesti.print("{\\ttfamily $(keyword)}&", nl=1)
         end
     end
     Vesti.print(raw"\end{tabular}", nl=1)
+    :jl#
+}
+
+\subsection{Builtins}
+Followings are reserved as a builtin function.
+useenv table [ht] {
+    \centering 
+    #jl:
+    # Read file
+    content = read("../src/lexer/Token.zig", String)
+
+    # Match strings of the form .{ "something" }
+    pattern = r"\.\{\s*\"([^\"]+)\"\s*\}"
+
+    # Extract just the keyword names (first capture) and sort
+    builtins = sort([m.captures[1] for m in eachmatch(pattern, content)])
+
+    # Emit LaTeX table, 6 columns
+    Vesti.print(raw"\catcode`_=12", nl=1)
+    Vesti.print(raw"\begin{tabular}{ccccc}", nl=1)
+    for (i, builtin) in enumerate(builtins)
+        if i % 5 == 0           # 1-based indexing in Julia
+            Vesti.print("{\\ttfamily \\#$(builtin)}\\\\", nl=1)
+        else
+            Vesti.print("{\\ttfamily \\#$(builtin)}&", nl=1)
+        end
+    end
+    Vesti.print(raw"\end{tabular}", nl=1)
+    Vesti.print(raw"\catcode`_=8", nl=1)
     :jl#
 }
 

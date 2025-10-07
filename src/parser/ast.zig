@@ -81,12 +81,6 @@ pub const Arg = struct {
 
 pub const Stmt = union(enum(u8)) {
     NopStmt = 0,
-    NonStopMode,
-    MakeAtLetter,
-    MakeAtOther,
-    Latex3On,
-    Latex3Off,
-    ImportExpl3Pkg,
     TextLit: CowStr,
     MathLit: []const u8,
     MathCtx: struct {

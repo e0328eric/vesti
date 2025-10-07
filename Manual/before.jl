@@ -9,7 +9,7 @@ import .Vesti
 
 vesti_dummy = Vesti.get_dummy_dir()
 
-function download_font(fontname::String, font_url::String)
+function download_zip_font(fontname::String, font_url::String)
     output_path = joinpath(vesti_dummy, "$fontname.zip")
     if !ispath(output_path)
         Downloads.download(font_url, output_path)
@@ -25,13 +25,21 @@ function download_font(fontname::String, font_url::String)
     println("[NOTE]: Extracted $output_path into $vesti_dummy")
 end
 
-mkpath(vesti_dummy)
-
-download_font("Tex Gyre Pagella", "https://www.fontsquirrel.com/fonts/download/TeX-Gyre-Pagella")
-
-if Vesti.engine_type() != "tect"
-    download_font("Noto Fonts", "https://mirrors.ctan.org/fonts/noto.zip")
+function download_font(fontname::String, font_url::String)
+    output_path = joinpath(vesti_dummy, "$fontname.ttf")
+    if !ispath(output_path)
+        Downloads.download(font_url, output_path)
+    end
+    println("[NOTE]: Extracted $output_path into $vesti_dummy")
 end
 
-download_font("STIX Two Math", "https://font.download/dl/font/stix-two-math.zip")
+mkpath(vesti_dummy)
+
+#download_zip_font("Tex Gyre Pagella", "https://www.fontsquirrel.com/fonts/download/TeX-Gyre-Pagella")
+
+if Vesti.engine_type() != "tect"
+    download_zip_font("Noto Fonts", "https://mirrors.ctan.org/fonts/noto.zip")
+end
+
+download_font("STIXTwoMath-Regular", "https://github.com/stipub/stixfonts/raw/refs/heads/master/fonts/static_ttf/STIXTwoMath-Regular.ttf")
 
