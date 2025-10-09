@@ -311,21 +311,24 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
     errdefer alloc.free(dll_path);
 
     // compress binary using upx
-    if (build_rust.target.result.os.tag == .windows) {
-        const upx = try Child.run(.{
-            .allocator = alloc,
-            .argv = &.{ "upx", "-9", dll_path },
-            .env_map = &envmap,
-            .max_output_bytes = 2500 * 1024,
-        });
-        defer {
-            alloc.free(upx.stdout);
-            alloc.free(upx.stderr);
-        }
-        std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-            upx.stdout,
-            upx.stderr,
-        });
+    switch (build_rust.target.result.os.tag) {
+        .windows, .linux => {
+            const upx = try Child.run(.{
+                .allocator = alloc,
+                .argv = &.{ "upx", "-9", dll_path },
+                .env_map = &envmap,
+                .max_output_bytes = 2500 * 1024,
+            });
+            defer {
+                alloc.free(upx.stdout);
+                alloc.free(upx.stderr);
+            }
+            std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+                upx.stdout,
+                upx.stderr,
+            });
+        },
+        else => {},
     }
 }
 
