@@ -130,6 +130,7 @@ pub fn build(b: *Build) !void {
             .preferred_link_mode = .dynamic,
         }),
     }
+    exe_mod.addRPath(.{ .cwd_relative = b.exe_dir });
     exe_mod.addOptions("vesti-info", vesti_opt);
 
     const exe = b.addExecutable(.{

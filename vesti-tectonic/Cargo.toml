@@ -46,6 +46,6 @@ x86_64-pc-windows-msvc = { triplet = "x64-windows-static-release", install = [
 ] }
 
 [dependencies]
-tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "fbfcb8e7e2c5416e59418e8fbf7c7ef444a06748", features = [
+tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "d7f3275adf6b501fc21122a1873912e970bf52ba", features = [
   "external-harfbuzz",
 ] }
