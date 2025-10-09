@@ -13,7 +13,7 @@ const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreach
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 
-const min_zig_string = "0.16.0-dev.393+dd4be26f5";
+const min_zig_string = "0.16.0-dev.660+27aba2d77";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -49,16 +49,20 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
-    const vesti_c_h = b.addTranslateC(.{
-        .root_source_file = b.path("./src/vesti_c.h"),
-        .target = target,
-        .optimize = optimize,
-    });
-    const vesti_c = b.createModule(.{
-        .root_source_file = vesti_c_h.getOutput(),
-        .target = target,
-        .optimize = optimize,
-    });
+    // TODO: uncomment this when the following issue is resolved.
+    // https://github.com/issues/created?issue=ziglang%7Ctranslate-c%7C189
+    //const vesti_c_h = b.addTranslateC(.{
+    //    .root_source_file = b.path("./src/vesti_c.h"),
+    //    .target = target,
+    //    .optimize = optimize,
+    //    .link_libc = true,
+    //    .use_clang = false,
+    //});
+    //const vesti_c = b.createModule(.{
+    //    .root_source_file = vesti_c_h.getOutput(),
+    //    .target = target,
+    //    .optimize = optimize,
+    //});
 
     var envmap = try std.process.getEnvMap(alloc);
     defer envmap.deinit();
@@ -101,7 +105,9 @@ pub fn build(b: *Build) !void {
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
-            .{ .name = "c", .module = vesti_c },
+            // TODO: uncomment this when the following issue is resolved.
+            // https://github.com/issues/created?issue=ziglang%7Ctranslate-c%7C189
+            //.{ .name = "c", .module = vesti_c },
         },
     });
     exe_mod.addCSourceFile(.{

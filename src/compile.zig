@@ -6,7 +6,10 @@ const path = fs.path;
 const time = std.time;
 const diag = @import("diagnostic.zig");
 const jlscript = @import("jlscript.zig");
-const win = if (builtin.os.tag == .windows) @import("c") else {};
+// TODO: uncomment this when the following issue is resolved.
+// https://github.com/issues/created?issue=ziglang%7Ctranslate-c%7C189
+//const win = if (builtin.os.tag == .windows) @import("c") else {};
+const win = if (builtin.os.tag == .windows) @import("vesti_c.zig") else {};
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;

@@ -1,5 +1,8 @@
 const std = @import("std");
-const c = @import("c");
+// TODO: uncomment this when the following issue is resolved.
+// https://github.com/issues/created?issue=ziglang%7Ctranslate-c%7C189
+//const c = @import("c");
+const c = @import("vesti_c.zig");
 const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
 const jlscript = @import("jlscript.zig");
