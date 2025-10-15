@@ -45,11 +45,12 @@ pub const ArgNeed = enum(u2) {
     StarArg,
 };
 
-pub const DefunKind = packed struct(u6) {
+pub const DefunKind = packed struct(u7) {
     redef: bool = false,
     expand: bool = false,
     long: bool = false,
     outer: bool = false,
+    global: bool = false,
     trim_left: bool = true,
     trim_right: bool = true,
 
@@ -60,6 +61,7 @@ pub const DefunKind = packed struct(u6) {
                 'e', 'E' => output.expand = true,
                 'l', 'L' => output.long = true,
                 'o', 'O' => output.outer = true,
+                'g', 'G' => output.global = true,
                 '<' => output.trim_left = false,
                 '>' => output.trim_right = false,
                 else => return false,

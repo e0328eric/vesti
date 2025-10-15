@@ -1342,33 +1342,28 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     if (self.expect(.current, &.{.Lsqbrace})) {
         const kind_brace_location = self.curr_tok.span;
         self.nextToken();
-        const kind_location = self.curr_tok.span;
-        const kind_str = switch (self.currToktype()) {
-            .Text => self.curr_tok.lit.in_text,
-            .Eof => {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EofErr,
-                    .span = kind_location,
-                } });
-                return ParseError.ParseFailed;
-            },
-            else => |toktype| {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .TokenExpected = .{
-                        .expected = &.{.Text},
-                        .obtained = toktype,
-                    } },
-                    .span = kind_location,
-                } });
-                return ParseError.ParseFailed;
-            },
-        };
-        self.nextToken();
+        var kind_str = try ArrayList(u8).initCapacity(self.allocator, 10);
+        defer kind_str.deinit(self.allocator);
 
-        if (!defun_kind.parseDefunKind(kind_str)) {
+        while (!self.expect(.current, &.{ .Rsqbrace, .Eof })) : (self.nextToken()) {
+            try kind_str.appendSlice(self.allocator, self.curr_tok.lit.in_text);
+        }
+        if (self.currToktype() == .Eof) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .InvalidDefunKind = kind_str },
-                .span = kind_location,
+                .err_info = .EofErr,
+                .span = kind_brace_location,
+            } });
+            return ParseError.ParseFailed;
+        }
+
+        if (!defun_kind.parseDefunKind(kind_str.items)) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{
+                    .InvalidDefunKind = .fromOwnedSlice(
+                        try kind_str.toOwnedSlice(self.allocator),
+                    ),
+                },
+                .span = kind_brace_location,
             } });
             return ParseError.ParseFailed;
         }
@@ -2768,6 +2763,12 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
     } else Stmt{
         .FilePath = .fromOwnedSlice(filepath_diff),
     };
+}
+
+// TODO: implement picture environment wrapper
+fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
+    _ = self;
+    return Stmt.NopStmt;
 }
 
 test "test vesti parser" {

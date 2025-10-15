@@ -215,18 +215,27 @@ fn codegenStmt(
         },
         .DefineFunction => |ctx| {
             const kind =
-                @as(u3, @intCast(@intFromBool(ctx.kind.expand))) << 0 |
-                @as(u3, @intCast(@intFromBool(ctx.kind.long))) << 1 |
-                @as(u3, @intCast(@intFromBool(ctx.kind.outer))) << 2;
+                @as(u4, @intCast(@intFromBool(ctx.kind.expand))) << 0 |
+                @as(u4, @intCast(@intFromBool(ctx.kind.global))) << 1 |
+                @as(u4, @intCast(@intFromBool(ctx.kind.long))) << 2 |
+                @as(u4, @intCast(@intFromBool(ctx.kind.outer))) << 3;
             const defin = switch (kind) {
-                0b000 => "\\def",
-                0b001 => "\\edef",
-                0b010 => "\\gdef",
-                0b011 => "\\xdef",
-                0b100 => "\\outer\\def",
-                0b101 => "\\outer\\edef",
-                0b110 => "\\outer\\gdef",
-                0b111 => "\\outer\\xdef",
+                0b0000 => "\\def",
+                0b0001 => "\\edef",
+                0b0010 => "\\gdef",
+                0b0011 => "\\xdef",
+                0b0100 => "\\long\\def",
+                0b0101 => "\\long\\edef",
+                0b0110 => "\\long\\gdef",
+                0b0111 => "\\long\\xdef",
+                0b1000 => "\\outer\\def",
+                0b1001 => "\\outer\\edef",
+                0b1010 => "\\outer\\gdef",
+                0b1011 => "\\outer\\xdef",
+                0b1100 => "\\outer\\long\\def",
+                0b1101 => "\\outer\\long\\edef",
+                0b1110 => "\\outer\\long\\gdef",
+                0b1111 => "\\outer\\long\\xdef",
             };
 
             // prologue

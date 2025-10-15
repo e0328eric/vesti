@@ -286,7 +286,7 @@ pub const ParseDiagnostic = struct {
             name: []const u8,
             note: []const u8,
         },
-        InvalidDefunKind: []const u8,
+        InvalidDefunKind: ArrayList(u8),
         DefunParamOverflow: usize,
         InvalidDefunParam: usize,
         EnvInsideDefun,
@@ -306,6 +306,7 @@ pub const ParseDiagnostic = struct {
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
                 .InvalidBuiltin => |*inner| inner.deinit(allocator),
+                .InvalidDefunKind => |*inner| inner.deinit(allocator),
                 .JlLabelNotFound => |*inner| inner.deinit(allocator),
                 .JlEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
@@ -450,7 +451,7 @@ pub const ParseDiagnostic = struct {
             ),
             .InvalidDefunKind => |defun_kind| try aw.writer.print(
                 "String `{s}` is not a valid defun attribute",
-                .{defun_kind},
+                .{defun_kind.items},
             ),
             .DefunParamOverflow => |val| try aw.writer.print(
                 "2 to the power of {d} exceeds max value of 2^{d}",

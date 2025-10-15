@@ -313,6 +313,7 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "ltx3_import" },
     .{ "ltx3_on" },
     .{ "ltx3_off" },
+    .{ "picture" },
     // zig fmt: on
 });
 
