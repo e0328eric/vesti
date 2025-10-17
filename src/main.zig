@@ -24,6 +24,13 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
     std.process.exit(0);
 }
 
+const subcmds = .{
+    "clear",
+    "run",
+    "tex2ves",
+    "compile",
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -34,32 +41,39 @@ pub fn main() !void {
 
     var zlap_cmd = try zlap.Zlap(@embedFile("commands.zlap"), null).init(allocator);
     defer zlap_cmd.deinit();
-
-    if (zlap_cmd.isSubcmdActive("clear")) {
-        try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
-        std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
-        return;
-    } else if (zlap_cmd.isSubcmdActive("tex2ves")) {
-        const tex2ves_subcmd = zlap_cmd.subcommands.get("tex2ves").?;
-        const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
-        // TODO: implement tex2ves
-        _ = tex_files;
-
-        std.debug.print("currently, this subcommand does nothing.\n", .{});
-        return;
-    } else if (zlap_cmd.is_help) {
+    if (zlap_cmd.is_help) {
         std.debug.print("{s}\n", .{zlap_cmd.help_msg});
         return;
-    } else if (zlap_cmd.isSubcmdActive("compile")) {
-        const compile_subcmd = zlap_cmd.subcommands.get("compile").?;
-        try compileStep(allocator, &compile_subcmd);
-    } else if (zlap_cmd.isSubcmdActive("run")) {
-        const run_subcmd = zlap_cmd.subcommands.get("run").?;
-        try runStep(allocator, &run_subcmd);
+    }
+
+    inline for (subcmds) |subcmd_str| {
+        if (zlap_cmd.isSubcmdActive(subcmd_str)) {
+            const subcmd = zlap_cmd.subcommands.get(subcmd_str).?;
+            try @field(@This(), subcmd_str ++ "Step")(allocator, &subcmd);
+            return;
+        }
     } else {
         std.debug.print("{s}\n", .{zlap_cmd.help_msg});
         return error.InvalidSubcommand;
     }
+}
+
+fn clearStep(allocator: Allocator, clear_step: *const zlap.Subcmd) !void {
+    _ = allocator;
+    _ = clear_step;
+
+    try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
+    std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
+}
+
+fn tex2vesStep(allocator: Allocator, tex2ves_subcmd: *const zlap.Subcmd) !void {
+    _ = allocator;
+
+    const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
+    // TODO: implement tex2ves
+    _ = tex_files;
+
+    std.debug.print("currently, this subcommand does nothing.\n", .{});
 }
 
 fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
