@@ -24,13 +24,6 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
     std.process.exit(0);
 }
 
-const subcmds = .{
-    "clear",
-    "run",
-    "tex2ves",
-    "compile",
-};
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -46,6 +39,12 @@ pub fn main() !void {
         return;
     }
 
+    const subcmds = .{
+        "clear",
+        "run",
+        "tex2ves",
+        "compile",
+    };
     inline for (subcmds) |subcmd_str| {
         if (zlap_cmd.isSubcmdActive(subcmd_str)) {
             const subcmd = zlap_cmd.subcommands.get(subcmd_str).?;
@@ -57,6 +56,10 @@ pub fn main() !void {
         return error.InvalidSubcommand;
     }
 }
+
+//          ╭─────────────────────────────────────────────────────────╮
+//          │                  Subcommand Functions                   │
+//          ╰─────────────────────────────────────────────────────────╯
 
 fn clearStep(allocator: Allocator, clear_step: *const zlap.Subcmd) !void {
     _ = allocator;
@@ -168,6 +171,10 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
         },
     );
 }
+
+//          ╭─────────────────────────────────────────────────────────╮
+//          │                     Get Engine Type                     │
+//          ╰─────────────────────────────────────────────────────────╯
 
 const EngineTypeInput = packed struct {
     is_latex: bool,
