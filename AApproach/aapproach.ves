@@ -1,4 +1,4 @@
-%compty (tect)
+compty (tect)
 importmod (coprime)
 docclass coprime (10pt, item, geometry, fancy, tikz)
 
@@ -10,6 +10,15 @@ importpkg {
 }
 
 importves (font.ves)
+
+%*
+Below is just a note how to call ttf fonts in tectonic
+`#chardef` is a builtin in vesti
+
+\font\notokr="[NotoSansKR-Regular.ttf]" at 10pt
+#chardef 12000 \fooo
+{\notokr\fooo}
+*%
 
 \settitle{AApproach Seminar}{Sungbae Jeong}
 \setgeometry{a4paper, margin=2.2cm}
@@ -31,12 +40,11 @@ importves (font.ves)
 \crefname{Assumption}{\lowercase{Assumption}}{\lowercase{Assumption}}
 \Crefname{Assumption}{Assumption}{Assumption}
 
-#umathchardef .opening 0 29d8 \lfooo
-#umathchardef .closing 0 29D9 \rfooo
-
 startdoc
 defun [r] defeq {\coloneq}
 defun [r] eqdef {\eqcolon}
+defun [r] Re {#mathmode{\mathop{"Re"}}}
+defun [r] Im {#mathmode{\mathop{"Im"}}}
 
 \fancyon
 \tableofcontents
@@ -45,7 +53,8 @@ defun [r] eqdef {\eqcolon}
 This paper is for personal purpose to study \cite{Kry0}.
 
 We want to solve the following SPDE
-useenv equation { \label{eq:the-spde}
+#label(eq:the-spde)
+useenv equation {
     du = (Lu + f)dt + (\Lambda^ku + g^k)dw_t^k,\quad t>0,
 }
 where
@@ -91,6 +100,9 @@ importves (chapter5/variable-coeff.ves)
 \section{Proof of \Cref{thm:sol-the-spde-nonlin}}
 importves (chapter6/proof.ves)
 
+\section{Embedding Theorems for $\Hc_p^n(\tau)$}
+importves (chapter7/embeddings.ves)
+
 \section{Appendix}
 \subsection{Sobolev-Slobodeckij space}
 importves (appendix/slobodeckij.ves)
@@ -100,6 +112,9 @@ importves (appendix/compare-spaces.ves)
 
 \subsection{The Heat Kernel} \label{sec:heat-kernel}
 importves (appendix/heat-kernel.ves)
+
+\subsection{Rigorous proof of uniqueness in page \thispageref} \label{sec:appx-uniqueness}
+importves (appendix/uniqueness.ves)
 
 \subsection{Multiple of two distributions} \label{sect:multiple-distribs}
 importves (appendix/multiple-distribs.ves)

@@ -129,7 +129,8 @@ useenv thm {
 
 To discuss the theorem, we need the following lemma.
 
-useenv lemma { \label{lemma:5.2}
+#label(lemma:5.2)
+useenv lemma {
     Let $\zeta\in C_0^oo$ be a nonnegative function such that $\int\zeta=1$ and
     define $\zeta_k(x) = k^d\zeta(kx)$, $k=1,2,3,...$. We assert that, for any
     $u\in H_p^n$, we have the following:

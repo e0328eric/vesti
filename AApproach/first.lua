@@ -1,0 +1,1 @@
+vesti.getModule("template")

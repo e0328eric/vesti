@@ -1,5 +1,4 @@
-Let $f\in C_0^oo(\R^d)$, $g$ be a bounded left continuous function on $[0,oo)$, and
-$h(t,x)=g(t)f(x)$.
+Let $f\in C_0^oo(\R^d)$, $0<=a<b<oo$, and $h(t,x)=\I_{(a,b]}(t)f(x)$.
 
 Consider \footnote{The form of which comes from the Duhamel's principle (see
 \cite{LSU}) with considering $\I_{t>0}h$.}
@@ -50,42 +49,3 @@ $$
     D^\alpha_x y(t,x)
     = \int_0^t\int_{\R^d}T_{t-s}(D_x^\alpha h(s,\cdot))(x)dyds.
 $$
-However we cannot differentiate once in $t$ of $v$ because $p_t$ and
-$\Delta p$ are not $L_1((0,oo)\times\R^d)$.
-
-Fix $\epsilon>0$ and consider functions
-$$
-    v_\epsilon(t,x) = \int_0^{t-\epsilon}\int_{\R^d}p(t-s,x-y)h(s,y)dyds.
-$$
-
-Then we can obtain
-useenv align* {
-    {\diff v_\epsilon//\diff t}
-    &= \int_0^{t-\epsilon}\int_{\R^d}p_t(t-s,x-y)h(s,y)dyds +
-    \int_{\R^d}p(\epsilon,x-y)h(t-\epsilon,y)dy \\
-    &= \int_0^{t-\epsilon}\int_{\R^d}\Delta_x p(t-s,x-y)h(s,y)dyds +
-    \int_{\R^d}p(\epsilon,x-y)h(t-\epsilon,y)dy \\
-    &= \int_0^{t-\epsilon}\int_{\R^d}\Delta_y p(t-s,x-y)h(s,y)dyds +
-    \int_{\R^d}p(\epsilon,x-y)h(t-\epsilon,y)dy \\
-    &= \int_0^{t-\epsilon}\int_{\R^d} p(t-s,x-y)\Delta h(s,y)dyds +
-    \int_{\R^d}p(\epsilon,x-y)h(t-\epsilon,y)dy.
-}
-
-By the dominated convergence theorem and the left continuity of $g$, we have
-$$
-    \lim_{\epsilon\downarrow 0}\int_{\R^d}p(h,x-y)h(t-\epsilon,y)dy
-    =
-    {1//(2\pi)^{d/2}}\lim_{\epsilon\downarrow 0}\int_{\R^d}e^{-{1//2}|y|^2}
-    g(t-\epsilon)f(x-y\sqrt{2\epsilon})dy = g(t)f(x) = h(t,x).
-$$
-
-In addition, as $f\in C_0^oo$, obviously we have
-$$
-    \lim_{\epsilon\downarrow 0}
-    \int_0^{t-\epsilon}\int_{\R^d} p(t-s,x-y)\Delta h(s,y)dyds
-    = \int_0^{t}\int_{\R^d} p(t-s,x-y)\Delta h(s,y)dyds.
-$$
-
-useenv center {
-    \bf{\color{red}[Not finished]}
-}

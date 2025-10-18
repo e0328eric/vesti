@@ -1,0 +1,9 @@
+The above theory of solvability looks satisfactory only until
+
+useenv thm {
+    #enum((\alph*)) {
+        \item If $\alpha\defeq n-d/p>0$ and $u\in\Hc_p^n(\tau)$, then $u\in
+        L_p(\llo0,\tau\rrc,\Cc^\alpha)$, where $\Cc^\alpha$ is the Zygmund
+        space. In addition,
+    }
+}

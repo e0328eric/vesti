@@ -30,7 +30,7 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [10]zlua.FnReg = .{
     .{ .name = "getModule", .func = getModule },
     .{ .name = "vestiDummyDir", .func = vestiDummyDir },
     .{ .name = "setCurrentDir", .func = setCurrentDir },
-    .{ .name = "getEngine", .func = getEngine },
+    .{ .name = "engineType", .func = engineType },
     .{ .name = "unzip", .func = unzip },
     .{ .name = "download", .func = download },
     .{ .name = "mkdir", .func = mkdir },
@@ -382,7 +382,7 @@ fn setCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     return 0;
 }
 
-fn getEngine(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
+fn engineType(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
     const self = getSelf(lua) catch {
         lua.raiseError();
