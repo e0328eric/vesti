@@ -10,6 +10,7 @@ importpkg {
     Extension = .otf,
     UprightFont  = *-regular,
     BoldFont  = *-bold,
+    ItalicFont  = *-italic,
 ]
 \setsansfont{NotoSans}[
     Path,
@@ -22,7 +23,7 @@ importpkg {
     Extension = .ttf,
 ]
 
-\Umathchardef\diff "0 "0 "2202
+#mathchardef .ordinary 0 2202 \diff
 \def\thefootnote{(\roman{footnote})}
 
 defun defeq {\coloneq}
