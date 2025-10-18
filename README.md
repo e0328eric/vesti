@@ -57,13 +57,9 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
-This project uses the latest zig (developer version).
-On Windows, TeX Live (or related software) and Julia are required.
-On Linux and macOS, `freetype2` and `fontconfig` are additionally required.
+This project uses the zig version 0.15.2.
 
 ## Compilation
-First, `JULIA_DIR` should be defined to find julia dll and julia C api header.
-
 If you want to compile with Tectonic backend, just run the following command:
 
 ```console
