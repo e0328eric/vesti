@@ -10,6 +10,7 @@ importpkg {
     Extension = .otf,
     UprightFont  = *-regular,
     BoldFont  = *-bold,
+    ItalicFont  = *-italic,
 ]
 \setsansfont{NotoSans}[
     Path,

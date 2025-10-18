@@ -8,6 +8,7 @@ const zon = std.zon;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Diagnostic = diag.Diagnostic;
+const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
 engine: LatexEngine,
@@ -31,12 +32,30 @@ pub fn init(allocator: Allocator, diagnostic: *Diagnostic) !Self {
     var config_zon_reader = config_zon.reader(&buf);
 
     // what kind of such simple config file has 4MB size?
-    const context = config_zon_reader.interface.allocRemainingAlignedSentinel(
-        allocator,
-        .limited(4 * 1024 * 1024),
-        .of(u8),
-        0,
-    ) catch {
+    // TODO: if 0.16.0 is finalized, replace this code with the following
+    //
+    //config_zon_reader.interface.allocRemainingAlignedSentinel(
+    //  allocator,
+    //  .limited(4 * 1024 * 1024),
+    //  .of(u8),
+    //  0,
+    //)
+    const context = blk: {
+        const reader = &config_zon_reader.interface;
+        var tmp = Io.Writer.Allocating.init(allocator);
+        defer tmp.deinit();
+
+        var remaining: Io.Limit = .limited(4 * 1024 * 1024);
+        while (remaining.nonzero()) {
+            const n = Io.Reader.stream(reader, &tmp.writer, remaining) catch |err| switch (err) {
+                error.EndOfStream => break :blk try tmp.toOwnedSliceSentinel(0),
+                error.WriteFailed => break :blk error.OutOfMemory,
+                error.ReadFailed => break :blk error.ReadFailed,
+            };
+            remaining = remaining.subtract(n).?;
+        }
+        break :blk error.StreamTooLong;
+    } catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
@@ -47,7 +66,8 @@ pub fn init(allocator: Allocator, diagnostic: *Diagnostic) !Self {
         return error.FailedOpenConfig;
     };
     defer allocator.free(context);
-    return zon.parse.fromSliceAlloc(
+
+    return zon.parse.fromSlice(
         Self,
         allocator,
         context,

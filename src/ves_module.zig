@@ -5,6 +5,7 @@ const zon = std.zon;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const Io = std.Io;
 const Span = @import("location.zig").Span;
 
 const getConfigPath = @import("Config.zig").getConfigPath;
@@ -59,25 +60,42 @@ pub fn downloadModule(
     var mod_zon_file_reader = mod_zon_file.reader(&buf);
 
     // what kind of such simple config file has 4MB size?
-    const context = mod_zon_file_reader.interface.allocRemainingAlignedSentinel(
-        allocator,
-        .limited(4 * 1024 * 1024),
-        .of(u8),
-        0,
-    ) catch {
+    // TODO: if 0.16.0 is finalized, replace this code with the following
+    //
+    //config_zon_reader.interface.allocRemainingAlignedSentinel(
+    //  allocator,
+    //  .limited(4 * 1024 * 1024),
+    //  .of(u8),
+    //  0,
+    //)
+    const context = blk: {
+        const reader = &mod_zon_file_reader.interface;
+        var tmp = Io.Writer.Allocating.init(allocator);
+        defer tmp.deinit();
+
+        var remaining: Io.Limit = .limited(4 * 1024 * 1024);
+        while (remaining.nonzero()) {
+            const n = Io.Reader.stream(reader, &tmp.writer, remaining) catch |err| switch (err) {
+                error.EndOfStream => break :blk try tmp.toOwnedSliceSentinel(0),
+                error.WriteFailed => break :blk error.OutOfMemory,
+                error.ReadFailed => break :blk error.ReadFailed,
+            };
+            remaining = remaining.subtract(n).?;
+        }
+        break :blk error.StreamTooLong;
+    } catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
-            import_file_loc,
+            null,
             "cannot read context from {s}",
-            .{
-                mod_data_path.items,
-            },
+            .{config_path},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.FailedGetModule;
+        return error.FailedOpenConfig;
     };
     defer allocator.free(context);
-    const ves_module = try zon.parse.fromSliceAlloc(
+
+    const ves_module = try zon.parse.fromSlice(
         VestiModule,
         allocator,
         context,

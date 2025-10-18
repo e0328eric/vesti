@@ -148,7 +148,7 @@ pub const Stmt = union(enum(u8)) {
     },
     EndPhantomEnviron: CowStr,
     FilePath: CowStr,
-    JlCode: struct {
+    LuaCode: struct {
         code_span: Span,
         is_global: bool,
         code_import: ?ArrayList([]const u8),
@@ -220,7 +220,7 @@ pub const Stmt = union(enum(u8)) {
                 ctx.args.deinit(allocator);
             },
             .FilePath => |*ctx| ctx.deinit(allocator),
-            .JlCode => |*cb| {
+            .LuaCode => |*cb| {
                 if (cb.code_import) |*import| import.deinit(allocator);
                 cb.code.deinit(allocator);
             },

@@ -107,8 +107,8 @@ const TokenizeState = enum {
     multiline_comment,
     verbatim,
     line_verbatim,
-    jlcode,
-    jlcode_end,
+    luacode,
+    luacode_end,
     builtin_function,
     latex_function,
     text,
@@ -426,12 +426,12 @@ pub fn next(self: *Self) Token {
             const Goto = enum { a, b };
             goto: switch (Goto.a) {
                 .a => switch (self.getChar(.current)) {
-                    'j' => if (self.getChar(.peek1) == 'l' and
+                    'l' => if (self.getChar(.peek1) == 'u' and
                         self.getChar(.peek2) == ':')
                     {
                         self.nextChar(3);
                         start_chr0_idx = self.chr0_idx;
-                        continue :tokenize .jlcode;
+                        continue :tokenize .luacode;
                     } else {
                         continue :goto .b;
                     },
@@ -734,11 +734,11 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .line_verbatim;
             },
         },
-        .jlcode => if (self.getChar(.current) == ':' and
-            self.getChar(.peek1) == 'j')
+        .luacode => if (self.getChar(.current) == ':' and
+            self.getChar(.peek1) == 'l')
         {
             self.nextChar(1);
-            continue :tokenize .jlcode_end;
+            continue :tokenize .luacode_end;
         } else if (self.getChar(.current) == 0) {
             token.init(
                 self.source[start_chr0_idx..self.chr0_idx],
@@ -751,19 +751,19 @@ pub fn next(self: *Self) Token {
             break :tokenize;
         } else {
             self.nextChar(1);
-            continue :tokenize .jlcode;
+            continue :tokenize .luacode;
         },
-        .jlcode_end => if (self.getChar(.current) == 'j' and
-            self.getChar(.peek1) == 'l' and
+        .luacode_end => if (self.getChar(.current) == 'l' and
+            self.getChar(.peek1) == 'u' and
             self.getChar(.peek2) == '#')
         {
-            const jlcode_end = self.chr0_idx - 1; // remove `:` character
+            const luacode_end = self.chr0_idx - 1; // remove `:` character
             self.nextChar(3);
 
             token.init(
-                self.source[start_chr0_idx..jlcode_end],
+                self.source[start_chr0_idx..luacode_end],
                 null,
-                .JlCode,
+                .LuaCode,
                 start_location,
                 self.location,
             );
@@ -780,7 +780,7 @@ pub fn next(self: *Self) Token {
             break :tokenize;
         } else {
             self.nextChar(1);
-            continue :tokenize .jlcode;
+            continue :tokenize .luacode;
         },
     }
 

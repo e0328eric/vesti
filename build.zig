@@ -13,7 +13,7 @@ const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreach
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
 
-const min_zig_string = "0.16.0-dev.660+27aba2d77";
+const min_zig_string = "0.15.2";
 const program_name = "vesti";
 
 // NOTE: This code came from
@@ -31,7 +31,6 @@ const Build = blk: {
 };
 
 pub fn build(b: *Build) !void {
-    const alloc = std.heap.page_allocator;
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const strip = switch (optimize) {
@@ -49,31 +48,10 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
-    var envmap = try std.process.getEnvMap(alloc);
-    defer envmap.deinit();
-
-    const jl_include, const jl_libs = blk: {
-        const jl_dir = envmap.get("JULIA_DIR") orelse {
-            std.debug.print("`JULIA_DIR` env is not defined\n", .{});
-            return error.BuildFailed;
-        };
-        const include = try std.fs.path.join(alloc, &.{
-            jl_dir,
-            "include",
-            "julia",
-        });
-        errdefer alloc.free(include);
-        const libs = try std.fs.path.join(alloc, &.{
-            jl_dir,
-            if (target.result.os.tag == .windows) "bin" else "lib",
-        });
-        errdefer alloc.free(libs);
-        break :blk .{ include, libs };
-    };
-    defer {
-        alloc.free(jl_include);
-        alloc.free(jl_libs);
-    }
+    const zlua = b.dependency("zlua", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const tectonic_dll_name = try getDllName(&target);
     const vesti_opt = b.addOptions();
@@ -90,28 +68,9 @@ pub fn build(b: *Build) !void {
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
+            .{ .name = "zlua", .module = zlua.module("zlua") },
         },
     });
-    exe_mod.addCSourceFile(.{
-        .file = b.path("src/julia/vesjulia.c"),
-        .flags = &.{
-            "-std=c11",
-            "-Wno-implicit-int",
-            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
-        },
-    });
-
-    // note that both jl_include and jl_libs are well-defined in this scope
-    exe_mod.addIncludePath(.{ .cwd_relative = jl_include });
-    exe_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
-    switch (target.result.os.tag) {
-        .windows => exe_mod.linkSystemLibrary("libjulia", .{
-            .preferred_link_mode = .dynamic,
-        }),
-        else => exe_mod.linkSystemLibrary("julia", .{
-            .preferred_link_mode = .dynamic,
-        }),
-    }
     exe_mod.addRPath(.{ .cwd_relative = b.exe_dir });
     exe_mod.addOptions("vesti-info", vesti_opt);
 
@@ -146,28 +105,9 @@ pub fn build(b: *Build) !void {
         .link_libc = true,
         .imports = &.{
             .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
+            .{ .name = "zlua", .module = zlua.module("zlua") },
         },
     });
-    test_mod.addCSourceFile(.{
-        .file = b.path("src/julia/vesjulia.c"),
-        .flags = &.{
-            "-std=c11",
-            "-Wno-implicit-int",
-            "-DVESTI_DUMMY_DIR=\"" ++ VESTI_DUMMY_DIR ++ "\"",
-        },
-    });
-    test_mod.addIncludePath(.{ .cwd_relative = jl_include });
-    switch (target.result.os.tag) {
-        .windows => {
-            test_mod.addLibraryPath(.{ .cwd_relative = jl_libs });
-            test_mod.linkSystemLibrary("libjulia", .{
-                .preferred_link_mode = .dynamic,
-            });
-        },
-        else => test_mod.linkSystemLibrary("julia", .{
-            .preferred_link_mode = .dynamic,
-        }),
-    }
     test_mod.addOptions("vesti-info", vesti_opt);
 
     const exe_unit_tests = b.addTest(.{

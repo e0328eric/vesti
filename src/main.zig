@@ -2,7 +2,7 @@ const std = @import("std");
 const c = @import("vesti_c.zig");
 const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
-const jlscript = @import("jlscript.zig");
+const luascript = @import("luascript.zig");
 const zlap = @import("zlap");
 const time = std.time;
 
@@ -13,7 +13,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Config = @import("Config.zig");
 const Diagnostic = diag.Diagnostic;
-const Julia = @import("julia/Julia.zig");
+const Lua = @import("Lua.zig");
 const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -99,18 +99,18 @@ fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
         .is_tectonic = is_tectonic,
     });
 
-    // initializing Julia globally
-    var julia = try Julia.init(engine);
-    defer julia.deinit();
+    // initializing Lua globally
+    var lua = try Lua.init(allocator, engine);
+    defer lua.deinit();
 
-    const first_jl = try jlscript.getBuildJlContents(
+    const first_lua = try luascript.getBuildLuaContents(
         allocator,
         first_script,
         &diagnostic,
-    ) orelse return error.FirstJlNotFound;
-    defer allocator.free(first_jl);
+    ) orelse return error.FirstLuaNotFound;
+    defer allocator.free(first_lua);
 
-    try jlscript.runJlCode(&julia, &diagnostic, first_jl, first_script);
+    try luascript.runLuaCode(lua, &diagnostic, first_lua, first_script);
 }
 
 fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
@@ -146,15 +146,15 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
         .is_tectonic = is_tectonic,
     });
 
-    // initializing Julia globally
-    var julia = try Julia.init(engine);
-    defer julia.deinit();
+    // initializing Lua globally
+    var lua = try Lua.init(allocator, engine);
+    defer lua.deinit();
 
     var prev_mtime: ?i128 = null;
     try compile.compile(
         allocator,
         main_filenames.value.strings.items,
-        &julia,
+        lua,
         &diagnostic,
         &engine,
         compile_lim,

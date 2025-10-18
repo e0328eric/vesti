@@ -5,7 +5,7 @@ const fs = std.fs;
 const path = fs.path;
 const time = std.time;
 const diag = @import("diagnostic.zig");
-const jlscript = @import("jlscript.zig");
+const luascript = @import("luascript.zig");
 const win = if (builtin.os.tag == .windows) @import("vesti_c.zig") else {};
 
 const Allocator = mem.Allocator;
@@ -14,7 +14,7 @@ const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
 const DynLib = std.DynLib;
 const Io = std.Io;
-const Julia = @import("julia/Julia.zig");
+const Lua = @import("Lua.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
@@ -30,24 +30,24 @@ pub const CompileAttribute = packed struct {
     no_exit_err: bool,
 };
 
-pub const JuliaScripts = struct {
+pub const LuaScripts = struct {
     before: []const u8,
     step: []const u8,
 };
 
-pub const JuliaContents = struct {
-    before: ?[]const u8 = null,
-    step: ?[]const u8 = null,
+pub const LuaContents = struct {
+    before: ?[:0]const u8 = null,
+    step: ?[:0]const u8 = null,
 
     fn init(
-        scripts: *const JuliaScripts,
+        scripts: *const LuaScripts,
         allocator: Allocator,
         diagnostic: *diag.Diagnostic,
     ) !@This() {
         var output: @This() = .{};
 
         inline for (&.{ "before", "step" }) |ty| {
-            @field(output, ty) = try jlscript.getBuildJlContents(
+            @field(output, ty) = try luascript.getBuildLuaContents(
                 allocator,
                 @field(scripts, ty),
                 diagnostic,
@@ -68,37 +68,37 @@ pub const JuliaContents = struct {
 pub fn compile(
     allocator: Allocator,
     main_filenames: []const []const u8,
-    julia: *Julia,
+    lua: *Lua,
     diagnostic: *diag.Diagnostic,
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    jlcode_scripts: JuliaScripts,
+    luacode_scripts: LuaScripts,
     attr: CompileAttribute,
 ) !void {
-    const jlcode_contents = try JuliaContents.init(
-        &jlcode_scripts,
+    const luacode_contents = try LuaContents.init(
+        &luacode_scripts,
         allocator,
         diagnostic,
     );
-    defer jlcode_contents.deinit(allocator);
+    defer luacode_contents.deinit(allocator);
 
-    // run before.jl to "initialize" vesti projects
-    if (jlcode_contents.before) |lc| {
-        try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts.before);
+    // run before.lua to "initialize" vesti projects
+    if (luacode_contents.before) |lc| {
+        try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts.before);
     }
 
     while (true) {
         compileInner(
             allocator,
             main_filenames,
-            julia,
+            lua,
             diagnostic,
             engine,
             compile_limit,
             prev_mtime,
-            jlcode_contents.step,
-            jlcode_scripts.step,
+            luacode_contents.step,
+            luacode_scripts.step,
             attr,
         ) catch |err| {
             if (builtin.os.tag == .windows) {
@@ -129,13 +129,13 @@ pub fn compile(
 fn compileInner(
     allocator: Allocator,
     main_filenames: []const []const u8,
-    julia: *Julia,
+    lua: *Lua,
     diagnostic: *diag.Diagnostic,
     engine: *LatexEngine,
     compile_limit: usize,
     prev_mtime: *?i128,
-    jlcode_contents: ?[]const u8,
-    jlcode_scripts: []const u8,
+    luacode_contents: ?[:0]const u8,
+    luacode_scripts: []const u8,
     attr: CompileAttribute,
 ) !void {
     // make vesti-dummy directory
@@ -208,7 +208,7 @@ fn compileInner(
                     try vestiToLatex(
                         allocator,
                         vesti_file,
-                        julia,
+                        lua,
                         diagnostic,
                         &vesti_dummy,
                         engine,
@@ -220,7 +220,7 @@ fn compileInner(
                 try vestiToLatex(
                     allocator,
                     vesti_file,
-                    julia,
+                    lua,
                     diagnostic,
                     &vesti_dummy,
                     engine,
@@ -236,12 +236,12 @@ fn compileInner(
                 try compileLatex(
                     allocator,
                     filename,
-                    julia,
+                    lua,
                     diagnostic,
                     engine.*,
                     &vesti_dummy,
-                    jlcode_contents,
-                    jlcode_scripts,
+                    luacode_contents,
+                    luacode_scripts,
                     compile_limit,
                 );
             }
@@ -265,7 +265,7 @@ fn compileInner(
             try vestiToLatex(
                 allocator,
                 vesti_file,
-                julia,
+                lua,
                 diagnostic,
                 &vesti_dummy,
                 engine,
@@ -278,12 +278,12 @@ fn compileInner(
             try compileLatex(
                 allocator,
                 filename,
-                julia,
+                lua,
                 diagnostic,
                 engine.*,
                 &vesti_dummy,
-                jlcode_contents,
-                jlcode_scripts,
+                luacode_contents,
+                luacode_scripts,
                 compile_limit,
             );
         }
@@ -295,7 +295,7 @@ fn compileInner(
 pub fn vestiToLatex(
     allocator: Allocator,
     filename: []const u8,
-    julia: *Julia,
+    lua: *Lua,
     diagnostic: *diag.Diagnostic,
     vesti_dummy_dir: *fs.Dir,
     engine: *LatexEngine,
@@ -359,7 +359,7 @@ pub fn vestiToLatex(
     defer aw.deinit();
 
     // change engine type via `compty`
-    julia.changeLatexEngine(engine.*);
+    lua.changeLatexEngine(engine.*);
 
     var codegen = try Codegen.init(
         allocator,
@@ -368,7 +368,7 @@ pub fn vestiToLatex(
         diagnostic,
     );
     defer codegen.deinit();
-    codegen.codegen(julia, &aw.writer) catch |err| {
+    codegen.codegen(lua, &aw.writer) catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);
         return err;
     };
@@ -403,12 +403,12 @@ pub fn vestiToLatex(
 fn compileLatex(
     allocator: Allocator,
     filename: []const u8,
-    julia: *Julia,
+    lua: *Lua,
     diagnostic: *diag.Diagnostic,
     engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    jlcode_contents: ?[]const u8,
-    jlcode_scripts: []const u8,
+    luacode_contents: ?[:0]const u8,
+    luacode_scripts: []const u8,
     compile_limit: usize,
 ) !void {
     const main_tex_file = try getTexFilename(allocator, filename, true);
@@ -421,8 +421,8 @@ fn compileLatex(
             vesti_dummy,
             compile_limit,
         );
-        if (jlcode_contents) |lc| {
-            try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+        if (luacode_contents) |lc| {
+            try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts);
         }
     } else {
         for (0..compile_limit) |i| {
@@ -438,8 +438,8 @@ fn compileLatex(
                 main_tex_file,
                 vesti_dummy,
             );
-            if (jlcode_contents) |lc| {
-                try jlscript.runJlCode(julia, diagnostic, lc, jlcode_scripts);
+            if (luacode_contents) |lc| {
+                try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts);
             }
 
             std.debug.print("[compiled]\n", .{});

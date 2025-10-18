@@ -7,23 +7,22 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 const ParseError = @import("parser/Parser.zig").ParseError;
-const Julia = @import("julia/Julia.zig");
+const Lua = @import("Lua.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
 const Error = Allocator.Error || Io.Writer.Error || ParseError ||
     error{
-        JuliaInitFailed,
-        JlLabelNotFound,
-        DuplicatedJlLabel,
-        JlEvalFailed,
+        LuaLabelNotFound,
+        DuplicatedLuaLabel,
+        LuaEvalFailed,
     };
 
 allocator: Allocator,
 source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
-jlcode_exports: StringArrayHashMap(ArrayList(u8)),
+luacode_exports: StringArrayHashMap(ArrayList(u8)),
 
 const Self = @This();
 
@@ -38,42 +37,42 @@ pub fn init(
         .source = source,
         .stmts = stmts,
         .diagnostic = diagnostic,
-        .jlcode_exports = .empty,
+        .luacode_exports = .empty,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    for (self.jlcode_exports.values()) |*code| {
+    for (self.luacode_exports.values()) |*code| {
         code.deinit(self.allocator);
     }
-    self.jlcode_exports.deinit(self.allocator);
+    self.luacode_exports.deinit(self.allocator);
 }
 
 pub fn codegen(
     self: *Self,
-    julia: ?*Julia,
+    lua: ?*Lua,
     writer: *Io.Writer,
 ) Error!void {
     for (self.stmts) |stmt| {
-        try self.codegenStmt(stmt, julia, writer);
+        try self.codegenStmt(stmt, lua, writer);
     }
 }
 
 fn codegenStmts(
     self: *Self,
     stmts: ArrayList(ast.Stmt),
-    julia: ?*Julia,
+    lua: ?*Lua,
     writer: *Io.Writer,
 ) Error!void {
     for (stmts.items) |stmt| {
-        try self.codegenStmt(stmt, julia, writer);
+        try self.codegenStmt(stmt, lua, writer);
     }
 }
 
 fn codegenStmt(
     self: *Self,
     stmt: ast.Stmt,
-    julia: ?*Julia,
+    lua: ?*Lua,
     writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
@@ -90,19 +89,19 @@ fn codegenStmt(
             if (math_ctx.label) |label| {
                 try writer.print("\\label{{{s}}}", .{label.items});
             }
-            try self.codegenStmts(math_ctx.inner, julia, writer);
+            try self.codegenStmts(math_ctx.inner, lua, writer);
             try writer.writeAll(delimiter[1]);
         },
         .Braced => |bs| {
             if (!bs.unwrap_brace) try writer.writeByte('{');
-            try self.codegenStmts(bs.inner, julia, writer);
+            try self.codegenStmts(bs.inner, lua, writer);
             if (!bs.unwrap_brace) try writer.writeByte('}');
         },
         .Fraction => |fraction| {
             try writer.writeAll("\\frac{");
-            try self.codegenStmts(fraction.numerator, julia, writer);
+            try self.codegenStmts(fraction.numerator, lua, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(fraction.denominator, julia, writer);
+            try self.codegenStmts(fraction.denominator, lua, writer);
             try writer.writeByte('}');
         },
         .DocumentStart => try writer.writeAll("\n\\begin{document}"),
@@ -137,14 +136,14 @@ fn codegenStmt(
             for (usepkgs.items) |usepkg|
                 try self.codegenStmt(
                     ast.Stmt{ .ImportSinglePkg = usepkg },
-                    julia,
+                    lua,
                     writer,
                 );
         },
         .PlainTextInMath => |info| {
             try writer.writeAll("\\text{");
             if (info.add_front_space) try writer.writeByte(' ');
-            try self.codegenStmts(info.inner, julia, writer);
+            try self.codegenStmts(info.inner, lua, writer);
             if (info.add_back_space) try writer.writeByte(' ');
             try writer.writeByte('}');
         },
@@ -161,12 +160,12 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, julia, writer);
+                        try self.codegenStmts(arg.ctx, lua, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, julia, writer);
+                        try self.codegenStmts(arg.ctx, lua, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -175,7 +174,7 @@ fn codegenStmt(
             if (info.label) |label| {
                 try writer.print("\\label{{{s}}}", .{label.items});
             }
-            try self.codegenStmts(info.inner, julia, writer);
+            try self.codegenStmts(info.inner, lua, writer);
             try writer.print("\\end{{{f}}}", .{info.name});
         },
         .BeginPhantomEnviron => |info| {
@@ -184,12 +183,12 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, julia, writer);
+                        try self.codegenStmts(arg.ctx, lua, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, julia, writer);
+                        try self.codegenStmts(arg.ctx, lua, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -257,7 +256,7 @@ fn codegenStmt(
             // body
             var body = Io.Writer.Allocating.init(self.allocator);
             defer body.deinit();
-            try self.codegenStmts(ctx.inner, julia, &body.writer);
+            try self.codegenStmts(ctx.inner, lua, &body.writer);
 
             var body_content: []const u8 = body.written();
             if (ctx.kind.trim_left) {
@@ -286,21 +285,21 @@ fn codegenStmt(
                 try writer.print("[{d}]", .{ctx.num_args});
             if (ctx.default_arg) |arg| {
                 try writer.writeByte('[');
-                try self.codegenStmts(arg.ctx, julia, writer);
+                try self.codegenStmts(arg.ctx, lua, writer);
                 try writer.writeByte(']');
             }
             try writer.writeByte('{');
 
             // body
-            try self.codegenStmts(ctx.inner_begin, julia, writer);
+            try self.codegenStmts(ctx.inner_begin, lua, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(ctx.inner_end, julia, writer);
+            try self.codegenStmts(ctx.inner_end, lua, writer);
 
             //epilogue
             try writer.writeAll("}\n");
         },
-        .JlCode => |cb| {
-            if (julia) |jl| {
+        .LuaCode => |cb| {
+            if (lua) |l| {
                 var new_code = try ArrayList(u8).initCapacity(
                     self.allocator,
                     cb.code.items.len,
@@ -309,53 +308,51 @@ fn codegenStmt(
 
                 if (cb.code_import) |import_arr_list| {
                     for (import_arr_list.items) |import_label| {
-                        if (self.jlcode_exports.get(import_label)) |import_code| {
+                        if (self.luacode_exports.get(import_label)) |import_code| {
                             try new_code.appendSlice(self.allocator, import_code.items);
                             try new_code.append(self.allocator, '\n');
                         } else {
-                            const label_not_found = try diag.ParseDiagnostic.jlLabelNotFound(
+                            const label_not_found = try diag.ParseDiagnostic.luaLabelNotFound(
                                 self.diagnostic.allocator,
                                 cb.code_span,
                                 import_label,
                             );
                             self.diagnostic.initDiagInner(.{ .ParseError = label_not_found });
-                            return error.JlLabelNotFound;
+                            return error.LuaLabelNotFound;
                         }
                     }
                 }
 
                 if (cb.code_export) |export_label| {
-                    if (self.jlcode_exports.get(export_label) != null) {
+                    if (self.luacode_exports.get(export_label) != null) {
                         self.diagnostic.initDiagInner(.{ .ParseError = .{
-                            .err_info = .{ .DuplicatedJlLabel = export_label },
+                            .err_info = .{ .DuplicatedLuaLabel = export_label },
                             .span = cb.code_span,
                         } });
-                        return error.DuplicatedJlLabel;
+                        return error.DuplicatedLuaLabel;
                     }
                     try new_code.appendSlice(self.allocator, cb.code.items);
-                    try self.jlcode_exports.put(self.allocator, export_label, new_code);
+                    try self.luacode_exports.put(self.allocator, export_label, new_code);
                     return;
                 }
                 try new_code.appendSlice(self.allocator, cb.code.items);
+                try new_code.append(self.allocator, 0);
 
-                jl.runJlCode(@ptrCast(new_code.items), cb.is_global, null) catch |err| switch (err) {
-                    error.JlEvalFailed => {
-                        const jl_runtime_err = try diag.ParseDiagnostic.jlEvalFailed(
-                            self.diagnostic.allocator,
-                            cb.code_span,
-                            "failed to run jlcode",
-                            .{},
-                            "see above julia error message",
-                        );
-                        self.diagnostic.initDiagInner(.{ .ParseError = jl_runtime_err });
-                        return error.JlEvalFailed;
-                    },
-                    else => return err,
+                l.evalCode(@ptrCast(new_code.items)) catch {
+                    const lua_runtime_err = try diag.ParseDiagnostic.luaEvalFailed(
+                        self.diagnostic.allocator,
+                        cb.code_span,
+                        "failed to run luacode",
+                        .{},
+                        "see above lua error message",
+                    );
+                    self.diagnostic.initDiagInner(.{ .ParseError = lua_runtime_err });
+                    return error.LuaEvalFailed;
                 };
 
-                var ves_output = try jl.getVestiOutputStr(self.allocator);
-                defer ves_output.deinit(self.allocator);
-                try writer.writeAll(ves_output.items);
+                const ves_output = try l.getVestiOutputStr();
+                defer self.allocator.free(ves_output);
+                try writer.writeAll(@ptrCast(ves_output));
 
                 new_code.deinit(self.allocator);
             }

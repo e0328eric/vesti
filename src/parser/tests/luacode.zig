@@ -6,9 +6,9 @@ const allocator = testing.allocator;
 
 const Parser = @import("../Parser.zig");
 
-test "basic jlcode" {
+test "basic luacode" {
     const source =
-        \\#jl:
+        \\#lu:
         \\function test(x,y)
         \\  if x < y
         \\    println("x is less than y")
@@ -18,7 +18,7 @@ test "basic jlcode" {
         \\    println("x and y are equal")
         \\  end
         \\end
-        \\:jl#
+        \\:lu#
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,
@@ -31,7 +31,7 @@ test "basic jlcode" {
         source,
         undefined,
         &diagnostic,
-        true, // allow jlcode for testing
+        true, // allow luacode for testing
         null, // disallow changing latex engine type
     );
 
@@ -47,7 +47,7 @@ test "basic jlcode" {
         ast.deinit(allocator);
     }
 
-    const expected_jlcode =
+    const expected_luacode =
         \\
         \\function test(x,y)
         \\  if x < y
@@ -61,5 +61,5 @@ test "basic jlcode" {
         \\
     ;
 
-    try testing.expectFmt(expected_jlcode, "{s}", .{ast.items[0].JlCode.code.items});
+    try testing.expectFmt(expected_luacode, "{s}", .{ast.items[0].LuaCode.code.items});
 }

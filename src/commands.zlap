@@ -103,16 +103,16 @@
     #flag;
     long: before_script;
     short:;
-    desc: run julia code once for each vesti runs.
+    desc: run lua code once for each vesti runs.
     type: string;
-    default: before.jl;
+    default: before.lua;
 
     #flag;
     long: step_script;
     short:;
-    desc: custom julia code to execute for each end of vesti steps;
+    desc: custom lua code to execute for each end of vesti steps;
     type: string;
-    default: step.jl;
+    default: step.lua;
 }
 {
     #name: clear;
@@ -160,7 +160,7 @@
     #flag;
     long: first_script;
     short:;
-    desc: run julia code once for each vesti runs.
+    desc: run lua code once for each vesti runs.
     type: string;
-    default: first.jl;
+    default: first.lua;
 }

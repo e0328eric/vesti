@@ -44,7 +44,7 @@ pub const TokenType = union(enum(u8)) {
         chr: u21 = 0,
     },
     BuiltinFunction: []const u8,
-    JlCode,
+    LuaCode,
 
     // Keywords
     Docclass,
@@ -166,7 +166,7 @@ pub const TokenType = union(enum(u8)) {
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
             .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
             .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
-            .JlCode =>                   try writer.writeAll("`<jlcode>`"),
+            .LuaCode =>                  try writer.writeAll("`<luacode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
             .ImportVesti =>              try writer.writeAll("`importves`"),
@@ -278,8 +278,8 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "mthmd",        TokenType.deprecated(false, "#mathmode") },
     .{ "textmode",     TokenType.deprecated(true, "#textmode") },
     .{ "mathmode",     TokenType.deprecated(true, "#mathmode") },
-    .{ "pycode",       TokenType.deprecated(true, "#jl:") },
-    .{ "luacode",      TokenType.deprecated(true, "#jl:") },
+    .{ "pycode",       TokenType.deprecated(true, "#lu:") },
+    .{ "luacode",      TokenType.deprecated(true, "#lu:") },
     .{ "importfile",   TokenType.deprecated(false, "cpfile") },
     .{ "redefenv",     TokenType.deprecated(false, "") },
     .{ "endswith",     TokenType.deprecated(false, "") },

@@ -40,7 +40,7 @@ doc_state: DocState,
 enum_depth: u8,
 diagnostic: *diag.Diagnostic,
 file_dir: *fs.Dir,
-allow_jlcode: bool,
+allow_luacode: bool,
 current_engine: LatexEngine,
 engine_ptr: ?*LatexEngine,
 
@@ -82,7 +82,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
-    Io.Writer.Error ||
+    Io.Writer.Error || Io.Reader.Error || error{StreamTooLong, FailedOpenConfig} ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
@@ -99,10 +99,8 @@ pub fn init(
     source: []const u8,
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
-    allow_jlcode: bool,
+    allow_luacode: bool,
     engine: anytype,
-    //current_engine: LatexEngine,
-    //engine: ?*LatexEngine,
 ) !Self {
     var self: Self = undefined;
 
@@ -115,7 +113,7 @@ pub fn init(
     self.enum_depth = 0;
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
-    self.allow_jlcode = allow_jlcode;
+    self.allow_luacode = allow_luacode;
 
     const typeinfo = @typeInfo(@TypeOf(engine));
     comptime assert(typeinfo == .@"struct");
@@ -309,11 +307,11 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .CompileType => try self.parseCompileType(),
-        .JlCode => if (self.allow_jlcode)
-            try self.parseJlCode()
+        .LuaCode => if (self.allow_luacode)
+            try self.parseLuaCode()
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .DisallowJlcode,
+                .err_info = .DisallowLuacode,
                 .span = self.curr_tok.span,
             } });
             return ParseError.ParseFailed;
@@ -1641,24 +1639,24 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     };
 }
 
-fn parseJlCode(self: *Self) ParseError!Stmt {
+fn parseLuaCode(self: *Self) ParseError!Stmt {
     const codeblock_loc = self.curr_tok.span;
-    if (!self.expect(.current, &.{.JlCode})) {
+    if (!self.expect(.current, &.{.LuaCode})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.JlCode},
+                .expected = &.{.LuaCode},
                 .obtained = self.currToktype(),
             } },
             .span = codeblock_loc,
         } });
         return ParseError.ParseFailed;
     }
-    const jlcode_contents = self.curr_tok.lit.in_text;
+    const luacode_contents = self.curr_tok.lit.in_text;
 
-    // coping jlcode contents
-    var jlcode: ArrayList(u8) = .empty;
-    errdefer jlcode.deinit(self.allocator);
-    try jlcode.appendSlice(self.allocator, jlcode_contents);
+    // coping luacode contents
+    var luacode: ArrayList(u8) = .empty;
+    errdefer luacode.deinit(self.allocator);
+    try luacode.appendSlice(self.allocator, luacode_contents);
 
     var is_global = false;
     if (self.expect(.peek, &.{.Star})) {
@@ -1675,7 +1673,7 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
             self.allocator,
             10,
         );
-        self.nextToken(); // skip ':jl#' or '*' token
+        self.nextToken(); // skip ':lu#' or '*' token
         self.nextToken(); // skip '[' token
 
         while (true) : (self.nextToken()) {
@@ -1715,7 +1713,7 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
 
     var code_export: ?[]const u8 = null;
     if (self.expect(.peek, &.{.Less})) {
-        self.nextToken(); // skip ':jl#' or ']' token
+        self.nextToken(); // skip ':lu#' or ']' token
 
         const codeblock_tag_loc = self.curr_tok.span;
         self.nextToken(); // skip '<' token
@@ -1746,12 +1744,12 @@ fn parseJlCode(self: *Self) ParseError!Stmt {
     }
 
     return Stmt{
-        .JlCode = .{
+        .LuaCode = .{
             .code_span = codeblock_loc,
             .is_global = is_global,
             .code_import = code_import,
             .code_export = code_export,
-            .code = jlcode,
+            .code = luacode,
         },
     };
 }
@@ -2776,5 +2774,5 @@ test "test vesti parser" {
     _ = @import("tests/importpkg.zig");
     _ = @import("tests/math_stmts.zig");
     _ = @import("tests/environments.zig");
-    _ = @import("tests/jlcode.zig");
+    _ = @import("tests/luacode.zig");
 }

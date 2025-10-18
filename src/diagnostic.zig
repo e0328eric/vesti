@@ -249,11 +249,11 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow,
         InvalidDefunParam,
         EnvInsideDefun,
-        InvalidJlcode,
-        DisallowJlcode,
-        JlLabelNotFound,
-        DuplicatedJlLabel,
-        JlEvalFailed,
+        InvalidLuacode,
+        DisallowLuacode,
+        LuaLabelNotFound,
+        DuplicatedLuaLabel,
+        LuaEvalFailed,
         NotLocatedInVeryFirst,
         DoubleUsed,
         InvalidLatexEngine,
@@ -290,11 +290,11 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow: usize,
         InvalidDefunParam: usize,
         EnvInsideDefun,
-        InvalidJlcode,
-        DisallowJlcode,
-        JlLabelNotFound: ArrayList(u8),
-        DuplicatedJlLabel: []const u8,
-        JlEvalFailed: struct {
+        InvalidLuacode,
+        DisallowLuacode,
+        LuaLabelNotFound: ArrayList(u8),
+        DuplicatedLuaLabel: []const u8,
+        LuaEvalFailed: struct {
             err_msg: ArrayList(u8),
             err_detail: ArrayList(u8),
         },
@@ -307,8 +307,8 @@ pub const ParseDiagnostic = struct {
             switch (self.*) {
                 .InvalidBuiltin => |*inner| inner.deinit(allocator),
                 .InvalidDefunKind => |*inner| inner.deinit(allocator),
-                .JlLabelNotFound => |*inner| inner.deinit(allocator),
-                .JlEvalFailed => |*inner| {
+                .LuaLabelNotFound => |*inner| inner.deinit(allocator),
+                .LuaEvalFailed => |*inner| {
                     inner.err_msg.deinit(allocator);
                     inner.err_detail.deinit(allocator);
                 },
@@ -317,7 +317,7 @@ pub const ParseDiagnostic = struct {
         }
     };
 
-    pub fn jlLabelNotFound(
+    pub fn luaLabelNotFound(
         allocator: Allocator,
         span: Span,
         label_str: []const u8,
@@ -327,12 +327,12 @@ pub const ParseDiagnostic = struct {
         try label.appendSlice(allocator, label_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .JlLabelNotFound = label },
+            .err_info = ParseErrorInfo{ .LuaLabelNotFound = label },
             .span = span,
         };
     }
 
-    pub fn jlEvalFailed(
+    pub fn luaEvalFailed(
         allocator: Allocator,
         span: ?Span,
         comptime fmt_str: []const u8,
@@ -348,7 +348,7 @@ pub const ParseDiagnostic = struct {
         try err_detail.appendSlice(allocator, err_detail_str);
 
         return Self{
-            .err_info = ParseErrorInfo{ .JlEvalFailed = .{
+            .err_info = ParseErrorInfo{ .LuaEvalFailed = .{
                 .err_msg = err_msg,
                 .err_detail = err_detail,
             } },
@@ -473,18 +473,18 @@ pub const ParseDiagnostic = struct {
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try aw.writer.writeAll(info),
-            .InvalidJlcode => try aw.writer.writeAll("invalid julia code was found"),
-            .DisallowJlcode => try aw.writer.writeAll("nested julia code is not allowed"),
-            .JlLabelNotFound => |label| try aw.writer.print(
+            .InvalidLuacode => try aw.writer.writeAll("invalid lua code was found"),
+            .DisallowLuacode => try aw.writer.writeAll("nested lua code is not allowed"),
+            .LuaLabelNotFound => |label| try aw.writer.print(
                 "label `{s}` is not found",
                 .{label.items},
             ),
-            .DuplicatedJlLabel => |label| try aw.writer.print(
+            .DuplicatedLuaLabel => |label| try aw.writer.print(
                 "label `{s}` is duplicated",
                 .{label},
             ),
-            .JlEvalFailed => |inner| try aw.writer.print(
-                "julia exception occured: {s}",
+            .LuaEvalFailed => |inner| try aw.writer.print(
+                "lua exception occured: {s}",
                 .{inner.err_msg.items},
             ),
             .NotLocatedInVeryFirst => |tok| try aw.writer.print(
@@ -509,7 +509,7 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
-            .JlLabelNotFound => blk: {
+            .LuaLabelNotFound => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 
@@ -520,7 +520,7 @@ pub const ParseDiagnostic = struct {
                 );
                 break :blk output;
             },
-            .JlEvalFailed => |inner| blk: {
+            .LuaEvalFailed => |inner| blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
 

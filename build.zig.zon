@@ -2,7 +2,7 @@
     .name = .vesti,
     .version = "0.6.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.16.0-dev.660+27aba2d77",
+    .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .zlap = .{
             .url = "git+https://github.com/e0328eric/zlap.git#0527c02f6ba84d1db47dc92bf799f5f9b4756bf7",
@@ -10,6 +10,10 @@
         },
         .ziglyph = .{
             .path = "./thirdparty/ziglyph",
+        },
+        .zlua = .{
+            .url = "git+https://github.com/e0328eric/ziglua.git#39f8df588d0864070deffa308ef575bf492777a0",
+            .hash = "zlua-0.1.0-hGRpC6E9BQDBGKPqzmCRsI6Xd8jH9KohccmX69-L6HyS",
         },
     },
     .paths = .{
