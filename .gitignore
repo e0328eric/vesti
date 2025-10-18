@@ -1,9 +1,10 @@
 /**/.zig-cache
 /**/zig-out
 /**/.vesti-dummy
-/foo.ves
-/foo.pdf
+/**/foo.ves
+/**/foo.pdf
 /vesti-tectonic/target
-/first.jl
-/step.jl
+/first.lua
+/before.lua
+/step.lua
 /.cache
