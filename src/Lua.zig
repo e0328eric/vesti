@@ -82,7 +82,7 @@ pub fn evalCode(self: *Self, code: [:0]const u8) !void {
         const err_msg = self.lua.toString(-1) catch unreachable;
         std.debug.print("================== <LUA ERROR> ==================\n", .{});
         std.debug.print("                    <LUACODE>\n", .{});
-        std.debug.print("{s}", .{code});
+        std.debug.print("{s}\n", .{code});
         std.debug.print("-------------------------------------------------\n", .{});
         std.debug.print("                 <ERROR MESSAGE>\n", .{});
         std.debug.print("{s}\n", .{err_msg});
