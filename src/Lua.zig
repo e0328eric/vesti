@@ -80,8 +80,11 @@ pub fn clearVestiOutputStr(self: *Self) void {
 pub fn evalCode(self: *Self, code: [:0]const u8) !void {
     self.lua.doString(code) catch {
         const err_msg = self.lua.toString(-1) catch unreachable;
-        std.debug.print("=================================================\n", .{});
-        std.debug.print("                   <LUA ERROR>\n", .{});
+        std.debug.print("================== <LUA ERROR> ==================\n", .{});
+        std.debug.print("                    <LUACODE>\n", .{});
+        std.debug.print("{s}", .{code});
+        std.debug.print("-------------------------------------------------\n", .{});
+        std.debug.print("                 <ERROR MESSAGE>\n", .{});
         std.debug.print("{s}\n", .{err_msg});
         std.debug.print("=================================================\n", .{});
         return error.LuaEvalFailed;
