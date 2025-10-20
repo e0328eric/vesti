@@ -8,7 +8,6 @@ const mem = std.mem;
 const path = fs.path;
 const process = std.process;
 const unicode = std.unicode;
-const ziglyph = @import("ziglyph");
 const zon = std.zon;
 
 const Allocator = mem.Allocator;
@@ -82,7 +81,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
-    Io.Writer.Error || Io.Reader.Error || error{StreamTooLong, FailedOpenConfig} ||
+    Io.Writer.Error || Io.Reader.Error || error{ StreamTooLong, FailedOpenConfig } ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
@@ -1393,7 +1392,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
             else => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .{ .NameMissErr = .DefineFunction },
-                    .span = defun_location,
+                    .span = self.curr_tok.span,
                 } });
                 return ParseError.ParseFailed;
             },

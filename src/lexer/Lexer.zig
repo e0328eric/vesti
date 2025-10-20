@@ -1,5 +1,5 @@
 const std = @import("std");
-const ziglyph = @import("ziglyph");
+const uucode = @import("uucode");
 const unicode = std.unicode;
 const fmt = std.fmt;
 const mem = std.mem;
@@ -193,7 +193,7 @@ pub fn next(self: *Self) Token {
                     self.nextChar(1);
                     continue :tokenize .float;
                 },
-                else => |chr| if (ziglyph.isDecimal(chr)) {
+                else => |chr| if (uucode.get(.is_ascii_digit, chr)) {
                     start_chr0_idx = self.chr0_idx;
                     self.nextChar(1);
                     continue :tokenize .integer;
@@ -252,7 +252,7 @@ pub fn next(self: *Self) Token {
                 self.nextChar(3);
                 self.str2Token("...", &token, start_location);
                 break :tokenize;
-            } else if (ziglyph.isDecimal(self.getChar(.peek1))) {
+            } else if (uucode.get(.is_ascii_digit, self.getChar(.peek1))) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .float;
@@ -365,15 +365,16 @@ pub fn next(self: *Self) Token {
                 self.str2Token(&[1]u8{@intCast(chr)}, &token, start_location);
                 break :tokenize;
             },
-            else => |chr| if (ziglyph.isAsciiDigit(chr)) {
+            else => |chr| if (uucode.get(.is_ascii_digit, chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .integer;
-            } else if (ziglyph.isAlphabetic(chr)) {
+            } else if (uucode.get(.is_alphanumeric, chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .text;
             } else {
+                start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 var buf: [4]u8 = @splat(0);
                 const codepoint_len = unicode.utf8Encode(chr, &buf) catch {
@@ -381,7 +382,7 @@ pub fn next(self: *Self) Token {
                     break :tokenize;
                 };
                 token.init(
-                    buf[0..codepoint_len],
+                    self.source[start_chr0_idx..][0..codepoint_len],
                     null,
                     .OtherChar,
                     start_location,
@@ -391,7 +392,7 @@ pub fn next(self: *Self) Token {
             },
         },
         .o_chr => if (self.getChar(.current) == 'o' and
-            !ziglyph.isAlphabetic(self.getChar(.peek1)))
+            !uucode.get(.is_alphabetic, self.getChar(.peek1)))
         {
             self.nextChar(1);
             self.str2Token("oo", &token, start_location);
@@ -438,8 +439,8 @@ pub fn next(self: *Self) Token {
                     else => continue :goto .b,
                 },
                 .b => {
-                    if (ziglyph.isAlphabetic(self.getChar(.current)) or
-                        ziglyph.isDecimal(self.getChar(.current)))
+                    if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
+                        uucode.get(.is_alphabetic, self.getChar(.current)))
                     {
                         self.nextChar(1);
                         continue :tokenize .builtin_function;
@@ -566,8 +567,8 @@ pub fn next(self: *Self) Token {
                 break :tokenize;
             },
         },
-        .text => if (ziglyph.isAlphabetic(self.getChar(.current)) or
-            ziglyph.isDecimal(self.getChar(.current)))
+        .text => if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
+            uucode.get(.is_alphabetic, self.getChar(.current)))
         {
             self.nextChar(1);
             continue :tokenize .text;
@@ -580,7 +581,7 @@ pub fn next(self: *Self) Token {
             }
             break :tokenize;
         },
-        .builtin_function => if (ziglyph.isAlphaNum(self.getChar(.current)) or
+        .builtin_function => if (uucode.get(.is_alphanumeric, self.getChar(.current)) or
             self.getChar(.current) == '_')
         {
             self.nextChar(1);
@@ -588,7 +589,8 @@ pub fn next(self: *Self) Token {
         } else {
             const fnt_name = self.source[start_chr0_idx..self.chr0_idx];
             if (self.getChar(.current) == ' ' and
-                (ziglyph.isAlphaNum(self.getChar(.peek1)) or self.getChar(.peek1) == ' '))
+                (uucode.get(.is_alphanumeric, self.getChar(.peek1)) or
+                    self.getChar(.peek1) == ' '))
             {
                 self.nextChar(1);
             }
@@ -624,13 +626,13 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .integer => if (ziglyph.isAsciiDigit(self.getChar(.current))) {
+        .integer => if (uucode.get(.is_ascii_digit, self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .integer;
         } else if (self.getChar(.current) == '.') {
             self.nextChar(1);
             continue :tokenize .float;
-        } else if (ziglyph.isAlphabetic(self.getChar(.current))) {
+        } else if (uucode.get(.is_alphanumeric, self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .text;
         } else {
@@ -643,7 +645,7 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .float => if (ziglyph.isAsciiDigit(self.getChar(.current))) {
+        .float => if (uucode.get(.is_ascii_digit, self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .float;
         } else {

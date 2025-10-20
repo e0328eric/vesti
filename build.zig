@@ -61,14 +61,11 @@ pub fn build(b: *Build) !void {
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                        Test Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    const ziglyph = b.dependency("ziglyph", .{
+    const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
+    const uucode = b.dependency("uucode", .{
         .target = target,
         .optimize = optimize,
-    });
-
-    const zlua = b.dependency("zlua", .{
-        .target = target,
-        .optimize = optimize,
+        .build_config_path = b.path("uucode/uucode_config.zig"),
     });
 
     const tectonic_dll_name = try getDllName(&target);
@@ -85,7 +82,7 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
         .link_libc = true,
         .imports = &.{
-            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
+            .{ .name = "uucode", .module = uucode.module("uucode") },
             .{ .name = "zlua", .module = zlua.module("zlua") },
         },
     });
@@ -150,8 +147,12 @@ fn buildVesti(
     };
 
     const zlap = b.dependency("zlap", .{ .target = target, .optimize = optimize });
-    const ziglyph = b.dependency("ziglyph", .{ .target = target, .optimize = optimize });
     const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
+    const uucode = b.dependency("uucode", .{
+        .target = target,
+        .optimize = optimize,
+        .build_config_path = b.path("uucode/uucode_config.zig"),
+    });
 
     const tectonic_dll_name = try getDllName(&target);
     const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
@@ -169,7 +170,7 @@ fn buildVesti(
         .strip = strip,
         .imports = &.{
             .{ .name = "zlap", .module = zlap.module("zlap") },
-            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
+            .{ .name = "uucode", .module = uucode.module("uucode") },
             .{ .name = "zlua", .module = zlua.module("zlua") },
         },
     });

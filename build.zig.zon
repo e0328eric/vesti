@@ -15,6 +15,10 @@
             .url = "git+https://github.com/e0328eric/ziglua.git#39f8df588d0864070deffa308ef575bf492777a0",
             .hash = "zlua-0.1.0-hGRpC6E9BQDBGKPqzmCRsI6Xd8jH9KohccmX69-L6HyS",
         },
+        .uucode = .{
+            .url = "git+https://github.com/jacobsandlund/uucode.git#d384d9d152d447c8a5fcaba528b12e945de746da",
+            .hash = "uucode-0.1.0-ZZjBPvRRQwDtUlepx1HjxWWKZILzELVMhO_d9yhmS2Tj",
+        },
     },
     .paths = .{
         "build.zig",
