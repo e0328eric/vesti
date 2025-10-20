@@ -82,7 +82,20 @@ pub fn evalCode(self: *Self, code: [:0]const u8) !void {
         const err_msg = self.lua.toString(-1) catch unreachable;
         std.debug.print("================== <LUA ERROR> ==================\n", .{});
         std.debug.print("                    <LUACODE>\n", .{});
-        std.debug.print("{s}\n", .{code});
+
+        // printing luacode with numbering
+        const lines_count = std.mem.count(u8, @ptrCast(code), "\n");
+        const padding = std.math.log10_int(lines_count);
+        var line_iter = std.mem.splitScalar(u8, @ptrCast(code), '\n');
+
+        var i: usize = 1;
+        while (line_iter.next()) |line| : (i += 1) {
+            std.debug.print("{d}", .{i});
+            for (0..(padding - std.math.log10_int(i))) |_| {
+                std.debug.print(" ", .{});
+            }
+            std.debug.print(" | {s}\n", .{line});
+        }
         std.debug.print("-------------------------------------------------\n", .{});
         std.debug.print("                 <ERROR MESSAGE>\n", .{});
         std.debug.print("{s}\n", .{err_msg});
