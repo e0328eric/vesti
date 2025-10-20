@@ -7,6 +7,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
+const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_VERSION_STR = "0.6.0";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
@@ -71,10 +72,12 @@ pub fn build(b: *Build) !void {
     });
 
     const tectonic_dll_name = try getDllName(&target);
+    const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
+    vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
 
     const test_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -107,8 +110,9 @@ pub fn build(b: *Build) !void {
     const targets: []const std.Target.Query = &.{
         .{ .cpu_arch = .aarch64, .os_tag = .macos },
         .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
-        .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
         .{ .cpu_arch = .x86_64, .os_tag = .windows },
+        // NOTE: rpath is ignored, so I remove this target
+        //.{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
     };
 
     for (targets) |t| {
@@ -150,10 +154,12 @@ fn buildVesti(
     const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
 
     const tectonic_dll_name = try getDllName(&target);
+    const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
+    vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -167,7 +173,12 @@ fn buildVesti(
             .{ .name = "zlua", .module = zlua.module("zlua") },
         },
     });
-    exe_mod.addRPath(.{ .cwd_relative = b.exe_dir });
+    switch (target.result.os.tag) {
+        .linux => exe_mod.addRPath(.{ .cwd_relative = "$ORIGIN" }),
+        .macos => exe_mod.addRPath(.{ .cwd_relative = "@executable_path" }),
+        .windows => {}, // windows does not use rpath
+        else => @panic("Non supported OS"),
+    }
     exe_mod.addOptions("vesti-info", vesti_opt);
 
     return b.addExecutable(.{
@@ -428,10 +439,37 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
                 "libvesti_tectonic.dylib",
             },
             else => blk: {
-                std.debug.print("Only arm MacOs is supported", .{});
+                std.debug.print("Only arm MacOS is supported", .{});
                 break :blk error.NotSupport;
             },
         },
         else => @panic("Not supported"),
     };
+}
+
+fn calculateDllHash(allocator: Allocator, tectonic_dll_name: []const u8) !u512 {
+    const dll_path = try path.join(allocator, &.{
+        "./vesti-tectonic/bin/",
+        tectonic_dll_name,
+    });
+    defer allocator.free(dll_path);
+
+    var dll = try std.fs.cwd().openFile(dll_path, .{});
+    defer dll.close();
+    var dll_read_buf: [4096]u8 = undefined;
+    var dll_reader = dll.reader(&dll_read_buf);
+
+    var sha_out: [Sha3.digest_length]u8 = undefined;
+    var sha3 = Sha3.init(.{});
+
+    var block: [Sha3.block_length]u8 = @splat(0);
+    while (dll_reader.interface.readSliceAll(&block)) {
+        sha3.update(&block);
+    } else |err| switch (err) {
+        error.EndOfStream => {},
+        error.ReadFailed => return err,
+    }
+    sha3.final(&sha_out);
+
+    return std.mem.bytesToValue(u512, &sha_out);
 }

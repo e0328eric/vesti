@@ -18,10 +18,12 @@ const Lua = @import("Lua.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
+const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
 const TECTONIC_DLL = @import("vesti-info").TECTONIC_DLL;
+const TECTONIC_DLL_HASH = @import("vesti-info").TECTONIC_DLL_HASH;
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -162,6 +164,17 @@ fn compileInner(
         main_vesti_files.deinit(allocator);
     }
     for (main_filenames) |filename| {
+        if (!mem.eql(u8, path.extension(filename), "ves")) {
+            const io_diag = try diag.IODiagnostic.init(
+                diagnostic.allocator,
+                null,
+                "extension of `{s}` is not `ves`",
+                .{filename},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.ExtensionDifferent;
+        }
+
         const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch {
             const io_diag = try diag.IODiagnostic.init(
                 diagnostic.allocator,
@@ -416,6 +429,7 @@ fn compileLatex(
 
     if (engine == .tectonic) {
         try compileLatexWithTectonic(
+            allocator,
             diagnostic,
             main_tex_file,
             vesti_dummy,
@@ -585,21 +599,66 @@ fn changeExtension(
 const TectonicFnt = *const fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
 
 fn compileLatexWithTectonic(
+    allocator: Allocator,
     diagnostic: *diag.Diagnostic,
     main_tex_file: []const u8,
     vesti_dummy: *fs.Dir,
     compile_limit: usize,
 ) !void {
+    // message templates
+    const DLL_NOT_FOUND =
+        "cannot find {s}, critical error!!!";
+    const DLL_NOT_FOUND_NOTE =
+        \\{0s} is assumed to locate at the same directory where the vesti exists.
+        \\if this error message apprears, first check the {0s} location.
+        \\otherwise, please make an issue on vesti github.
+        \\repo url: https://github.com/e0328eric/vesti
+    ;
+
+    // tectonic dll is assumed to locate at the same directory with the vesti
+    // below function follows symlink, which is expected
+    const exe_dir = try fs.selfExeDirPathAlloc(allocator);
+    defer allocator.free(exe_dir);
+    const dll_hash = calculateDllHash(exe_dir) catch |err| switch (err) {
+        error.FileNotFound => {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                diagnostic.allocator,
+                null,
+                DLL_NOT_FOUND,
+                .{TECTONIC_DLL},
+                DLL_NOT_FOUND_NOTE,
+                .{TECTONIC_DLL},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
+        },
+        else => return err,
+    };
+
+    if (dll_hash != TECTONIC_DLL_HASH) {
+        const io_diag = try diag.IODiagnostic.initWithNote(
+            diagnostic.allocator,
+            null,
+            "{s} is poisoned, critical error!!!",
+            .{TECTONIC_DLL},
+            \\{s} has unexpected hash value.
+            \\For the security issue, please replace the dll from the repo.
+            \\repo url: https://github.com/e0328eric/vesti
+        ,
+            .{TECTONIC_DLL},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.CompileLatexFailed;
+    }
+
     var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
         const io_diag = try diag.IODiagnostic.initWithNote(
             diagnostic.allocator,
             null,
-            "cannot find {s}, critical error!!!",
+            DLL_NOT_FOUND,
             .{TECTONIC_DLL},
-            \\if this error message apprears, please make an issue on vesti github
-            \\repo url: https://github.com/e0328eric/vesti
-        ,
-            .{},
+            DLL_NOT_FOUND_NOTE,
+            .{TECTONIC_DLL},
         );
         diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.CompileLatexFailed;
@@ -636,4 +695,30 @@ fn compileLatexWithTectonic(
             return error.CompileLatexFailed;
         }
     } else return error.FindTectonicFunctionFailed;
+}
+
+fn calculateDllHash(exe_dir_path: []const u8) !u512 {
+    // tectonic dll is assumed to locate at the same directory with the vesti
+    // below function follows symlink, which is expected
+    var exe_dir = try std.fs.openDirAbsolute(exe_dir_path, .{});
+    defer exe_dir.close();
+
+    var dll = try exe_dir.openFile(TECTONIC_DLL, .{});
+    defer dll.close();
+    var dll_read_buf: [4096]u8 = undefined;
+    var dll_reader = dll.reader(&dll_read_buf);
+
+    var sha_out: [Sha3.digest_length]u8 = undefined;
+    var sha3 = Sha3.init(.{});
+
+    var block: [Sha3.block_length]u8 = @splat(0);
+    while (dll_reader.interface.readSliceAll(&block)) {
+        sha3.update(&block);
+    } else |err| switch (err) {
+        error.EndOfStream => {},
+        error.ReadFailed => return err,
+    }
+    sha3.final(&sha_out);
+
+    return std.mem.bytesToValue(u512, &sha_out);
 }
