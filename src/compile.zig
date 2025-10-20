@@ -164,7 +164,7 @@ fn compileInner(
         main_vesti_files.deinit(allocator);
     }
     for (main_filenames) |filename| {
-        if (!mem.eql(u8, path.extension(filename), "ves")) {
+        if (!mem.eql(u8, path.extension(filename), ".ves")) {
             const io_diag = try diag.IODiagnostic.init(
                 diagnostic.allocator,
                 null,
