@@ -4,6 +4,7 @@ const fs = std.fs;
 const path = fs.path;
 
 const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 
@@ -33,16 +34,32 @@ const Build = blk: {
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const strip = switch (optimize) {
-        .ReleaseFast, .ReleaseSmall => true,
-        else => false,
-    };
 
-    const zlap = b.dependency("zlap", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    //          ╭─────────────────────────────────────────────────────────╮
+    //          │                       Build Step                        │
+    //          ╰─────────────────────────────────────────────────────────╯
+    const exe = try buildVesti(b, target, optimize);
+    const install_dll = InstallDll.create(b, target, null);
+    b.getInstallStep().dependOn(&install_dll.step);
+    b.installArtifact(exe);
 
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
+
+    const build_rust = BuildRust.create(b, target);
+    const build_rust_cmd = b.step("rust", "Build vesti-tectonic rust code");
+    build_rust_cmd.dependOn(&build_rust.step);
+
+    //          ╭─────────────────────────────────────────────────────────╮
+    //          │                        Test Step                        │
+    //          ╰─────────────────────────────────────────────────────────╯
     const ziglyph = b.dependency("ziglyph", .{
         .target = target,
         .optimize = optimize,
@@ -52,6 +69,85 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    const tectonic_dll_name = try getDllName(&target);
+    const vesti_opt = b.addOptions();
+    vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
+    vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
+    vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
+
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .imports = &.{
+            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
+            .{ .name = "zlua", .module = zlua.module("zlua") },
+        },
+    });
+    test_mod.addOptions("vesti-info", vesti_opt);
+
+    const exe_unit_tests = b.addTest(.{
+        .name = "vesti-test",
+        .root_module = test_mod,
+    });
+
+    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_exe_unit_tests.step);
+
+    //          ╭─────────────────────────────────────────────────────────╮
+    //          │                      Release Step                       │
+    //          ╰─────────────────────────────────────────────────────────╯
+    // TODO: after obtaining tectonic dll for aarch64 linux and windows,
+    // add two targets in here
+    const release_step = b.step("release", "Make zigup binaries for release");
+    const targets: []const std.Target.Query = &.{
+        .{ .cpu_arch = .aarch64, .os_tag = .macos },
+        .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
+        .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
+        .{ .cpu_arch = .x86_64, .os_tag = .windows },
+    };
+
+    for (targets) |t| {
+        const cross_target = b.resolveTargetQuery(t);
+        const release_exe = try buildVesti(b, cross_target, optimize);
+
+        const target_output = b.addInstallArtifact(release_exe, .{
+            .dest_dir = .{
+                .override = .{
+                    .custom = try t.zigTriple(b.allocator),
+                },
+            },
+        });
+        release_step.dependOn(&target_output.step);
+
+        // since this is a build script, leaking memories are safe
+        const dir_path = try fs.path.join(b.allocator, &.{
+            b.install_prefix,
+            target_output.dest_dir.?.custom,
+        });
+
+        const release_install_dll = InstallDll.create(b, cross_target, dir_path);
+        release_step.dependOn(&release_install_dll.step);
+    }
+}
+
+fn buildVesti(
+    b: *Build,
+    target: Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) !*Build.Step.Compile {
+    const strip = switch (optimize) {
+        .ReleaseFast, .ReleaseSmall => true,
+        else => false,
+    };
+
+    const zlap = b.dependency("zlap", .{ .target = target, .optimize = optimize });
+    const ziglyph = b.dependency("ziglyph", .{ .target = target, .optimize = optimize });
+    const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
 
     const tectonic_dll_name = try getDllName(&target);
     const vesti_opt = b.addOptions();
@@ -74,51 +170,11 @@ pub fn build(b: *Build) !void {
     exe_mod.addRPath(.{ .cwd_relative = b.exe_dir });
     exe_mod.addOptions("vesti-info", vesti_opt);
 
-    const exe = b.addExecutable(.{
+    return b.addExecutable(.{
         .name = "vesti",
         .version = VESTI_VERSION,
         .root_module = exe_mod,
     });
-    const install_dll = InstallDll.create(b, target);
-    b.getInstallStep().dependOn(&install_dll.step);
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    const build_rust = BuildRust.create(b, target);
-    const build_rust_cmd = b.step("rust", "Build vesti-tectonic rust code");
-    build_rust_cmd.dependOn(&build_rust.step);
-
-    const test_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-        .strip = strip,
-        .link_libc = true,
-        .imports = &.{
-            .{ .name = "ziglyph", .module = ziglyph.module("ziglyph") },
-            .{ .name = "zlua", .module = zlua.module("zlua") },
-        },
-    });
-    test_mod.addOptions("vesti-info", vesti_opt);
-
-    const exe_unit_tests = b.addTest(.{
-        .name = "vesti-test",
-        .root_module = test_mod,
-    });
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_exe_unit_tests.step);
 }
 
 const BuildRust = struct {
@@ -257,8 +313,13 @@ fn makeBuildRust(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!vo
 const InstallDll = struct {
     step: Build.Step,
     target: Build.ResolvedTarget,
+    dest_path: ?[]const u8,
 
-    fn create(owner: *Build, target: Build.ResolvedTarget) *InstallDll {
+    fn create(
+        owner: *Build,
+        target: Build.ResolvedTarget,
+        dest_path: ?[]const u8,
+    ) *InstallDll {
         const install_dll = owner.allocator.create(InstallDll) catch @panic("OOM");
 
         install_dll.* = .{
@@ -269,13 +330,17 @@ const InstallDll = struct {
                 .makeFn = makeInstallDll,
             }),
             .target = target,
+            .dest_path = dest_path,
         };
 
         return install_dll;
     }
 };
 
-fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!void {
+fn makeInstallDll(
+    step: *Build.Step,
+    options: Build.Step.MakeOptions,
+) anyerror!void {
     _ = options;
 
     const b = step.owner;
@@ -291,22 +356,23 @@ fn makeInstallDll(step: *Build.Step, options: Build.Step.MakeOptions) anyerror!v
     const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
     defer alloc.free(source_path);
 
-    const dest_path = try path.join(alloc, &.{
-        b.exe_dir,
+    const dest_path = install_dll.dest_path orelse b.exe_dir;
+    const dest_path_with_dll = try path.join(alloc, &.{
+        dest_path,
         dll_name[1],
     });
-    errdefer alloc.free(dest_path);
+    defer alloc.free(dest_path_with_dll);
 
-    try fs.cwd().makePath(b.exe_dir);
+    try fs.cwd().makePath(dest_path);
 
     std.debug.print(
         \\[NOTE]
         \\coping {s}
         \\ into  {s}
         \\
-    , .{ source_path, dest_path });
+    , .{ source_path, dest_path_with_dll });
 
-    try fs.copyFileAbsolute(source_path, dest_path, .{});
+    try fs.copyFileAbsolute(source_path, dest_path_with_dll, .{});
 }
 
 fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
