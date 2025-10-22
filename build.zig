@@ -142,8 +142,8 @@ fn buildVesti(
     optimize: std.builtin.OptimizeMode,
 ) !*Build.Step.Compile {
     const strip = switch (optimize) {
-        .ReleaseFast, .ReleaseSmall => true,
-        else => false,
+        .Debug => false,
+        else => true,
     };
 
     const zlap = b.dependency("zlap", .{ .target = target, .optimize = optimize });
