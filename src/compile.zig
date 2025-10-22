@@ -111,6 +111,9 @@ pub fn compile(
                     win.MB_OK | win.MB_ICONEXCLAMATION,
                 );
             }
+            // since diagnostic.prettyPrint is called in compile.compile, we should
+            // avoid to print it twice (also on main)
+            diagnostic.lock_print_at_main = true;
             try diagnostic.prettyPrint(attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;

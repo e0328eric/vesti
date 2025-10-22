@@ -11,7 +11,11 @@ const Diagnostic = diag.Diagnostic;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
-engine: LatexEngine,
+engine: LatexEngine = .tectonic,
+lua: struct {
+    make_log: bool = false,
+    line_limit: usize = 45,
+} = .{},
 
 const Self = @This();
 

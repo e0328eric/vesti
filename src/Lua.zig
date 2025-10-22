@@ -2,12 +2,14 @@ const std = @import("std");
 const zlua = @import("zlua");
 const diag = @import("./diagnostic.zig");
 const ansi = @import("./ansi.zig");
+const fs = std.fs;
 const zip = std.zip;
 const http = std.http;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Codegen = @import("Codegen.zig");
+const Config = @import("Config.zig");
 const CowStr = @import("CowStr.zig").CowStr;
 const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
@@ -20,6 +22,8 @@ lua: *ZigLua,
 allocator: Allocator,
 buf: ArrayList(u8),
 engine: LatexEngine,
+make_log: bool,
+line_limit: usize,
 
 const Self = @This();
 pub const Error = Allocator.Error || zlua.Error;
@@ -37,13 +41,19 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [10]zlua.FnReg = .{
     .{ .name = "joinpath", .func = joinpath },
 };
 
-pub fn init(allocator: Allocator, engine: LatexEngine) Error!*Self {
+pub fn init(
+    allocator: Allocator,
+    engine: LatexEngine,
+    config: *const Config,
+) Error!*Self {
     const self = try allocator.create(Self);
     errdefer allocator.destroy(self);
 
     // initialize fields of self
     self.allocator = allocator;
     self.engine = engine;
+    self.make_log = config.lua.make_log;
+    self.line_limit = config.lua.line_limit;
     self.buf = try .initCapacity(self.allocator, 100);
     errdefer self.buf.deinit(self.allocator);
     self.lua = try ZigLua.init(allocator);
@@ -80,22 +90,64 @@ pub fn clearVestiOutputStr(self: *Self) void {
 pub fn evalCode(self: *Self, code: [:0]const u8) !void {
     self.lua.doString(code) catch {
         const err_msg = self.lua.toString(-1) catch unreachable;
+
         std.debug.print("================== <LUA ERROR> ==================\n", .{});
         std.debug.print("                    <LUACODE>\n", .{});
 
-        // printing luacode with numbering
-        const lines_count = std.mem.count(u8, @ptrCast(code), "\n");
-        const padding = std.math.log10_int(lines_count);
-        var line_iter = std.mem.splitScalar(u8, @ptrCast(code), '\n');
+        // mimic goto
+        const Goto = enum {
+            start,
+            print_console,
+            make_log,
+        };
+        goto: switch (Goto.start) {
+            .start => {
+                if (self.make_log) {
+                    std.debug.print(
+                        "luacode is stored in {s}/luacode.lua\n",
+                        .{VESTI_DUMMY_DIR},
+                    );
+                    continue :goto .make_log;
+                } else continue :goto .print_console;
+            },
+            .print_console => {
+                const lines_count = std.mem.count(u8, @ptrCast(code), "\n");
+                if (lines_count >= self.line_limit) {
+                    std.debug.print(
+                        "luacode has so many lines than {d}. See {s}/luacode.lua\n",
+                        .{ self.line_limit, VESTI_DUMMY_DIR },
+                    );
+                    continue :goto .make_log;
+                }
 
-        var i: usize = 1;
-        while (line_iter.next()) |line| : (i += 1) {
-            std.debug.print("{d}", .{i});
-            for (0..(padding - std.math.log10_int(i))) |_| {
-                std.debug.print(" ", .{});
-            }
-            std.debug.print(" | {s}\n", .{line});
+                // print luacode into the stderr
+                const padding = std.math.log10_int(lines_count);
+                var line_iter = std.mem.splitScalar(u8, code[0..code.len -| 1], '\n');
+
+                var i: usize = 1;
+                while (line_iter.next()) |line| : (i += 1) {
+                    std.debug.print("{d}", .{i});
+                    for (0..(padding - std.math.log10_int(i))) |_| {
+                        std.debug.print(" ", .{});
+                    }
+                    std.debug.print(" | {s}\n", .{line});
+                }
+            },
+            .make_log => {
+                var vesti_dummy = try fs.cwd().openDir(VESTI_DUMMY_DIR, .{});
+                defer vesti_dummy.close();
+
+                var lua_log_file = try vesti_dummy.createFile("luacode.lua", .{});
+                defer lua_log_file.close();
+
+                var write_buf: [4096]u8 = undefined;
+                var writer = lua_log_file.writer(&write_buf);
+
+                try writer.interface.writeAll(code[0..code.len -| 1]);
+                try writer.end();
+            },
         }
+
         std.debug.print("-------------------------------------------------\n", .{});
         std.debug.print("                 <ERROR MESSAGE>\n", .{});
         std.debug.print("{s}\n", .{err_msg});

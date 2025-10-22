@@ -72,6 +72,24 @@ If you do not want tectonic backend, then run the following.
 $ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
 ```
 
+## Configuration
+Vesti has a configuration file. The location of the config file is follows:
+- Linux, MacOS: `~/.config/vesti/config.zon`
+- Windows: `%APPDATA%\vesti\config.zon`
+
+zon file stands for _Zig Object Notation_. Here is the example of `config.zon`.
+```zig
+.{
+    .engine = .tectonic,
+    .lua = .{
+        .make_log = false,
+        .line_limit = 45,
+    },
+}
+```
+If some fields are missing, then vesti takes the default values (above example
+is the default one).
+
 ## Warning
 This language is in beta, so breaking changes may occur in the future. Be cautious when using it for large projects.
 

@@ -12,6 +12,7 @@ const CowStr = @import("CowStr.zig").CowStr;
 
 pub const Diagnostic = struct {
     allocator: Allocator,
+    lock_print_at_main: bool = false,
     absolute_filename: ?CowStr = null,
     source: ?CowStr = null,
     inner: ?DiagnosticInner = null,

@@ -39,6 +39,9 @@ pub fn main() !void {
         return;
     }
 
+    var diagnostic = Diagnostic{ .allocator = allocator };
+    defer diagnostic.deinit();
+
     const subcmds = .{
         "clear",
         "run",
@@ -48,7 +51,15 @@ pub fn main() !void {
     inline for (subcmds) |subcmd_str| {
         if (zlap_cmd.isSubcmdActive(subcmd_str)) {
             const subcmd = zlap_cmd.subcommands.get(subcmd_str).?;
-            try @field(@This(), subcmd_str ++ "Step")(allocator, &subcmd);
+            @field(@This(), subcmd_str ++ "Step")(
+                allocator,
+                &diagnostic,
+                &subcmd,
+            ) catch |err| {
+                if (!diagnostic.lock_print_at_main)
+                    try diagnostic.prettyPrint(true);
+                return err;
+            };
             return;
         }
     } else {
@@ -61,16 +72,26 @@ pub fn main() !void {
 //          │                  Subcommand Functions                   │
 //          ╰─────────────────────────────────────────────────────────╯
 
-fn clearStep(allocator: Allocator, clear_step: *const zlap.Subcmd) !void {
+fn clearStep(
+    allocator: Allocator,
+    diagnostic: *Diagnostic,
+    clear_step: *const zlap.Subcmd,
+) !void {
     _ = allocator;
+    _ = diagnostic;
     _ = clear_step;
 
     try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
     std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
 }
 
-fn tex2vesStep(allocator: Allocator, tex2ves_subcmd: *const zlap.Subcmd) !void {
+fn tex2vesStep(
+    allocator: Allocator,
+    diagnostic: *Diagnostic,
+    tex2ves_subcmd: *const zlap.Subcmd,
+) !void {
     _ = allocator;
+    _ = diagnostic;
 
     const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
     // TODO: implement tex2ves
@@ -79,7 +100,11 @@ fn tex2vesStep(allocator: Allocator, tex2ves_subcmd: *const zlap.Subcmd) !void {
     std.debug.print("currently, this subcommand does nothing.\n", .{});
 }
 
-fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
+fn runStep(
+    allocator: Allocator,
+    diagnostic: *Diagnostic,
+    run_subcmd: *const zlap.Subcmd,
+) !void {
     const is_latex = run_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = run_subcmd.flags.get("pdflatex").?.value.bool;
     const is_xelatex = run_subcmd.flags.get("xelatex").?.value.bool;
@@ -88,10 +113,10 @@ fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
 
     const first_script = run_subcmd.flags.get("first_script").?.value.string;
 
-    var diagnostic = Diagnostic{ .allocator = allocator };
-    defer diagnostic.deinit();
+    const config = try Config.init(allocator, diagnostic);
+    defer config.deinit(allocator);
 
-    const engine = try getEngine(allocator, &diagnostic, .{
+    const engine = try getEngine(config.engine, .{
         .is_latex = is_latex,
         .is_pdflatex = is_pdflatex,
         .is_xelatex = is_xelatex,
@@ -100,20 +125,24 @@ fn runStep(allocator: Allocator, run_subcmd: *const zlap.Subcmd) !void {
     });
 
     // initializing Lua globally
-    var lua = try Lua.init(allocator, engine);
+    var lua = try Lua.init(allocator, engine, &config);
     defer lua.deinit();
 
     const first_lua = try luascript.getBuildLuaContents(
         allocator,
         first_script,
-        &diagnostic,
+        diagnostic,
     ) orelse return error.FirstLuaNotFound;
     defer allocator.free(first_lua);
 
-    try luascript.runLuaCode(lua, &diagnostic, first_lua, first_script);
+    try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
 }
 
-fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
+fn compileStep(
+    allocator: Allocator,
+    diagnostic: *Diagnostic,
+    compile_subcmd: *const zlap.Subcmd,
+) !void {
     const main_filenames = compile_subcmd.args.get("FILENAMES").?;
     const compile_lim: usize = blk: {
         const tmp = compile_subcmd.flags.get("lim").?.value.number;
@@ -135,10 +164,10 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    var diagnostic = Diagnostic{ .allocator = allocator };
-    defer diagnostic.deinit();
+    const config = try Config.init(allocator, diagnostic);
+    defer config.deinit(allocator);
 
-    var engine = try getEngine(allocator, &diagnostic, .{
+    var engine = try getEngine(config.engine, .{
         .is_latex = is_latex,
         .is_pdflatex = is_pdflatex,
         .is_xelatex = is_xelatex,
@@ -147,15 +176,16 @@ fn compileStep(allocator: Allocator, compile_subcmd: *const zlap.Subcmd) !void {
     });
 
     // initializing Lua globally
-    var lua = try Lua.init(allocator, engine);
+    var lua = try Lua.init(allocator, engine, &config);
     defer lua.deinit();
 
     var prev_mtime: ?i128 = null;
+
     try compile.compile(
         allocator,
         main_filenames.value.strings.items,
         lua,
-        &diagnostic,
+        diagnostic,
         &engine,
         compile_lim,
         &prev_mtime,
@@ -185,8 +215,7 @@ const EngineTypeInput = packed struct {
 };
 
 fn getEngine(
-    allocator: Allocator,
-    diagnostic: *Diagnostic,
+    default_engine: LatexEngine,
     ty: EngineTypeInput,
 ) !LatexEngine {
     const is_latex_num = @as(u8, @intCast(@intFromBool(ty.is_latex))) << 0;
@@ -199,13 +228,6 @@ fn getEngine(
         is_xelatex_num |
         is_lualatex_num |
         is_tectonic_num;
-
-    const default_engine = blk: {
-        const config = Config.init(allocator, diagnostic) catch
-            break :blk .tectonic; // default engine is tectonic
-        defer config.deinit(allocator);
-        break :blk config.engine;
-    };
 
     switch (engine_num) {
         0 => return default_engine,

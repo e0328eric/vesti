@@ -376,8 +376,7 @@ pub fn next(self: *Self) Token {
             } else {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
-                var buf: [4]u8 = @splat(0);
-                const codepoint_len = unicode.utf8Encode(chr, &buf) catch {
+                const codepoint_len = unicode.utf8CodepointSequenceLength(chr) catch {
                     token.init("<???>", null, .Illegal, start_location, self.location);
                     break :tokenize;
                 };
