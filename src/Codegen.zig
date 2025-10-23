@@ -177,6 +177,33 @@ fn codegenStmt(
             try self.codegenStmts(info.inner, lua, writer);
             try writer.print("\\end{{{f}}}", .{info.name});
         },
+        .PictureEnvironment => |pict| {
+            if (pict.unit_length) |unit_length| {
+                try writer.print(
+                    "\\setlength{{\\unitlength}}{{{s}}}\n",
+                    .{unit_length.items},
+                );
+            }
+
+            if (pict.xoffset != null) {
+                // when pict.xoffset is nonnull, pict.yoffset is also nonnull
+                std.debug.assert(pict.yoffset != null);
+                try writer.print(
+                    "\\begin{{picture}}({d},{d})({d},{d})",
+                    .{
+                        pict.width,     pict.height,
+                        pict.xoffset.?, pict.yoffset.?,
+                    },
+                );
+            } else {
+                try writer.print(
+                    "\\begin{{picture}}({d},{d})",
+                    .{ pict.width, pict.height },
+                );
+            }
+            try self.codegenStmts(pict.inner, lua, writer);
+            try writer.writeAll("\\end{picture}");
+        },
         .BeginPhantomEnviron => |info| {
             try writer.print("\\begin{{{f}}}", .{info.name});
             for (info.args.items) |arg| {

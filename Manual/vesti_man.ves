@@ -64,7 +64,7 @@ found.
 \subsection{Keywords}
 Followings are reserved as keywords.
 useenv table [ht] {
-    \centering 
+    \centering
     #lu:
     local content = read_all("../src/lexer/Token.zig")
 
@@ -117,7 +117,7 @@ ordinary sense rather than in its special semantic meaning within the language.
 Followings are reserved as builtin functions.
 
 useenv table [ht] {
-    \centering 
+    \centering
     #lu:
     local content = read_all("../src/lexer/Token.zig")
 

@@ -141,6 +141,16 @@ pub const Stmt = union(enum(u8)) {
         inner: ArrayList(Stmt),
         label: ?ArrayList(u8) = null,
     },
+    // `picture` environment generated from #picture builtin
+    PictureEnvironment: struct {
+        width: usize,
+        height: usize,
+        xoffset: ?usize,
+        yoffset: ?usize,
+        // its default value is backed in `Codegen.zig`.
+        unit_length: ?ArrayList(u8) = null,
+        inner: ArrayList(Stmt),
+    },
     BeginPhantomEnviron: struct {
         name: CowStr,
         args: ArrayList(Arg),
@@ -199,6 +209,11 @@ pub const Stmt = union(enum(u8)) {
                 ctx.args.deinit(allocator);
                 ctx.inner.deinit(allocator);
                 if (ctx.label) |*label| label.deinit(allocator);
+            },
+            .PictureEnvironment => |*ctx| {
+                if (ctx.unit_length) |*ul| ul.deinit(allocator);
+                for (ctx.inner.items) |*expr| expr.deinit(allocator);
+                ctx.inner.deinit(allocator);
             },
             .DefineFunction => |*ctx| {
                 ctx.name.deinit(allocator);

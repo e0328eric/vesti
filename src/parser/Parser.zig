@@ -71,6 +71,7 @@ const ENV_MATH_IDENT = std.StaticStringMap(void).initComptime(.{
     .{"gather"},
     .{"multline"},
 });
+
 const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
     .{ "plain", LatexEngine.latex },
     .{ "pdf", LatexEngine.pdflatex },
@@ -207,6 +208,27 @@ inline fn expect(
             @intFromEnum(toktype));
     }
     return output == 1;
+}
+
+// TODO: I think this function code is used everywhere else. Replace with
+// this function and reduce the code (making this as inline function)
+pub inline fn expectAndEat(
+    self: *Self,
+    token: TokenType,
+) ParseError!Token {
+    if (!self.expect(.current, &.{token})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{token},
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const curr_tok = self.curr_tok;
+    self.nextToken();
+    return curr_tok;
 }
 
 inline fn currToktype(self: Self) TokenType {
@@ -1174,6 +1196,18 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         }
     } else self.nextToken();
 
+    // Disable `picture` LaTeX builtin environment. Use #picture instead.
+    // The reason why I disable this is because the syntax of this is very different
+    // from others.
+    // reference: https://lab.uklee.pe.kr/tex-archive/info/latex2e-help-texinfo/latex2e.html#picture
+    if (mem.eql(u8, name.Owned.items, "picture")) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .IllegalUseErr = "`picture` environment is illegal in vesti. Use #picture instead." },
+            .span = begenv_location,
+        } });
+        return ParseError.ParseFailed;
+    }
+
     if (ENV_MATH_IDENT.has(name.Owned.items)) {
         self.doc_state.math_mode = true;
         off_math_state = true;
@@ -1586,7 +1620,7 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     var arg = if (num_args > 0 and self.expect(.current, &.{.Less})) blk: {
-        const tmp = try self.parseParanthesisStmt(.Less, .Great);
+        const tmp = try self.parseParenthesisStmt(.Less, .Great);
         assert(self.expect(.current, &.{.Great}));
         self.nextToken();
         self.eatWhitespaces(false);
@@ -1842,7 +1876,7 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
 }
 
 // parse (<stmts>)
-fn parseParanthesisStmt(
+fn parseParenthesisStmt(
     self: *Self,
     comptime open: TokenType,
     comptime closed: TokenType,
@@ -1978,29 +2012,36 @@ fn parseFunctionArgsCore(
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
 }
 
-fn parseParenthesis(self: *Self, span: Span) ParseError!ArrayList(u8) {
+// do not confuse with parseParenthesisStmt. - Almagest 10/24/2025
+fn parseBuiltinsArguments(
+    self: *Self,
+    span: Span,
+    comptime open: TokenType,
+    comptime closed: TokenType,
+    comptime ignore_newline: bool,
+) ParseError!ArrayList(u8) {
     var inner = Io.Writer.Allocating.init(self.allocator);
     errdefer inner.deinit();
 
-    if (!self.expect(.current, &.{.Lparen})) {
+    if (!self.expect(.current, &.{open})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Lparen},
+                .expected = &.{open},
                 .obtained = self.currToktype(),
             } },
             .span = self.curr_tok.span,
         } });
         return ParseError.ParseFailed;
     }
-    self.nextToken(); // eat `(`
+    self.nextToken(); // eat `open`
 
     var nested: usize = 1;
     while (switch (self.currToktype()) {
-        .Lparen => blk: {
+        open => blk: {
             nested += 1;
             break :blk true;
         },
-        .Rparen => blk: {
+        closed => blk: {
             nested -= 1;
             break :blk nested > 0;
         },
@@ -2016,18 +2057,18 @@ fn parseParenthesis(self: *Self, span: Span) ParseError!ArrayList(u8) {
         try inner.writer.writeAll(self.curr_tok.lit.in_text);
     }
 
-    if (!self.expect(.current, &.{.Rparen})) {
+    if (!self.expect(.current, &.{closed})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .TokenExpected = .{
-                .expected = &.{.Rparen},
+                .expected = &.{closed},
                 .obtained = self.currToktype(),
             } },
             .span = self.curr_tok.span,
         } });
         return ParseError.ParseFailed;
     }
-    self.nextToken(); // eat `)`
-    self.eatWhitespaces(true);
+    self.nextToken(); // eat `closed`
+    self.eatWhitespaces(ignore_newline);
 
     return inner.toArrayList();
 }
@@ -2280,7 +2321,12 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     var label = if (self.expect(.current, &.{.Lparen}))
-        try self.parseParenthesis(eq_block_loc)
+        try self.parseBuiltinsArguments(
+            eq_block_loc,
+            .Lparen,
+            .Rparen,
+            true,
+        )
     else
         null;
     errdefer if (label) |*l| l.deinit(self.allocator);
@@ -2302,7 +2348,12 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     self.nextToken(); // eat `#label`
     self.eatWhitespaces(false);
 
-    var label = try self.parseParenthesis(label_block_loc);
+    var label = try self.parseBuiltinsArguments(
+        label_block_loc,
+        .Lparen,
+        .Rparen,
+        true,
+    );
     errdefer label.deinit(self.allocator);
 
     if (self.currToktype() != .Useenv) {
@@ -2627,7 +2678,12 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     var label_kind = if (self.expect(.current, &.{.Lparen}))
-        try self.parseParenthesis(enum_loc)
+        try self.parseBuiltinsArguments(
+            enum_loc,
+            .Lparen,
+            .Rparen,
+            true,
+        )
     else
         null;
     defer if (label_kind) |*l| l.deinit(self.allocator);
@@ -2762,10 +2818,111 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
     };
 }
 
-// TODO: implement picture environment wrapper
+// Builtin which supports `picture` environment
+// reference: https://lab.uklee.pe.kr/tex-archive/info/latex2e-help-texinfo/latex2e.html#picture
 fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
-    _ = self;
-    return Stmt.NopStmt;
+    const picture_block_loc = self.curr_tok.span;
+
+    self.nextToken(); // eat `#picture`
+    self.eatWhitespaces(false);
+
+    var unit_length = if (self.expect(.current, &.{.Lsqbrace}))
+        try self.parseBuiltinsArguments(
+            picture_block_loc,
+            .Lsqbrace,
+            .Rsqbrace,
+            false,
+        )
+    else
+        null;
+    errdefer if (unit_length) |*ul| ul.deinit(self.allocator);
+
+    _ = try self.expectAndEat(.Lparen); // eat (
+
+    const width_tok_loc = self.curr_tok.span;
+    preventBug(&width_tok_loc);
+    const width_token = try self.expectAndEat(.Integer);
+    const width = fmt.parseInt(usize, width_token.lit.in_text, 10) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "picture",
+                .note = "integer should be nonnegative",
+            } },
+            .span = width_tok_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+
+    _ = try self.expectAndEat(.Comma); // eat ,
+    self.eatWhitespaces(false);
+
+    const height_tok_loc = self.curr_tok.span;
+    preventBug(&height_tok_loc);
+    const height_token = try self.expectAndEat(.Integer);
+    const height = fmt.parseInt(usize, height_token.lit.in_text, 10) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "picture",
+                .note = "integer should be nonnegative",
+            } },
+            .span = height_tok_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
+    _ = try self.expectAndEat(.Rparen); // eat )
+    self.eatWhitespaces(false);
+
+    var xoffset: ?usize = null;
+    var yoffset: ?usize = null;
+    if (self.expect(.current, &.{.Lparen})) {
+        _ = try self.expectAndEat(.Lparen); // eat (
+
+        const xoffset_tok_loc = self.curr_tok.span;
+        preventBug(&xoffset_tok_loc);
+        const xoffset_token = try self.expectAndEat(.Integer);
+        xoffset = fmt.parseInt(usize, xoffset_token.lit.in_text, 10) catch {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = "picture",
+                    .note = "integer should be nonnegative",
+                } },
+                .span = xoffset_tok_loc,
+            } });
+            return ParseError.ParseFailed;
+        };
+
+        _ = try self.expectAndEat(.Comma); // eat ,
+        self.eatWhitespaces(false);
+
+        const yoffset_tok_loc = self.curr_tok.span;
+        preventBug(&yoffset_tok_loc);
+        const yoffset_token = try self.expectAndEat(.Integer);
+        yoffset = fmt.parseInt(usize, yoffset_token.lit.in_text, 10) catch {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = "picture",
+                    .note = "integer should be nonnegative",
+                } },
+                .span = yoffset_tok_loc,
+            } });
+            return ParseError.ParseFailed;
+        };
+
+        _ = try self.expectAndEat(.Rparen); // eat )
+    }
+    self.eatWhitespaces(true);
+
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+
+    return Stmt{ .PictureEnvironment = .{
+        .width = width,
+        .height = height,
+        .xoffset = xoffset,
+        .yoffset = yoffset,
+        .unit_length = unit_length,
+        .inner = inner.Braced.inner,
+    } };
 }
 
 test "test vesti parser" {

@@ -9,7 +9,7 @@ const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
-const VESTI_VERSION_STR = "0.6.1";
+const VESTI_VERSION_STR = "0.6.2";
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
 
 // default constants in vesti
