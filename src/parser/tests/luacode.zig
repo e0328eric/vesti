@@ -31,8 +31,8 @@ test "basic luacode" {
         source,
         undefined,
         &diagnostic,
-        true, // allow luacode for testing
-        null, // disallow changing latex engine type
+        true, // disallow luacode for testing
+        .{ null, .pdflatex }, // disallow changing latex engine type
     );
 
     var ast = parser.parse() catch |err| switch (err) {

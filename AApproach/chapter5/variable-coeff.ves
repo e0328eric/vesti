@@ -30,7 +30,7 @@ Consider the following nonlinear equation on $[0,\tau]$:
 where $a^{ij}$ and $f$ are real-valued, and $\sigma^i$ and $g$ are $l_2$-valued
 functions defined for $\omega\in\Omega$, $t>=0$, $x\in\R^d$, $u\in H_p^{n+2}$,
 $i,j=1,...,d$.\footnote{
-    More presicely for $f$ and $g$, their signature are
+    More presicely for $f$ and $g$, their signatures are
     $$
         f : \Omega\times H_p^{n+2}\times [0,oo) -> H_p^n,\quad
         g : \Omega\times H_p^{n+2}\times [0,oo) -> H_p^{n+1}(\R^d,l_2).

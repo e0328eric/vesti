@@ -142,6 +142,7 @@ pub const Stmt = union(enum(u8)) {
         label: ?ArrayList(u8) = null,
     },
     // `picture` environment generated from #picture builtin
+    // reference: https://lab.uklee.pe.kr/tex-archive/info/latex2e-help-texinfo/latex2e.html#picture
     PictureEnvironment: struct {
         width: usize,
         height: usize,

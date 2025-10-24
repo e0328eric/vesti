@@ -50,11 +50,9 @@ pub fn expect(
         source,
         ast.items,
         &diagnostic,
-        .pdflatex, // in the test, this does nothing
-        true, // disallow luacode
     );
     defer codegen.deinit();
-    try codegen.codegen(&aw.writer);
+    try codegen.codegen(null, &aw.writer); // disallow luacode
 
     output = aw.toArrayList();
     defer output.deinit(allocator);

@@ -1,5 +1,5 @@
 We start with the equation
-useenv equation { \label{eq:very-simple-spde}
+#eq (eq:very-simple-spde) {
     du(t,x) = (\Delta u(t,x) + f(t,x))dt
     + g^k(t,x)dw_t^k,\quad t>0.
 }
@@ -7,7 +7,8 @@ useenv equation { \label{eq:very-simple-spde}
 We need a lemma from . Remember that the operators $T_t$ are defined by
 \cref{eq:heat-trans} and, as always, $p>=2$.
 
-useenv lemma { \label{lemma:generalized-littlewood-paley}
+#label(lemma:generalized-littlewood-paley)
+useenv lemma {
     Let $-oo<=a<b<=oo$, $g\in L_p((a,b)\times\R^d,l_2)$. Then
     $$
         \int_{\R^d}\int_a^b?[\int_a^t |\nabla
@@ -43,7 +44,8 @@ useenv lemma { \label{lemma:generalized-littlewood-paley}
     functions.
 }
 
-useenv thm { \label{thm:very-simple-spde-sol}
+#label(thm:very-simple-spde-sol)
+useenv thm {
     Take $f\in\Hb^{-1}_p$, $g\in\Lb_p(l_2)$. Then
     useenv enumerate [label=(\roman*)] {
         \item equation \cref{eq:very-simple-spde} with zero initial condition
@@ -74,7 +76,7 @@ useenv thm { \label{thm:very-simple-spde-sol}
         ||\tilde h||_p + ||h_0||_p <= N(d,p)||h||_{-1,p},\quad
         ||h||_{-1,p} <= N(d,p)\{||\tilde h||_p + ||h_0||_p\}.
     }
-    
+
     Actually, one can take $\tilde h = -\nabla(1-\Delta)^{-1}h$ and $h_0 = h -
     "div"\tilde h = (1-\Delta)^{-1}h$. Indeed, $||h_0||_p = ||h||_{-2,p} <=
     ||h||_{-1,p}$. Also, the fact that $\diff/\diff x^j$ is a bounded operator
@@ -119,7 +121,7 @@ useenv thm { \label{thm:very-simple-spde-sol}
         u(t,x) = v(t,x) + \int_0^t T_{t-s}[\Delta v+f](s,\cdot)(x)ds,\quad
         \forall t>=0.
     }
-    
+
     The function $u-v$ is infinitely differentiable in $x$, differentiable once
     in $t$ and satisfies the equation (for any $\omega$)\footnote{
         The main paper said that $u-v$ is infinitely differentiable in $(t,x)$,
@@ -134,7 +136,7 @@ useenv thm { \label{thm:very-simple-spde-sol}
         u(t,x) = \int_0^t(\Delta u(s,x) + f(s,x))ds +
         \sum_{k=1}^m\int_0^tg^k(s,x)dw_s^k.
     }
-    
+
     Next, we want to obtain some bounds on norms of $u$. Let
     $$
         u_1(t,x) = \int_0^t T_{t-s}f(s,x)ds.
@@ -264,14 +266,14 @@ useenv thm { \label{thm:very-simple-spde-sol}
         &<= N||f(s,\cdot)||_{-1,p}^p + (1-{q//2})\eta^{2//q-2}||u(s,\cdot)||_p^p
         + {q//2}\eta^{2//q}|| |u|^{(p-2)/p}|u_x|^{2/p}(s,\cdot)||_p^p \\
         &\eqdef N||f(s,\cdot)||_{-1,p}^p + N_1||u(s,\cdot)||_p^p
-        + {1//2}|| |u|^{(p-2)/p}|u_x|^{2/p}(s,\cdot)||_p^p, 
+        + {1//2}|| |u|^{(p-2)/p}|u_x|^{2/p}(s,\cdot)||_p^p,
     }
     $$
         \int_{\R^d}|u(s,x)|^{p-2}u(s,x)f_0(s,x)dx
         <= ||f_0(s,\cdot)||_p^p + ||u(s,\cdot)||_p^p
         <= N||f(s,\cdot)||_{-1,p}^p + ||u(s,\cdot)||_p^p.
     $$
-    
+
     Combining all these, we have
     useenv align* {
         &e^{-\lambda t}||u(t,\cdot)||_p^p
@@ -302,12 +304,12 @@ useenv thm { \label{thm:very-simple-spde-sol}
         &\kern2cm= N(p)\Eb?(\int_0^T e^{-\lambda s}||u(s,\cdot)||_p^p
         ?(\int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx)? ds)?^{1/2} \\
         &\kern2cm= N(p)\Eb ?(\sup_{t<=T}e^{-\lambda t}||u(t,\cdot)||_p^p)?^{1/2}
-        ?(\int_0^T 
+        ?(\int_0^T
         \int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx ds)?^{1/2} \\
         &\kern2cm<= {1//2p}\Eb\sup_{t<=T}(e^{-\lambda t}||u(t,\cdot)||_p^p)
         + N_2 \int_0^T \int_{\R^d}e^{-\lambda s} |g|_{l_2}^2|u|^{p-2}(s,x)dx ds \\
         &\kern2cm<= {1//2p} \Eb\sup_{t<=T}(e^{-\lambda t}||u(t,\cdot)||_p^p)
-        + N_2 \int_0^T 
+        + N_2 \int_0^T
         e^{-\lambda s} [||u(s,\cdot)||_p^p + ||g(s,\cdot)||_p^p] ds.
     }
 
@@ -379,8 +381,8 @@ useenv thm { \label{thm:very-simple-spde-sol}
 
     From estimates \cref{eq:thm:very-simple-spde-sol-1} and
     \cref{eq:thm:very-simple-spde-sol-2}, we obtain
-    useenv align* { 
-        ||u||_{\Hb_p^1(T)}   
+    useenv align* {
+        ||u||_{\Hb_p^1(T)}
         &= \Eb\int_0^T ||(1-\Delta)u(t,\cdot)||_{-1,p}^pdt \\
         &<= N\Eb\int_0^T [||u(t,\cdot)||_{p}^p + ||u_xx(t,\cdot)||_{-1,p}^p]dt \\
         &<= N[||u_xx||_{\Hb_p^{-1}}^p +
@@ -411,7 +413,7 @@ useenv thm { \label{thm:very-simple-spde-sol}
     The uniqueness in (i) follows from the fact that for $f\equiv 0$, $g\equiv
     0$ we have the heat equation and the uniqueness of its solution in our class
     of functions is a standard fact. This completes the proof in the case of
-    step functions $f$, $g$. \\ 
+    step functions $f$, $g$. \\
 
     \noindent\bf{[General case]} In the case of general $f$, $g$, we observe
     that the uniqueness in (i) is proved as above. As far as other assertions
@@ -512,7 +514,7 @@ useenv remark {
         = t^{-1/2}(4\pi)^{-1}\bar\psi(x/\sqrt{t})*\bar\psi(x)
         = {\sqrt{t}//2\sqrt{\pi}}{x^2//(t+1)^{5/2}}\exp?(-{x^2//4(t+1)})?.
     $$
-    
+
     Then the left hand side of \cref{eq:glp} multiplyed by $\lambda^{p/2}$ is
     useenv equation { \label{eq:remark-glp-p-small}
         \int_{\R}\int_0^b

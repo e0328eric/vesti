@@ -1,9 +1,65 @@
-The above theory of solvability looks satisfactory only until
+The above theory of solvability looks satisfactory only until one tries to apply
+it to concrete problems when one is interested in getting not only solvability
+but also some qualitative properties of solutions, like continuity, decay at
+infinity, compactness of support, and so on.
+To answer such questions, one has to understand what qualitative properties the
+solution have. Since solutions are just arbitrary functions from
+$\Hc_p^n(\tau)$, we are actually interested in properties of functions from this
+space. Let us fix $T\in[0,oo)$ and a stopping time $\tau<=T$.
+
+The first two assertions of the following theorem are straightforward
+corollaries of two Sobolev's theorems. One says that $H_p^n \subset \Cs^\alpha$
+if $\alpha\defeq n - d/p > 0$, where $\Cs^\alpha=\Cs^\alpha(\R^d)$ is the
+Zygmund space (which differs from the usual H\"older space
+$C^\alpha=C^\alpha(\R^d)$ only if $\alpha$ is an integer, see \cite{Tri1}).
+The second one says that $H_p^n \subset H_q^m$ if $m < n$ and $n-d/p = m - d/q$.
 
 useenv thm {
     #enum((\alph*)) {
         \item If $\alpha\defeq n-d/p>0$ and $u\in\Hc_p^n(\tau)$, then $u\in
-        L_p(\llo0,\tau\rrc,\Cc^\alpha)$, where $\Cc^\alpha$ is the Zygmund
+        L_p(\llo0,\tau\rrc,\Cs^\alpha)$, where $\Cs^\alpha$ is the Zygmund
         space. In addition,
+        $$
+            \Eb\int_0^\tau||u(t,\cdot)||_{\Cs^\alpha}^pdt
+            <= N(d,n,p)||u||_{\Hc_p^n(\tau)}.
+        $$
+        \item If $m < n$ and $n - d/p = m - d/q$, and $u\in\Hc_p^n(\tau)$, then
+        $$
+            \Eb\int_0^\tau ||u(t,\cdot)||_{m,q}^pdt
+            <= N(d,m,n,p)||u||_{\Hc_p^n(\tau)}^p.
+        $$
+        \item For any function $u\in\Hc_2^n(\tau)$, we have $u\in C([0,\tau],
+        H_2^{n-1})$ (a.s.) and
+        $$
+            \Eb\sup_{t<=\tau}||u(t,\cdot)||_{n-1,2}^2
+            <= N(d,n,T)||u||_{\Hc_2^n(\tau)}^2.
+        $$
     }
+    \proof
+    As we have said before the theorem, we only need to prove the third
+    assertion. By \Cref{remark:3.4}, we may assume that $n=1$. Denote
+    $u_0=u(0)$, $v = T_tu_0$. Observe that by \Cref{thm:2.1} we have
+    $v\in\Hc_2^1(\tau)$. By Minkowski's inequality, $||\zeta*u||_p <=
+    ||u||_p||\zeta||_1$, so that
+    $$
+        ||T_tu_0||_2 <= ||u_0||_2,\quad
+        \Eb\sup_t||v(t,\cdot)||_2^2 <= \Eb||u_0||_2^2.
+    $$
+    In addition, almost obviously, $T_tu_0$ is a continuous (analytic)
+    $L_2$-valued function in $t$ for $t>0$.\footnote{
+        It suffices to show that $T_tu_0$ is strongly continuous at $t=0$ (see
+        \cite{Yosida}).
+    } Also, we have $(T_tu_0)_t'=T_t\Delta
+    u_0$, which implies that $||T_tu_0-u_0||_2<=t||\Delta u||_2->0$ if $u_0\in
+    H_2^2$. Adding that the set $H_2^2$ is dense in $L_2$, we conclude that
+    $T_t$ is a continuous semigroup in $L_2$. This means that $v\in
+    C([0,\tau],H_2^{n-1})$ and shows that we need only to consider $u-v$. In
+    other words, in the rest of the proof we may and will assume that $u_0=0$.
+
+    In this case, denote $f=(\Db u - \Delta u)\I_{t<=\tau}$, and $g=(\Sb u)\I_{t<=\tau}$. Solve equation \cref{eq:very-simple-spde} on $[0,oo)$ with zero initial data.\footnote{
+        That is, solve $dv = [\Delta v - (\Db u - \Delta u)\I_{t<=\tau}]dt
+        + (\Sb u)\I_{t<=\tau}dw_t$.
+    }
+    By uniqueness, the solution coincides with $u$ on $[0,\tau]$.
+    By \cref{thm:very-simple-spde-sol}
 }

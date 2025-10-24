@@ -1,6 +1,6 @@
 compty (tect)
 importmod (coprime)
-docclass coprime (10pt, item, geometry, fancy, tikz)
+docclass coprime (10pt, item, geometry, fancy, tikz, korean)
 
 importpkg {
     xcolor,

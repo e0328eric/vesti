@@ -12,7 +12,7 @@ useenv defin {
         \Lambda(t,\cdot) : H_p^{n+2} -> H_p^{n+1}(\R^d,l_2).
     $$
     Assume that
-    useenv enumerate [label=(\roman*)] {
+    #enum ((\roman*)) {
         \item for any $\omega$ and $t$, the operators $L(t,u)$ and
         $\Lambda(t,u)$ are continuous (with respect to $u$);
         \item for any $u\in H_p^{n+2}$, the processes $L(t,u)$ and $\Lambda(t,u)$
