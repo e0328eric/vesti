@@ -153,7 +153,7 @@ fn compileStep(
     const compile_all = compile_subcmd.flags.get("all").?.value.bool;
     const watch = compile_subcmd.flags.get("watch").?.value.bool;
     const no_color = compile_subcmd.flags.get("no_color").?.value.bool;
-    const no_exit_err = compile_subcmd.flags.get("no_exit_err").?.value.bool;
+    const exit_err = compile_subcmd.flags.get("exit_err").?.value.bool;
 
     const is_latex = compile_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
@@ -197,7 +197,7 @@ fn compileStep(
             .compile_all = compile_all,
             .watch = watch,
             .no_color = no_color,
-            .no_exit_err = no_exit_err,
+            .no_exit_err = !exit_err,
         },
     );
 }

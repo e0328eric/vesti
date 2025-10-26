@@ -38,9 +38,9 @@
     default: false;
 
     #flag;
-    long: no_exit_err;
+    long: exit_err;
     short: E;
-    desc: on watch mode, supress exit when error occurs;
+    desc: on watch mode, exit immediately when error occurs;
     type: bool;
     default: false;
 
