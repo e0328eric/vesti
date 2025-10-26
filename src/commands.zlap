@@ -45,9 +45,9 @@
     default: false;
 
     #flag;
-    long: single;
-    short: s;
-    desc: compile single vesti file given from FILENAMES;
+    long: all;
+    short: a;
+    desc: compile vesti files given from FILENAMES with directory name;
     type: bool;
     default: false;
 

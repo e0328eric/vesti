@@ -188,14 +188,9 @@ fn rewind(self: *Self) !void {
     self.already_rewinded = true;
 }
 
-const ExpectKind = enum(u1) {
-    current,
-    peek,
-};
-
 inline fn expect(
     self: Self,
-    comptime is_peek: ExpectKind,
+    comptime is_peek: enum(u1) { current, peek },
     comptime toktypes: []const TokenType,
 ) bool {
     var output: u1 = 0;
@@ -210,16 +205,10 @@ inline fn expect(
     return output == 1;
 }
 
-// enum literal for expectAndEat
-const EatToken = enum(u2) {
-    eat,
-    remain,
-};
-
-inline fn expectAndEat(
+inline fn expectWithError(
     self: *Self,
     comptime token: TokenType,
-    comptime is_eat: EatToken,
+    comptime is_eat: enum(u1) { eat, remain },
 ) switch (is_eat) {
     .eat => ParseError!Token,
     .remain => ParseError!void,
@@ -367,7 +356,7 @@ fn parseLiteral(self: *Self) Stmt {
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
-    _ = try self.expectAndEat(.Docclass, .eat);
+    _ = try self.expectWithError(.Docclass, .eat);
     self.eatWhitespaces(false);
 
     var name = try self.takeName();
@@ -394,7 +383,7 @@ fn parseDocclass(self: *Self) ParseError!Stmt {
 }
 
 fn parseSinglePkg(self: *Self) ParseError!Stmt {
-    _ = try self.expectAndEat(.ImportPkg, .eat);
+    _ = try self.expectWithError(.ImportPkg, .eat);
     self.eatWhitespaces(false);
 
     if (self.expect(.current, &.{.Lbrace})) return self.parseMultiplePkgs();
@@ -423,7 +412,7 @@ fn parseSinglePkg(self: *Self) ParseError!Stmt {
 }
 
 fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
-    _ = try self.expectAndEat(.Lbrace, .eat);
+    _ = try self.expectWithError(.Lbrace, .eat);
 
     var output = try ArrayList(ast.UsePackage).initCapacity(self.allocator, 10);
     errdefer {
@@ -502,7 +491,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
 }
 
 fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
-    _ = try self.expectAndEat(.Lparen, .eat);
+    _ = try self.expectWithError(.Lparen, .eat);
 
     var output = try ArrayList(CowStr).initCapacity(self.allocator, 10);
     errdefer {
@@ -604,7 +593,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         ctx.deinit(self.allocator);
     }
 
-    _ = try self.expectAndEat(open_tok, .eat);
+    _ = try self.expectWithError(open_tok, .eat);
 
     while (switch (self.currToktype()) {
         close_tok => false,
@@ -622,7 +611,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         try ctx.append(self.allocator, stmt);
     }
 
-    try self.expectAndEat(close_tok, .remain);
+    try self.expectWithError(close_tok, .remain);
     self.doc_state.math_mode = false;
 
     return Stmt{ .MathCtx = .{
@@ -639,8 +628,8 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
         inner.deinit(self.allocator);
     }
 
-    if (add_front_space) _ = try self.expectAndEat(.RawSharp, .eat);
-    _ = try self.expectAndEat(.DoubleQuote, .eat);
+    if (add_front_space) _ = try self.expectWithError(.RawSharp, .eat);
+    _ = try self.expectWithError(.DoubleQuote, .eat);
 
     self.doc_state.math_mode = false;
     while (switch (self.currToktype()) {
@@ -675,7 +664,7 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
 }
 
 fn parseOpenDelimiter(self: *Self) ParseError!Stmt {
-    _ = try self.expectAndEat(.Question, .eat);
+    _ = try self.expectWithError(.Question, .eat);
 
     return if (self.expect(.current, &.{
         .Lparen,
@@ -720,7 +709,7 @@ fn parseClosedDelimiter(self: *Self) ParseError!Stmt {
 
 fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
     const begin_location = self.curr_tok.span;
-    _ = try self.expectAndEat(.Lbrace, .eat);
+    _ = try self.expectWithError(.Lbrace, .eat);
 
     var is_fraction = false;
     var numerator = try ArrayList(Stmt).initCapacity(self.allocator, 10);
@@ -829,7 +818,7 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
 
 fn parseCopyFile(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    try self.expectAndEat(.CopyFile, .remain);
+    try self.expectWithError(.CopyFile, .remain);
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     while (self.expect(.current, &.{ .Space, .Tab }) and
@@ -840,7 +829,7 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
         self.nextRawToken();
     }
 
-    try self.expectAndEat(.Lparen, .remain);
+    try self.expectWithError(.Lparen, .remain);
 
     const left_parn_loc = self.curr_tok.span;
     preventBug(&left_parn_loc);
@@ -880,7 +869,7 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
 
 fn parseImportModule(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    try self.expectAndEat(.ImportModule, .remain);
+    try self.expectWithError(.ImportModule, .remain);
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     while (self.expect(.current, &.{ .Space, .Tab }) and
@@ -891,7 +880,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.nextRawToken();
     }
 
-    try self.expectAndEat(.Lparen, .remain);
+    try self.expectWithError(.Lparen, .remain);
 
     var mod_dir_path = try ArrayList(u8).initCapacity(self.allocator, 30);
     defer mod_dir_path.deinit(self.allocator);
@@ -931,7 +920,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
 fn parseImportVesti(self: *Self) ParseError!Stmt {
     const import_ves_loc = self.curr_tok.span;
-    try self.expectAndEat(.ImportVesti, .remain);
+    try self.expectWithError(.ImportVesti, .remain);
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     while (self.expect(.current, &.{ .Space, .Tab }) and
@@ -942,7 +931,7 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
         self.nextRawToken();
     }
 
-    try self.expectAndEat(.Lparen, .remain);
+    try self.expectWithError(.Lparen, .remain);
 
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
     defer file_path_str.deinit(self.allocator);
@@ -996,7 +985,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     var off_math_state = false;
     var add_newline = false;
 
-    _ = try self.expectAndEat(begin_env_tok, .eat);
+    _ = try self.expectWithError(begin_env_tok, .eat);
     if (!is_real and self.expect(.current, &.{.Star})) {
         self.nextToken();
         add_newline = true;
@@ -1115,7 +1104,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         self.eatWhitespaces(true);
     }
 
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
     var inner = try self.parseBrace(false);
     errdefer inner.deinit();
 
@@ -1132,7 +1121,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
 
 fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     const endenv_location = self.curr_tok.span;
-    _ = try self.expectAndEat(.Endenv, .eat);
+    _ = try self.expectWithError(.Endenv, .eat);
     self.eatWhitespaces(false);
 
     var name = blk: {
@@ -1182,7 +1171,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     const defun_location = self.curr_tok.span;
     var defun_kind: ast.DefunKind = .{};
 
-    _ = try self.expectAndEat(.DefineFunction, .eat);
+    _ = try self.expectWithError(.DefineFunction, .eat);
     self.eatWhitespaces(false);
 
     // parsing defun attributes
@@ -1215,7 +1204,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
 
-        _ = try self.expectAndEat(.Rsqbrace, .eat);
+        _ = try self.expectWithError(.Rsqbrace, .eat);
     }
     self.eatWhitespaces(false);
 
@@ -1311,7 +1300,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     }
     self.eatWhitespaces(true);
 
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
 
     var inner = try self.parseBrace(false);
     errdefer inner.deinit(self.allocator);
@@ -1324,7 +1313,7 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     const defenv_location = self.curr_tok.span;
     var is_redefine = false;
 
-    _ = try self.expectAndEat(.DefineEnv, .eat);
+    _ = try self.expectWithError(.DefineEnv, .eat);
 
     if (self.expect(.current, &.{.Star})) {
         self.nextToken();
@@ -1390,7 +1379,7 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
         };
         self.nextToken();
 
-        _ = try self.expectAndEat(.Rsqbrace, .eat);
+        _ = try self.expectWithError(.Rsqbrace, .eat);
         break :blk tmp;
     } else 0;
     self.eatWhitespaces(false);
@@ -1406,14 +1395,14 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
     errdefer if (arg) |*a| a.deinit(self.allocator);
 
     // parse begin body
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
     var inner_begin = try self.parseBrace(false);
     errdefer inner_begin.deinit(self.allocator);
     self.nextToken(); // eat `}`
     self.eatWhitespaces(true);
 
     // parse end body
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
     var inner_end = try self.parseBrace(false);
     errdefer inner_end.deinit(self.allocator);
     self.eatWhitespaces(true);
@@ -1433,7 +1422,7 @@ fn parseDefineEnv(self: *Self) ParseError!Stmt {
 fn parseLuaCode(self: *Self) ParseError!Stmt {
     const codeblock_loc = self.curr_tok.span;
 
-    try self.expectAndEat(.LuaCode, .remain);
+    try self.expectWithError(.LuaCode, .remain);
     const luacode_contents = self.curr_tok.lit.in_text;
 
     // coping luacode contents
@@ -1462,7 +1451,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         while (true) : (self.nextToken()) {
             self.eatWhitespaces(true);
             if (self.expect(.current, &.{.Rsqbrace})) break;
-            try self.expectAndEat(.Text, .remain);
+            try self.expectWithError(.Text, .remain);
 
             try code_import.?.append(self.allocator, self.curr_tok.lit.in_text);
             self.nextToken();
@@ -1490,11 +1479,11 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         self.nextToken(); // skip ':lu#' or ']' token
         self.nextToken(); // skip '<' token
 
-        try self.expectAndEat(.Text, .remain);
+        try self.expectWithError(.Text, .remain);
         code_export = self.curr_tok.lit.in_text;
         self.nextToken();
 
-        try self.expectAndEat(.Great, .remain);
+        try self.expectWithError(.Great, .remain);
     }
 
     return Stmt{
@@ -1518,7 +1507,7 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    try self.expectAndEat(.CompileType, .remain);
+    try self.expectWithError(.CompileType, .remain);
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     while (!self.expect(.peek, &.{ .Lparen, .Eof })) {
@@ -1527,10 +1516,10 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
         self.nextToken();
     }
 
-    _ = try self.expectAndEat(.Lparen, .eat);
+    _ = try self.expectWithError(.Lparen, .eat);
     self.eatWhitespaces(true);
 
-    try self.expectAndEat(.Text, .remain);
+    try self.expectWithError(.Text, .remain);
     const engine = COMPILE_TYPE.get(self.curr_tok.lit.in_text) orelse {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .InvalidLatexEngine = self.curr_tok.lit.in_text },
@@ -1541,7 +1530,7 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
 
     self.nextToken();
     self.eatWhitespaces(true);
-    try self.expectAndEat(.Rparen, .remain);
+    try self.expectWithError(.Rparen, .remain);
 
     if (self.engine_ptr) |e| {
         e.* = engine;
@@ -1640,7 +1629,7 @@ fn parseFunctionArgsCore(
     arg_need: ast.ArgNeed,
 ) ParseError!void {
     const open_brace_location = self.curr_tok.span;
-    _ = try self.expectAndEat(open, .eat);
+    _ = try self.expectWithError(open, .eat);
 
     var tmp = try ArrayList(Stmt).initCapacity(self.allocator, 20);
     errdefer {
@@ -1672,7 +1661,7 @@ fn parseFunctionArgsCore(
         try tmp.append(self.allocator, stmt);
     }
 
-    try self.expectAndEat(closed, .remain);
+    try self.expectWithError(closed, .remain);
     try args.append(self.allocator, .{ .needed = arg_need, .ctx = tmp });
 }
 
@@ -1687,7 +1676,7 @@ fn parseBuiltinsArguments(
     var inner = Io.Writer.Allocating.init(self.allocator);
     errdefer inner.deinit();
 
-    _ = try self.expectAndEat(open, .eat);
+    _ = try self.expectWithError(open, .eat);
 
     var nested: usize = 1;
     while (switch (self.currToktype()) {
@@ -1711,7 +1700,7 @@ fn parseBuiltinsArguments(
         try inner.writer.writeAll(self.curr_tok.lit.in_text);
     }
 
-    _ = try self.expectAndEat(closed, .eat);
+    _ = try self.expectWithError(closed, .eat);
     self.eatWhitespaces(ignore_newline);
 
     return inner.toArrayList();
@@ -1887,7 +1876,7 @@ fn parseBuiltin_textmode(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
     if (!self.doc_state.math_mode) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .TextmodeInText,
@@ -1910,7 +1899,7 @@ fn parseBuiltin_mathmode(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    try self.expectAndEat(.Lbrace, .remain);
+    try self.expectWithError(.Lbrace, .remain);
     if (self.doc_state.math_mode) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .MathmodeInMath,
@@ -2004,7 +1993,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     self.nextToken(); // eat `#showfont`
     self.eatWhitespaces(false);
 
-    _ = try self.expectAndEat(.Lparen, .eat);
+    _ = try self.expectWithError(.Lparen, .eat);
 
     if (!self.expect(.current, &.{.Integer})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -2028,7 +2017,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     };
     self.nextToken();
 
-    try self.expectAndEat(.Rparen, .remain);
+    try self.expectWithError(.Rparen, .remain);
     var output = try ArrayList(u8).initCapacity(self.allocator, 50);
     errdefer output.deinit(self.allocator);
     try output.print(
@@ -2069,7 +2058,7 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    const latex_function_tok = try self.expectAndEat(.LatexFunction, .eat);
+    const latex_function_tok = try self.expectWithError(.LatexFunction, .eat);
     const latex_function = latex_function_tok.lit.in_text;
     self.eatWhitespaces(false);
 
@@ -2114,8 +2103,8 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     self.nextToken(); // eat `#mathchardef`
     self.eatWhitespaces(false);
 
-    _ = try self.expectAndEat(.Period, .eat);
-    try self.expectAndEat(.Text, .remain);
+    _ = try self.expectWithError(.Period, .eat);
+    try self.expectWithError(.Text, .remain);
 
     const kind_txt = self.curr_tok.lit.in_text;
     const kind_txt_z = try self.allocator.allocSentinel(u8, kind_txt.len + 1, 0);
@@ -2143,7 +2132,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    try self.expectAndEat(.Integer, .remain);
+    try self.expectWithError(.Integer, .remain);
     const font_num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
@@ -2181,7 +2170,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    const latex_function_tok = try self.expectAndEat(.LatexFunction, .eat);
+    const latex_function_tok = try self.expectWithError(.LatexFunction, .eat);
     const latex_function = latex_function_tok.lit.in_text;
     self.eatWhitespaces(false);
 
@@ -2323,7 +2312,7 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
         self.nextRawToken();
     }
 
-    try self.expectAndEat(.Lparen, .remain);
+    try self.expectWithError(.Lparen, .remain);
 
     const left_parn_loc = self.curr_tok.span;
     preventBug(&left_parn_loc);
@@ -2384,11 +2373,11 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         null;
     errdefer if (unit_length) |*ul| ul.deinit(self.allocator);
 
-    _ = try self.expectAndEat(.Lparen, .eat); // eat (
+    _ = try self.expectWithError(.Lparen, .eat); // eat (
 
     const width_tok_loc = self.curr_tok.span;
     preventBug(&width_tok_loc);
-    const width_token = try self.expectAndEat(.Integer, .eat);
+    const width_token = try self.expectWithError(.Integer, .eat);
     const width = fmt.parseInt(usize, width_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
@@ -2400,12 +2389,12 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     };
 
-    _ = try self.expectAndEat(.Comma, .eat); // eat ,
+    _ = try self.expectWithError(.Comma, .eat); // eat ,
     self.eatWhitespaces(false);
 
     const height_tok_loc = self.curr_tok.span;
     preventBug(&height_tok_loc);
-    const height_token = try self.expectAndEat(.Integer, .eat);
+    const height_token = try self.expectWithError(.Integer, .eat);
     const height = fmt.parseInt(usize, height_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
@@ -2416,17 +2405,17 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     };
-    _ = try self.expectAndEat(.Rparen, .eat); // eat )
+    _ = try self.expectWithError(.Rparen, .eat); // eat )
     self.eatWhitespaces(false);
 
     var xoffset: ?usize = null;
     var yoffset: ?usize = null;
     if (self.expect(.current, &.{.Lparen})) {
-        _ = try self.expectAndEat(.Lparen, .eat); // eat (
+        _ = try self.expectWithError(.Lparen, .eat); // eat (
 
         const xoffset_tok_loc = self.curr_tok.span;
         preventBug(&xoffset_tok_loc);
-        const xoffset_token = try self.expectAndEat(.Integer, .eat);
+        const xoffset_token = try self.expectWithError(.Integer, .eat);
         xoffset = fmt.parseInt(usize, xoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
@@ -2438,12 +2427,12 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         };
 
-        _ = try self.expectAndEat(.Comma, .eat); // eat ,
+        _ = try self.expectWithError(.Comma, .eat); // eat ,
         self.eatWhitespaces(false);
 
         const yoffset_tok_loc = self.curr_tok.span;
         preventBug(&yoffset_tok_loc);
-        const yoffset_token = try self.expectAndEat(.Integer, .eat);
+        const yoffset_token = try self.expectWithError(.Integer, .eat);
         yoffset = fmt.parseInt(usize, yoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
@@ -2455,7 +2444,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         };
 
-        _ = try self.expectAndEat(.Rparen, .eat); // eat )
+        _ = try self.expectWithError(.Rparen, .eat); // eat )
     }
     self.eatWhitespaces(true);
 
