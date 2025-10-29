@@ -117,6 +117,7 @@ pub fn compile(
             try diagnostic.prettyPrint(attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;
+            if (!attr.watch) break;
             if (attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
                 prev_mtime.* = std.time.nanoTimestamp();

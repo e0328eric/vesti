@@ -47,6 +47,7 @@ pub const TokenType = union(enum(u8)) {
     LuaCode,
 
     // Keywords
+    __begin_keywords, // NOTE: this is only used internally
     Docclass,
     ImportPkg,
     ImportVesti,
@@ -59,6 +60,7 @@ pub const TokenType = union(enum(u8)) {
     DefineFunction,
     DefineEnv,
     CompileType,
+    __end_keywords, // NOTE: this is only used internally
 
     // Symbols
     Plus, // +
@@ -156,7 +158,7 @@ pub const TokenType = union(enum(u8)) {
             .Newline =>                  try writer.writeAll("`<newline>`"),
             .MathSmallSpace =>           try writer.writeAll("`<mathsmallspace>`"),
             .MathLargeSpace =>           try writer.writeAll("`<mathlargespace>`"),
-            .Integer =>                  try writer.writeAll("`<integer>`"), 
+            .Integer =>                  try writer.writeAll("`<integer>`"),
             .Float =>                    try writer.writeAll("`<float>`"),
             .Text =>                     try writer.writeAll("`<text>`"),
             .LatexFunction =>            try writer.writeAll("`<ltxfnt>`"),
@@ -247,6 +249,7 @@ pub const TokenType = union(enum(u8)) {
             .DisplayMathEnd =>           try writer.writeAll("`\\]`"),
             .Illegal =>                  try writer.writeAll("`<illegal>`"),
             .Deprecated =>               try writer.writeAll("`<deprecated>`"),
+            .__begin_keywords, .__end_keywords => unreachable,
             // zig fmt: on
         }
     }

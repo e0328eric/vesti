@@ -45,12 +45,11 @@ pub const ArgNeed = enum(u2) {
     StarArg,
 };
 
-pub const DefunKind = packed struct(u7) {
+pub const DefunKind = packed struct(u6) {
     redef: bool = false,
+    provide: bool = false,
+    declare: bool = false,
     expand: bool = false,
-    long: bool = false,
-    outer: bool = false,
-    global: bool = false,
     trim_left: bool = true,
     trim_right: bool = true,
 
@@ -58,16 +57,52 @@ pub const DefunKind = packed struct(u7) {
         for (str) |s| {
             switch (s) {
                 'r', 'R' => output.redef = true,
+                'p', 'P' => output.redef = true,
+                '!' => output.declare = true,
                 'e', 'E' => output.expand = true,
-                'l', 'L' => output.long = true,
-                'o', 'O' => output.outer = true,
-                'g', 'G' => output.global = true,
                 '<' => output.trim_left = false,
                 '>' => output.trim_right = false,
                 else => return false,
             }
         }
-        return true;
+
+        // check whether attribute is valid
+        const kind =
+            @as(u4, @intCast(@intFromBool(output.redef))) << 0 |
+            @as(u4, @intCast(@intFromBool(output.provide))) << 1 |
+            @as(u4, @intCast(@intFromBool(output.declare))) << 2 |
+            @as(u4, @intCast(@intFromBool(output.expand))) << 3;
+        return switch (kind) {
+            0b0000, //
+            0b0001, // redef
+            0b0010, // provide
+            0b0100, // declare
+            0b1000, // expand
+            0b1001, // expand | redef
+            0b1010, // expand | provide
+            0b1100, // expand | declare
+            => true,
+            else => false,
+        };
+    }
+
+    pub fn toStr(self: @This()) []const u8 {
+        const kind =
+            @as(u4, @intCast(@intFromBool(self.redef))) << 0 |
+            @as(u4, @intCast(@intFromBool(self.provide))) << 1 |
+            @as(u4, @intCast(@intFromBool(self.declare))) << 2 |
+            @as(u4, @intCast(@intFromBool(self.expand))) << 3;
+        return switch (kind) {
+            0b0000 => "\\NewDocumentCommand",
+            0b0001 => "\\RenewDocumentCommand",
+            0b0010 => "\\ProvideDocumentCommand",
+            0b0100 => "\\DeclareDocumentCommand",
+            0b1000 => "\\NewExpandableDocumentCommand",
+            0b1001 => "\\RenewExpandableDocumentCommand",
+            0b1010 => "\\ProvideExpandableDocumentCommand",
+            0b1100 => "\\DeclareExpandableDocumentCommand",
+            else => unreachable, // already handled these cases in the parser
+        };
     }
 };
 

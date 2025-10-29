@@ -11,6 +11,7 @@ importpkg {
 
 importves (font.ves)
 
+% read file contents using lua
 #lu:
 local function read_all(path)
   local f, err = io.open(path, "rb")
@@ -21,48 +22,50 @@ local function read_all(path)
 end
 :lu#<readAll>
 
+% definition of \keyword command
+defun [!] keyword (m) {{\tt\color{purple}#1}}
+defun useenv (s) {\IfBooleanTF{#1}{\keyword{%-useenv-%}}{\keyword{%-useenv-%} }}
+defun begenv (s) {\IfBooleanTF{#1}{\keyword{%-begenv-%}}{\keyword{%-begenv-%} }}
+defun endenv (s) {\IfBooleanTF{#1}{\keyword{%-endenv-%}}{\keyword{%-endenv-%} }}
+
 startdoc
 \maketitle
+\tableofcontents
 
 \section{Introduction}
 
-\section{Language Reference}
-\subsection{Structure of Vesti File}
+\section{Structure of Vesti File}
 Vesti is similar as \LaTeX. Its structure consists with two parts: {\tt preamble} and
 {\tt main}. Preamble is the place where \LaTeX\ documentclass, packages, and
 several settings are located. Main body is where actual documentation is located.
 Below figure is the simple Vesti documentation.
 
-useenv figure [ht] {
-    \centering
-    useenv tikzpicture {
-        \path (0,0) node[draw, inner sep=5pt] {\vbox{
-        %##\hbox{\tt\obeyspaces {\color{purple}docclass} article (10pt)}
-        %##\hbox{\tt\obeyspaces {\color{purple}importves} \{}
-        %##\hbox{\tt\obeyspaces     geometry (a4paper, margin=2.2cm)}
-        %##\hbox{\tt\obeyspaces \}}
-        %##\hbox{\tt\obeyspaces {\color{purple}startdoc}}
-        %##\hbox{\tt\obeyspaces Hello, Vesti!}
-        }};
-    }
-    \caption{Almost very simple Vesti documentation}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@docclass@ article (10pt)
+%#|+color|purple@importpkg@ {
+%#    geometry (a4paper, margin=2.2cm)
+%#}
+%#|+color|purple@startdoc@
+%#Hello, Vesti!
 }
+
 We will see later, but the very difference with \LaTeX\ is that Vesti has its
 own keywords (keywords are colored with purple). It makes the code readable and
 it is easier and faster to write the document. The keyword startdoc splits
 the preamble and the main part of the documentation similar with
-%
+
 % Don't ask why I chose Q for catcode 0.
-%##{\tt\catcode`Q=0 Qcatcode`\\=12 \beginQ{documentQ}} in \LaTeX.
+%#{\tt\catcode`Q=0 Qcatcode`\\=12 \beginQ{documentQ}} in \LaTeX.
 However, Vesti does not have the analogous part of
-%##{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}},
+%#{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}},
 because almost every \LaTeX\ document (99.999\% I'm sure) does not have any code
-below %##{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}}.
+below %#{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}}.
 For this reason, Vesti automatically ends document when EOF (End Of File) is
 found.
 
-\subsection{Keywords}
-Followings are reserved as keywords.
+\section{Keywords}
+Followings are reserved as keywords. In this document, every Vesti keyword has
+the form like \keyword{this}.
 useenv table [ht] {
     \centering
     #lu:
@@ -88,7 +91,7 @@ useenv table [ht] {
     vesti.print([[\begin{tabular}{cccc}]])
 
     for i, kw in ipairs(keywords) do
-        local cell = string.format("{\\ttfamily %s}", kw)
+        local cell = string.format("\\keyword{%s}", kw)
         if (i % 4) == 0 then
             vesti.print(cell .. [[\\]])
         else
@@ -101,7 +104,139 @@ useenv table [ht] {
     \caption{Keywords in Vesti}
 }
 
-\subsection{Builtins}
+\subsection{\keyword{docclass} keyword}
+Keyword \keyword{docclass} is an analogous of \verb|\documentclass| in \LaTeX.
+If \keyword{docclass} is in the main paragraph, it acts just a normal word.
+In other words, \keyword{docclass} actives only in the preamble.
+The syntax of \keyword{docclass} is following:
+
+useenv center {
+    \keyword{docclass}\kern0.5em <class name>\kern0.5em {\tt(}<arguments>{\tt)}
+}
+Here, arguments are separated by commas and embraced by {\tt ()}. Here are some
+examples.
+
+\goodbreak
+useenv itemize {
+    \item \keyword{docclass} {\tt article}
+    \item \keyword{docclass} {\tt article (10pt)}
+    \item \keyword{docclass} {\tt article (10pt, twocols)}
+    \item \keyword{docclass} {\tt article (10pt,twocols)}
+}
+
+\subsection{\keyword{importpkg} keywords}
+Keyword \keyword{importpkg} is an analogous of \verb|\usepackage| in \LaTeX.
+If \keyword{importpkg} is in the main paragraph, it acts just a normal word.
+In other words, \keyword{importpkg} actives only in the preamble.
+
+importpkg has two different syntax. First one is same as docclass.
+useenv center {
+    \keyword{importpkg}\kern1em pkg-name\kern1em {\tt(}arguments{\tt)}
+}
+Here, arguments are separated by commas and embraced by {\tt ()}.
+In the practical case, one should include several packages with options.
+importpkg also supports such case. We will look at an example instead of
+giving rigorous grammar.
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@importpkg@ {
+%#    amsmath, amssymb, amsthm,
+%#    geometry (a4paper, margin=2.2cm),
+%#}
+}
+
+\noindent As one can see, inside of \verb|{}|, several packages can be used
+together with thier options.
+
+\subsection{\keyword{startdoc} keyword}
+Keyword \keyword{startdoc} tells to Vesti that the main document starts. In the
+main document, you can also write \keyword{startdoc} in the main document. In
+that case, \keyword{startdoc} does nothing.
+
+\subsection{\useenv keyword}
+As the name implies, keyword \useenv is an analogous of \verb|\begin{...}| and
+\verb|\end{...}| pair in \LaTeX.
+The simplest \useenv is like this.
+
+useenv figure [ht] {
+    \centering
+    useenv tikzpicture {
+        useenv scope {
+            \path (0,0) node {\vbox{
+            %#\hbox{\tt\useenv center \{}
+            %#\hbox{\tt\obeyspaces    Hello, World!}
+            %#\hbox{\tt\obeyspaces\}}
+            }};
+        }
+        \path (2.3,0) node {or};
+        useenv scope [shift={(6,0)}]{
+            \path (0,0) node {\tt\useenv center \{ Hello, World! \}};
+        }
+    }
+}
+
+As you can see, {\tt\useenv center} is the part of \verb|\begin{center}|, and
+the single {\tt\}} is the part of \verb|\end{center}|. Since Vesti knows their
+pair, one can write a code with several environment, and each pair is properly
+matched. For instance, above example is written in Vesti like follows. Here,
+\verb|\useenv| just prints \useenv in that style.
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@useenv@ figure [ht] {
+%#    \centering
+%#    |+color|purple@useenv@ tikzpicture {
+%#        |+color|purple@useenv@ scope {
+%#            \path (0,0) node {\vbox{
+%#            |+color|blue@%#@\hbox{\tt\useenv center \{}
+%#            |+color|blue@%#@\hbox{\tt\obeyspaces    Hello, World!}
+%#            |+color|blue@%#@\hbox{\tt\obeyspaces\}}
+%#            }};
+%#        }
+%#        \path (2.3,0) node {or};
+%#        |+color|purple@useenv@ scope [shift={(6,0)}] {
+%#            \path (0,0) node {\tt\useenv center \{ Hello, World! \}};
+%#        }
+%#    }
+%#}
+}
+
+Full syntax about \useenv is the following.
+useenv center {
+    \useenv\kern0.5em <environment name>\kern0.5em <argument>*\kern0.5em
+    {\tt\{} <body> {\tt\}}
+}
+where `*' means that the number of <argument> is zero or at least one, and
+$$
+    "<argument>" = useenv cases {
+        "(<argument>)" & "mandatory arguments" \\
+        "[<argument>]" & "optional arguments"
+    }
+$$
+For instance, below one is a valid Vesti code (environment {\tt foo} is
+undefined in general). As one can see, spaces can exist in between <argument>s.
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@useenv@ foo (asd)(fff)[\ames and \awdsa] (askws) [\rrsaa] {
+%#    foobar
+%#}
+}
+
+\subsection{\begenv keyword and \endenv keyword}
+As the name implies, both keywords \begenv and \endenv are analogous of
+\verb|\begin{...}| and \verb|\end{...}| pair in \LaTeX, respectively.
+Thus below code
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@begenv@ center
+%#    asdsad
+%#|+color|purple@endenv@ center
+}
+is exactly same as
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#|+color|purple@useenv@ center {
+%#    asdsad
+%#}
+}
+Then why we need \begenv and \endenv if we already have \useenv*?
+
+\section{Builtins}
 Vesti also has its own builtin functions, which are prefixed with \#.
 One might wonder what distinguishes builtins from keywords. In fact, from the
 compiler's internal perspective, there is no real difference. However, in actual
@@ -145,11 +280,6 @@ useenv table [ht] {
     :lu#[readAll]
     \caption{Builtins in Vesti}
 }
-
-\subsection{{\ttfamily docclass} keywords}
-Keyword {\tt docclass} is an analogous of \verb|\documentclass| in \LaTeX.
-If docclass keyword is in the main paragraph, it acts just a normal word.
-In other words, docclass keyword actives only in the preamble.
 
 \section{Source Code of This Document}
 Below code was generated by inline lua.

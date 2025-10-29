@@ -1209,9 +1209,11 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     const name = blk: {
-        const tmp = switch (self.currToktype()) {
-            .Text => self.curr_tok.lit.in_text,
-            .Eof => {
+        const tmp = switch (@intFromEnum(self.currToktype())) {
+            @intFromEnum(TokenType.Text),
+            @intFromEnum(TokenType.__begin_keywords)...@intFromEnum(TokenType.__end_keywords),
+            => self.curr_tok.lit.in_text,
+            @intFromEnum(TokenType.Eof) => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .EofErr,
                     .span = defun_location,
@@ -1247,53 +1249,29 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
         var param_str = Io.Writer.Allocating.init(self.allocator);
         defer param_str.deinit();
 
-        while (!self.expect(.current, &.{ .Rparen, .Eof })) : (self.nextToken()) {
+        var nested: usize = 1;
+        while (switch (self.currToktype()) {
+            .Lparen => blk: {
+                nested += 1;
+                break :blk true;
+            },
+            .Rparen => blk: {
+                nested -= 1;
+                break :blk nested != 0;
+            },
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = defun_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => true,
+        }) : (self.nextToken()) {
             try param_toks.append(self.allocator, self.curr_tok);
-        } else if (self.expect(.current, &.{.Eof})) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = defun_location,
-            } });
-            return ParseError.ParseFailed;
         }
         assert(self.expect(.current, &.{.Rparen}));
-
-        for (param_toks.items) |param_tok| {
-            switch (param_tok.toktype) {
-                .BuiltinFunction => |builtin_fnt| if (Token.isFunctionParam(builtin_fnt)) |fnt_param| {
-                    if (fnt_param % 10 == 0) {
-                        self.diagnostic.initDiagInner(.{ .ParseError = .{
-                            .err_info = .{ .InvalidDefunParam = fnt_param },
-                            .span = param_tok.span,
-                        } });
-                        return ParseError.ParseFailed;
-                    }
-
-                    const num_of_sharp = std.math.powi(usize, 2, fnt_param / 10) catch {
-                        self.diagnostic.initDiagInner(.{ .ParseError = .{
-                            .err_info = .{ .DefunParamOverflow = fnt_param / 10 },
-                            .span = param_tok.span,
-                        } });
-                        return ParseError.ParseFailed;
-                    };
-                    const param = fnt_param % 10; // it is in between 1 to 9
-
-                    for (0..num_of_sharp) |_| try param_str.writer.writeByte('#');
-                    try param_str.writer.print("{d}", .{param});
-                } else {
-                    self.diagnostic.initDiagInner(.{ .ParseError = .{
-                        .err_info = .{ .WrongBuiltin = .{
-                            .name = builtin_fnt,
-                            .note = "this is not a valid function parameter",
-                        } },
-                        .span = param_tok.span,
-                    } });
-                    return ParseError.ParseFailed;
-                },
-                // treat every tokens inside param_str as a text
-                else => try param_str.writer.writeAll(param_tok.lit.in_text),
-            }
-        }
+        try self.parseDefineFunctionParam(&param_toks, &param_str);
 
         out_stmt.DefineFunction.param_str = .fromOwnedSlice(try param_str.toOwnedSlice());
         self.nextToken(); // eat `)`
@@ -1307,6 +1285,49 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
 
     out_stmt.DefineFunction.inner = inner.Braced.inner;
     return out_stmt;
+}
+
+fn parseDefineFunctionParam(
+    self: *Self,
+    param_toks: *const ArrayList(Token),
+    param_str: *Io.Writer.Allocating,
+) !void {
+    for (param_toks.items) |param_tok| {
+        switch (param_tok.toktype) {
+            .BuiltinFunction => |builtin_fnt| if (Token.isFunctionParam(builtin_fnt)) |fnt_param| {
+                if (fnt_param % 10 == 0) {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{ .InvalidDefunParam = fnt_param },
+                        .span = param_tok.span,
+                    } });
+                    return ParseError.ParseFailed;
+                }
+
+                const num_of_sharp = std.math.powi(usize, 2, fnt_param / 10) catch {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{ .DefunParamOverflow = fnt_param / 10 },
+                        .span = param_tok.span,
+                    } });
+                    return ParseError.ParseFailed;
+                };
+                const param = fnt_param % 10; // it is in between 1 to 9
+
+                for (0..num_of_sharp) |_| try param_str.writer.writeByte('#');
+                try param_str.writer.print("{d}", .{param});
+            } else {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .WrongBuiltin = .{
+                        .name = builtin_fnt,
+                        .note = "this is not a valid function parameter",
+                    } },
+                    .span = param_tok.span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            // treat every tokens inside param_str as a text
+            else => try param_str.writer.writeAll(param_tok.lit.in_text),
+        }
+    }
 }
 
 fn parseDefineEnv(self: *Self) ParseError!Stmt {

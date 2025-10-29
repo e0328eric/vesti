@@ -239,45 +239,20 @@ fn codegenStmt(
             for (0..num_of_sharp) |_| try writer.writeByte('#');
             try writer.print("{d}", .{info.arg_num});
         },
+        // after 2020-10-01, xparse commands are migrated in LaTeX
+        // since Vesti uses tectonic in default, I think making this true in default
+        // makes sense.
+        // reference: https://ctan.org/pkg/l3packages
         .DefineFunction => |ctx| {
-            const kind =
-                @as(u4, @intCast(@intFromBool(ctx.kind.expand))) << 0 |
-                @as(u4, @intCast(@intFromBool(ctx.kind.global))) << 1 |
-                @as(u4, @intCast(@intFromBool(ctx.kind.long))) << 2 |
-                @as(u4, @intCast(@intFromBool(ctx.kind.outer))) << 3;
-            const defin = switch (kind) {
-                0b0000 => "\\def",
-                0b0001 => "\\edef",
-                0b0010 => "\\gdef",
-                0b0011 => "\\xdef",
-                0b0100 => "\\long\\def",
-                0b0101 => "\\long\\edef",
-                0b0110 => "\\long\\gdef",
-                0b0111 => "\\long\\xdef",
-                0b1000 => "\\outer\\def",
-                0b1001 => "\\outer\\edef",
-                0b1010 => "\\outer\\gdef",
-                0b1011 => "\\outer\\xdef",
-                0b1100 => "\\outer\\long\\def",
-                0b1101 => "\\outer\\long\\edef",
-                0b1110 => "\\outer\\long\\gdef",
-                0b1111 => "\\outer\\long\\xdef",
-            };
+            const defin = ctx.kind.toStr();
 
             // prologue
-            if (!ctx.kind.redef) {
-                try writer.print(
-                    \\\expandafter\ifx\csname {f}\endcsname\relax
-                    \\{s}\{f}
-                , .{ ctx.name, defin, ctx.name });
-            } else {
-                try writer.print("{s}\\{f}", .{ defin, ctx.name });
-            }
+            try writer.print("{s}{{\\{f}}}", .{ defin, ctx.name });
 
             if (ctx.param_str) |str| {
-                try writer.print("{f}{{", .{str});
+                try writer.print("{{{f}}}{{", .{str});
             } else {
-                try writer.writeByte('{');
+                try writer.writeAll("{}{");
             }
 
             // body
@@ -295,11 +270,7 @@ fn codegenStmt(
             try writer.writeAll(body_content);
 
             //epilogue
-            if (!ctx.kind.redef) {
-                try writer.writeAll("}\n\\else\\fi ");
-            } else {
-                try writer.writeAll("}");
-            }
+            try writer.writeByte('}');
         },
         .DefineEnv => |ctx| {
             // prologue

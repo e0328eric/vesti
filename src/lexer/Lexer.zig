@@ -337,6 +337,15 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .less_chr;
             },
+            '@' => if (self.make_at_letter) {
+                start_chr0_idx = self.chr0_idx;
+                self.nextChar(1);
+                continue :tokenize .text;
+            } else {
+                self.nextChar(1);
+                self.str2Token("@", &token, start_location);
+                break :tokenize;
+            },
             inline 0,
             '\n',
             '\t',
@@ -344,9 +353,8 @@ pub fn next(self: *Self) Token {
             '+',
             '*',
             '?',
-            '@',
-            '^',
             '_',
+            '^',
             '&',
             ',',
             ':',
@@ -362,7 +370,7 @@ pub fn next(self: *Self) Token {
             ')',
             => |chr| {
                 self.nextChar(1);
-                self.str2Token(&[1]u8{@intCast(chr)}, &token, start_location);
+                self.str2Token(&.{@intCast(chr)}, &token, start_location);
                 break :tokenize;
             },
             else => |chr| if (uucode.get(.is_ascii_digit, chr)) {
@@ -402,11 +410,12 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .multiline_comment;
             },
-            '#' => if (self.getChar(.peek1) == '#') {
-                self.nextChar(2);
+            '#' => {
+                self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
                 continue :tokenize .line_verbatim;
-            } else {
+            },
+            '-' => {
                 self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
                 continue :tokenize .verbatim;
@@ -567,7 +576,11 @@ pub fn next(self: *Self) Token {
             },
         },
         .text => if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
-            uucode.get(.is_alphabetic, self.getChar(.current)))
+            isVestiIdentChar(
+                self.getChar(.current),
+                self.make_at_letter,
+                self.is_latex3_on,
+            ))
         {
             self.nextChar(1);
             continue :tokenize .text;
@@ -681,7 +694,7 @@ pub fn next(self: *Self) Token {
             self.nextChar(1);
             continue :tokenize .multiline_comment;
         },
-        .verbatim => if (self.getChar(.current) == '#' and
+        .verbatim => if (self.getChar(.current) == '-' and
             self.getChar(.peek1) == '%')
         {
             token.init(
@@ -883,7 +896,7 @@ fn isVestiIdentChar(
     subscript_as_letter: bool,
     is_latex3: bool,
 ) bool {
-    return ((chr >= 'A' and chr <= 'Z') or (chr >= 'a' and chr <= 'z')) or
-        (subscript_as_letter and chr == '_') or
+    return uucode.get(.is_alphabetic, chr) or
+        (subscript_as_letter and chr == '@') or
         (is_latex3 and (chr == '_' or chr == ':'));
 }
