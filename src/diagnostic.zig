@@ -264,7 +264,7 @@ pub const ParseDiagnostic = struct {
     pub const ParseErrorInfo = union(ParseErrKind) {
         None,
         EofErr,
-        PremiereErr,
+        PreambleErr,
         TokenExpected: struct {
             expected: []const TokenType,
             obtained: ?TokenType,
@@ -373,7 +373,7 @@ pub const ParseDiagnostic = struct {
         switch (self.err_info) {
             .None => try aw.writer.writeAll("<none>"),
             .EofErr => try aw.writer.print("EOF character was found", .{}),
-            .PremiereErr => try aw.writer.print("PremiereErr\n", .{}),
+            .PreambleErr => try aw.writer.print("PremiereErr\n", .{}),
             .TokenExpected => |info| {
                 if (info.expected.len == 1) {
                     try aw.writer.print(

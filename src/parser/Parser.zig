@@ -87,7 +87,9 @@ pub const ParseError = Allocator.Error ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
 const DocState = packed struct {
-    latex3_included: bool = false,
+    // after 2020-10-01, latex kernel now allows to use expl3 without importing
+    // it. Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
+    allow_latex3: bool = true,
     doc_start: bool = false,
     prevent_end_doc: bool = false,
     parsing_define: bool = false,
@@ -1842,7 +1844,7 @@ fn parseBuiltin_makeatother(self: *Self) Stmt {
 
 fn parseBuiltin_ltx3_on(self: *Self) ParseError!Stmt {
     self.lexer.is_latex3_on = true;
-    if (self.doc_state.latex3_included) {
+    if (self.doc_state.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
         return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOn\n"}) };
     } else {
@@ -1850,7 +1852,7 @@ fn parseBuiltin_ltx3_on(self: *Self) ParseError!Stmt {
             .err_info = .{
                 .WrongBuiltin = .{
                     .name = "ltx3_on",
-                    .note = "must use `#ltx3_import` to use this keyword",
+                    .note = "must remove `#noltx3` to use this builtin",
                 },
             },
             .span = self.curr_tok.span,
@@ -1861,7 +1863,7 @@ fn parseBuiltin_ltx3_on(self: *Self) ParseError!Stmt {
 
 fn parseBuiltin_ltx3_off(self: *Self) ParseError!Stmt {
     self.lexer.is_latex3_on = false;
-    if (self.doc_state.latex3_included) {
+    if (self.doc_state.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
         return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOff\n"}) };
     } else {
@@ -1869,7 +1871,7 @@ fn parseBuiltin_ltx3_off(self: *Self) ParseError!Stmt {
             .err_info = .{
                 .WrongBuiltin = .{
                     .name = "ltx3_off",
-                    .note = "must use `#ltx3_import` to use this keyword",
+                    .note = "must remove `#noltx3` to use this builtin",
                 },
             },
             .span = self.curr_tok.span,
@@ -1878,14 +1880,14 @@ fn parseBuiltin_ltx3_off(self: *Self) ParseError!Stmt {
     }
 }
 
-fn parseBuiltin_ltx3_import(self: *Self) ParseError!Stmt {
+fn parseBuiltin_noltx3(self: *Self) ParseError!Stmt {
     if (self.isPremiere()) {
-        self.doc_state.latex3_included = true;
+        self.doc_state.allow_latex3 = false;
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\usepackage{expl3, xparse}\n"}) };
+        return Stmt.NopStmt;
     } else {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .PremiereErr,
+            .err_info = .PreambleErr,
             .span = self.curr_tok.span,
         } });
         return ParseError.ParseFailed;

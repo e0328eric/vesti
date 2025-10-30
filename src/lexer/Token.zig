@@ -313,9 +313,9 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "get_filepath" },
     .{ "makeatletter" },
     .{ "makeatother" },
-    .{ "ltx3_import" },
     .{ "ltx3_on" },
     .{ "ltx3_off" },
+    .{ "noltx3" },
     .{ "picture" },
     // zig fmt: on
 });
