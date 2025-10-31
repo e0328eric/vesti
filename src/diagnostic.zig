@@ -235,7 +235,7 @@ pub const ParseDiagnostic = struct {
     pub const ParseErrKind = enum(u8) {
         None = 0,
         EofErr,
-        PremiereErr,
+        PreambleErr,
         TokenExpected,
         NameMissErr,
         IsNotOpened,
