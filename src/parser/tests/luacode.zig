@@ -31,7 +31,10 @@ test "basic luacode" {
         source,
         undefined,
         &diagnostic,
-        true, // disallow luacode for testing
+        .{
+            .luacode = false,
+            .global_def = false,
+        },
         .{ null, .pdflatex }, // disallow changing latex engine type
     );
 

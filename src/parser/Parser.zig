@@ -24,7 +24,7 @@ const TokenType = Token.TokenType;
 
 const assert = std.debug.assert;
 const getConfigPath = @import("../Config.zig").getConfigPath;
-const vestiNameMangle = @import("../compile.zig").vestiNameMangle;
+const vestiNameMangle = @import("../Compiler.zig").vestiNameMangle;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
@@ -34,14 +34,16 @@ curr_tok: Token,
 peek_tok: Token,
 prev_curr_tok: Token,
 prev_peek_tok: Token,
+diagnostic: *diag.Diagnostic,
+file_dir: *fs.Dir,
+current_engine: LatexEngine,
+engine_ptr: ?*LatexEngine,
+// NOTE: I left this because later, it might support using Stmt.Placeholder.
+global_defkinds: ArrayList(Stmt), // NOTE: not used
+allows: ParserAllows,
 already_rewinded: bool,
 doc_state: DocState,
 enum_depth: u8,
-diagnostic: *diag.Diagnostic,
-file_dir: *fs.Dir,
-allow_luacode: bool,
-current_engine: LatexEngine,
-engine_ptr: ?*LatexEngine,
 
 const Self = @This();
 
@@ -96,12 +98,18 @@ const DocState = packed struct {
     math_mode: bool = false,
 };
 
+const ParserAllows = packed struct {
+    luacode: bool = false,
+    global_def: bool = false,
+    is_main: bool = false,
+};
+
 pub fn init(
     allocator: Allocator,
     source: []const u8,
     file_dir: *fs.Dir,
     diagnostic: *diag.Diagnostic,
-    allow_luacode: bool,
+    allows: ParserAllows,
     engine: anytype,
 ) !Self {
     var self: Self = undefined;
@@ -115,7 +123,8 @@ pub fn init(
     self.enum_depth = 0;
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
-    self.allow_luacode = allow_luacode;
+    self.global_defkinds = .empty;
+    self.allows = allows;
 
     const typeinfo = @typeInfo(@TypeOf(engine));
     comptime assert(typeinfo == .@"struct");
@@ -129,6 +138,11 @@ pub fn init(
     }
 
     return self;
+}
+
+pub fn deinit(self: *Self) void {
+    for (self.global_defkinds.items) |*stmt| stmt.deinit(self.allocator);
+    self.global_defkinds.deinit(self.allocator);
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
@@ -329,7 +343,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .CompileType => try self.parseCompileType(),
-        .LuaCode => if (self.allow_luacode)
+        .LuaCode => if (self.allows.luacode)
             try self.parseLuaCode()
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1286,6 +1300,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
     errdefer inner.deinit(self.allocator);
 
     out_stmt.DefineFunction.inner = inner.Braced.inner;
+
     return out_stmt;
 }
 

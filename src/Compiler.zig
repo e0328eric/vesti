@@ -18,6 +18,7 @@ const Lua = @import("Lua.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
+const Stmt = @import("parser/ast.zig").Stmt;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -67,7 +68,21 @@ pub const LuaContents = struct {
     }
 };
 
-pub fn compile(
+allocator: Allocator,
+main_filenames: []const []const u8,
+lua: *Lua,
+diagnostic: *diag.Diagnostic,
+engine: *LatexEngine,
+compile_limit: usize,
+prev_mtime: *?i128,
+luacode_scripts: LuaScripts,
+luacode_contents: LuaContents,
+global_defkinds: ArrayList(Stmt),
+attr: CompileAttribute,
+
+const Self = @This();
+
+pub fn init(
     allocator: Allocator,
     main_filenames: []const []const u8,
     lua: *Lua,
@@ -77,32 +92,46 @@ pub fn compile(
     prev_mtime: *?i128,
     luacode_scripts: LuaScripts,
     attr: CompileAttribute,
-) !void {
+) !Self {
     const luacode_contents = try LuaContents.init(
         &luacode_scripts,
         allocator,
         diagnostic,
     );
-    defer luacode_contents.deinit(allocator);
+    errdefer luacode_contents.deinit(allocator);
 
+    return .{
+        .allocator = allocator,
+        .main_filenames = main_filenames,
+        .lua = lua,
+        .diagnostic = diagnostic,
+        .engine = engine,
+        .compile_limit = compile_limit,
+        .prev_mtime = prev_mtime,
+        .luacode_scripts = luacode_scripts,
+        .luacode_contents = luacode_contents,
+        .global_defkinds = .empty,
+        .attr = attr,
+    };
+}
+
+pub fn deinit(self: *Self) void {
+    self.luacode_contents.deinit(self.allocator);
+}
+
+pub fn compile(self: *Self) !void {
     // run before.lua to "initialize" vesti projects
-    if (luacode_contents.before) |lc| {
-        try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts.before);
+    if (self.luacode_contents.before) |lc| {
+        try luascript.runLuaCode(
+            self.lua,
+            self.diagnostic,
+            lc,
+            self.luacode_scripts.before,
+        );
     }
 
     while (true) {
-        compileInner(
-            allocator,
-            main_filenames,
-            lua,
-            diagnostic,
-            engine,
-            compile_limit,
-            prev_mtime,
-            luacode_contents.step,
-            luacode_scripts.step,
-            attr,
-        ) catch |err| {
+        self.compileInner() catch |err| {
             if (builtin.os.tag == .windows) {
                 _ = win.MessageBoxA(
                     null,
@@ -113,14 +142,14 @@ pub fn compile(
             }
             // since diagnostic.prettyPrint is called in compile.compile, we should
             // avoid to print it twice (also on main)
-            diagnostic.lock_print_at_main = true;
-            try diagnostic.prettyPrint(attr.no_color);
+            self.diagnostic.lock_print_at_main = true;
+            try self.diagnostic.prettyPrint(self.attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;
-            if (!attr.watch) break;
-            if (attr.no_exit_err) {
+            if (!self.attr.watch) break;
+            if (self.attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
-                prev_mtime.* = std.time.nanoTimestamp();
+                self.prev_mtime.* = std.time.nanoTimestamp();
                 std.Thread.sleep(200 * time.ns_per_ms);
                 continue;
             } else {
@@ -128,22 +157,11 @@ pub fn compile(
             }
         };
 
-        if (!attr.watch) break;
+        if (!self.attr.watch) break;
     }
 }
 
-fn compileInner(
-    allocator: Allocator,
-    main_filenames: []const []const u8,
-    lua: *Lua,
-    diagnostic: *diag.Diagnostic,
-    engine: *LatexEngine,
-    compile_limit: usize,
-    prev_mtime: *?i128,
-    luacode_contents: ?[:0]const u8,
-    luacode_scripts: []const u8,
-    attr: CompileAttribute,
-) !void {
+fn compileInner(self: *Self) !void {
     // make vesti-dummy directory
     fs.cwd().makeDir(VESTI_DUMMY_DIR) catch |err| switch (err) {
         error.PathAlreadyExists => {},
@@ -164,43 +182,43 @@ fn compileInner(
     // store "absolute paths" for vesti files
     var main_vesti_files: StringArrayHashMap(bool) = .{};
     defer {
-        for (main_vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
-        main_vesti_files.deinit(allocator);
+        for (main_vesti_files.keys()) |vesti_file| self.allocator.free(vesti_file);
+        main_vesti_files.deinit(self.allocator);
     }
-    for (main_filenames) |filename| {
+    for (self.main_filenames) |filename| {
         if (!mem.eql(u8, path.extension(filename), ".ves")) {
             const io_diag = try diag.IODiagnostic.init(
-                diagnostic.allocator,
+                self.diagnostic.allocator,
                 null,
                 "extension of `{s}` is not `ves`",
                 .{filename},
             );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.ExtensionDifferent;
         }
 
-        const real_filename = fs.cwd().realpathAlloc(allocator, filename) catch {
+        const real_filename = fs.cwd().realpathAlloc(self.allocator, filename) catch {
             const io_diag = try diag.IODiagnostic.init(
-                diagnostic.allocator,
+                self.diagnostic.allocator,
                 null,
                 "failed to open file `{s}`",
                 .{filename},
             );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.FailedToOpenFile;
         };
-        errdefer allocator.free(real_filename);
-        try main_vesti_files.put(allocator, real_filename, true);
+        errdefer self.allocator.free(real_filename);
+        try main_vesti_files.put(self.allocator, real_filename, true);
     }
 
-    var vesti_files = if (attr.compile_all)
+    var vesti_files = if (self.attr.compile_all)
         StringArrayHashMap(bool){}
     else
         main_vesti_files;
     defer {
-        if (attr.compile_all) {
-            for (vesti_files.keys()) |vesti_file| allocator.free(vesti_file);
-            vesti_files.deinit(allocator);
+        if (self.attr.compile_all) {
+            for (vesti_files.keys()) |vesti_file| self.allocator.free(vesti_file);
+            vesti_files.deinit(self.allocator);
         }
     }
 
@@ -208,116 +226,116 @@ fn compileInner(
     defer walk_dir.close();
 
     var is_compiled = false;
-    while (attr.watch) {
-        try updateVesFiles(
-            allocator,
+    var vesti_contents: StringArrayHashMap(VestiContent) = .empty;
+    defer {
+        for (vesti_contents.values()) |*content| content.deinit(self.allocator);
+        vesti_contents.deinit(self.allocator);
+    }
+
+    while (self.attr.watch) {
+        try self.updateVesFiles(
             &walk_dir,
-            attr.compile_all,
             &main_vesti_files,
             &vesti_files,
         );
 
-        // vesti -> latex
+        // parse vesti
         for (vesti_files.keys()) |vesti_file| {
-            if (prev_mtime.*) |pmtime| {
+            if (self.prev_mtime.*) |pmtime| {
                 const stat = try fs.cwd().statFile(vesti_file);
                 if (stat.mtime > pmtime) {
-                    try vestiToLatex(
-                        allocator,
+                    // TODO: make an error message for null case (file not exists)
+                    const content = try vesti_contents.getOrPut(
+                        self.allocator,
                         vesti_file,
-                        lua,
-                        diagnostic,
-                        &vesti_dummy,
-                        engine,
+                    );
+                    // if the content already exists, then deallocate the old one
+                    if (content.found_existing) content.value_ptr.deinit(self.allocator);
+                    content.value_ptr.* = try self.parseVesti(
+                        vesti_file,
                         vesti_files.get(vesti_file).?,
                     );
                     is_compiled = true;
                 }
             } else {
-                try vestiToLatex(
-                    allocator,
+                // TODO: make an error message for null case (file not exists)
+                const content = try vesti_contents.getOrPut(
+                    self.allocator,
                     vesti_file,
-                    lua,
-                    diagnostic,
-                    &vesti_dummy,
-                    engine,
+                );
+                // if the content already exists, then deallocate the old one
+                if (content.found_existing) content.value_ptr.deinit(self.allocator);
+                content.value_ptr.* = try self.parseVesti(
+                    vesti_file,
                     vesti_files.get(vesti_file).?,
                 );
                 is_compiled = true;
             }
         }
 
-        // latex -> pdf
+        // vesti -> latex -> pdf
         if (is_compiled) {
+            for (vesti_contents.values()) |content| {
+                try self.vestiToLatex(&content, &vesti_dummy);
+            }
+
             for (main_vesti_files.keys()) |filename| {
-                try compileLatex(
-                    allocator,
-                    filename,
-                    lua,
-                    diagnostic,
-                    engine.*,
-                    &vesti_dummy,
-                    luacode_contents,
-                    luacode_scripts,
-                    compile_limit,
-                );
+                try self.compileLatex(filename, &vesti_dummy);
             }
             std.debug.print("Ctrl+C to quit...\n", .{});
             is_compiled = false;
         }
 
-        prev_mtime.* = std.time.nanoTimestamp();
+        self.prev_mtime.* = std.time.nanoTimestamp();
         std.Thread.sleep(200 * time.ns_per_ms);
     } else {
-        try updateVesFiles(
-            allocator,
+        try self.updateVesFiles(
             &walk_dir,
-            attr.compile_all,
             &main_vesti_files,
             &vesti_files,
         );
 
-        // vesti -> latex
+        // parse vesti
         for (vesti_files.keys()) |vesti_file| {
-            try vestiToLatex(
-                allocator,
+            // TODO: make an error message for null case (file not exists)
+            var content = try self.parseVesti(
                 vesti_file,
-                lua,
-                diagnostic,
-                &vesti_dummy,
-                engine,
                 vesti_files.get(vesti_file).?,
             );
+            errdefer content.deinit(self.allocator);
+            try vesti_contents.put(self.allocator, vesti_file, content);
         }
 
-        // latex -> pdf
+        // vesti -> latex -> pdf
+        for (vesti_contents.values()) |content| {
+            try self.vestiToLatex(&content, &vesti_dummy);
+        }
         for (main_vesti_files.keys()) |filename| {
-            try compileLatex(
-                allocator,
-                filename,
-                lua,
-                diagnostic,
-                engine.*,
-                &vesti_dummy,
-                luacode_contents,
-                luacode_scripts,
-                compile_limit,
-            );
+            try self.compileLatex(filename, &vesti_dummy);
         }
     }
 }
 
 // filename should be an absolute path
 // TODO: prevent compiling vesti file which is already compiled at the step.
-pub fn vestiToLatex(
-    allocator: Allocator,
+const VestiContent = struct {
+    filename: []const u8, // pointer
+    source: []const u8, // owned by this
+    ast: ArrayList(Stmt) = .empty,
+    is_main: bool = false,
+
+    fn deinit(self: *@This(), allocator: Allocator) void {
+        allocator.free(self.source);
+        for (self.ast.items) |*stmt| stmt.deinit(allocator);
+        self.ast.deinit(allocator);
+    }
+};
+
+fn parseVesti(
+    self: *Self,
     filename: []const u8,
-    lua: *Lua,
-    diagnostic: *diag.Diagnostic,
-    vesti_dummy_dir: *fs.Dir,
-    engine: *LatexEngine,
     is_main: bool,
-) !void {
+) !VestiContent {
     // since filename is an absolute name and it is a FILE, so dirname
     // always gives a dir_path
     const dir_path = path.dirname(filename) orelse unreachable;
@@ -326,12 +344,12 @@ pub fn vestiToLatex(
 
     var vesti_file = fs.cwd().openFile(filename, .{}) catch |err| {
         const io_diag = try diag.IODiagnostic.init(
-            diagnostic.allocator,
+            self.diagnostic.allocator,
             null,
             "failed to open file `{s}`",
             .{filename},
         );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return err;
     };
     defer vesti_file.close();
@@ -339,61 +357,91 @@ pub fn vestiToLatex(
     var buf: [1024]u8 = undefined;
     var vesti_file_reader = vesti_file.reader(&buf);
 
-    const source = vesti_file_reader.interface.allocRemaining(allocator, .unlimited) catch {
+    const source = vesti_file_reader.interface.allocRemaining(self.allocator, .unlimited) catch {
         const io_diag = try diag.IODiagnostic.init(
-            diagnostic.allocator,
+            self.diagnostic.allocator,
             null,
             "failed to read from {s}",
             .{filename},
         );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.CompileVesFailed;
     };
-    defer allocator.free(source);
+    errdefer self.allocator.free(source);
 
     var parser: Parser = try .init(
-        allocator,
+        self.allocator,
         source,
         &vesti_file_dir,
-        diagnostic,
-        true,
-        .{engine},
+        self.diagnostic,
+        .{
+            .luacode = true,
+            .global_def = true,
+            .is_main = is_main,
+        },
+        .{self.engine},
     );
+    defer parser.deinit();
 
     var ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {
-            try diagnostic.initMetadataAlloc(filename, source);
+            try self.diagnostic.initMetadataAlloc(filename, source);
             return err;
         },
         else => return err,
     };
-    defer {
-        for (ast.items) |*stmt| stmt.deinit(allocator);
-        ast.deinit(allocator);
+    errdefer {
+        for (ast.items) |*stmt| stmt.deinit(self.allocator);
+        ast.deinit(self.allocator);
     }
 
-    var aw: Io.Writer.Allocating = try .initCapacity(allocator, 256);
+    const global_defkinds = try parser.global_defkinds.toOwnedSlice(self.allocator);
+    errdefer {
+        for (global_defkinds) |*stmt| stmt.deinit(self.allocator);
+        self.allocator.free(global_defkinds);
+    }
+    try self.global_defkinds.appendSlice(self.allocator, global_defkinds);
+
+    return .{
+        .filename = filename,
+        .source = source,
+        .ast = ast,
+        .is_main = is_main,
+    };
+}
+
+pub fn vestiToLatex(
+    self: *Self,
+    content: *const VestiContent,
+    vesti_dummy_dir: *fs.Dir,
+) !void {
+    var aw: Io.Writer.Allocating = try .initCapacity(self.allocator, 256);
     defer aw.deinit();
 
     // change engine type via `compty`
-    lua.changeLatexEngine(engine.*);
+    self.lua.changeLatexEngine(self.engine.*);
 
     var codegen = try Codegen.init(
-        allocator,
-        source,
-        ast.items,
-        diagnostic,
+        self.allocator,
+        content.source,
+        content.ast.items,
+        content.is_main,
+        self.diagnostic,
     );
     defer codegen.deinit();
-    codegen.codegen(lua, &aw.writer) catch |err| {
-        try diagnostic.initMetadataAlloc(filename, source);
+    codegen.codegen(self.lua, &self.global_defkinds, &aw.writer) catch |err| {
+        try self.diagnostic.initMetadataAlloc(content.filename, content.source);
         return err;
     };
-    var content = aw.toArrayList();
-    defer content.deinit(allocator);
+    var tex_content = aw.toArrayList();
+    defer tex_content.deinit(self.allocator);
 
-    const output_filename = try getTexFilename(allocator, filename, is_main);
-    defer allocator.free(output_filename);
+    const output_filename = try getTexFilename(
+        self.allocator,
+        content.filename,
+        content.is_main,
+    );
+    defer self.allocator.free(output_filename);
     var output_file = try vesti_dummy_dir.createFile(output_filename, .{});
     defer output_file.close();
 
@@ -409,63 +457,55 @@ pub fn vestiToLatex(
         \\%
         \\
     ,
-        .{ VESTI_VERSION, engine.toStr() },
+        .{ VESTI_VERSION, self.engine.toStr() },
     );
 
-    try out_file_writer.interface.writeAll(content.items);
+    try out_file_writer.interface.writeAll(tex_content.items);
     try out_file_writer.end();
 }
 
 // filename should be absolute
 fn compileLatex(
-    allocator: Allocator,
+    self: *Self,
     filename: []const u8,
-    lua: *Lua,
-    diagnostic: *diag.Diagnostic,
-    engine: LatexEngine,
     vesti_dummy: *fs.Dir,
-    luacode_contents: ?[:0]const u8,
-    luacode_scripts: []const u8,
-    compile_limit: usize,
 ) !void {
-    const main_tex_file = try getTexFilename(allocator, filename, true);
-    defer allocator.free(main_tex_file);
+    const main_tex_file = try getTexFilename(self.allocator, filename, true);
+    defer self.allocator.free(main_tex_file);
 
-    if (engine == .tectonic) {
-        try compileLatexWithTectonic(
-            allocator,
-            diagnostic,
-            main_tex_file,
-            vesti_dummy,
-            compile_limit,
-        );
-        if (luacode_contents) |lc| {
-            try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts);
+    if (self.engine.* == .tectonic) {
+        try self.compileLatexWithTectonic(main_tex_file, vesti_dummy);
+        if (self.luacode_contents.before) |lc| {
+            try luascript.runLuaCode(
+                self.lua,
+                self.diagnostic,
+                lc,
+                self.luacode_scripts.before,
+            );
         }
     } else {
-        for (0..compile_limit) |i| {
+        for (0..self.compile_limit) |i| {
             std.debug.print("[compile number {}, engine: {s}]\n", .{
                 i + 1,
-                engine.toStr(),
+                self.engine.toStr(),
             });
 
-            try compileLatexWithInner(
-                allocator,
-                diagnostic,
-                engine,
-                main_tex_file,
-                vesti_dummy,
-            );
-            if (luacode_contents) |lc| {
-                try luascript.runLuaCode(lua, diagnostic, lc, luacode_scripts);
+            try self.compileLatexWithInner(main_tex_file, vesti_dummy);
+            if (self.luacode_contents.step) |lc| {
+                try luascript.runLuaCode(
+                    self.lua,
+                    self.diagnostic,
+                    lc,
+                    self.luacode_scripts.step,
+                );
             }
 
             std.debug.print("[compiled]\n", .{});
         }
     }
 
-    const main_pdf_file = try changeExtension(allocator, filename, "pdf");
-    defer allocator.free(main_pdf_file);
+    const main_pdf_file = try changeExtension(self.allocator, filename, "pdf");
+    defer self.allocator.free(main_pdf_file);
 
     var from = try vesti_dummy.openFile(main_pdf_file, .{});
     defer from.close();
@@ -475,29 +515,30 @@ fn compileLatex(
     var buf: [1024]u8 = undefined;
     var from_reader = from.reader(&buf);
 
-    const pdf_context = try from_reader.interface.allocRemaining(allocator, .unlimited);
-    defer allocator.free(pdf_context);
+    const pdf_context = try from_reader.interface.allocRemaining(
+        self.allocator,
+        .unlimited,
+    );
+    defer self.allocator.free(pdf_context);
     try into.writeAll(pdf_context);
 }
 
 fn compileLatexWithInner(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
-    engine: LatexEngine,
+    self: *Self,
     main_tex_file: []const u8,
     vesti_dummy: *fs.Dir,
 ) !void {
     const result = try Child.run(.{
-        .allocator = allocator,
-        .argv = &.{ engine.toStr(), main_tex_file },
+        .allocator = self.allocator,
+        .argv = &.{ self.engine.toStr(), main_tex_file },
         .cwd = VESTI_DUMMY_DIR,
         .max_output_bytes = std.math.maxInt(usize),
         // XXX: https://github.com/ziglang/zig/issues/5190
         //.cwd_dir = vesti_dummy,
     });
     defer {
-        allocator.free(result.stdout);
-        allocator.free(result.stderr);
+        self.allocator.free(result.stdout);
+        self.allocator.free(result.stderr);
     }
 
     // write stdout and stderr in .vesti_dummy
@@ -513,14 +554,14 @@ fn compileLatexWithInner(
     switch (result.term) {
         .Exited => |errcode| if (errcode != 0) {
             const io_diag = try diag.IODiagnostic.initWithNote(
-                diagnostic.allocator,
+                self.diagnostic.allocator,
                 null,
                 "{s} gaves an error while processing",
-                .{engine.toStr()},
+                .{self.engine.toStr()},
                 "<Latex Engine Log>\n{s}",
                 .{result.stdout},
             );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;
         },
         else => return error.CompileLatexFailed,
@@ -528,35 +569,34 @@ fn compileLatexWithInner(
 }
 
 fn updateVesFiles(
-    allocator: Allocator,
+    self: *Self,
     root_dir: *fs.Dir,
-    compile_all: bool,
     main_vesti_files: *const StringArrayHashMap(bool),
     vesti_files: *StringArrayHashMap(bool),
 ) !void {
     // if compile_all is false, just do nothing
-    if (!compile_all) return;
+    if (!self.attr.compile_all) return;
 
-    var walker = try root_dir.walk(allocator);
+    var walker = try root_dir.walk(self.allocator);
     defer walker.deinit();
 
     while (try walker.next()) |entry| {
         if (entry.kind != .file) continue;
         if (!mem.eql(u8, path.extension(entry.basename), ".ves")) continue;
 
-        const real_filename = try entry.dir.realpathAlloc(allocator, entry.basename);
-        errdefer allocator.free(real_filename);
+        const real_filename = try entry.dir.realpathAlloc(self.allocator, entry.basename);
+        errdefer self.allocator.free(real_filename);
 
         if (vesti_files.get(real_filename) == null) {
             // check whether "real_filename" is a "main file"
             if (main_vesti_files.get(real_filename) != null) {
-                try vesti_files.put(allocator, real_filename, true);
+                try vesti_files.put(self.allocator, real_filename, true);
             } else {
-                try vesti_files.put(allocator, real_filename, false);
+                try vesti_files.put(self.allocator, real_filename, false);
             }
         } else {
             // we don't need this resource. Deallocate it
-            allocator.free(real_filename);
+            self.allocator.free(real_filename);
         }
     }
 }
@@ -603,11 +643,9 @@ fn changeExtension(
 const TectonicFnt = *const fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
 
 fn compileLatexWithTectonic(
-    allocator: Allocator,
-    diagnostic: *diag.Diagnostic,
+    self: *Self,
     main_tex_file: []const u8,
     vesti_dummy: *fs.Dir,
-    compile_limit: usize,
 ) !void {
     // message templates
     const DLL_NOT_FOUND =
@@ -621,19 +659,19 @@ fn compileLatexWithTectonic(
 
     // tectonic dll is assumed to locate at the same directory with the vesti
     // below function follows symlink, which is expected
-    const exe_dir = try fs.selfExeDirPathAlloc(allocator);
-    defer allocator.free(exe_dir);
+    const exe_dir = try fs.selfExeDirPathAlloc(self.allocator);
+    defer self.allocator.free(exe_dir);
     const dll_hash = calculateDllHash(exe_dir) catch |err| switch (err) {
         error.FileNotFound => {
             const io_diag = try diag.IODiagnostic.initWithNote(
-                diagnostic.allocator,
+                self.diagnostic.allocator,
                 null,
                 DLL_NOT_FOUND,
                 .{TECTONIC_DLL},
                 DLL_NOT_FOUND_NOTE,
                 .{TECTONIC_DLL},
             );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;
         },
         else => return err,
@@ -641,7 +679,7 @@ fn compileLatexWithTectonic(
 
     if (dll_hash != TECTONIC_DLL_HASH) {
         const io_diag = try diag.IODiagnostic.initWithNote(
-            diagnostic.allocator,
+            self.diagnostic.allocator,
             null,
             "{s} is poisoned, critical error!!!",
             .{TECTONIC_DLL},
@@ -651,20 +689,20 @@ fn compileLatexWithTectonic(
         ,
             .{TECTONIC_DLL},
         );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.CompileLatexFailed;
     }
 
     var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
         const io_diag = try diag.IODiagnostic.initWithNote(
-            diagnostic.allocator,
+            self.diagnostic.allocator,
             null,
             DLL_NOT_FOUND,
             .{TECTONIC_DLL},
             DLL_NOT_FOUND_NOTE,
             .{TECTONIC_DLL},
         );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.CompileLatexFailed;
     };
     defer tectonic_dll.close();
@@ -685,17 +723,17 @@ fn compileLatexWithTectonic(
             main_tex_file.len,
             @ptrCast(VESTI_DUMMY_DIR),
             VESTI_DUMMY_DIR.len,
-            compile_limit,
+            self.compile_limit,
         )) {
             const io_diag = try diag.IODiagnostic.initWithNote(
-                diagnostic.allocator,
+                self.diagnostic.allocator,
                 null,
                 "tectonic gaves an error while processing",
                 .{},
                 "",
                 .{},
             );
-            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;
         }
     } else return error.FindTectonicFunctionFailed;

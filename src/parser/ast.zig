@@ -3,8 +3,9 @@ const mem = std.mem;
 
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
-const Span = @import("../location.zig").Span;
 const CowStr = @import("../CowStr.zig").CowStr;
+const Span = @import("../location.zig").Span;
+const Writer = std.Io.Writer;
 
 pub const UsePackage = struct {
     name: CowStr,
@@ -47,62 +48,147 @@ pub const ArgNeed = enum(u2) {
 
 pub const DefunKind = packed struct(u6) {
     redef: bool = false,
-    provide: bool = false,
-    declare: bool = false,
+    raw: bool = false,
     expand: bool = false,
+    global: bool = false,
     trim_left: bool = true,
     trim_right: bool = true,
+
+    const DEFAULT: u6 = @bitCast(DefunKind{});
+    pub const REDEF: u6 = @as(u6, @bitCast(DefunKind{ .redef = true })) & ~DEFAULT;
+    pub const RAW: u6 = @as(u6, @bitCast(DefunKind{ .raw = true })) & ~DEFAULT;
+    pub const EXPAND: u6 = @as(u6, @bitCast(DefunKind{ .expand = true })) & ~DEFAULT;
+    pub const GLOBAL: u6 = @as(u6, @bitCast(DefunKind{ .global = true })) & ~DEFAULT;
+
+    pub inline fn takeType(self: @This()) u6 {
+        return @as(u6, @bitCast(self)) & ~DEFAULT;
+    }
 
     pub fn parseDefunKind(output: *@This(), str: []const u8) bool {
         for (str) |s| {
             switch (s) {
                 'r', 'R' => output.redef = true,
                 'p', 'P' => output.redef = true,
-                '!' => output.declare = true,
+                '!' => output.raw = true,
                 'e', 'E' => output.expand = true,
+                'g', 'G' => output.global = true,
                 '<' => output.trim_left = false,
                 '>' => output.trim_right = false,
                 else => return false,
             }
         }
 
-        // check whether attribute is valid
-        const kind =
-            @as(u4, @intCast(@intFromBool(output.redef))) << 0 |
-            @as(u4, @intCast(@intFromBool(output.provide))) << 1 |
-            @as(u4, @intCast(@intFromBool(output.declare))) << 2 |
-            @as(u4, @intCast(@intFromBool(output.expand))) << 3;
-        return switch (kind) {
-            0b0000, //
-            0b0001, // redef
-            0b0010, // provide
-            0b0100, // declare
-            0b1000, // expand
-            0b1001, // expand | redef
-            0b1010, // expand | provide
-            0b1100, // expand | declare
+        return switch (output.takeType()) {
+            0,
+            REDEF,
+            RAW,
+            REDEF | RAW,
+            EXPAND,
+            EXPAND | REDEF,
+            EXPAND | RAW,
+            EXPAND | REDEF | RAW,
+            GLOBAL,
+            GLOBAL | REDEF,
+            GLOBAL | RAW,
+            GLOBAL | REDEF | RAW,
+            GLOBAL | EXPAND,
+            GLOBAL | EXPAND | REDEF,
+            GLOBAL | EXPAND | RAW,
+            GLOBAL | EXPAND | REDEF | RAW,
             => true,
             else => false,
         };
     }
 
-    pub fn toStr(self: @This()) []const u8 {
-        const kind =
-            @as(u4, @intCast(@intFromBool(self.redef))) << 0 |
-            @as(u4, @intCast(@intFromBool(self.provide))) << 1 |
-            @as(u4, @intCast(@intFromBool(self.declare))) << 2 |
-            @as(u4, @intCast(@intFromBool(self.expand))) << 3;
-        return switch (kind) {
-            0b0000 => "\\NewDocumentCommand",
-            0b0001 => "\\RenewDocumentCommand",
-            0b0010 => "\\ProvideDocumentCommand",
-            0b0100 => "\\DeclareDocumentCommand",
-            0b1000 => "\\NewExpandableDocumentCommand",
-            0b1001 => "\\RenewExpandableDocumentCommand",
-            0b1010 => "\\ProvideExpandableDocumentCommand",
-            0b1100 => "\\DeclareExpandableDocumentCommand",
-            else => unreachable, // already handled these cases in the parser
-        };
+    pub fn prologue(
+        self: @This(),
+        name: CowStr,
+        writer: *Writer,
+    ) !void {
+        const CHECK_REDEFINITION =
+            \\\expandafter\ifx\csname {1f}\endcsname\relax
+            \\{s}\{1f}
+        ;
+        const NO_CHECK_REDEFINITION = "{s}\\{f}";
+
+        switch (self.takeType()) {
+            0 => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\protected\\def", name },
+            ),
+            REDEF => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\protected\\def", name },
+            ),
+            RAW => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\def", name },
+            ),
+            REDEF | RAW => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\def", name },
+            ),
+            EXPAND => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\protected\\edef", name },
+            ),
+            EXPAND | REDEF => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\protected\\edef", name },
+            ),
+            EXPAND | RAW => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\edef", name },
+            ),
+            EXPAND | REDEF | RAW => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\edef", name },
+            ),
+            GLOBAL => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\protected\\gdef", name },
+            ),
+            GLOBAL | REDEF => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\protected\\gdef", name },
+            ),
+            GLOBAL | RAW => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\gdef", name },
+            ),
+            GLOBAL | REDEF | RAW => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\gdef", name },
+            ),
+            GLOBAL | EXPAND => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\protected\\xdef", name },
+            ),
+            GLOBAL | EXPAND | REDEF => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\protected\\xdef", name },
+            ),
+            GLOBAL | EXPAND | RAW => try writer.print(
+                CHECK_REDEFINITION,
+                .{ "\\xdef", name },
+            ),
+            GLOBAL | EXPAND | REDEF | RAW => try writer.print(
+                NO_CHECK_REDEFINITION,
+                .{ "\\xdef", name },
+            ),
+            else => unreachable, // assume every DefunKind comes from parseDefunKind
+        }
+    }
+
+    pub fn epilogue(self: @This(), name: CowStr, writer: *Writer) !void {
+        if (self.takeType() & REDEF == 0) {
+            try writer.print(
+                "}}%\n\\else\\errmessage{{{f} is already defined}}\\fi\n",
+                .{name},
+            );
+        } else {
+            try writer.writeAll("}%\n");
+        }
     }
 };
 
@@ -118,6 +204,7 @@ pub const Arg = struct {
 
 pub const Stmt = union(enum(u8)) {
     NopStmt = 0,
+    Placeholder,
     TextLit: CowStr,
     MathLit: []const u8,
     MathCtx: struct {

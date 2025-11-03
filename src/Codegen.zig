@@ -23,6 +23,7 @@ source: []const u8,
 stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
 luacode_exports: StringArrayHashMap(ArrayList(u8)),
+is_main: bool,
 
 const Self = @This();
 
@@ -30,6 +31,7 @@ pub fn init(
     allocator: Allocator,
     source: []const u8,
     stmts: []const ast.Stmt,
+    is_main: bool,
     diagnostic: *diag.Diagnostic,
 ) !Self {
     return Self{
@@ -38,6 +40,7 @@ pub fn init(
         .stmts = stmts,
         .diagnostic = diagnostic,
         .luacode_exports = .empty,
+        .is_main = is_main,
     };
 }
 
@@ -51,21 +54,23 @@ pub fn deinit(self: *Self) void {
 pub fn codegen(
     self: *Self,
     lua: ?*Lua,
+    placeholder: ?*const ArrayList(ast.Stmt),
     writer: *Io.Writer,
 ) Error!void {
     for (self.stmts) |stmt| {
-        try self.codegenStmt(stmt, lua, writer);
+        try self.codegenStmt(stmt, lua, placeholder, writer);
     }
 }
 
 fn codegenStmts(
     self: *Self,
-    stmts: ArrayList(ast.Stmt),
+    stmts: *const ArrayList(ast.Stmt),
     lua: ?*Lua,
+    placeholder: ?*const ArrayList(ast.Stmt),
     writer: *Io.Writer,
 ) Error!void {
     for (stmts.items) |stmt| {
-        try self.codegenStmt(stmt, lua, writer);
+        try self.codegenStmt(stmt, lua, placeholder, writer);
     }
 }
 
@@ -73,10 +78,16 @@ fn codegenStmt(
     self: *Self,
     stmt: ast.Stmt,
     lua: ?*Lua,
+    placeholder: ?*const ArrayList(ast.Stmt),
     writer: *Io.Writer,
 ) Error!void {
     switch (stmt) {
         .NopStmt => {},
+        .Placeholder => {
+            try writer.writeAll("\n%%%    Global Definitions\n");
+            if (placeholder) |p| try self.codegenStmts(p, lua, placeholder, writer);
+            try writer.writeAll("\n%%%    End Global Definitions\n");
+        },
         .TextLit => |ctx| try writer.print("{f}", .{ctx}),
         .MathLit => |ctx| try writer.writeAll(ctx),
         .MathCtx => |math_ctx| {
@@ -89,19 +100,19 @@ fn codegenStmt(
             if (math_ctx.label) |label| {
                 try writer.print("\\label{{{s}}}", .{label.items});
             }
-            try self.codegenStmts(math_ctx.inner, lua, writer);
+            try self.codegenStmts(&math_ctx.inner, lua, placeholder, writer);
             try writer.writeAll(delimiter[1]);
         },
         .Braced => |bs| {
             if (!bs.unwrap_brace) try writer.writeByte('{');
-            try self.codegenStmts(bs.inner, lua, writer);
+            try self.codegenStmts(&bs.inner, lua, placeholder, writer);
             if (!bs.unwrap_brace) try writer.writeByte('}');
         },
         .Fraction => |fraction| {
             try writer.writeAll("\\frac{");
-            try self.codegenStmts(fraction.numerator, lua, writer);
+            try self.codegenStmts(&fraction.numerator, lua, placeholder, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(fraction.denominator, lua, writer);
+            try self.codegenStmts(&fraction.denominator, lua, placeholder, writer);
             try writer.writeByte('}');
         },
         .DocumentStart => try writer.writeAll("\n\\begin{document}"),
@@ -137,13 +148,14 @@ fn codegenStmt(
                 try self.codegenStmt(
                     ast.Stmt{ .ImportSinglePkg = usepkg },
                     lua,
+                    placeholder,
                     writer,
                 );
         },
         .PlainTextInMath => |info| {
             try writer.writeAll("\\text{");
             if (info.add_front_space) try writer.writeByte(' ');
-            try self.codegenStmts(info.inner, lua, writer);
+            try self.codegenStmts(&info.inner, lua, placeholder, writer);
             if (info.add_back_space) try writer.writeByte(' ');
             try writer.writeByte('}');
         },
@@ -160,12 +172,12 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, lua, writer);
+                        try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, lua, writer);
+                        try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -174,7 +186,7 @@ fn codegenStmt(
             if (info.label) |label| {
                 try writer.print("\\label{{{s}}}", .{label.items});
             }
-            try self.codegenStmts(info.inner, lua, writer);
+            try self.codegenStmts(&info.inner, lua, placeholder, writer);
             try writer.print("\\end{{{f}}}", .{info.name});
         },
         .PictureEnvironment => |pict| {
@@ -201,7 +213,7 @@ fn codegenStmt(
                     .{ pict.width, pict.height },
                 );
             }
-            try self.codegenStmts(pict.inner, lua, writer);
+            try self.codegenStmts(&pict.inner, lua, placeholder, writer);
             try writer.writeAll("\\end{picture}");
         },
         .BeginPhantomEnviron => |info| {
@@ -210,12 +222,12 @@ fn codegenStmt(
                 switch (arg.needed) {
                     .MainArg => {
                         try writer.writeByte('{');
-                        try self.codegenStmts(arg.ctx, lua, writer);
+                        try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
                         try writer.writeByte('}');
                     },
                     .Optional => {
                         try writer.writeByte('[');
-                        try self.codegenStmts(arg.ctx, lua, writer);
+                        try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
                         try writer.writeByte(']');
                     },
                     .StarArg => try writer.writeByte('*'),
@@ -239,26 +251,20 @@ fn codegenStmt(
             for (0..num_of_sharp) |_| try writer.writeByte('#');
             try writer.print("{d}", .{info.arg_num});
         },
-        // after 2020-10-01, xparse commands are migrated in LaTeX
-        // since Vesti uses tectonic in default, I think making this true in default
-        // makes sense.
-        // reference: https://ctan.org/pkg/l3packages
         .DefineFunction => |ctx| {
-            const defin = ctx.kind.toStr();
-
             // prologue
-            try writer.print("{s}{{\\{f}}}", .{ defin, ctx.name });
+            try ctx.kind.prologue(ctx.name, writer);
 
             if (ctx.param_str) |str| {
-                try writer.print("{{{f}}}{{", .{str});
+                try writer.print("{f}{{", .{str});
             } else {
-                try writer.writeAll("{}{");
+                try writer.writeByte('{');
             }
 
             // body
             var body = Io.Writer.Allocating.init(self.allocator);
             defer body.deinit();
-            try self.codegenStmts(ctx.inner, lua, &body.writer);
+            try self.codegenStmts(&ctx.inner, lua, placeholder, &body.writer);
 
             var body_content: []const u8 = body.written();
             if (ctx.kind.trim_left) {
@@ -270,7 +276,7 @@ fn codegenStmt(
             try writer.writeAll(body_content);
 
             //epilogue
-            try writer.writeByte('}');
+            try ctx.kind.epilogue(ctx.name, writer);
         },
         .DefineEnv => |ctx| {
             // prologue
@@ -283,15 +289,15 @@ fn codegenStmt(
                 try writer.print("[{d}]", .{ctx.num_args});
             if (ctx.default_arg) |arg| {
                 try writer.writeByte('[');
-                try self.codegenStmts(arg.ctx, lua, writer);
+                try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
                 try writer.writeByte(']');
             }
             try writer.writeByte('{');
 
             // body
-            try self.codegenStmts(ctx.inner_begin, lua, writer);
+            try self.codegenStmts(&ctx.inner_begin, lua, placeholder, writer);
             try writer.writeAll("}{");
-            try self.codegenStmts(ctx.inner_end, lua, writer);
+            try self.codegenStmts(&ctx.inner_end, lua, placeholder, writer);
 
             //epilogue
             try writer.writeAll("}\n");

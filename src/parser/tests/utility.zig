@@ -26,7 +26,10 @@ pub fn expect(
         source,
         undefined,
         &diagnostic,
-        false, // disallow luacode for testing
+        .{
+            .luacode = false,
+            .global_def = false,
+        },
         .{ null, .pdflatex }, // disallow changing latex engine type
     );
 
@@ -49,10 +52,11 @@ pub fn expect(
         allocator,
         source,
         ast.items,
+        false,
         &diagnostic,
     );
     defer codegen.deinit();
-    try codegen.codegen(null, &aw.writer); // disallow luacode
+    try codegen.codegen(null, null, &aw.writer); // disallow luacode
 
     output = aw.toArrayList();
     defer output.deinit(allocator);

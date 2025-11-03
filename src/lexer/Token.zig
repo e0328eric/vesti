@@ -301,22 +301,22 @@ pub fn isFunctionParam(val: []const u8) ?usize {
 
 pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
-    .{ "mathmode" },
-    .{ "textmode" },
-    .{ "nonstopmode" },
-    .{ "eq" },
-    .{ "enum" },
-    .{ "label" },
-    .{ "showfont" },
     .{ "chardef" },
-    .{ "mathchardef" },
+    .{ "enum" },
+    .{ "eq" },
     .{ "get_filepath" },
+    .{ "label" },
+    .{ "ltx3_off" },
+    .{ "ltx3_on" },
     .{ "makeatletter" },
     .{ "makeatother" },
-    .{ "ltx3_on" },
-    .{ "ltx3_off" },
+    .{ "mathchardef" },
+    .{ "mathmode" },
     .{ "noltx3" },
+    .{ "nonstopmode" },
     .{ "picture" },
+    .{ "showfont" },
+    .{ "textmode" },
     // zig fmt: on
 });
 

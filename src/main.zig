@@ -1,6 +1,5 @@
 const std = @import("std");
 const c = @import("vesti_c.zig");
-const compile = @import("compile.zig");
 const diag = @import("diagnostic.zig");
 const luascript = @import("luascript.zig");
 const zlap = @import("zlap");
@@ -12,6 +11,7 @@ const getConfigPath = Config.getConfigPath;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Config = @import("Config.zig");
+const Compiler = @import("Compiler.zig");
 const Diagnostic = diag.Diagnostic;
 const Lua = @import("Lua.zig");
 const Parser = @import("parser/Parser.zig");
@@ -181,7 +181,7 @@ fn compileStep(
 
     var prev_mtime: ?i128 = null;
 
-    try compile.compile(
+    var compiler = try Compiler.init(
         allocator,
         main_filenames.value.strings.items,
         lua,
@@ -200,6 +200,8 @@ fn compileStep(
             .no_exit_err = !exit_err,
         },
     );
+    defer compiler.deinit();
+    try compiler.compile();
 }
 
 //          ╭─────────────────────────────────────────────────────────╮

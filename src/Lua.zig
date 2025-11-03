@@ -322,7 +322,10 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         vesti_code,
         &cwd_dir,
         &diagnostic,
-        false, // disallow nested luacode
+        .{
+            .luacode = false,
+            .global_def = false,
+        },
         .{ null, self.engine }, // disallow changing engine type
     ) catch |err| {
         lua.pop(1); // pop vesti_code
@@ -334,6 +337,7 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
             .{err},
         );
     };
+    defer parser.deinit();
 
     var ast = parser.parse() catch |err| {
         lua.pop(1); // pop vesti_code
@@ -356,6 +360,7 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         allocator,
         vesti_code,
         ast.items,
+        false,
         &diagnostic,
     ) catch |err| {
         lua.pop(1); // pop vesti_code
@@ -374,7 +379,7 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     };
     defer codegen.deinit();
 
-    codegen.codegen(null, &aw.writer) catch |err| {
+    codegen.codegen(null, null, &aw.writer) catch |err| {
         diagnostic.initMetadata(
             CowStr.init(.Borrowed, .{@as([]const u8, "<luacode>")}),
             CowStr.init(.Borrowed, .{@as([]const u8, @ptrCast(vesti_code))}),
