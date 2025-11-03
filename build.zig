@@ -39,7 +39,10 @@ pub fn build(b: *Build) !void {
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                       Build Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    const exe = try buildVesti(b, target, optimize);
+    // vesti-toolkit module
+    _ = try buildVesti(b, target, optimize, .mod);
+
+    const exe = try buildVesti(b, target, optimize, .exe);
     const install_dll = InstallDll.create(b, target, null);
     b.getInstallStep().dependOn(&install_dll.step);
     b.installArtifact(exe);
@@ -61,38 +64,7 @@ pub fn build(b: *Build) !void {
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                        Test Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
-    const uucode = b.dependency("uucode", .{
-        .target = target,
-        .optimize = optimize,
-        .build_config_path = b.path("uucode/uucode_config.zig"),
-    });
-
-    const tectonic_dll_name = try getDllName(&target);
-    const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
-    const vesti_opt = b.addOptions();
-    vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
-    vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
-    vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
-    vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
-
-    const test_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-        .imports = &.{
-            .{ .name = "uucode", .module = uucode.module("uucode") },
-            .{ .name = "zlua", .module = zlua.module("zlua") },
-        },
-    });
-    test_mod.addOptions("vesti-info", vesti_opt);
-
-    const exe_unit_tests = b.addTest(.{
-        .name = "vesti-test",
-        .root_module = test_mod,
-    });
-
+    const exe_unit_tests = try buildVesti(b, target, optimize, .@"test");
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     const test_step = b.step("test", "Run unit tests");
@@ -114,7 +86,7 @@ pub fn build(b: *Build) !void {
 
     for (targets) |t| {
         const cross_target = b.resolveTargetQuery(t);
-        const release_exe = try buildVesti(b, cross_target, optimize);
+        const release_exe = try buildVesti(b, cross_target, optimize, .exe);
 
         const target_output = b.addInstallArtifact(release_exe, .{
             .dest_dir = .{
@@ -140,7 +112,11 @@ fn buildVesti(
     b: *Build,
     target: Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-) !*Build.Step.Compile {
+    comptime build_mode: enum(u2) { mod, exe, @"test" },
+) !switch (build_mode) {
+    .mod => *Build.Module,
+    else => *Build.Step.Compile,
+} {
     const strip = switch (optimize) {
         .Debug => false,
         else => true,
@@ -162,31 +138,65 @@ fn buildVesti(
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
     vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
 
-    const exe_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-        .strip = strip,
-        .imports = &.{
-            .{ .name = "zlap", .module = zlap.module("zlap") },
-            .{ .name = "uucode", .module = uucode.module("uucode") },
-            .{ .name = "zlua", .module = zlua.module("zlua") },
-        },
-    });
-    switch (target.result.os.tag) {
-        .linux => exe_mod.addRPath(.{ .cwd_relative = "$ORIGIN" }),
-        .macos => exe_mod.addRPath(.{ .cwd_relative = "@executable_path" }),
-        .windows => {}, // windows does not use rpath
-        else => @panic("Non supported OS"),
-    }
-    exe_mod.addOptions("vesti-info", vesti_opt);
+    switch (build_mode) {
+        .@"test" => {
+            const test_mod = b.createModule(.{
+                .root_source_file = b.path("src/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+                .imports = &.{
+                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "zlua", .module = zlua.module("zlua") },
+                },
+            });
+            test_mod.addOptions("vesti-info", vesti_opt);
 
-    return b.addExecutable(.{
-        .name = "vesti",
-        .version = VESTI_VERSION,
-        .root_module = exe_mod,
-    });
+            return b.addTest(.{
+                .name = "vesti-test",
+                .root_module = test_mod,
+            });
+        },
+        .exe => {
+            const exe_mod = b.createModule(.{
+                .root_source_file = b.path("src/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+                .strip = strip,
+                .imports = &.{
+                    .{ .name = "zlap", .module = zlap.module("zlap") },
+                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "zlua", .module = zlua.module("zlua") },
+                },
+            });
+            switch (target.result.os.tag) {
+                .linux => exe_mod.addRPath(.{ .cwd_relative = "$ORIGIN" }),
+                .macos => exe_mod.addRPath(.{ .cwd_relative = "@executable_path" }),
+                .windows => {}, // windows does not use rpath
+                else => @panic("Non supported OS"),
+            }
+            exe_mod.addOptions("vesti-info", vesti_opt);
+
+            return b.addExecutable(.{
+                .name = "vesti",
+                .version = VESTI_VERSION,
+                .root_module = exe_mod,
+            });
+        },
+        .mod => {
+            const vesti_mod = b.addModule("vesti-toolkit", .{
+                .root_source_file = b.path("src/vesti-toolkit.zig"),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                },
+            });
+            vesti_mod.addOptions("vesti-info", vesti_opt);
+            return vesti_mod;
+        },
+    }
 }
 
 const BuildRust = struct {
