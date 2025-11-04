@@ -32,7 +32,7 @@ test "basic luacode" {
         undefined,
         &diagnostic,
         .{
-            .luacode = false,
+            .luacode = true,
             .global_def = false,
         },
         .{ null, .pdflatex }, // disallow changing latex engine type

@@ -11,6 +11,15 @@ span: Span,
 
 const Self = @This();
 
+pub const invalid: Self = .{
+    .toktype = .Illegal,
+    .lit = .{
+        .in_text = "",
+        .in_math = "",
+    },
+    .span = .{},
+};
+
 pub const Literal = struct {
     in_text: []const u8,
     in_math: []const u8,

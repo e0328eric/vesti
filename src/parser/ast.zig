@@ -57,19 +57,21 @@ pub const DefunKind = packed struct(DefunKindInt) {
     trim_left: bool = true,
     trim_right: bool = true,
 
-    const DEFAULT: DefunKindInt = @bitCast(DefunKind{});
-    pub const REDEF: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .redef = true })) & ~DEFAULT;
-    pub const RAW: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .raw = true })) & ~DEFAULT;
-    pub const PROVIDE: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .provide = true })) & ~DEFAULT;
-    pub const EXPAND: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .expand = true })) & ~DEFAULT;
-    pub const GLOBAL: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .global = true })) & ~DEFAULT;
-    pub const XPARSE: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .xparse = true })) & ~DEFAULT;
+    const Self = @This();
 
-    pub inline fn takeType(self: @This()) DefunKindInt {
+    const DEFAULT: DefunKindInt = @bitCast(Self{});
+    pub const REDEF: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .redef = true })) & ~DEFAULT;
+    pub const RAW: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .raw = true })) & ~DEFAULT;
+    pub const PROVIDE: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .provide = true })) & ~DEFAULT;
+    pub const EXPAND: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .expand = true })) & ~DEFAULT;
+    pub const GLOBAL: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .global = true })) & ~DEFAULT;
+    pub const XPARSE: DefunKindInt = @as(DefunKindInt, @bitCast(Self{ .xparse = true })) & ~DEFAULT;
+
+    pub inline fn takeType(self: Self) DefunKindInt {
         return @as(DefunKindInt, @bitCast(self)) & ~DEFAULT;
     }
 
-    pub fn parseDefunKind(output: *@This(), str: []const u8, is_xparse: bool) bool {
+    pub fn parse(output: *Self, str: []const u8, is_xparse: bool) bool {
         for (str) |s| {
             switch (s) {
                 'r', 'R' => output.redef = true,
@@ -115,7 +117,7 @@ pub const DefunKind = packed struct(DefunKindInt) {
         };
     }
 
-    pub fn prologue(self: @This(), name: CowStr, writer: *Writer) !void {
+    pub fn prologue(self: Self, name: CowStr, writer: *Writer) !void {
         const CHECK_REDEF =
             \\\expandafter\ifx\csname {1f}\endcsname\relax
             \\{s}\{1f}
@@ -200,7 +202,7 @@ pub const DefunKind = packed struct(DefunKindInt) {
         }
     }
 
-    pub fn param(self: @This(), param_str: ?CowStr, writer: *Writer) !void {
+    pub fn param(self: Self, param_str: ?CowStr, writer: *Writer) !void {
         if (self.takeType() & XPARSE == 0) {
             if (param_str) |str| {
                 try writer.print("{f}{{", .{str});
@@ -216,7 +218,7 @@ pub const DefunKind = packed struct(DefunKindInt) {
         }
     }
 
-    pub fn epilogue(self: @This(), name: CowStr, writer: *Writer) !void {
+    pub fn epilogue(self: Self, name: CowStr, writer: *Writer) !void {
         if (self.takeType() & REDEF == 0 and self.takeType() & XPARSE == 0) {
             try writer.print(
                 "}}%\n\\else\\errmessage{{{f} is already defined}}\\fi\n",
@@ -224,6 +226,68 @@ pub const DefunKind = packed struct(DefunKindInt) {
             );
         } else {
             try writer.writeAll("}%\n");
+        }
+    }
+};
+
+const DefenvKindInt = u7;
+pub const DefenvKind = packed struct(DefenvKindInt) {
+    redef: bool = false,
+    provide: bool = false,
+    declare: bool = false,
+    begin_trim_left: bool = true,
+    begin_trim_right: bool = true,
+    end_trim_left: bool = true,
+    end_trim_right: bool = true,
+
+    const Self = @This();
+
+    const DEFAULT: DefenvKindInt = @bitCast(Self{});
+    pub const REDEF: DefenvKindInt = @as(DefenvKindInt, @bitCast(Self{ .redef = true })) & ~DEFAULT;
+    pub const PROVIDE: DefenvKindInt = @as(DefenvKindInt, @bitCast(Self{ .provide = true })) & ~DEFAULT;
+    pub const DECLARE: DefenvKindInt = @as(DefenvKindInt, @bitCast(Self{ .declare = true })) & ~DEFAULT;
+
+    pub inline fn takeType(self: Self) DefenvKindInt {
+        return @as(DefenvKindInt, @bitCast(self)) & ~DEFAULT;
+    }
+
+    pub fn parse(output: *Self, str: []const u8, _: void) bool {
+        for (str) |s| {
+            switch (s) {
+                'r', 'R' => output.redef = true,
+                'p', 'P' => output.provide = true,
+                '!' => output.declare = true,
+                '<' => output.begin_trim_left = false,
+                '>' => output.begin_trim_right = false,
+                '(' => output.end_trim_left = false,
+                ')' => output.end_trim_right = false,
+                else => return false,
+            }
+        }
+
+        return switch (output.takeType()) {
+            0, REDEF, PROVIDE, DECLARE => true,
+            else => false,
+        };
+    }
+
+    pub fn prologue(self: Self, name: CowStr, writer: *Writer) !void {
+        const XPARSE_DEF = "{s}{{{f}}}";
+
+        switch (self.takeType()) {
+            0 => try writer.print(XPARSE_DEF, .{
+                "\\NewDocumentEnvironment", name,
+            }),
+            REDEF => try writer.print(XPARSE_DEF, .{
+                "\\RenewDocumentEnvironment", name,
+            }),
+            PROVIDE => try writer.print(XPARSE_DEF, .{
+                "\\ProvideDocumentEnvironment", name,
+            }),
+            DECLARE => try writer.print(XPARSE_DEF, .{
+                "\\DeclareDocumentEnvironment", name,
+            }),
+            else => unreachable, // assume every DefunKind comes from parseDefunKind
         }
     }
 };
@@ -287,9 +351,8 @@ pub const Stmt = union(enum(u8)) {
     },
     DefineEnv: struct {
         name: CowStr,
-        is_redefine: bool,
-        num_args: usize,
-        default_arg: ?Arg,
+        param_str: ?CowStr = null,
+        kind: DefenvKind,
         inner_begin: ArrayList(Stmt),
         inner_end: ArrayList(Stmt),
     },
@@ -382,7 +445,7 @@ pub const Stmt = union(enum(u8)) {
             },
             .DefineEnv => |*ctx| {
                 ctx.name.deinit(allocator);
-                if (ctx.default_arg) |*a| a.deinit(allocator);
+                if (ctx.param_str) |*str| str.deinit(allocator);
                 for (ctx.inner_begin.items) |*expr| expr.deinit(allocator);
                 ctx.inner_begin.deinit(allocator);
                 for (ctx.inner_end.items) |*expr| expr.deinit(allocator);

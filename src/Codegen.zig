@@ -275,27 +275,45 @@ fn codegenStmt(
         },
         .DefineEnv => |ctx| {
             // prologue
-            try writer.writeAll(if (ctx.is_redefine)
-                "\\renewenvironment"
-            else
-                "\\newenvironment");
-            try writer.print("{{{f}}}", .{ctx.name});
-            if (ctx.num_args > 0)
-                try writer.print("[{d}]", .{ctx.num_args});
-            if (ctx.default_arg) |arg| {
-                try writer.writeByte('[');
-                try self.codegenStmts(&arg.ctx, lua, placeholder, writer);
-                try writer.writeByte(']');
+            try ctx.kind.prologue(ctx.name, writer);
+
+            if (ctx.param_str) |param| {
+                try writer.print("{{{f}}}", .{param});
             }
             try writer.writeByte('{');
 
-            // body
-            try self.codegenStmts(&ctx.inner_begin, lua, placeholder, writer);
+            // begin body
+            var begin_body = Io.Writer.Allocating.init(self.allocator);
+            defer begin_body.deinit();
+            try self.codegenStmts(&ctx.inner_begin, lua, placeholder, &begin_body.writer);
+
+            var begin_body_content: []const u8 = begin_body.written();
+            if (ctx.kind.begin_trim_left) {
+                begin_body_content = std.mem.trimLeft(u8, begin_body_content, " \t\r\n");
+            }
+            if (ctx.kind.begin_trim_right) {
+                begin_body_content = std.mem.trimRight(u8, begin_body_content, " \t\r\n");
+            }
+            try writer.writeAll(begin_body_content);
+
             try writer.writeAll("}{");
-            try self.codegenStmts(&ctx.inner_end, lua, placeholder, writer);
+
+            // end body
+            var end_body = Io.Writer.Allocating.init(self.allocator);
+            defer end_body.deinit();
+            try self.codegenStmts(&ctx.inner_end, lua, placeholder, &end_body.writer);
+
+            var end_body_content: []const u8 = end_body.written();
+            if (ctx.kind.end_trim_left) {
+                end_body_content = std.mem.trimLeft(u8, end_body_content, " \t\r\n");
+            }
+            if (ctx.kind.end_trim_right) {
+                end_body_content = std.mem.trimRight(u8, end_body_content, " \t\r\n");
+            }
+            try writer.writeAll(end_body_content);
 
             //epilogue
-            try writer.writeAll("}\n");
+            try writer.writeAll("}%\n");
         },
         .LuaCode => |cb| {
             if (lua) |l| {

@@ -115,3 +115,49 @@ test "useenv with parameters" {
     try expect(source6, expected4, trim);
     try expect(source7, expected5, trim);
 }
+
+test "begenv statements" {
+    const source =
+        \\begenv center#1
+        \\begenv center a
+        \\begenv center* a
+        \\begenv center*        a
+        \\begenv center*a
+        \\begenv center** a
+        \\begenv center**    a
+        \\begenv center**a
+        \\begenv center [asd](caewa)a
+        \\begenv center     [asd](caewa) a
+        \\begenv center[asd](caewa) a
+        \\begenv center* [asd](caewa) a
+        \\begenv center*         [asd](caewa) a
+        \\begenv center*[asd](caewa) a
+        \\begenv center** [asd](caewa) a
+        \\begenv center**     [asd](caewa) a
+        \\begenv center**[asd](caewa) a
+        \\begenv center *a
+        \\begenv center* *[asd](caewa) a
+    ;
+    const expected =
+        \\\begin{center}#1
+        \\\begin{center}a
+        \\\begin{center*}a
+        \\\begin{center*}a
+        \\\begin{center*}a
+        \\\begin{center**}a
+        \\\begin{center**}a
+        \\\begin{center**}a
+        \\\begin{center}[asd]{caewa}a
+        \\\begin{center}[asd]{caewa} a
+        \\\begin{center}[asd]{caewa} a
+        \\\begin{center*}[asd]{caewa} a
+        \\\begin{center*}[asd]{caewa} a
+        \\\begin{center*}[asd]{caewa} a
+        \\\begin{center**}[asd]{caewa} a
+        \\\begin{center**}[asd]{caewa} a
+        \\\begin{center**}[asd]{caewa} a
+        \\\begin{center}*a
+        \\\begin{center*}*[asd](caewa) a
+    ;
+    try expect(source, expected, trim);
+}

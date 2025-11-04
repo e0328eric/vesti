@@ -24,6 +24,7 @@ end
 
 % definition of \keyword command
 #xparse defun [!] keyword (m) {{\tt\color{purple}#1}}
+#xparse defun [!] builtin (v) {{\tt\color{yellow!70!black}\##1}}
 #xparse defun useenv (s) {\IfBooleanTF{#1}{\keyword{%-useenv-%}}{\keyword{%-useenv-%} }}
 #xparse defun begenv (s) {\IfBooleanTF{#1}{\keyword{%-begenv-%}}{\keyword{%-begenv-%} }}
 #xparse defun endenv (s) {\IfBooleanTF{#1}{\keyword{%-endenv-%}}{\keyword{%-endenv-%} }}
@@ -33,6 +34,7 @@ startdoc
 \tableofcontents
 
 \section{Introduction}
+\builtin|get_file|
 
 \section{Structure of Vesti File}
 Vesti is similar as \LaTeX. Its structure consists with two parts: {\tt preamble} and
