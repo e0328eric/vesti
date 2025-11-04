@@ -254,12 +254,7 @@ fn codegenStmt(
         .DefineFunction => |ctx| {
             // prologue
             try ctx.kind.prologue(ctx.name, writer);
-
-            if (ctx.param_str) |str| {
-                try writer.print("{f}{{", .{str});
-            } else {
-                try writer.writeByte('{');
-            }
+            try ctx.kind.param(ctx.param_str, writer);
 
             // body
             var body = Io.Writer.Allocating.init(self.allocator);

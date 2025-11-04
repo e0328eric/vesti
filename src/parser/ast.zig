@@ -46,29 +46,34 @@ pub const ArgNeed = enum(u2) {
     StarArg,
 };
 
-pub const DefunKind = packed struct(u6) {
+const DefunKindInt = u8;
+pub const DefunKind = packed struct(DefunKindInt) {
     redef: bool = false,
     raw: bool = false,
+    provide: bool = false,
     expand: bool = false,
     global: bool = false,
+    xparse: bool = false,
     trim_left: bool = true,
     trim_right: bool = true,
 
-    const DEFAULT: u6 = @bitCast(DefunKind{});
-    pub const REDEF: u6 = @as(u6, @bitCast(DefunKind{ .redef = true })) & ~DEFAULT;
-    pub const RAW: u6 = @as(u6, @bitCast(DefunKind{ .raw = true })) & ~DEFAULT;
-    pub const EXPAND: u6 = @as(u6, @bitCast(DefunKind{ .expand = true })) & ~DEFAULT;
-    pub const GLOBAL: u6 = @as(u6, @bitCast(DefunKind{ .global = true })) & ~DEFAULT;
+    const DEFAULT: DefunKindInt = @bitCast(DefunKind{});
+    pub const REDEF: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .redef = true })) & ~DEFAULT;
+    pub const RAW: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .raw = true })) & ~DEFAULT;
+    pub const PROVIDE: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .provide = true })) & ~DEFAULT;
+    pub const EXPAND: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .expand = true })) & ~DEFAULT;
+    pub const GLOBAL: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .global = true })) & ~DEFAULT;
+    pub const XPARSE: DefunKindInt = @as(DefunKindInt, @bitCast(DefunKind{ .xparse = true })) & ~DEFAULT;
 
-    pub inline fn takeType(self: @This()) u6 {
-        return @as(u6, @bitCast(self)) & ~DEFAULT;
+    pub inline fn takeType(self: @This()) DefunKindInt {
+        return @as(DefunKindInt, @bitCast(self)) & ~DEFAULT;
     }
 
-    pub fn parseDefunKind(output: *@This(), str: []const u8) bool {
+    pub fn parseDefunKind(output: *@This(), str: []const u8, is_xparse: bool) bool {
         for (str) |s| {
             switch (s) {
                 'r', 'R' => output.redef = true,
-                'p', 'P' => output.redef = true,
+                'p', 'P' => output.provide = true,
                 '!' => output.raw = true,
                 'e', 'E' => output.expand = true,
                 'g', 'G' => output.global = true,
@@ -77,6 +82,8 @@ pub const DefunKind = packed struct(u6) {
                 else => return false,
             }
         }
+
+        output.xparse = is_xparse;
 
         return switch (output.takeType()) {
             0,
@@ -95,93 +102,122 @@ pub const DefunKind = packed struct(u6) {
             GLOBAL | EXPAND | REDEF,
             GLOBAL | EXPAND | RAW,
             GLOBAL | EXPAND | REDEF | RAW,
+            XPARSE,
+            XPARSE | REDEF,
+            XPARSE | PROVIDE,
+            XPARSE | RAW, // declare
+            XPARSE | EXPAND,
+            XPARSE | EXPAND | REDEF,
+            XPARSE | EXPAND | PROVIDE,
+            XPARSE | EXPAND | RAW, // declare
             => true,
             else => false,
         };
     }
 
-    pub fn prologue(
-        self: @This(),
-        name: CowStr,
-        writer: *Writer,
-    ) !void {
-        const CHECK_REDEFINITION =
+    pub fn prologue(self: @This(), name: CowStr, writer: *Writer) !void {
+        const CHECK_REDEF =
             \\\expandafter\ifx\csname {1f}\endcsname\relax
             \\{s}\{1f}
         ;
-        const NO_CHECK_REDEFINITION = "{s}\\{f}";
+        const NO_CHECK_REDEF = "{s}\\{f}";
+        const XPARSE_DEF = "{s}{{\\{f}}}";
 
         switch (self.takeType()) {
-            0 => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\protected\\def", name },
-            ),
-            REDEF => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\protected\\def", name },
-            ),
-            RAW => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\def", name },
-            ),
-            REDEF | RAW => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\def", name },
-            ),
-            EXPAND => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\protected\\edef", name },
-            ),
-            EXPAND | REDEF => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\protected\\edef", name },
-            ),
-            EXPAND | RAW => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\edef", name },
-            ),
-            EXPAND | REDEF | RAW => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\edef", name },
-            ),
-            GLOBAL => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\protected\\gdef", name },
-            ),
-            GLOBAL | REDEF => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\protected\\gdef", name },
-            ),
-            GLOBAL | RAW => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\gdef", name },
-            ),
-            GLOBAL | REDEF | RAW => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\gdef", name },
-            ),
-            GLOBAL | EXPAND => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\protected\\xdef", name },
-            ),
-            GLOBAL | EXPAND | REDEF => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\protected\\xdef", name },
-            ),
-            GLOBAL | EXPAND | RAW => try writer.print(
-                CHECK_REDEFINITION,
-                .{ "\\xdef", name },
-            ),
-            GLOBAL | EXPAND | REDEF | RAW => try writer.print(
-                NO_CHECK_REDEFINITION,
-                .{ "\\xdef", name },
-            ),
+            0 => try writer.print(CHECK_REDEF, .{
+                "\\protected\\def", name,
+            }),
+            REDEF => try writer.print(NO_CHECK_REDEF, .{
+                "\\protected\\def", name,
+            }),
+            RAW => try writer.print(CHECK_REDEF, .{
+                "\\def", name,
+            }),
+            REDEF | RAW => try writer.print(NO_CHECK_REDEF, .{
+                "\\def", name,
+            }),
+            EXPAND => try writer.print(CHECK_REDEF, .{
+                "\\protected\\edef", name,
+            }),
+            EXPAND | REDEF => try writer.print(NO_CHECK_REDEF, .{
+                "\\protected\\edef", name,
+            }),
+            EXPAND | RAW => try writer.print(CHECK_REDEF, .{
+                "\\edef", name,
+            }),
+            EXPAND | REDEF | RAW => try writer.print(NO_CHECK_REDEF, .{
+                "\\edef", name,
+            }),
+            GLOBAL => try writer.print(CHECK_REDEF, .{
+                "\\protected\\gdef", name,
+            }),
+            GLOBAL | REDEF => try writer.print(NO_CHECK_REDEF, .{
+                "\\protected\\gdef", name,
+            }),
+            GLOBAL | RAW => try writer.print(CHECK_REDEF, .{
+                "\\gdef", name,
+            }),
+            GLOBAL | REDEF | RAW => try writer.print(NO_CHECK_REDEF, .{
+                "\\gdef", name,
+            }),
+            GLOBAL | EXPAND => try writer.print(CHECK_REDEF, .{
+                "\\protected\\xdef", name,
+            }),
+            GLOBAL | EXPAND | REDEF => try writer.print(NO_CHECK_REDEF, .{
+                "\\protected\\xdef", name,
+            }),
+            GLOBAL | EXPAND | RAW => try writer.print(CHECK_REDEF, .{
+                "\\xdef", name,
+            }),
+            GLOBAL | EXPAND | REDEF | RAW => try writer.print(NO_CHECK_REDEF, .{
+                "\\xdef", name,
+            }),
+            XPARSE => try writer.print(XPARSE_DEF, .{
+                "\\NewDocumentCommand", name,
+            }),
+            XPARSE | REDEF => try writer.print(XPARSE_DEF, .{
+                "\\RenewDocumentCommand", name,
+            }),
+            XPARSE | PROVIDE => try writer.print(XPARSE_DEF, .{
+                "\\ProvideDocumentCommand", name,
+            }),
+            XPARSE | RAW => try writer.print(XPARSE_DEF, .{
+                "\\DeclareDocumentCommand", name,
+            }),
+            XPARSE | EXPAND => try writer.print(XPARSE_DEF, .{
+                "\\NewExpandableDocumentCommand", name,
+            }),
+            XPARSE | EXPAND | REDEF => try writer.print(XPARSE_DEF, .{
+                "\\RenewExpandableDocumentCommand", name,
+            }),
+            XPARSE | EXPAND | PROVIDE => try writer.print(XPARSE_DEF, .{
+                "\\ProvideExpandableDocumentCommand", name,
+            }),
+            XPARSE | EXPAND | RAW => try writer.print(XPARSE_DEF, .{
+                "\\DeclareExpandableDocumentCommand", name,
+            }),
             else => unreachable, // assume every DefunKind comes from parseDefunKind
         }
     }
 
+    pub fn param(self: @This(), param_str: ?CowStr, writer: *Writer) !void {
+        if (self.takeType() & XPARSE == 0) {
+            if (param_str) |str| {
+                try writer.print("{f}{{", .{str});
+            } else {
+                try writer.writeByte('{');
+            }
+        } else {
+            if (param_str) |str| {
+                try writer.print("{{{f}}}{{", .{str});
+            } else {
+                try writer.writeAll("{}{");
+            }
+        }
+    }
+
     pub fn epilogue(self: @This(), name: CowStr, writer: *Writer) !void {
-        if (self.takeType() & REDEF == 0) {
+        if (self.takeType() & REDEF == 0 and self.takeType() & XPARSE == 0) {
             try writer.print(
                 "}}%\n\\else\\errmessage{{{f} is already defined}}\\fi\n",
                 .{name},

@@ -96,6 +96,7 @@ const DocState = packed struct {
     prevent_end_doc: bool = false,
     parsing_define: bool = false,
     math_mode: bool = false,
+    xparse_defun: bool = false,
 };
 
 const ParserAllows = packed struct {
@@ -329,7 +330,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .Useenv => try self.parseEnvironment(true),
         .Begenv => try self.parseEnvironment(false),
         .Endenv => try self.parseEndPhantomEnvironment(),
-        .DefineFunction => try self.parseDefineFunction(),
+        .DefineFunction => try self.parseDefineFunction(self.doc_state.xparse_defun),
         .DefineEnv => try self.parseDefineEnv(),
         .DoubleQuote => if (self.doc_state.math_mode)
             try self.parseTextInMath(false)
@@ -1183,7 +1184,7 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     return Stmt{ .EndPhantomEnviron = name };
 }
 
-fn parseDefineFunction(self: *Self) ParseError!Stmt {
+fn parseDefineFunction(self: *Self, is_xparse: bool) ParseError!Stmt {
     const defun_location = self.curr_tok.span;
     var defun_kind: ast.DefunKind = .{};
 
@@ -1208,7 +1209,7 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
 
-        if (!defun_kind.parseDefunKind(kind_str.items)) {
+        if (!defun_kind.parseDefunKind(kind_str.items, is_xparse)) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{
                     .InvalidDefunKind = .fromOwnedSlice(
@@ -1221,8 +1222,19 @@ fn parseDefineFunction(self: *Self) ParseError!Stmt {
         }
 
         _ = try self.expectWithError(.Rsqbrace, .eat);
+    } else if (is_xparse) {
+        // this branch is needed because of the following example
+        // #xparse defun foo (m) {...}
+        //
+        // In that case, defun_kind.xparse must be true, however, the control
+        // flow passes the above code, which makes defun_kind.xparse = false,
+        // which is wrong.
+        defun_kind.xparse = true;
     }
     self.eatWhitespaces(false);
+
+    // disable #xparse builtin as we already parsed the attribute
+    self.doc_state.xparse_defun = false;
 
     const name = blk: {
         const tmp = switch (@intFromEnum(self.currToktype())) {
@@ -2007,7 +2019,7 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     );
     errdefer label.deinit(self.allocator);
 
-    if (self.currToktype() != .Useenv) {
+    if (!self.expect(.current, &.{.Useenv})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = "label",
@@ -2497,6 +2509,30 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         .unit_length = unit_length,
         .inner = inner.Braced.inner,
     } };
+}
+
+fn parseBuiltin_xparse(self: *Self) ParseError!Stmt {
+    const xparse_block_loc = self.curr_tok.span;
+    // if there is a space after #xparse, eat all spaces except the last one.
+    // oherwise, stop the parser position to #xparse
+    while (self.expect(.peek, &.{ .Space, .Tab })) {
+        self.nextToken();
+    }
+
+    if (!self.expect(.peek, &.{.DefineFunction})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "xparse",
+                .note = "`#xparse` must be located before `defun`",
+            } },
+            .span = xparse_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.doc_state.xparse_defun = true;
+
+    return Stmt.NopStmt;
 }
 
 test "test vesti parser" {

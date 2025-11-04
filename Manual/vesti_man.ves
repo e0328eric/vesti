@@ -23,10 +23,10 @@ end
 :lu#<readAll>
 
 % definition of \keyword command
-defun [!] keyword (m) {{\tt\color{purple}#1}}
-defun useenv (s) {\IfBooleanTF{#1}{\keyword{%-useenv-%}}{\keyword{%-useenv-%} }}
-defun begenv (s) {\IfBooleanTF{#1}{\keyword{%-begenv-%}}{\keyword{%-begenv-%} }}
-defun endenv (s) {\IfBooleanTF{#1}{\keyword{%-endenv-%}}{\keyword{%-endenv-%} }}
+#xparse defun [!] keyword (m) {{\tt\color{purple}#1}}
+#xparse defun useenv (s) {\IfBooleanTF{#1}{\keyword{%-useenv-%}}{\keyword{%-useenv-%} }}
+#xparse defun begenv (s) {\IfBooleanTF{#1}{\keyword{%-begenv-%}}{\keyword{%-begenv-%} }}
+#xparse defun endenv (s) {\IfBooleanTF{#1}{\keyword{%-endenv-%}}{\keyword{%-endenv-%} }}
 
 startdoc
 \maketitle
