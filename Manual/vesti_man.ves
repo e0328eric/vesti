@@ -24,17 +24,74 @@ end
 
 % definition of \keyword command
 #xparse defun [!] keyword (m) {{\tt\color{purple}#1}}
-#xparse defun [!] builtin (v) {{\tt\color{yellow!70!black}\##1}}
+#xparse defun [!] builtin (v) {{\tt\color{blue!65!yellow}\##1}}
 #xparse defun useenv (s) {\IfBooleanTF{#1}{\keyword{%-useenv-%}}{\keyword{%-useenv-%} }}
 #xparse defun begenv (s) {\IfBooleanTF{#1}{\keyword{%-begenv-%}}{\keyword{%-begenv-%} }}
 #xparse defun endenv (s) {\IfBooleanTF{#1}{\keyword{%-endenv-%}}{\keyword{%-endenv-%} }}
+
+% space character used in the texbook.
+#makeatletter
+#chardef 2423 \@b
+defun ob {\tt\@b}
+#makeatother
 
 startdoc
 \maketitle
 \tableofcontents
 
 \section{Introduction}
-\builtin|get_file|
+I used to create several documents using \LaTeX\ (or plain \TeX\ but \TeX\ is
+quite cumbersome to write—especially when working with very complex tables or
+inserting images). Its markdown-like syntax is also not comfortable to use. For
+example, here is a simple \LaTeX\ document:
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#% coprime is my custom class. See https://github.com/e0328eric/coprime.
+%#\documentclass[tikz, geometry]{coprime}
+%#
+%#\settitle{My First Document}{Sungbae Jeong}{}
+%#\setgeometry{a4paper, margin = 2.5cm}
+%#
+%#\begin{document}
+%#\section{Foo}
+%#Hello, World!
+%#\begin{figure}[ht]
+%#    \centering
+%#    \begin{tikzpicture}
+%#        \draw (0,0) -- (1,1);
+%#    \end{tikzpicture}
+%#\end{figure}
+%#
+%#The code above is a figure using TikZ.
+%#
+%#\end{document}
+}
+
+What annoys me most when using it is the \lq\verb@\begin@\rq\ and
+\lq\verb@\end@\rq\ blocks. Is there a way to write something much simpler? This
+question led me to start this project. Currently, the following code is
+generated into the \LaTeX code above (except comments) using vesti:
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%#% coprime is my custom class. See https://github.com/e0328eric/coprime.
+%#+keyword|docclass@ coprime (tikz, geometry)
+%#
+%#\settitle{My First Document}{Sungbae Jeong}{}
+%#\setgeometry{a4paper, margin = 2.5cm}
+%#
+%#+keyword|startdoc@
+%#
+%#\section{Foo}
+%#Hello, World!
+%#+keyword|useenv@ figure [ht] {
+%#    \centering
+%#    +keyword|useenv@ tikzpicture {
+%#        \draw (0,0) -- (1,1);
+%#    }
+%#}
+%#
+%#The code above is a figure using TikZ.
+}
 
 \section{Structure of Vesti File}
 Vesti is similar as \LaTeX. Its structure consists with two parts: {\tt preamble} and
@@ -43,11 +100,11 @@ several settings are located. Main body is where actual documentation is located
 Below figure is the simple Vesti documentation.
 
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#|+color|purple@docclass@ article (10pt)
-%#|+color|purple@importpkg@ {
+%#+keyword|docclass@ article (10pt)
+%#+keyword|importpkg@ {
 %#    geometry (a4paper, margin=2.2cm)
 %#}
-%#|+color|purple@startdoc@
+%#+keyword|startdoc@
 %#Hello, Vesti!
 }
 
@@ -140,7 +197,7 @@ In the practical case, one should include several packages with options.
 importpkg also supports such case. We will look at an example instead of
 giving rigorous grammar.
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#|+color|purple@importpkg@ {
+%#+keyword|importpkg@ {
 %#    amsmath, amssymb, amsthm,
 %#    geometry (a4paper, margin=2.2cm),
 %#}
@@ -245,11 +302,12 @@ compiler's internal perspective, there is no real difference. However, in actual
 language usage, constantly typing the prefix can be somewhat tedious, especially
 for functions that are commonly used.
 
-From the perspective of language design --particularly in Vesti-- it is sometimes
-desirable to use names that cannot serve as keywords. For example, Vesti
-provides a built-in function {\tt\#label}, which will be explained later. Since Vesti
-is a typewriting-oriented language, the word \lq\lq label\rq\rq\ is often used in its
-ordinary sense rather than in its special semantic meaning within the language.
+From the perspective of language design --particularly in Vesti-- it is
+sometimes desirable to use names that cannot serve as keywords. For example,
+Vesti provides a built-in function {\tt\#label}, which will be explained later.
+Since Vesti is a typewriting-oriented language, the word \lq\lq label\rq\rq\ is
+often used in its ordinary sense rather than in its special semantic meaning
+within the language.
 
 Followings are reserved as builtin functions.
 
@@ -270,7 +328,7 @@ useenv table [ht] {
     vesti.print([[\begin{tabular}{ccccc}]])
 
     for i, kw in ipairs(builtins) do
-        local cell = string.format("\\#\\verb@%s@", kw)
+        local cell = string.format("\\builtin@%s@", kw)
         if (i % 5) == 0 then
             vesti.print(cell .. [[\\]])
         else
@@ -282,6 +340,42 @@ useenv table [ht] {
     :lu#[readAll]
     \caption{Builtins in Vesti}
 }
+Since {\tt fancyvrb} does not allow verbatim-like commands inside of
+{\tt Verbatim} environment, builtins are not colored in example codes.
+
+\subsection{\builtin|label| builtin}
+
+\subsection{\builtin|eq| builtin}
+\builtin|eq| is a abbriviation of \lq\keyword{%-useenv-%} equation\rq.
+Actually, below codes are same.
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%##label(eq:1)
+%#+keyword|useenv@ equation {
+%#    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
+%#}
+}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
+%##eq(eq:1) {
+%#    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
+%#}
+}
+Since Vesti is used in the mathematical documents mainly, small syntactic suger
+is needed, so Vesti introduce \builtin|eq| builtin.
+
+\subsection{\builtin|mathchardef| builtin}
+\builtin|mathchardef| defines a math token using the unicode codepoint.
+Here is the grammar of \builtin|mathchardef| builtin.
+useenv center {
+    \builtin|mathchardef|\ob<kind>\ob<font-num>\ob<unicode-codepoint>\ob<function>
+}
+Before explaining each parameter, introduce some examples.
+useenv itemize {
+    \item \builtin|mathchardef|\ob.opening\ob0\ob29d8\ob\verb|\lfooo|
+    \item \builtin|mathchardef|\ob.ordinary\ob0\ob2202\ob\verb|\diff|
+}
+
+#showfont  0
 
 \section{Source Code of This Document}
 Below code was generated by inline lua.

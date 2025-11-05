@@ -1761,11 +1761,6 @@ inline fn preventBug(s: *const volatile Span) void {
 // NOTE: All functions should have a name parseBuiltin_<builtin_name>
 // where <builtin_name> can be found at Token.VESTI_BUILTINS.
 
-fn parseBuiltin_nonstopmode(self: *Self) Stmt {
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\nonstopmode\n"}) };
-}
-
 fn parseBuiltin_makeatletter(self: *Self) Stmt {
     self.lexer.make_at_letter = true;
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
@@ -2017,8 +2012,18 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    const latex_function_tok = try self.expectWithError(.LatexFunction, .eat);
-    const latex_function = latex_function_tok.lit.in_text;
+    if (!self.expect(.current, &.{ .LatexFunction, .MakeAtLetterFnt })) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{ .LatexFunction, .MakeAtLetterFnt },
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const latex_function = self.curr_tok.lit.in_text;
+    self.nextToken();
     self.eatWhitespaces(false);
 
     if (!self.expect(.current, &.{.Newline})) {
@@ -2129,8 +2134,18 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     self.nextToken();
     self.eatWhitespaces(false);
 
-    const latex_function_tok = try self.expectWithError(.LatexFunction, .eat);
-    const latex_function = latex_function_tok.lit.in_text;
+    if (!self.expect(.current, &.{ .LatexFunction, .MakeAtLetterFnt })) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TokenExpected = .{
+                .expected = &.{ .LatexFunction, .MakeAtLetterFnt },
+                .obtained = self.currToktype(),
+            } },
+            .span = self.curr_tok.span,
+        } });
+        return ParseError.ParseFailed;
+    }
+    const latex_function = self.curr_tok.lit.in_text;
+    self.nextToken();
     self.eatWhitespaces(false);
 
     if (!self.expect(.current, &.{.Newline})) {
