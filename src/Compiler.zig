@@ -245,7 +245,7 @@ fn compileInner(self: *Self) !void {
                 const stat = try fs.cwd().statFile(vesti_file);
                 if (stat.mtime > pmtime) {
                     // this code comes first because if content.fond_existing is true
-                    // and if vesti failes to parse, then the double free ocurrs.
+                    // and if vesti failes to parse, then the double free occurs.
                     //                   2025/11/09 Almagest
                     var new_content = try self.parseVesti(
                         vesti_file,
@@ -265,7 +265,7 @@ fn compileInner(self: *Self) !void {
                 }
             } else {
                 // this code comes first because if content.fond_existing is true
-                // and if vesti failes to parse, then the double free ocurrs.
+                // and if vesti failes to parse, then the double free occurs.
                 //                   2025/11/09 Almagest
                 var new_content = try self.parseVesti(
                     vesti_file,

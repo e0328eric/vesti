@@ -372,7 +372,7 @@ pub const ParseDiagnostic = struct {
 
         switch (self.err_info) {
             .None => try aw.writer.writeAll("<none>"),
-            .EofErr => try aw.writer.print("EOF character was found", .{}),
+            .EofErr => try aw.writer.print("end of file was detected", .{}),
             .PreambleErr => try aw.writer.print("PremiereErr\n", .{}),
             .TokenExpected => |info| {
                 if (info.expected.len == 1) {
@@ -510,6 +510,19 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
+            .EofErr => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(
+                    allocator,
+                    \\usually, this error occurs when the brace does not match.
+                    \\maybe the chatacter pointed has no pair in the code.
+                ,
+                    .{},
+                );
+                break :blk output;
+            },
             .LuaLabelNotFound => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);

@@ -353,10 +353,11 @@ fn parseLiteral(self: *Self) Stmt {
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
+    const docclass_span = self.curr_tok.span;
     _ = try self.expectWithError(.Docclass, .eat);
     self.eatWhitespaces(false);
 
-    var name = try self.takeName();
+    var name = try self.takeName(docclass_span);
     errdefer name.deinit(self.allocator);
     self.eatWhitespaces(false);
 
@@ -380,12 +381,13 @@ fn parseDocclass(self: *Self) ParseError!Stmt {
 }
 
 fn parseSinglePkg(self: *Self) ParseError!Stmt {
+    const importpkg_span = self.curr_tok.span;
     _ = try self.expectWithError(.ImportPkg, .eat);
     self.eatWhitespaces(false);
 
     if (self.expect(.current, &.{.Lbrace})) return self.parseMultiplePkgs();
 
-    var name = try self.takeName();
+    var name = try self.takeName(importpkg_span);
     errdefer name.deinit(self.allocator);
     self.eatWhitespaces(false);
 
@@ -409,6 +411,7 @@ fn parseSinglePkg(self: *Self) ParseError!Stmt {
 }
 
 fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
+    const lbrace_span = self.curr_tok.span;
     _ = try self.expectWithError(.Lbrace, .eat);
 
     var output = try ArrayList(ast.UsePackage).initCapacity(self.allocator, 10);
@@ -431,9 +434,10 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
         self.eatWhitespaces(true);
         if (self.expect(.current, &.{.Rbrace})) break;
 
-        name = try self.takeName();
+        name = try self.takeName(lbrace_span);
         self.eatWhitespaces(false);
 
+        const open_paren_loc = self.curr_tok.span;
         options = switch (self.currToktype()) {
             .Lparen => blk: {
                 const tmp = try self.parseOptions();
@@ -456,7 +460,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
             .Eof => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .EofErr,
-                    .span = self.curr_tok.span,
+                    .span = open_paren_loc,
                 } });
                 return ParseError.ParseFailed;
             },
@@ -488,6 +492,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
 }
 
 fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
+    const open_paren_span: Span = self.curr_tok.span;
     _ = try self.expectWithError(.Lparen, .eat);
 
     var output = try ArrayList(CowStr).initCapacity(self.allocator, 10);
@@ -504,7 +509,7 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
         .Eof => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .EofErr,
-                .span = self.curr_tok.span,
+                .span = open_paren_span,
             } });
             return ParseError.ParseFailed;
         },
@@ -529,11 +534,11 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
     return output;
 }
 
-fn takeName(self: *Self) ParseError!CowStr {
+fn takeName(self: *Self, span: Span) ParseError!CowStr {
     if (self.expect(.current, &.{.Eof})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .EofErr,
-            .span = self.curr_tok.span,
+            .span = span,
         } });
         return ParseError.ParseFailed;
     }
@@ -590,6 +595,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         ctx.deinit(self.allocator);
     }
 
+    const open_tok_span = self.curr_tok.span;
     _ = try self.expectWithError(open_tok, .eat);
 
     while (switch (self.currToktype()) {
@@ -597,7 +603,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         .Eof => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .EofErr,
-                .span = self.curr_tok.span,
+                .span = open_tok_span,
             } });
             return ParseError.ParseFailed;
         },
@@ -625,6 +631,7 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
         inner.deinit(self.allocator);
     }
 
+    const open_text_span = self.curr_tok.span;
     if (add_front_space) _ = try self.expectWithError(.RawSharp, .eat);
     _ = try self.expectWithError(.DoubleQuote, .eat);
 
@@ -634,7 +641,7 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
         .Eof => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .EofErr,
-                .span = self.curr_tok.span,
+                .span = open_text_span,
             } });
             return ParseError.ParseFailed;
         },
@@ -877,6 +884,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         self.nextRawToken();
     }
 
+    const open_paren_span = self.curr_tok.span;
     try self.expectWithError(.Lparen, .remain);
 
     var mod_dir_path = try ArrayList(u8).initCapacity(self.allocator, 30);
@@ -894,7 +902,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
         } else if (chr == 0) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .EofErr,
-                .span = self.curr_tok.span,
+                .span = open_paren_span,
             } });
             return ParseError.ParseFailed;
         }
