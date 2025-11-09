@@ -244,6 +244,15 @@ fn compileInner(self: *Self) !void {
             if (self.prev_mtime.*) |pmtime| {
                 const stat = try fs.cwd().statFile(vesti_file);
                 if (stat.mtime > pmtime) {
+                    // this code comes first because if content.fond_existing is true
+                    // and if vesti failes to parse, then the double free ocurrs.
+                    //                   2025/11/09 Almagest
+                    var new_content = try self.parseVesti(
+                        vesti_file,
+                        vesti_files.get(vesti_file).?,
+                    );
+                    errdefer new_content.deinit(self.allocator);
+
                     // TODO: make an error message for null case (file not exists)
                     const content = try vesti_contents.getOrPut(
                         self.allocator,
@@ -251,13 +260,19 @@ fn compileInner(self: *Self) !void {
                     );
                     // if the content already exists, then deallocate the old one
                     if (content.found_existing) content.value_ptr.deinit(self.allocator);
-                    content.value_ptr.* = try self.parseVesti(
-                        vesti_file,
-                        vesti_files.get(vesti_file).?,
-                    );
+                    content.value_ptr.* = new_content;
                     is_compiled = true;
                 }
             } else {
+                // this code comes first because if content.fond_existing is true
+                // and if vesti failes to parse, then the double free ocurrs.
+                //                   2025/11/09 Almagest
+                var new_content = try self.parseVesti(
+                    vesti_file,
+                    vesti_files.get(vesti_file).?,
+                );
+                errdefer new_content.deinit(self.allocator);
+
                 // TODO: make an error message for null case (file not exists)
                 const content = try vesti_contents.getOrPut(
                     self.allocator,
@@ -265,10 +280,7 @@ fn compileInner(self: *Self) !void {
                 );
                 // if the content already exists, then deallocate the old one
                 if (content.found_existing) content.value_ptr.deinit(self.allocator);
-                content.value_ptr.* = try self.parseVesti(
-                    vesti_file,
-                    vesti_files.get(vesti_file).?,
-                );
+                content.value_ptr.* = new_content;
                 is_compiled = true;
             }
         }
