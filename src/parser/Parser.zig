@@ -1769,13 +1769,13 @@ inline fn preventBug(s: *const volatile Span) void {
 // NOTE: All functions should have a name parseBuiltin_<builtin_name>
 // where <builtin_name> can be found at Token.VESTI_BUILTINS.
 
-fn parseBuiltin_makeatletter(self: *Self) Stmt {
+fn parseBuiltin_at_on(self: *Self) Stmt {
     self.lexer.make_at_letter = true;
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
     return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatletter\n"}) };
 }
 
-fn parseBuiltin_makeatother(self: *Self) Stmt {
+fn parseBuiltin_at_off(self: *Self) Stmt {
     self.lexer.make_at_letter = false;
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
     return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatother\n"}) };
