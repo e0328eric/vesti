@@ -600,6 +600,7 @@ pub fn next(self: *Self) Token {
             continue :tokenize .builtin_function;
         } else {
             const fnt_name = self.source[start_chr0_idx..self.chr0_idx];
+            const end_location = self.location;
             if (self.getChar(.current) == ' ' and
                 (uucode.get(.is_alphanumeric, self.getChar(.peek1)) or
                     self.getChar(.peek1) == ' '))
@@ -611,7 +612,7 @@ pub fn next(self: *Self) Token {
                 null,
                 .{ .BuiltinFunction = fnt_name[1..] }, // remove # character
                 start_location,
-                self.location,
+                end_location,
             );
             break :tokenize;
         },
