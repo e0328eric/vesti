@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const ast = @import("ast.zig");
+const defkind = @import("defkind.zig");
 const diag = @import("../diagnostic.zig");
 const fmt = std.fmt;
 const fs = std.fs;
@@ -88,12 +89,13 @@ pub const ParseError = Allocator.Error ||
 const DocState = packed struct {
     // after 2020-10-01, latex kernel now allows to use expl3 without importing
     // it. Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
+    // Also, use xparse commands in default by defining commands and environments
     allow_latex3: bool = true,
+    xparse_defun: bool = true,
     doc_start: bool = false,
     prevent_end_doc: bool = false,
     parsing_define: bool = false,
     math_mode: bool = false,
-    xparse_defun: bool = false,
 };
 
 const ParserAllows = packed struct {
@@ -1180,7 +1182,7 @@ fn parseDefineCommand(
 ) ParseError!Stmt {
     const def_toktype: TokenType = if (kind == .fnt) .DefineFunction else .DefineEnv;
     const def_location = self.curr_tok.span;
-    var def_kind: if (kind == .fnt) ast.DefunKind else ast.DefenvKind = .{};
+    var def_kind: if (kind == .fnt) defkind.DefunKind else defkind.DefenvKind = .{};
 
     _ = try self.expectWithError(def_toktype, .eat);
     self.eatWhitespaces(false);
@@ -1214,11 +1216,10 @@ fn parseDefineCommand(
             } });
             return ParseError.ParseFailed;
         }
-
         _ = try self.expectWithError(.Rsqbrace, .eat);
     } else if (kind == .fnt and is_xparse) {
         // this branch is needed because of the following example
-        // #xparse defun foo (m) {...}
+        // defun foo (m) {...}
         //
         // In that case, defun_kind.xparse must be true, however, the control
         // flow passes the above code, which makes defun_kind.xparse = false,
@@ -1227,9 +1228,9 @@ fn parseDefineCommand(
     }
     self.eatWhitespaces(false);
 
-    // disable #xparse builtin as we already parsed the attribute
+    // disable #raw_tex builtin as we already parsed the attribute
     // notice that defenv always use xparse in default
-    if (kind == .fnt) self.doc_state.xparse_defun = false;
+    if (kind == .fnt) self.doc_state.xparse_defun = true;
 
     const name = blk: {
         const tmp = switch (@intFromEnum(self.currToktype())) {
@@ -2443,26 +2444,24 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     } };
 }
 
-fn parseBuiltin_xparse(self: *Self) ParseError!Stmt {
-    const xparse_block_loc = self.curr_tok.span;
-    // if there is a space after #xparse, eat all spaces except the last one.
-    // oherwise, stop the parser position to #xparse
-    while (self.expect(.peek, &.{ .Space, .Tab })) {
-        self.nextToken();
-    }
+fn parseBuiltin_raw_tex(self: *Self) ParseError!Stmt {
+    const raw_tex_block_loc = self.curr_tok.span;
+    // if there is a space after #raw_tex, eat all spaces except the last one.
+    // oherwise, stop the parser position to #raw_tex
+    while (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
 
     if (!self.expect(.peek, &.{.DefineFunction})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "xparse",
-                .note = "`#xparse` must be located before `defun`",
+                .name = "raw_tex",
+                .note = "`#raw_tex` must be located before `defun`",
             } },
-            .span = xparse_block_loc,
+            .span = raw_tex_block_loc,
         } });
         return ParseError.ParseFailed;
     }
 
-    self.doc_state.xparse_defun = true;
+    self.doc_state.xparse_defun = false;
 
     return Stmt.NopStmt;
 }

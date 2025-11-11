@@ -278,27 +278,6 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "compty",       TokenType.CompileType },
     .{ "defun",        TokenType.DefineFunction },
     .{ "defenv",       TokenType.DefineEnv },
-    .{ "makeatletter", TokenType.deprecated(true, "#makeatletter") },
-    .{ "makeatother",  TokenType.deprecated(true, "#makeatother") },
-    .{ "useltx3",      TokenType.deprecated(false, "#ltx3_import") },
-    .{ "ltx3on",       TokenType.deprecated(false, "#ltx3_on") },
-    .{ "ltx3off",      TokenType.deprecated(false, "#ltx3_off") },
-    .{ "getfp",        TokenType.deprecated(false, "#get_filepath") },
-    .{ "getfilepath",  TokenType.deprecated(false, "#get_filepath") },
-    .{ "nonstopmode",  TokenType.deprecated(false, "#nonstopmode") },
-    .{ "txtmd",        TokenType.deprecated(false, "#textmode") },
-    .{ "mthmd",        TokenType.deprecated(false, "#mathmode") },
-    .{ "textmode",     TokenType.deprecated(true, "#textmode") },
-    .{ "mathmode",     TokenType.deprecated(true, "#mathmode") },
-    .{ "pycode",       TokenType.deprecated(true, "#lu:") },
-    .{ "luacode",      TokenType.deprecated(true, "#lu:") },
-    .{ "importfile",   TokenType.deprecated(false, "cpfile") },
-    .{ "redefenv",     TokenType.deprecated(false, "") },
-    .{ "endswith",     TokenType.deprecated(false, "") },
-    .{ "mainvesfile",  TokenType.deprecated(false, "") },
-    .{ "importltx3",   TokenType.deprecated(false, "useltx3") },
-    .{ "enddef",       TokenType.deprecated(true, "}") },
-    .{ "import",       TokenType.deprecated(true, "importpkg") },
     // zig fmt: on
 });
 
@@ -323,9 +302,9 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "mathmode" },
     .{ "noltx3" },
     .{ "picture" },
+    .{ "raw_tex" },
     .{ "showfont" },
     .{ "textmode" },
-    .{ "xparse" },
     // zig fmt: on
 });
 

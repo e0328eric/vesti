@@ -9,20 +9,19 @@ const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
-const VESTI_VERSION_STR = "0.6.3";
+const VESTI_VERSION_STR = @import("build.zig.zon").version;
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
+const MIN_ZIG_STRING = @import("build.zig.zon").minimum_zig_version;
+const PROGRAM_NAME = @tagName(@import("build.zig.zon").name);
 
 // default constants in vesti
 const VESTI_DUMMY_DIR = "./.vesti-dummy";
-
-const min_zig_string = "0.15.2";
-const program_name = "vesti";
 
 // NOTE: This code came from
 // https://github.com/zigtools/zls/blob/master/build.zig.
 const Build = blk: {
     const current_zig = builtin.zig_version;
-    const min_zig = std.SemanticVersion.parse(min_zig_string) catch unreachable;
+    const min_zig = std.SemanticVersion.parse(MIN_ZIG_STRING) catch unreachable;
     if (current_zig.order(min_zig) == .lt) {
         @compileError(std.fmt.comptimePrint(
             "Your Zig version v{f} does not meet the minimum build requirement of v{f}",
@@ -179,7 +178,7 @@ fn buildVesti(
             exe_mod.addOptions("vesti-info", vesti_opt);
 
             return b.addExecutable(.{
-                .name = "vesti",
+                .name = PROGRAM_NAME,
                 .version = VESTI_VERSION,
                 .root_module = exe_mod,
             });

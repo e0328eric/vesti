@@ -277,9 +277,7 @@ fn codegenStmt(
             // prologue
             try ctx.kind.prologue(ctx.name, writer);
 
-            if (ctx.param_str) |param| {
-                try writer.print("{{{f}}}", .{param});
-            }
+            if (ctx.param_str) |param| try writer.print("{{{f}}}", .{param});
             try writer.writeByte('{');
 
             // begin body
