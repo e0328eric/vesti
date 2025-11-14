@@ -1,166 +1,28 @@
-{
-    #main;
-    #name: vesti;
-    #desc: A latex transpiler;
+#@vesti | A latex transpiler {}
+
+#compile | Compile vesti into Latex file {
+    *FILENAMES      : strings     | filenames to compile;
+    -emit_tex,e     := @false     | compile vesti into tex file only (do nothing at this point);
+    -no_color,N     := @false     | on watch mode, exit immediately when error occurs;
+    -all,a          := @false     | compile vesti files given from FILENAMES with directory name;
+    -watch,W        := @false     | watch vesti files when modified;
+    -latex,L        := @false     | compile vesti using latex (can be changed using `compty` keyword);
+    -pdflatex,p     := @false     | compile vesti using pdflatex (can be changed using `compty` keyword);
+    -xelatex,x      := @false     | compile vesti using xelatex (can be changed using `compty` keyword);
+    -lualatex,l     := @false     | compile vesti using lualatex (can be changed using `compty` keyword);
+    -tectonic,T     := @false     | compile vesti using tectonic (can be changed using `compty` keyword);
+    -lim,           := 3          | set the number of the compile cycle;
+    -before_script, := before.lua | run lua code once for each vesti runs;
+    -step_script,   := step.lua   | custom lua code to execute for each end of vesti steps
 }
-{
-    #name: tex2ves;
-    #desc: Convert tex code into vesti;
 
-    #arg;
-    meta: FILENAMES;
-    desc: filenames to convert;
-    type: strings;
-    default:;
-}
-{
-    #name: compile;
-    #desc: Compile vesti into Latex file;
+#clear | Remove .vesti-dummy directory {}
 
-    #arg;
-    meta: FILENAMES;
-    desc: filenames to compile;
-    type: strings;
-    default:;
-
-    #flag;
-    long: emit_tex;
-    short: e;
-    desc: compile vesti into tex file only (do nothing at this point);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: no_color;
-    short: N;
-    desc: no color output on a terminal;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: exit_err;
-    short: E;
-    desc: on watch mode, exit immediately when error occurs;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: all;
-    short: a;
-    desc: compile vesti files given from FILENAMES with directory name;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: watch;
-    short: W;
-    desc: watch vesti files when modified;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: latex;
-    short: L;
-    desc: compile vesti using latex (can be changed using `compty` keyword);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: pdflatex;
-    short: p;
-    desc: compile vesti using pdflatex (can be changed using `compty` keyword);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: xelatex;
-    short: x;
-    desc: compile vesti using xelatex (can be changed using `compty` keyword);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: lualatex;
-    short: l;
-    desc: compile vesti using lualatex (can be changed using `compty` keyword);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: tectonic;
-    short: T;
-    desc: compile vesti using tectonic (can be changed using `compty` keyword);
-    type: bool;
-    default: false;
-
-    #flag;
-    long: lim;
-    short:;
-    desc: set the number of the compile cycle;
-    type: number;
-    default: 3;
-
-    #flag;
-    long: before_script;
-    short:;
-    desc: run lua code once for each vesti runs.
-    type: string;
-    default: before.lua;
-
-    #flag;
-    long: step_script;
-    short:;
-    desc: custom lua code to execute for each end of vesti steps;
-    type: string;
-    default: step.lua;
-}
-{
-    #name: clear;
-    #desc: Remove .vesti-dummy directory
-}
-{
-    #name: run;
-    #desc: run `first_script` without compiling vesti
-
-    #flag;
-    long: latex;
-    short: L;
-    desc: compile vesti using latex;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: pdflatex;
-    short: p;
-    desc: compile vesti using pdflatex;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: xelatex;
-    short: x;
-    desc: compile vesti using xelatex;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: lualatex;
-    short: l;
-    desc: compile vesti using lualatex;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: tectonic;
-    short: T;
-    desc: compile vesti using tectonic;
-    type: bool;
-    default: false;
-
-    #flag;
-    long: first_script;
-    short:;
-    desc: run lua code once for each vesti runs.
-    type: string;
-    default: first.lua;
+#run | run `first_script` without compiling vesti {
+    -latex,L       := @false    | compile vesti using latex;
+    -pdflatex,p    := @false    | compile vesti using pdflatex;
+    -xelatex,x     := @false    | compile vesti using xelatex;
+    -lualatex,l    := @false    | compile vesti using lualatex;
+    -tectonic,T    := @false    | compile vesti using tectonic;
+    -first_script, := first.lua | run lua code once
 }
