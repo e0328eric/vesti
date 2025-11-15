@@ -1,7 +1,7 @@
 const std = @import("std");
 const zlua = @import("zlua");
-const diag = @import("./diagnostic.zig");
-const ansi = @import("./ansi.zig");
+const diag = @import("diagnostic.zig");
+const ansi = @import("ansi.zig");
 const fs = std.fs;
 const zip = std.zip;
 const http = std.http;
@@ -28,11 +28,12 @@ line_limit: usize,
 const Self = @This();
 pub const Error = Allocator.Error || zlua.Error;
 
-const VESTI_LUA_FUNCTIONS_BUILTINS: [10]zlua.FnReg = .{
+const VESTI_LUA_FUNCTIONS_BUILTINS: [11]zlua.FnReg = .{
     .{ .name = "print", .func = print },
     .{ .name = "parse", .func = parse },
     .{ .name = "getModule", .func = getModule },
     .{ .name = "vestiDummyDir", .func = vestiDummyDir },
+    .{ .name = "getCurrentDir", .func = getCurrentDir },
     .{ .name = "setCurrentDir", .func = setCurrentDir },
     .{ .name = "engineType", .func = engineType },
     .{ .name = "unzip", .func = unzip },
@@ -414,6 +415,20 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 fn vestiDummyDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
     _ = lua.pushString(VESTI_DUMMY_DIR);
+    return 1;
+}
+
+fn getCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
+    const lua: *ZigLua = @ptrCast(lua_state.?);
+    const allocator = lua.allocator();
+
+    const cwd = std.process.getCwdAlloc(allocator) catch raiseError(
+        lua,
+        "cannot get the current directory",
+        .{},
+    );
+    _ = lua.pushString(cwd);
+
     return 1;
 }
 
