@@ -243,6 +243,8 @@ pub const ParseDiagnostic = struct {
         IllegalUseErr,
         TextmodeInText,
         MathmodeInMath,
+        TooManyBegenv,
+        BegenvUnderflow,
         Deprecated,
         InvalidBuiltin,
         WrongBuiltin,
@@ -281,6 +283,8 @@ pub const ParseDiagnostic = struct {
         IllegalUseErr: []const u8,
         TextmodeInText,
         MathmodeInMath,
+        TooManyBegenv: u8,
+        BegenvUnderflow,
         Deprecated: []const u8,
         InvalidBuiltin: CowStr,
         WrongBuiltin: struct {
@@ -446,6 +450,8 @@ pub const ParseDiagnostic = struct {
             },
             .TextmodeInText => try aw.writer.print("`#textmode` found in text", .{}),
             .MathmodeInMath => try aw.writer.print("`#mathmode` found in math", .{}),
+            .TooManyBegenv => try aw.writer.print("too many `begenv` was found", .{}),
+            .BegenvUnderflow => try aw.writer.print("there is no `begenv` to match", .{}),
             .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
@@ -520,6 +526,17 @@ pub const ParseDiagnostic = struct {
                     \\maybe the chatacter pointed has no pair in the code.
                 ,
                     .{},
+                );
+                break :blk output;
+            },
+            .TooManyBegenv => |count| blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(
+                    allocator,
+                    "maximum allowed `begenv` is {}.",
+                    .{count},
                 );
                 break :blk output;
             },

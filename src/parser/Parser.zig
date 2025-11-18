@@ -29,6 +29,9 @@ const vestiNameMangle = @import("../Compiler.zig").vestiNameMangle;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
+// how the vesti code uses more than 64 begenv if there is useenv?
+const MAX_BEGENV_NUM = 64;
+
 allocator: Allocator,
 lexer: Lexer,
 curr_tok: Token,
@@ -42,6 +45,8 @@ global_defkinds: ArrayList(Stmt), // NOTE: not used
 allows: ParserAllows,
 doc_state: DocState,
 enum_depth: u8,
+endenv_sp: u8,
+endenv_stack: [MAX_BEGENV_NUM][]const u8,
 
 const Self = @This();
 
@@ -123,6 +128,8 @@ pub fn init(
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;
     self.global_defkinds = .empty;
+    self.endenv_stack = @splat("");
+    self.endenv_sp = 0;
     self.allows = allows;
 
     const typeinfo = @typeInfo(@TypeOf(engine));
@@ -985,6 +992,34 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
     return Stmt{ .ImportVesti = filename };
 }
 
+fn pushEndenvStack(
+    self: *Self,
+    begenv_name: []const u8,
+    begenv_location: Span,
+) !void {
+    if (self.endenv_sp >= MAX_BEGENV_NUM) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .TooManyBegenv = MAX_BEGENV_NUM },
+            .span = begenv_location,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.endenv_stack[self.endenv_sp] = begenv_name;
+    self.endenv_sp += 1;
+}
+
+fn popEndenvStack(self: *Self, endenv_location: Span) ![]const u8 {
+    if (self.endenv_sp == 0) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .BegenvUnderflow,
+            .span = endenv_location,
+        } });
+        return ParseError.ParseFailed;
+    }
+    self.endenv_sp -= 1;
+    return self.endenv_stack[self.endenv_sp];
+}
+
 fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     const begenv_location = self.curr_tok.span;
     const begin_env_tok: TokenType = if (is_real) .Useenv else .Begenv;
@@ -1035,7 +1070,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
     // The reason why I disable this is because the syntax of this is very different
     // from others.
     // reference: https://lab.uklee.pe.kr/tex-archive/info/latex2e-help-texinfo/latex2e.html#picture
-    if (mem.eql(u8, name.Owned.items, "picture")) {
+    if (mem.eql(u8, name.toStr(), "picture")) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .IllegalUseErr = "`picture` environment is illegal in vesti. Use #picture instead." },
             .span = begenv_location,
@@ -1043,7 +1078,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
-    if (ENV_MATH_IDENT.has(name.Owned.items)) {
+    if (ENV_MATH_IDENT.has(name.toStr())) {
         self.doc_state.math_mode = true;
         off_math_state = true;
     }
@@ -1071,6 +1106,10 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         }
     }
 
+    // store `name` if begenv is used.
+    // notice that the ownership of the name will be taken into ast.
+    if (!is_real) try self.pushEndenvStack(name.toStr(), begenv_location);
+
     var args = try self.parseFunctionArgs(
         .Lparen,
         .Rparen,
@@ -1087,18 +1126,6 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         if (off_math_state) {
             self.doc_state.math_mode = false;
         }
-
-        // TODO: why is this code exists?
-        //if (!self.expect(.peek, &.{ .Newline, .Eof })) {
-        //    self.diagnostic.initDiagInner(.{ .ParseError = .{
-        //        .err_info = .{ .TokenExpected = .{
-        //            .expected = &.{ .Newline, .Eof },
-        //            .obtained = self.peekToktype(),
-        //        } },
-        //        .span = self.peek_tok.span,
-        //    } });
-        //    return ParseError.ParseFailed;
-        //}
 
         return Stmt{ .BeginPhantomEnviron = .{
             .name = name,
@@ -1141,38 +1168,9 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
 
 fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     const endenv_location = self.curr_tok.span;
-    _ = try self.expectWithError(.Endenv, .eat);
-    self.eatWhitespaces(false);
-
-    var name = blk: {
-        const tmp = switch (self.currToktype()) {
-            .Text => self.curr_tok.lit.in_text,
-            .Eof => {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .EofErr,
-                    .span = endenv_location,
-                } });
-                return ParseError.ParseFailed;
-            },
-            else => {
-                self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{ .NameMissErr = .Endenv },
-                    .span = endenv_location,
-                } });
-                return ParseError.ParseFailed;
-            },
-        };
-        break :blk try CowStr.init(.Owned, .{ self.allocator, tmp });
-    };
-    errdefer name.deinit(self.allocator);
-    if (self.expect(.peek, &.{.Star})) self.nextToken();
-
-    while (self.expect(.current, &.{.Star})) : (self.nextToken()) {
-        try name.append(self.allocator, "*");
-    }
-    self.eatWhitespaces(false);
-
-    return Stmt{ .EndPhantomEnviron = name };
+    _ = try self.expectWithError(.Endenv, .remain);
+    const name = try self.popEndenvStack(endenv_location);
+    return Stmt{ .EndPhantomEnviron = CowStr.init(.Borrowed, .{name}) };
 }
 
 fn parseDefineCommand(
