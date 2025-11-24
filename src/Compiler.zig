@@ -146,7 +146,7 @@ pub fn compile(self: *Self) !void {
             try self.diagnostic.prettyPrint(self.attr.no_color);
 
             if (err == error.FailedToOpenFile) return err;
-            if (!self.attr.watch) break;
+            if (!self.attr.watch) return err;
             if (self.attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
                 self.prev_mtime.* = std.time.nanoTimestamp();
