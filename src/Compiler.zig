@@ -206,8 +206,12 @@ fn compileInner(self: *Self) !void {
         self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.FailedToOpenFile;
     };
-    errdefer self.allocator.free(real_filename);
-    try main_vesti_files.put(self.allocator, real_filename, true);
+    // although `real_filename` is allocated, after appending into
+    // main_vesti_files, it deallocates when `main_vesti_files` deallocates.
+    main_vesti_files.put(self.allocator, real_filename, true) catch |err| {
+        self.allocator.free(real_filename);
+        return err;
+    };
 
     var vesti_files = if (self.attr.compile_all)
         StringArrayHashMap(bool){}
