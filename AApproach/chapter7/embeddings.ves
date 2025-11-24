@@ -14,6 +14,7 @@ Zygmund space (which differs from the usual H\"older space
 $C^\alpha=C^\alpha(\R^d)$ only if $\alpha$ is an integer, see \cite{Tri1}).
 The second one says that $H_p^n \subset H_q^m$ if $m < n$ and $n-d/p = m - d/q$.
 
+#label(thm:7.1)
 useenv thm {
     #enum((\alph*)) {
         \item If $\alpha\defeq n-d/p>0$ and $u\in\Hc_p^n(\tau)$, then $u\in
@@ -61,5 +62,397 @@ useenv thm {
         + (\Sb u)\I_{t<=\tau}dw_t$.
     }
     By uniqueness, the solution coincides with $u$ on $[0,\tau]$.
-    By \cref{thm:very-simple-spde-sol}
+    By \cref{thm:very-simple-spde-sol}, assertion (iii) holds.
+}
+
+Further results about some basic properties of the spaces $\Hc_p^n(\tau)$ are
+collected in the following theorem. As we have seen in
+\cref{thm:very-simple-spde-sol}, assertion (iii) of \cref{thm:7.1} is true not
+only for $p=2$ but also for any $p>=2$. However, for $p>2$ a much stronger statement (i) of \cref{thm:7.2} holds.
+
+#label(thm:7.2)
+useenv thm {
+    #enum((\roman*)) {
+    \item If $p>2$, $1/2>\beta>\alpha>1/p$, then for any function $u\in\Hc_p^n(\tau)$,
+    we have $u\in C^{\alpha-1/p}([0,\tau],H_p^{n-2\beta})$ (a.s.) and for any
+    stopping time $\eta<=\tau$,\footnote{
+        As usual, if $X$ is a Banach space, $0<\alpha<1$, and
+        $\Omega\subset\R^d$ an open set, we define
+        $$
+            ||u||_{C^\alpha(\bar\Omega,X)}
+            \defeq \sup_{x\in\Omega} ||u(x)||_X
+            + \sup_{x,y\in\Omega,x!=y}{||u(x) - u(y)||_X // |x-y|^\alpha}.
+        $$
+        Also one can define for any $\alpha>0$ similar with the real-valued
+        H\"older space.
+    }
+    #eq(eq:7.2.1) {
+        \Eb||u(t\land\eta,\cdot) - u(s\land\eta,\cdot)||_{n-2\beta,p}^p
+        <= N(d,p,\beta,T)|t-s|^{\beta p - 1}||u||_{\Hc_p^n(\tau)}^p
+        \quad \forall t,s<=T;
+    }
+    #eq(eq:7.2.2) {
+        \Eb||u(t,\cdot)||_{C^{\alpha-1/p}([0,\tau],H_p^{n-2\beta})}^p
+        <= N(d,\alpha,\beta,p,T) ||u||_{\Hc_p^n(\tau)}^p.
+    }
+    \item If $q>=p>2$ and $\theta\in(0,1)$, then for
+    $$
+        m < n + {d//q} - {d+2(1-\theta) // p},\quad u\in\Hc_p^n(\tau),
+    $$
+    we have $u\in L_{p/\theta}((0,\tau),H_q^m)$ (a.s.) and
+    $$
+        \Eb ?(\int_0^\tau ||u(t,\cdot)||_{m,q}^{p/\theta}dt)?^\theta
+        <= N(d,p,q,n,m,\theta,T) ||u||_{\Hc_p^n(\tau)}^p.
+    $$
+    In particular (take $\theta=p/q$),
+    $$
+        \Eb ?(\int_0^\tau ||u(t,\cdot)||_{m,q}^{q}dt)?^{p/q}
+        <= N(d,p,q,n,m,T) ||u||_{\Hc_p^n(\tau)}^p
+    $$
+    if
+    $$
+        q > p > 2,\quad
+        m < n - (d+2) ?({1//p} - {1//q})?.
+    $$
+    }
+}
+
+To prove the theorem, we need two lemmas. Remember the notation $T_t$ introduced
+in \cref{eq:heat-trans}.
+
+#label(lemma:7.3)
+useenv lemma {
+    For any $h\in L_p$, $\theta\in[0,1]$, and $t>0$, we have
+    #eq(eq:7.3.1) {
+        ||e^{-t}T_th||_p <= N{1//t^\theta}||h||_{-2\theta,p},\quad
+        ||(T_t-1)h||_p <= Nt^\theta||h||_{2\theta,p}.
+    }
+    where $N=N(d,p,\theta)$.
+    \proof
+    These inequalities follow from Theorem 14.11 of \cite{Kra}.
+    For the sake of completeness, we prove them.
+    The derivative $(T_th)_t'$ can be represented as $t^{-1}$ times a
+    convolution of $h$ with a function having finite $L_1$-norm, the norm being
+    independent of $t$.\footnote{
+        This function is $p_t$ where $p$ is the heat kernel.
+    } By Minkowski's inequality,
+    $||\zeta*h||_p<=||\zeta||_1||h||_p$ so that
+    #eq (eq:7.3.2) {
+        ||(T_th)_t'||_p <= N(d,p){1//t}||h||_p,\quad
+        ||(e^{-t}T_th)_t'||_p <= N(d,p){1//t}||h||_p.
+    }
+    Hence, for $\theta\in(0,1)$, (see \cref{eq:fractional-lap-2})
+    useenv align* {
+        ||(1-\Delta)^\theta(e^{-t}T_th)||_p
+        &<= c(\theta) ?||\int_0^oo {e^{-(s+t)}T_{s+t}h - e^{-t}T_th//s^\theta}
+        {ds//s}||?_p \\
+        &<= N\int_0^t {1//s^\theta}||e^{-(s+t)}T_{s+t}h-e^{-t}T_th||_p{ds//s}
+        + N\int_t^oo{ds//s^{1+\theta}}||h||_p.
+    }
+    Here by \cref{eq:7.3.2}
+    $$
+        ||e^{-(s+t)}T_{s+t}h - e^{-t}T_th||_p <= N{s//t}||h||_p,
+    $$
+    $$
+        \int_0^t {1//s^\theta}
+        ||e^{-(s+t)}T_{s+t}h - e^{-t}T_th||_p{ds//s} <=
+        N||h||_p\int_0^t{ts^\theta}ds = N{1//t^\theta}||h||_p.
+    $$
+    This proves that
+    #eq (eq:7.3.3) {
+        ||e^{-t}T_t(1-\Delta)^\theta h||_p <= N||h||_pt^{-\theta},
+    }
+    which gives the first inequality in \cref{eq:7.3.1} after replacing
+    $(1-\Delta)^\theta h$ with $h$. If $\theta=0$, then one can take $N=1$ in
+    the first inequality in \cref{eq:7.3.1}, which follows from Minkowski's
+    inequality.
+    If $\theta=1$, then we use \cref{eq:7.3.2} and the fact that
+    $(e^{-t}T_th)_t'=e^{-t}T_t(\Delta-1)h$.
+
+    To prove the second inequality in \cref{eq:7.3.1} for $t\in[0,1]$ and
+    $\theta>0$ it suffices to notice that $(T_th)_t'=\Delta T_th$ and
+    $\Delta=[\Delta(1-\Delta)^{-1}](1-\Delta)^{1-\theta}(1-\Delta)^\theta$ and
+    use \cref{eq:7.3.3} in the following estimates
+    useenv align* {
+        ||(T_t-1)h||_p
+        &<= \int_0^t||[\Delta(1-\Delta)^{-1}](1-\Delta)^{1-\theta}
+        T_s[(1-\Delta)^\theta h]||_p ds \\
+        &<= N\int_0^t||(1-\Delta)^{1-\theta}T_s[(1-\Delta)^\theta h]||_p ds \\
+        &<=
+        N||h||_{2\theta,p}\int_0^t s^{\theta-1}ds \\
+        &= Nt^\theta||h||_{2\theta,p}.
+    }
+    For $t>=1$ or $\theta=0$, the second inequality in \cref{eq:7.3.1} is
+    trivial since $||h||_p<=||h||_{2\theta,p}$ and $t^0=1$.
+}
+
+#label(lemma:7.4)
+useenv lemma {
+    Let $\alpha p>1$ and $p>=1$. Then, for any continuous $L_p$-valued function
+    $h(t)$, and $s<=t$, we have
+    #eq (eq:7.4.1) {
+    useenv aligned {
+        ||h(t) - h(s)||_p^p &<= N(\alpha,p)(t-s)^{\alpha p-1}
+        \int_s^t\int_s^t \I_{r_2>r_1} {||h(r_2)-h(r_1)||_p^p //
+        |r_2-r_1|^{1+\alpha p}}dr_1dr_2 \\
+        &=N(\alpha,p)(t-s)^{\alpha p-1}\int_0^{t-s}{1//\gamma^{1+\alpha p}}
+        \int_s^{t-\gamma} ||h(r+\gamma) - h(r)||_p^pdrd\gamma\quad ({0//0}\defeq 0).
+    }}
+}
+
+This is one of embedding theorems for Slobodetskii's spaces (see, for instance,
+\cite{Tri1}). It is said that embedding theorems were applied for studying
+continuity properties of random processes for quite long time. The following consequence of \cref{eq:7.4.1},
+#eq (eq:7.4.2) {
+    useenv aligned {
+        \Eb\sup_{0<=s<t<=T}{||h(t)-h(s)||_p^p//(t-s)^{\alpha p-1}}
+        &<= N(\alpha,p)\int_0^T\int_0^T \I_{r_2>r_1}
+        {\Eb||h(r_2)-h(r_1)||_p^p//|r_2-r_1|^{1+\alpha p}}dr_1dr_2 \\
+        &= N(\alpha,p)\int_0^T{d\gamma//\gamma^{1+\alpha p}}\int_0^{T-\gamma}
+        \Eb||h(r+\gamma)-h(r)||_p^pdrd\gamma\quad ({0//0}\defeq 0)
+    }
+}
+can be used whenever one uses Kolmogorov's continuity criterion. By the way,
+embedding theorems are (for the most part) known for multidimensional case as
+well, and one can use them for studying random fields.
+Finally, notice that the space $L_p$ in \cref{eq:7.4.1} and \cref{eq:7.4.2} can
+be replaced with any Banach space.
+
+useenv pf [\Cref{thm:7.2}] {
+    Take $u\in\Hc_p^n(\tau)$, and define $f=(\Db u-\Delta u)\I_{t<=\tau}$ and
+    $g=(\Sb u)\I_{t<=\tau}$. Notice that the function $u$ on $[0,\tau]$
+    satisfies the equation
+    #eq (eq:7.2.3) {
+        dv = (\Delta v + f)dt + g^kdw_t^k.
+    }
+    By \Cref{thm:sol-the-spde-nonlin}, equation \cref{eq:7.2.3} on $[0,T]$ with
+    initial condition $v(0)=u(0)$ has a unique solution $v\in\Hc_p^n(T)$.
+    The difference $u-v$ satisfies the heat equation on $[0,\tau]$ with zero
+    initial condition. It follows that $u(t,\cdot)=v(t,\cdot)$ on $[0,\tau]$,
+    and by \Cref{thm:sol-the-spde-nonlin},
+    $$
+        ||v||_{\Hc_p^n(T)}
+        <= N(||f||_{\Hb_p^{n-2}(\tau)}+||g||_{\Hb_p^{n-1}(\tau,l_2)}
+        +(\Eb||u(0)||_{n-2/p,p}^p)^{1/p}) <= N||u||_{\Hc_p^n(\tau)}.
+    $$
+    The inequality $||v||_{\Hc_p^n(T)}<=N||u||_{\Hc_p^n(\tau)}$ and the
+    inequality $u(t,\cdot)=v(t,\cdot)$ on $[0,\tau]$ show that we only need to
+    prove the theorem for $v,T$ in place of $u,\tau$. In particular, we may and
+    will assume that $\tau=T$. Also, observe that
+    $$
+        ||f||_{\Hb_p^{n-2}(T)}+||g||_{\Hb_p^{n-1}(T,l_2)}
+        + (\Eb||u(0)||_{n-2/p,p}^p)^{1/p} <= N||u||_{\Hc_p^n(T)}.
+    $$
+    This allows us to concentrate only on solutions of \cref{eq:7.2.3} on
+    $[0,T]$ and to prove our assertions with
+    $||(f,g)||_{\Fc_p^{n-2}(T)}+(\Eb||u(0)||_{n-2/p,p}^p)^{1/p}$ in place of
+    $||u||_{\Hc_p^n(T)}$. Therefore, below we take $\tau=T$ and take the
+    function $u\in\Hc_p^n(T)$ as a solution of \cref{eq:7.2.3}. As in the proof
+    of \cref{thm:very-simple-spde-sol}, we may and will assume that $f$ and $g$
+    are as in \cref{eq:thm:simple-functions} and $u(0)\in C_0^oo$.
+
+    After these preparations, we are going to prove assertion (i). By
+    \Cref{remark:3.4}, without loss of generality we assume that $n=2\beta$
+    and $s<=t$.
+    Denote\footnote{
+        Recall that $u(t,x) = \int_0^t T_{t-s}f(s,x)ds$, where $f$ is
+        sufficiently good, solves $u_t = \Delta u + f$ on $[0,oo)$
+        (see \cite{Kry6}).
+    }
+    $$
+        u_1(t) = T_tu_0 + \int_0^t T_{t-s}f(s)ds.
+    $$
+    It is easy to see that\footnote{
+        Since $f$ is bounded, the Fubini's theorem implies
+        $$
+            T_\gamma\int_0^r T_{r-\rho}f(\rho)d\rho
+            = \int_0^r T_{r+\gamma-\rho}f(\rho)d\rho.
+        $$
+    }
+    $$
+        u_1(r+\gamma) - u_1(r) = (T_\gamma - 1)u_1(r) + \int_0^\gamma
+        T_{\gamma-\rho}f(r+\rho)d\rho.
+    $$
+    Therefore, $\Eb||u_1(r+\gamma)-u_1(r)||_p^p <=
+    N(A_1(r,\gamma)+B_1(r,\gamma))$, where
+    $$
+        A_1(r,\gamma) = \Eb||(T_\gamma-1)u_1(r)||_p^p,\quad
+        B_1(r,\gamma) = \Eb?||\int_0^\gamma
+        T_{\gamma-\rho}f(r+\rho)d\rho||?_p^p,
+    $$
+    and, by \Cref{lemma:7.4},
+    $$
+        \Eb||u_1(t) - u_1(s)||_p^p <= N(t-s)^{\alpha p-1}(I_1(t,s)+J_1(t,s)),
+    $$
+    with
+    $$
+        I_1(t,s) = \int_0^{t-s}{d\gamma//\gamma^{1+\alpha p}}
+        \int_s^{t-\gamma}A_1(r,\gamma)dr, \quad
+        J_1(t,s) = \int_0^{t-s}{d\gamma//\gamma^{1+\alpha p}}
+        \int_s^{t-\gamma}B_1(r,\gamma)dr.
+    $$
+
+    By using H\"older's inequality and \Cref{lemma:7.3} and observing that
+    $(\beta-1)q>-1$ for $q=p/(p-1)$, we get (remember $n=2\beta$
+    so that $\theta = (1/2)(2-n) \in [0,1]$)
+    useenv align* {
+        B_1(r,\gamma)
+        &= \Eb\int_{\R^d}?|\int_0^\gamma\rho^{\beta-1}\rho^{1-\beta}
+        T_\rho f(r+\gamma-\rho)d\rho|?^pdx \\
+        &<= ?(\int_0^\gamma \rho^{(\beta-1)q}d\rho)?^{p/q}
+        \Eb\int_0^\gamma\rho^{(1-\beta)p}\int_{\R^d}|T_\rho f(r+\gamma-\rho)|^p
+        dxd\rho \\
+        &<= N(d,p,\beta)\gamma^{\beta p-1}\Eb\int_0^\gamma
+        e^{\rho p}||f(r+\gamma-\rho)||_{n-2,p}^pd\rho \\
+        &<= N(d,p,\beta,T)\gamma^{\beta p-1}\Eb\int_0^\gamma
+        ||f(r+\gamma-\rho)||_{n-2,p}^pd\rho \\
+        &= N(d,p,\beta,T)\gamma^{\beta p-1}\Eb\int_0^\gamma
+        ||f(r+\rho)||_{n-2,p}^pd\rho.
+    }
+    This and the inequality $\alpha < \beta$ implies that
+    useenv align* {
+        J_1(t,s)
+        &<= N\int_0^{t-s}{d\gamma//\gamma^{2+(\alpha-\beta)p}}
+        \int_0^\gamma\Eb\int_s^{t-\gamma}||f(r+\rho)||_{n-2,p}^pdrd\rho \\
+        &<= N\int_0^{t-s}{d\gamma//\gamma^{2+(\alpha-\beta)p}}
+        \int_0^\gamma\Eb\int_0^{t}||f(r)||_{n-2,p}^pdrd\rho \\
+        &= N(t-s)^{(\beta-\alpha)p}
+        \Eb\int_0^{t}||f(r)||_{n-2,p}^pdr.
+    }
+
+    To estimate $I_1$, we use \Cref{lemma:7.3} and \Cref{thm:2.1} to obtain
+    $$
+        A_1(r,\gamma)
+        <= N\gamma^{\beta p}\Eb||u_1(r)||_{n,p}^p
+        <= N\gamma^{\beta
+        p}[\Eb||u(0)||_{n-2/p,p}^p+\Eb\int_0^r||f(s)||_{n-2,p}^pds]
+    $$
+    useenv align* {
+        I_1(t,s)
+        &<= \int_0^{t-s}{d\gamma//\gamma^{1+\alpha p}}
+        \int_0^t A_1(r,\gamma)dr \\
+        &<=
+        N(t-s)^{(\beta-\alpha)p}[\Eb||u(0)||_{n-2/p,p}^p+\Eb\int_0^r||f(s)||_{n-2,p}^pds].
+    }
+
+    For $u_2\defeq u-u_1$ we have\footnote{
+        See the proof of \Cref{thm:very-simple-spde-sol}.
+    }
+    $$
+        u_2(r+\gamma)-u_2(r)
+        = (T_\gamma-1)u_2(r) + \int_r^{r+\gamma}T_{r+\gamma-\rho}g^k(\rho)dw_\rho^k,
+    $$
+    $$
+        \Eb||u_2(r+\gamma)-u_2(r)||_p^p <= N(A_2(r,\gamma)+B_2(r,\gamma)),
+    $$
+    where
+    $$
+        A_2(r,\gamma) = \Eb||(T_\gamma-1)u_2(r)||_p^p,\quad
+        B_2(r,\gamma) = \Eb
+        ?||\int_r^{r+\gamma}T_{r+\gamma-\rho}g^k(\rho)dw_\rho^k||?_p^p.
+    $$
+    By \Cref{lemma:7.4},
+    $$
+        \Eb||u_2(t)-u_2(s)||_p^p <= N(t-s)^{\alpha p-1}(I_2(t,s)-J_2(t,s)),
+    $$
+    with
+    $$
+        I_2(t,s) = \int_0^{t-s}{d\gamma//\gamma^{1+\alpha p}}
+        \int_s^{t-\gamma}A_2(r,\gamma)dr, \quad
+        J_2(t,s) = \int_0^{t-s}{d\gamma//\gamma^{1+\alpha p}}
+        \int_s^{t-\gamma}B_2(r,\gamma)dr.
+    $$
+
+    Here we use \Cref{lemma:7.3}, the Burkholder-Davis-Gundy inequalities, and
+    the inequality $(2\beta-1)q>-1$, where $q=p/(p-2)$. Then, similarly to the
+    above calculations, we obtain
+    useenv align* {
+        B_2(r,\gamma)
+        &= \int_{\R^d}\Eb
+        ?|\int_r^{r+\gamma}T_{r+\gamma-\rho}g^k(\rho)dw_\rho^k|?^pdx \\
+        &<= N\Eb\int_{\R^d}
+        ?(\int_r^{r+\gamma}||T_{r+\gamma-\rho}g(\rho)||_{l_2}^2d\rho)?^{p/2}dx \\
+        &= N\Eb\int_{\R^d} ?(\int_0^{\gamma}
+        \rho^{2\beta-1}\rho^{1-2\beta}||T_{\rho}g(r+\gamma-\rho)||_{l_2}^2d\rho
+        )?^{p/2} dx \\
+        &<= N\gamma^{\beta p-1}\Eb \int_0^{\gamma}
+        \rho^{(1-2\beta)p/2}||T_{\rho}g(r+\gamma-\rho)||_{p}^pd\rho \\
+        &<= N\gamma^{\beta p-1}\Eb \int_0^{\gamma}
+        ||(1-\Delta)^{\beta-1/2}g(r+\gamma-\rho)||_{p}^pd\rho,
+    }
+    useenv align* {
+        J_2(t,s)
+        &<= N\Eb\int_0^{t-s}{d\gamma//\gamma^{2+(\alpha-\beta)p}}
+        \int_s^{t-\gamma}\int_0^\gamma||g(r+\gamma-\rho)||_{n-1,p}^pd\rho dr\\
+        &<= N\Eb\int_0^{t-s}{d\gamma//\gamma^{2+(\alpha-\beta)p}}
+        \int_0^\gamma\int_0^{t}||g(r)||_{n-1,p}^pdrd\rho \\
+        &= N(t-s)^{(\beta-\alpha)p} \Eb\int_0^{t}||g(r)||_{n-1,p}^pdr.
+    }
+
+    Finally, again by \Cref{lemma:7.3} and \Cref{thm:very-simple-spde-sol}, we conclude
+    useenv align* {
+        I_2(t,s)
+        &<= N\Eb\int_0^{t-s}{d\gamma//\gamma^{1+(\alpha-\beta)p}}
+        \int_s^{t-\gamma}||u_2(r)||_{n,p}^pdr \\
+        &<= N(t-s)^{(\beta-\alpha)p}\Eb\int_0^t||u_2(r)||_{n,p}^pdr \\
+        &<= N(t-s)^{(\beta-\alpha)p}\Eb\int_0^t||g(r)||_{n-1,p}^pdr.
+    }
+    Collecting all these estimates, we get \cref{eq:7.2.1} at least for
+    $\eta=T(=\tau)$. In the general case, observe that if
+    $u(t\land\eta)-u(s\land\eta)$ is not zero, then $s\land\eta=s$ and
+    $s<=s\land\eta<=t\land\eta<=t$.
+    After this it suffices to notice that, instead of points $t$ and $s$ on the
+    left in \cref{eq:7.4.1}, we can obviously take any two points between them.
+
+    The proof of \cref{eq:7.2.2} goes exactly the same way, the only difference
+    being that this time we use \cref{eq:7.4.2} and the formula
+    useenv align* {
+        \Eb\sup_{t<=T}||h(t)||_p^p
+        &<= N\Eb||h(0)||_p^p + N\Eb\sup_{t<=T}||h(t) - h(0)||_p^p \\
+        &<= N\Eb||h(0)||_p^p + N T^{\alpha p-1}\int_0^T\int_{0}^{T-\gamma}
+        {\Eb||h(r+\gamma)-h(r)||_p^p // \gamma^{1+\alpha p}}drd\gamma
+    }
+    because of \cref{eq:7.4.1} by taking $s=0$, supremum over $t$, and then take
+    an expectation.
+
+    To prove assertion (ii) notice that an interpolation theorem (Theorem 2.4.2
+    in \cite{Tri1}) we have
+    $$
+        ||u||_{m(\theta)-d/p+d/q,q}
+        <= N(d,p,q,m(0),m(1),\theta)||u||_{m(0),p}^{1-\theta}||u||_{m(1),p}^\theta
+    $$
+    whenever $2<=p<=q<oo$, $\theta\in(0,1)$, $m(\theta) \defeq
+    (1-\theta)m(0)+\theta m(1)!=m(0)$, $m(i)<=n$, and $u\in H_p^n$.
+    Indeed, Theorem 2.4.2 in \cite{Tri1} gives that
+    $(H_p^{m(0)},H_p^{m(1)})_{\theta,2} = B_{p,2}^{m(\theta)} \subset
+    H_p^{m(\theta)}$.\footnote{
+        Recall that $F_{p,2}^s=H_p^s$, and $B_{p,p\land q}^s\subset F_{p,q}^s$.
+        Here, remember also that $p>=2$.
+    }
+    Now if $q>p$, by the Sobolev embedding theorem gives $H_p^{m(\theta)}\subset
+    H_q^{m(\theta)-d/p+d/q}$.\footnote{
+        Recall that if $1<p<=q<oo$ and $s-d/p=t-d/q$, we have $H_p^s\subset
+        H_q^t$.
+    }
+    Now use the basic property of real interpolation spaces (see
+    \cref{thm:prop-interpolation}).
+
+    Note also that, under the conditions in (ii), there is a $\beta$ such that
+    $1/2>\beta>1/p$ and $m <= n-2\beta(1-\theta)-d/p+d/q=m(\theta)-d/p+d/q$,
+    where $m(\theta)\defeq (1-\theta)(n-2\beta)+\theta n$. Therefore,
+
+    \goodbreak
+    useenv align* {
+        \Eb ?(\int_0^T||u(t,\cdot)||_{m,q}^{p/\theta}dt)?^\theta
+        &<= \Eb ?(\int_0^T||u(t,\cdot)||
+        _{m(\theta)-d/p+d/q,q}^{p/\theta}dt)?^\theta \\
+        &<= N\Eb ?(\int_0^T||u(t,\cdot)||_{n-2\beta,p}^{(1-\theta)p/\theta}
+        ||u(t,\cdot)||_{n,p}^pdt)?^\theta \\
+        &<= N\Eb\sup_{t<=T}||u(t,\cdot)||_{n-2\beta,p}^{(1-\theta)p}
+         ?(\int_0^T||u(t,\cdot)||_{n,p}^pdt)?^\theta.
+    }
+
+    To prove (ii), it remains only to apply H\"older's inequality,
+    \cref{eq:3.7.1}, and \cref{eq:7.2.2} with an $\alpha$ such that
+    $\beta>\alpha>1/p$. The theorem is proved.
 }

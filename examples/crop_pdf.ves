@@ -9,11 +9,18 @@ startdoc
 \pagestyle{empty}
 
 #lu:
-for i = 1, 430 do
-    template = [[useenv center {
-    \includegraphics[page=$i,trim=0.5cm 3in 3.1in 0.5cm,clip,width=\textwidth]{getfp(foo.pdf)}
-    }]]
-    vesti.print(vesti.parse(template))
-    vesti.print("\\newpage")
+for i = 2, 22 do
+local template_odd = [[\hbox to\textwidth{\hss\vbox to\textheight{\vss
+\includegraphics[page=%d,trim=0.5cm 3in 2.5in 0.5cm,clip,width=\textwidth]{#get_filepath(with.pdf)}
+\vss}\hss}]]
+local template_even = [[\hbox to\textwidth{\hss\vbox to\textheight{\vss
+\includegraphics[page=%d,trim=2.5in 3in 0.5cm 0.5cm,clip,width=\textwidth]{#get_filepath(with.pdf)}
+\vss}\hss}]]
+if i % 2 ~= 0 then
+vesti.print(vesti.parse(template_even:format(i)))
+else
+vesti.print(vesti.parse(template_odd:format(i)))
+end
+vesti.print("\\newpage")
 end
 :lu#

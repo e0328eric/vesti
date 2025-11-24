@@ -1,9 +1,10 @@
 #@vesti | A latex transpiler {}
 
 #compile | Compile vesti into Latex file {
-    *FILENAMES      : strings     | filenames to compile;
+    *FILENAME       := @null      | filename to compile;
     -emit_tex,e     := @false     | compile vesti into tex file only (do nothing at this point);
-    -no_color,N     := @false     | on watch mode, exit immediately when error occurs;
+    -exit_err,E     := @false     | on watch mode, exit immediately when error occurs;
+    -no_color,N     := @false     | no color output on a terminal;
     -all,a          := @false     | compile vesti files given from FILENAMES with directory name;
     -watch,W        := @false     | watch vesti files when modified;
     -latex,L        := @false     | compile vesti using latex (can be changed using `compty` keyword);
@@ -12,17 +13,10 @@
     -lualatex,l     := @false     | compile vesti using lualatex (can be changed using `compty` keyword);
     -tectonic,T     := @false     | compile vesti using tectonic (can be changed using `compty` keyword);
     -lim,           := 3          | set the number of the compile cycle;
+    -first_script,  := first.lua  | run lua code once;
     -before_script, := before.lua | run lua code once for each vesti runs;
-    -step_script,   := step.lua   | custom lua code to execute for each end of vesti steps
+    -step_script,   := step.lua   | custom lua code to execute for each end of vesti steps;
 }
 
 #clear | Remove .vesti-dummy directory {}
 
-#run | run `first_script` without compiling vesti {
-    -latex,L       := @false    | compile vesti using latex;
-    -pdflatex,p    := @false    | compile vesti using pdflatex;
-    -xelatex,x     := @false    | compile vesti using xelatex;
-    -lualatex,l    := @false    | compile vesti using lualatex;
-    -tectonic,T    := @false    | compile vesti using tectonic;
-    -first_script, := first.lua | run lua code once
-}

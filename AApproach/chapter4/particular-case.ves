@@ -66,6 +66,7 @@ useenv thm {
         }
     }
     \proof
+    \postdisplaypenalty=50
     It is well known that there exists a continuous linear operator
     $$
         P : H^{-1}_p -> (L_p)^{d+1}
@@ -173,14 +174,25 @@ useenv thm {
     To make some further transformations of this formula, consider
     a bounded Borel function $z^k=z^k(x)$ and
     $$
-        \xi_r^k = ?(\int_r^tT_{t-s}z^kds)?(w_{r\land\tau_2}^k - w_{r\land\tau_1}^k)
+        ?(\int_r^tT_{t-s}z^kds)?(w_{r\land\tau_2}^k - w_{r\land\tau_1}^k)
+        \eqdef \xi_r^k\eta_r^k
     $$
-    (with no summation in $k$) as a function of $r$, we obtain (a.s.)
+    (with no summation in $k$) as a function of $r$. Then one can easily obtain
+    $$
+        d\xi_r^k = -T_{t-r}z^kdr,\quad d\eta_r^k = \I_{(\tau_1,\tau_2]}dw_r^k.
+    $$
+    Hence, by the It\^o's formula, we obtain 
+    $$
+        d(\xi_r^k\eta_r^k) = -\eta_r^kT_{t-r}z^kdt +
+        \I_{(\tau_1,\tau_2]}\xi_r^kdw_r^k.
+    $$
+    By considering its integral form and then taking $r=t$, we have (a.s.)
     $$
         0 = -\int_0^t(w_{r\land\tau_2}^k - w_{r\land\tau_1}^k)T_{t-r}z^kdr
         + \int_0^t \I_{(\tau_1,\tau_2]}(r) ?(\int_r^t T_{t-s}z^kds)?dw_r^k.
     $$
-    By using this for our particular $g$,\footnote{
+
+    Now we are going to use our particular $g$,\footnote{
         One can also use stochastic Fubini's theorem to obtain it. However,
         because $g$ is a simple function in the sense that calculating
         stochastic integral is easy, we can obtain the equality without
@@ -320,8 +332,8 @@ useenv thm {
         + {p(p-1)//2}\Eb\int_0^T e^{-\lambda s}|| |u|^{(p-2)/p} |u_x|^{2/p} ||_p^pds
         + \lambda\Eb\int_0^T e^{-\lambda s}||u(s,\cdot)||_p^p ds \\
         &\kern1cm<=N\Eb\int_0^T e^{-\lambda s}[||f(s,\cdot)||_{-1,p}^p +
-        ||g(s,\cdot)||_p^p]ds
-        + [N_1p(p-1) + N_2p+p+{p(p-1)//2}]\Eb\int_0^T e^{-\lambda
+        ||g(s,\cdot)||_p^p]ds \\
+        &\kern2cm+ [N_1p(p-1) + N_2p+p+{p(p-1)//2}]\Eb\int_0^T e^{-\lambda
         s}||u(s,\cdot)||_p^pds.
     }
 
@@ -477,8 +489,17 @@ useenv thm {
         \Eb\sup_{t<=T}(e^{-pt\lambda}||u_j(t,\cdot)-u(t,\cdot)||_p^p)
         <= \Eb\sup_{t<=T} ||u_j(t,\cdot)-u(t,\cdot)||_p^p -> 0.
     $$
-    Finally, by the Fatou's lemma, we prove
-    \cref{eq:thm:very-simple-spde-sol-2}, and the theorem is proved.
+    Finally, by the Fatou's lemma, we prove \cref{eq:thm:very-simple-spde-sol-2}, and the theorem is proved.
+}
+
+useenv remark {
+    Assume that $f$ and $g$ satisfies \cref{eq:thm:simple-functions}. Then as
+    in the proof of \Cref{thm:very-simple-spde-sol},
+    the solution to \cref{eq:very-simple-spde} is uniquely written by
+    $$
+        u(t) = \int_0^t T_{t-s}f(s)ds + \sum_{k=1}^oo\int_0^t T_{t-s}g^k(s)dw_s.
+    $$
+    We use this fact later on proving \Cref{thm:7.2}.
 }
 
 useenv remark {

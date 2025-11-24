@@ -1,0 +1,89 @@
+We proved \Cref{thm:8.5} when $d=1$ and from \Cref{remark:when-dim-big-1}, we
+checked that we cannnot use the kernel to prove \Cref{thm:8.5} when $d>=2$.
+
+Let us rewrite \cref{eq:white-noise}:
+#eq (eq:appx:white-noise) {
+    du(t,x)
+    = [a^{ij}(t,x)u_{x^ix^j}(t,x)+b^i(t,x)u_{x^i}(t,x)+f(t,x,u(t,x))]dt +
+    h(t,x,u(t,x))dB_t,
+}
+where $B_t$ is a cylindrical Wiener process on $L_2=L_2(\R^d)$.
+useenv center {
+    \bf{\color{red}[Fill out the detail why it suffices to consider
+    \cref{eq:appx:white-noise-alt}]}
+}
+We may take $\sum_k\eta_k(x)dw_t^k$, where $\{\eta_k(x)\}$ is an orthonormal
+basis in $L_2$, and $w_t^k$ are independent $\Fc_t$-adapted one-dimensional
+Wiener process. Then instead of \cref{eq:appx:white-noise}, we may consider
+the equation
+#eq (eq:appx:white-noise-alt) {
+    du(t,x)
+    = [a(t,x)u''(t,x)+b(t,x)u'(t,x)+f(t,x,u(t,x))]dt + g^k(t,x,u(t,x))dw_t^k,
+}
+on a time interval $[0,\tau]$ where $g^k=h\eta_k$ and $\tau$ is a bounded
+stopping time.
+
+Assumptions for $a$, $b$, and $f$ are similar with \Cref{assump:8.5} and
+\Cref{assump:8.6} but this time, we do not assume $d=1$.
+
+#label(assump:9.1)
+useenv assump {
+    The functions $a(t,x)=a(\omega,t,x)$ and $b(t,x)=b(\omega,t,x)$ are
+    real-valued functions defined on $\llo0,\tau\rrc\times\R^d$.
+    #enum ((\roman*)) {
+        \item For any $\omega$ and $t<=\tau(\omega)$, $a(\omega,t,\cdot)\in
+        C^{1,1}(=B^2)$ and $b(\omega,t,\cdot)\in C^{0,1}(=B^1)$ and
+        $||a||_{C^{1,1}}+||b||_{C^{0,1}}<=K$. Also
+        $K(\delta^{ij})>=(a^{ij})>=\delta(\delta^{ij})$.
+        \item For any $x\in\R^d$, the processes $a$ and $b$ are predictable.
+    }
+}
+
+#label(assump:9.2)
+useenv assump {
+    The function $f(t,x,u)$ is a real-valued function on
+    $\llo0,\tau\rrc\times\R^{d}\times\R$ such that
+    #enum ((\roman*)) {
+        \item for any $x$ and $u$, the process $f(t,x,u)$ is predictable;
+        \item for any $\omega,t,x,u$, and $v$,
+        $$
+           |f(t,x,u)-f(t,x,v)| <= K|u-v|.
+        $$
+    }
+}
+
+\subsubsection{when $h$ is independent of $u$}
+First of all, we are going to prove that \cref{eq:appx:white-noise-alt} has a
+unique solution if $h$ is independent of $u$. More specifically, assume that $h$
+satisfies the below assumption.
+
+#label(assump:9.3)
+useenv assump {
+    The $h(t,x)$ are real-valued functions on $\llo0,\tau\rrc\times\R^{d}$ such
+    that for any $x$ the process $h(t,x)$ is predictable.
+}
+As $h$ is independent of $u$, we also write $g^k(t,x)$ instead of $g^k(t,x,u)$.
+
+useenv thm {
+    Let $\kappa\in(0,1/2)$ and $u_0\in
+    L_p(\Omega,\Fc_0,H_p^{(1/2)-\kappa-2/p})$. Assume that
+    $$
+        I^p(\tau)\defeq
+        \Eb\int_0^\tau [||f(t,\cdot,0)||_{-3/2-\kappa,p}+||h(t,\cdot)||_p^p]dt < oo.
+    $$
+    Then in the space $\Hc_p^{1/2-\kappa}(\tau)$,
+    \cref{eq:appx:white-noise-alt} with the initial condition $u_0$ has a unique
+    solution $u$. Moreover,
+    $$
+        ||u||_{\Hc_p^{1/2-\kappa}(\tau)}
+        <= N[I(\tau) + (\Eb||u_0||_{1/2-\kappa-2/p,p}^p)^{1/p}],
+    $$
+    where the constant $N$ depends only on $\kappa,p,\delta,K$, and $\tau$.
+    \proof
+    As in the proof of \Cref{thm:8.5}, on the assumptions of
+    \cref{assump:9.1,assump:9.2}, $b\cdot Du+f$ satisfies assumptions of
+    \Cref{thm:sol-the-spde-nonlin}.
+}
+
+\subsubsection{The case $h(u,t,x) = u(t,x)$}
+

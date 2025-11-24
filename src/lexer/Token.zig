@@ -289,6 +289,8 @@ pub fn isFunctionParam(val: []const u8) ?usize {
 
 pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
+    .{ "at_off" },
+    .{ "at_on" },
     .{ "chardef" },
     .{ "enum" },
     .{ "eq" },
@@ -296,8 +298,6 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "label" },
     .{ "ltx3_off" },
     .{ "ltx3_on" },
-    .{ "at_off" },
-    .{ "at_on" },
     .{ "mathchardef" },
     .{ "mathmode" },
     .{ "noltx3" },

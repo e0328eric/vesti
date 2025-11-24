@@ -1,0 +1,200 @@
+Take $a,b,h$ satisfying \Cref{assump:8.5,assump:8.6} from \Cref{sec:white-noise}
+for $\tau=oo$, $r=1$, $s=oo$, and $\xi\equiv 1$ and take a bounded real-valued
+$\Pc\otimes\Bf(\R)$-measurable function $c(t,x)=c(\omega,t,x)$.
+Assume that $h(t,x,u)=0$ for $u<=0$. Fix a number $\lambda\in[0,1/2)$ and let
+$$
+    g^k(t,x,u) = h(t,x,u)u_+^\lambda\eta_k(x),
+$$
+where, as usual, $\{\eta_k\}_k$ form an orthonormal basis in $L_2$.
+Here it is convenient to assume additionally that each $\eta_k$ is bounded.
+
+The results from \Cref{sec:white-noise} can be easily applied to prove the following theorem.
+
+#label(thm:sec8.4-main)
+useenv thm {
+    Consider the following equation
+    #eq (eq:sec8.4-1) {
+        du(t,x) = [a(t,x)u''(t,x)+b(t,x)u'(t,x)+c(t,x)u(t,x)]dt +
+        g^k(t,x,u(t,x))dw_t^k.
+    }
+    If the initial condition $u_0$ is nonnegative and, say, is nonrandom and
+    belongs to $C_0^oo$, then the equation \cref{eq:sec8.4-1} has a solution
+    defined for all $t$ in the class of functions such that
+    $\sup_{t<=T,x}|u(t,x)|<oo$ (a.s.) for any $T<oo$.
+}
+These facts for \cref{eq:sec8.4-1} considered on a finite space interval with
+$a\equiv 1$, $b\equiv c\equiv 0$, and $h(u)=u_+$ and with zero boundary data
+were discovered in \cite{Mueller} with the help of a quite different approach.
+By using the maximum principle, one can show that our assertion implies the
+result of \cite{Mueller}.
+
+First, let us explain why \cref{eq:sec8.4-1} is solvable despite the high growth
+of $g$ in $u$. It turns out that \cref{eq:sec8.4-1} possesses a kind of integral
+or conservation law. Observe that $u>=0$.
+Indeed, one notices that the solution $u$ of \cref{eq:sec8.4-1} also
+satisfies the equation with $g^k(t,x,u(t,x))$ replaced by $\nu^k(t,x)u(t,x)$,
+where $\nu^k(t,x) = g^k(t,x,u(t,x))u^{-1}(t,x)$ and $|\nu^k|<=N|u|^\lambda$.
+\footnote{
+    Actually, one consider
+    #eq (eq:sec8.4-1.1) {
+        dv = [av''+bv'+cv]dt + \nu^kvdw_t^k
+    }
+    where $nu^k(t,x) = g^k(t,x,u(t,x))u^{-1}(t,x)$ where $u$ solves
+    \cref{eq:sec8.4-1}. Then clearly $u$ also solves \cref{eq:sec8.4-1.1}.
+}
+Then apply \Cref{thm:sec8.4-main} and the maximum principle (see
+\Cref{thm:5.12}) on \cref{eq:sec8.4-1.1}.
+Moreover, if, for instance, $a=1$, $b=c=0$, then, by integrating
+\cref{eq:sec8.4-1} formally with respect to $x$, one obtains that
+$||u(t,\cdot)||_1$ is a local martingale. It is nonnegative, therefore its
+trajectories are bounded (a.s.).
+useenv center {
+    \bf{\color{red}[Prove that $||u(t,\cdot)||_1$ is really a local martingale]}
+}
+
+This takes care of \lq\lq almost $u^{1/2}$\rq\rq\ in the diffusion term.
+Indeed, one can rewrite \cref{eq:sec8.4-1} with $\xi(t,x)u\eta_k(x)$ in place of
+$g^k(t,x,u)$, where
+$$
+    \xi(t,x) = h(t,x,u(t,x))u^{\lambda-1}(t,x)
+$$
+and $|\xi|<=|u|^\lambda$. By the above, the latter is summable to power $2s=1/\lambda$, and $s>1$ (which is required in \Cref{thm:8.5}) for $\lambda<1/2$.
+Therefore, $u$ satisfies a linear equation with coefficients under control,
+and we get that $u(t,x)$ is a bounded continuous function on $[0,T]\times\R$
+for any $T<oo$ as in \Cref{remark:8.7} (by letting $p->oo$).
+The rigorous treatment below follows this idea.
+
+By \Cref{thm:8.5}, for any $m=1,2,3,...$, the equation
+#eq (eq:sec8.4-2) {
+    du_m = (au_m''+bu_m'+cu_m)dt + g^k(u_m\land m)dw_t^k
+}
+with the initial condition $u_m(0,\cdot)=u_0$ has a unique solution
+$u_m\in\Hc_p^{1/2-\kappa}(T)$ for any $\kappa\in(0,1/2)$, $p>=2$, and $T<oo$.
+By \Cref{remark:8.7}, the function $u_m(t,x)$ is continuous in $(t,x)$ (a.s.).
+To proceed with the argument, we need the following lemma to be proved later.
+
+#label(lemma:8.10)
+useenv lemma {
+    For any $T<oo$,
+    #eq (eq:8.10.1) {
+        \lim_{R->oo}\sup_m\Pb\{\sup_{t<=T,x}|u_m(t,x)|>=R = 0\}.
+    }
+}
+Define
+$$
+    \tau_m^R = \inf\{t>=0:\sup_x|u_m(t,x)|>=R\}.
+$$
+Observe that if $m>=R$ (and $R$ is an integer), then the functions $u_m$ and
+$u_R$ satisfy the same equation on $[0,\tau_m^R)$ and therefore coincide by
+uniqueness. In particular, $\tau_m^m>=\tau_m^R=\tau_R^R$ (a.s.).
+Therefore, there is no ambiguity in the definition
+$$
+    u(t,x) = u_m(t,x)\quad "on"\quad [0,\tau_m^m].
+$$
+Of course, $u$ satisfies \cref{eq:sec8.4-1} on $(0,\lim\tau_m^m)$ and
+$|u(t,x)|<=m$ for $t<=\tau_m^m$. To finish the proof of \Cref{thm:sec8.4-main},
+it only remains to notice that $\lim\tau_m^m=oo$ (a.s.), since, by
+\cref{eq:8.10.1},
+$$
+   \Pb\{\tau_m^m <= T\}
+   = \Pb\{\sup_{t<=T,x}|u_m(t,x)|>=m\}
+   <= \sup_n\Pb\{\sup_{t<=T,x}|u_n(t,x)|>=m\} -> 0
+$$
+as $m->oo$.
+
+useenv pf [\Cref{lemma:8.10}] {
+    Define
+    $$
+        \xi_m(t,x) = h(t,x,u_m(t,x)\land m)(u_m(t,x)\land m)_+^\lambda
+        u_m^{-1}(t,x)\quad (0\cdot0^{-1} \defeq 0)
+    $$
+    and notice that $\xi_m$ is a bounded function. It follows from \cref{eq:sec8.4-2} that $u_m$ is a solution of the equation
+    #eq (eq:8.10.2) {
+        dv = (av''+bv'+cv)dt + v\xi_m\eta_kdw_t^k.
+    }
+    Obviouisly, \Cref{assump:8.5,assump:8.6} from \Cref{sec:white-noise} are
+    satisfied for \cref{eq:8.10.2}. By \Cref{remark:8.6} and by virtue of our
+    assumptionm about boundedness of $\eta_k$, \Cref{thm:5.12} is valid for
+    \cref{eq:8.10.2}. Thus $u_m>=0$ (a.s.).
+
+    Next, take $\zeta_k(x)$ from \Cref{thm:5.7},\footnote{
+        Assuming further that $\zeta_k$ is nonnegative does not harm
+        \Cref{thm:5.7}.
+    } multiply \cref{eq:sec8.4-2}
+    by $\zeta_ke^{-Kt}$, where $K=\sup(|a''|+|b'|+|c|)$, integrate by parts
+    (that is, use the definition of solutions and It\^o's formula\footnote{
+        Notice that
+        $$
+            d(u_me^{-Kt}) = (au_m''+bu_m'+(c-K)u_m)e^{-Kt}dt
+            + g^k(u_m\land m)dw_t^k.
+        $$
+    }), and take expectations. Then, for any constant $T$ and stopping time
+    $\tau<=T$, we obtain\footnote{
+        In the equation, we used the fact that $((a''-b'+c-K)\zeta_k,u_m)<=0$
+        (a.s.) (here, $\zeta_k>=0$ is assumed) because notice that $u_m>=0$
+        (a.s.).
+    }
+    \goodbreak
+    useenv align* {
+        e^{-KT}\Eb(\zeta_k,u_m(\tau,\cdot))
+        &<= \Eb(\zeta_k,u_m(\tau,\cdot))e^{-K\tau} \\
+        &= (\zeta_k,u_0)
+        + \Eb\int_0^\tau (a\zeta_k''+(2a'-b)\zeta_k' + (a''-b'+c-K)\zeta_k,u_m)
+        e^{-Kt}dt \\
+        &<= N + N\Eb\int_0^\tau (|\zeta_k''|+|\zeta_k'|,u_m)dt \\
+        &<= N + {N//k}k^{1-1/p}\Eb\int_0^T||u_m(t,\cdot)||_pdt,
+    }
+    $$
+        \Eb(\zeta_k,u_m(\tau,\cdot))
+        <= N + Nk^{-1/p}?(\Eb\int_0^T||u_m(t,\cdot)||_p^pdt)?^{1/p}
+        <= N + Mk^{-1/p},
+    $$
+    where the last constant $N$ is independent of $m$, $k$, and $\tau$,
+    and $M$ is independent of $k$. Since this inequality is true for any
+    stopping time $\tau<=T$, with the same $N$ and $M$, for any $\gamma\in(0,1)$
+    (see, for instance, Theorem III.6.8 of \cite{Kry-diffusion}),
+    $$
+        \Eb\sup_{t<=T}?(\int_\R\zeta_k(x)u_m(t,x)dx)?^\gamma
+        <= 1 + \gamma{N+Mk^{-1/p}//1-\gamma},\quad
+        \Eb\sup_{t<=T}||u_m(t,\cdot)||_1^\gamma
+        <= \gamma{N+1//1-\gamma},
+    $$
+    where the latter relation is obtained from the former one by the monotone
+    convergence theorem. It follows that
+    #eq (eq:8.10.3) {
+        \Pb\{\sup_{t<=T}||u_m(t,\cdot)||_1>S\} <= {N//\sqrt{S}},
+    }
+    where $N$ is independent of $m$ and $S>0$.
+
+    Now fix $m,S>0$ and define
+    $$
+        \tau_m(S) = \inf\{t>=0 : ||u_m(t,\cdot)||_1 >= S\},\quad
+        h_m(t,x,u) = \xi_m(t,x)u.
+    $$
+    Observe that $\xi_m<=u_m^\lambda$, which yields that for $t<=\tau_m(S)$ we
+    have $||\xi_m(t,\cdot)||_{2s}<=S^{1/(2s)}$ with $s=1/(2\lambda)$.
+    Also $u_m$ satisfies \cref{eq:8.10.2}. By \Cref{thm:8.5}, we obtain that,
+    for any $T<oo$, $||u_m||_{\Hc_p^{1/2-\kappa}(T\land\tau_m(S))}$ is bounded
+    by a constant independent of $m$, whenever $p>=2r=2/(1-2\lambda)$ and
+    $1/2>\kappa>\lambda$.\footnote{
+        Observe that $||u_m||_{\Hc_p^{1/2-\kappa}(T\land\tau_m(S))}
+        <= N||u_0||_{1/2-\kappa-2/p,p}$ because $u_0$ is nonrandom.
+    } The embedding theorems (cf. \Cref{remark:8.7}) imply
+    that $\Eb\sup_{t<=T\land\tau_m(S),x}|u_m(t,x)|^p$ is bounded independently
+    of $m$ for all large $p$ (and hence for small $p$ as well).\footnote{
+        Recall that H\"older norm contains a sup norm.
+        Thus $\Eb\sup_t||u(t,\cdot)||_oo^p<=\Eb\sup_t||u(t,\cdot)||_{C^\gamma}^p
+        <=N||u||_{\Hc_p^n}$ (here, detailed condition in $t$ is omited).
+    }
+
+    Thus
+    useenv align* {
+        \Pb\{\sup_{t<=T,x}|u_m(t,x)|>=R\}
+        &<= \Pb\{\sup_{t<=T\land\tau_m(S),x}|u_m(t,x)|>=R\}
+        + \Pb\{\tau_m(S) < T\} \\
+        &<= {N//R} + \Pb\{\sup_{t<=T}||u_m(t,\cdot)||_1 > S\} \\
+        &<= {N//R} + {N//\sqrt{S}}
+    }
+    with the constants $N$ independent of $m$, $S$, $R$.
+    This leads to \cref{eq:8.10.1}, and the lemma is proved.
+}

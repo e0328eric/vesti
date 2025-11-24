@@ -138,7 +138,7 @@ useenv thm { \label{thm:4.10}
     $\Eb[||v(t,\cdot)||_{1,p}^p|\Fc_t]<oo$ on $\Omega_t'$ and
     \cref{eq:general-first-estimate} holds for all $\omega\in\Omega_t'$ and
     $\phi\in\Phi$. Hence, $u(t,\cdot)\in H_p^1$ for the chosen $t$ and all
-    $\omega\in\Omega'$. As it is mentioned before, the set 
+    $\omega\in\Omega'$. As it is mentioned before, the set
     $$
         \{(\omega,t) : u(\omega,t,\cdot)\in H_p^1\}
     $$
@@ -203,12 +203,12 @@ useenv remark {
     $$
     Upon setting $c^2=T$ and considering $(1-\Delta)^{(n-1)/2}u$ instead of $u$,
     we conclude that
-    $$
-        \Eb\sup_{t<=T}[||u_x(t,\cdot)||_{n-1,p}^p + T^{-p/2}||u(t,\cdot)||_{n-1,p}^p ]
-        <=
+    useenv align* {
+        &\Eb\sup_{t<=T}[||u_x(t,\cdot)||_{n-1,p}^p +
+        T^{-p/2}||u(t,\cdot)||_{n-1,p}^p ] \\
+        &\kern1cm<=
         N(d,p,\delta,K)T^{(p-2)/2}(||f||_{\Hb_p^{n-1}(T)}^p+||g_x||_{\Hb_p^{n-1}(T,l_2)}^p
         + T^{-p/2}||g||_{\Hb_p^{n-1}(T,l_2)}^p).
-    $$
+    }
     We will later prove a much deeper estimate than \cref{eq:thm:4.10.2}.
 }
-

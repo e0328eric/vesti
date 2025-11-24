@@ -69,7 +69,7 @@ pub const LuaContents = struct {
 };
 
 allocator: Allocator,
-main_filenames: []const []const u8,
+main_filename: []const u8,
 lua: *Lua,
 diagnostic: *diag.Diagnostic,
 engine: *LatexEngine,
@@ -84,7 +84,7 @@ const Self = @This();
 
 pub fn init(
     allocator: Allocator,
-    main_filenames: []const []const u8,
+    main_filename: []const u8,
     lua: *Lua,
     diagnostic: *diag.Diagnostic,
     engine: *LatexEngine,
@@ -102,7 +102,7 @@ pub fn init(
 
     return .{
         .allocator = allocator,
-        .main_filenames = main_filenames,
+        .main_filename = main_filename,
         .lua = lua,
         .diagnostic = diagnostic,
         .engine = engine,
@@ -185,31 +185,29 @@ fn compileInner(self: *Self) !void {
         for (main_vesti_files.keys()) |vesti_file| self.allocator.free(vesti_file);
         main_vesti_files.deinit(self.allocator);
     }
-    for (self.main_filenames) |filename| {
-        if (!mem.eql(u8, path.extension(filename), ".ves")) {
-            const io_diag = try diag.IODiagnostic.init(
-                self.diagnostic.allocator,
-                null,
-                "extension of `{s}` is not `ves`",
-                .{filename},
-            );
-            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.ExtensionDifferent;
-        }
-
-        const real_filename = fs.cwd().realpathAlloc(self.allocator, filename) catch {
-            const io_diag = try diag.IODiagnostic.init(
-                self.diagnostic.allocator,
-                null,
-                "failed to open file `{s}`",
-                .{filename},
-            );
-            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.FailedToOpenFile;
-        };
-        errdefer self.allocator.free(real_filename);
-        try main_vesti_files.put(self.allocator, real_filename, true);
+    if (!mem.eql(u8, path.extension(self.main_filename), ".ves")) {
+        const io_diag = try diag.IODiagnostic.init(
+            self.diagnostic.allocator,
+            null,
+            "extension of `{s}` is not `ves`",
+            .{self.main_filename},
+        );
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.ExtensionDifferent;
     }
+
+    const real_filename = fs.cwd().realpathAlloc(self.allocator, self.main_filename) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            self.diagnostic.allocator,
+            null,
+            "failed to open file `{s}`",
+            .{self.main_filename},
+        );
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.FailedToOpenFile;
+    };
+    errdefer self.allocator.free(real_filename);
+    try main_vesti_files.put(self.allocator, real_filename, true);
 
     var vesti_files = if (self.attr.compile_all)
         StringArrayHashMap(bool){}

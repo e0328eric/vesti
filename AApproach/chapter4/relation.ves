@@ -157,7 +157,7 @@ sense of distributions. Notice that if $u\in\Hc_p^n$ and $u$ satisfies
 advantage of \Cref{defin:stochastic-distribution-diff} is that one need not
 check summability of any derivative.\footnote{
     Recall the original definition of the stochastic differential (see
-    \cite{Kry2}).
+    \cite{Kry-diffusion}).
 }
 
 useenv lemma { \label{lemma:4.7}
@@ -364,7 +364,7 @@ useenv lemma { \label{lemma:4.9}
     $$
     where all integrals are taken in the sense of the Hilbert space $H_2^{n-1}$
     (see Theorem 2.8 of \cite{RL}).
-    
+
     Now claim that there exists an $H_2^{n+1}$-valued, $\Wc_t$-predictable
     function $\bar u(t)$ such that, for almost any $t$, we have
     $$
@@ -406,4 +406,3 @@ useenv lemma { \label{lemma:4.9}
         \bf{\color{red}[Fill out the gap]}
     }
 }
-

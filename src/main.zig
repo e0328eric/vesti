@@ -4,6 +4,7 @@ const diag = @import("diagnostic.zig");
 const luascript = @import("luascript.zig");
 const zlap = @import("zlap");
 const time = std.time;
+const path = std.fs.path;
 
 const assert = std.debug.assert;
 const getConfigPath = Config.getConfigPath;
@@ -12,6 +13,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Config = @import("Config.zig");
 const Compiler = @import("Compiler.zig");
+const CompileAttribute = Compiler.CompileAttribute;
 const Diagnostic = diag.Diagnostic;
 const Lua = @import("Lua.zig");
 const Parser = @import("parser/Parser.zig");
@@ -44,7 +46,6 @@ pub fn main() !void {
 
     const subcmds = .{
         "clear",
-        "run",
         "tex2ves",
         "compile",
     };
@@ -82,7 +83,7 @@ fn clearStep(
     _ = clear_step;
 
     try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
-    std.debug.print("[successively remove {s}]", .{VESTI_DUMMY_DIR});
+    std.debug.print("[successively remove {s}]\n", .{VESTI_DUMMY_DIR});
 }
 
 fn tex2vesStep(
@@ -100,50 +101,12 @@ fn tex2vesStep(
     std.debug.print("currently, this subcommand does nothing.\n", .{});
 }
 
-fn runStep(
-    allocator: Allocator,
-    diagnostic: *Diagnostic,
-    run_subcmd: *const zlap.Subcmd,
-) !void {
-    const is_latex = run_subcmd.flags.get("latex").?.value.bool;
-    const is_pdflatex = run_subcmd.flags.get("pdflatex").?.value.bool;
-    const is_xelatex = run_subcmd.flags.get("xelatex").?.value.bool;
-    const is_lualatex = run_subcmd.flags.get("lualatex").?.value.bool;
-    const is_tectonic = run_subcmd.flags.get("tectonic").?.value.bool;
-
-    const first_script = run_subcmd.flags.get("first_script").?.value.string;
-
-    const config = try Config.init(allocator, diagnostic);
-    defer config.deinit(allocator);
-
-    const engine = try getEngine(config.engine, .{
-        .is_latex = is_latex,
-        .is_pdflatex = is_pdflatex,
-        .is_xelatex = is_xelatex,
-        .is_lualatex = is_lualatex,
-        .is_tectonic = is_tectonic,
-    });
-
-    // initializing Lua globally
-    var lua = try Lua.init(allocator, engine, &config);
-    defer lua.deinit();
-
-    const first_lua = try luascript.getBuildLuaContents(
-        allocator,
-        first_script,
-        diagnostic,
-    ) orelse return error.FirstLuaNotFound;
-    defer allocator.free(first_lua);
-
-    try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
-}
-
 fn compileStep(
     allocator: Allocator,
     diagnostic: *Diagnostic,
     compile_subcmd: *const zlap.Subcmd,
 ) !void {
-    const main_filenames = compile_subcmd.args.get("FILENAMES").?;
+    const main_filename = compile_subcmd.args.get("FILENAME").?;
     const compile_lim: usize = blk: {
         const tmp = compile_subcmd.flags.get("lim").?.value.number;
         if (tmp <= 0) return error.InvalidCompileLimit;
@@ -161,6 +124,7 @@ fn compileStep(
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
     const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
+    const first_script = compile_subcmd.flags.get("first_script").?.value.string;
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
@@ -176,14 +140,68 @@ fn compileStep(
     });
 
     // initializing Lua globally
-    var lua = try Lua.init(allocator, engine, &config);
+    var lua = try Lua.init(
+        allocator,
+        engine,
+        &config,
+        .{
+            .compile_all = compile_all,
+            .watch = watch,
+            .no_color = no_color,
+            .no_exit_err = !exit_err,
+        },
+    );
     defer lua.deinit();
+
+    // search first.lua in case of not specifying main_filename
+    if (main_filename.value.string.len == 0) blk: {
+        const cwd = std.process.getCwdAlloc(allocator) catch {
+            std.debug.print("error: cannot get the current directory\n", .{});
+            return error.FailedGetCwd;
+        };
+        defer allocator.free(cwd);
+
+        var iter = try path.componentIterator(cwd);
+        const last = iter.last() orelse {
+            std.debug.print(
+                "error: cwd {s} is empty. But this might be an undefined behavior\n",
+                .{cwd},
+            );
+            return error.CwdIsEmpty;
+        };
+
+        // change current directory where first.lua is located
+        if (try changeCwdAtFirstLua(allocator, &last)) break :blk;
+        while (iter.previous()) |prev| {
+            if (try changeCwdAtFirstLua(allocator, &prev)) break :blk;
+        }
+
+        // in this point, first.lua is not found, so raise an error
+        std.debug.print("error: `first.lua` is not found.\n", .{});
+        return error.FailedToFindFirstLua;
+    }
+
+    const first_lua = try luascript.getBuildLuaContents(
+        allocator,
+        first_script,
+        diagnostic,
+    ) orelse return error.FirstLuaNotFound;
+    defer allocator.free(first_lua);
+    try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
+
+    const main_ves = if (main_filename.value.string.len != 0)
+        main_filename.value.string
+    else
+        @as([]const u8, @ptrCast(lua.main_ves orelse {
+            std.debug.print("error: vesti.compile is missing in first.lua\n", .{});
+            return error.NoMainVestiFilename;
+        }));
 
     var prev_mtime: ?i128 = null;
 
     var compiler = try Compiler.init(
         allocator,
-        main_filenames.value.strings.items,
+        main_ves,
         lua,
         diagnostic,
         &engine,
@@ -193,15 +211,31 @@ fn compileStep(
             .before = before_script,
             .step = step_script,
         },
-        .{
-            .compile_all = compile_all,
-            .watch = watch,
-            .no_color = no_color,
-            .no_exit_err = !exit_err,
-        },
+        lua.compile_attr,
     );
     defer compiler.deinit();
     try compiler.compile();
+}
+
+fn changeCwdAtFirstLua(
+    allocator: Allocator,
+    component: *const path.NativeComponentIterator.Component,
+) !bool {
+    const first_lua_path = try path.join(allocator, &.{ component.path, "first.lua" });
+    defer allocator.free(first_lua_path);
+
+    // open file to check whether it exists
+    var f = std.fs.openFileAbsolute(first_lua_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => return false,
+        else => return err,
+    };
+
+    // f is not needed anymore
+    f.close();
+    var dir = try std.fs.openDirAbsolute(component.path, .{});
+    defer dir.close();
+    try dir.setAsCwd();
+    return true;
 }
 
 //          ╭─────────────────────────────────────────────────────────╮

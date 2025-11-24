@@ -2,7 +2,7 @@ useenv lemma { \label{lemma:lemma:4.9}
     Let $\Fc_t=\Wc_t\vee\Bc_t$ for $t>=0$, assume that
     $\sigma$-fields $\Wc_t$ and $\Bc_t$ form independent increasing
     filtrations, and $\Pc_\Fc$, $\Pc_\Wc$ are $\Fc_t$-predictable and
-    $\Wc_t$-predictable
+    $\Wc_t$-predictable $\sigma$-fields, respectively.
     Furthermore, $(w_t,\Wc_t)$ is an one-dimensional Wiener
     process. Then for any $u\in \bigcap_{T>0}L_2(\llo0,T\rrc,\Pc_\Fc,\R)$, there
     exists a $\Pc_\Wc$-measurable process $\bar u$ such that
@@ -18,7 +18,9 @@ useenv lemma { \label{lemma:lemma:4.9}
     $$
     \proof
     Following proof is inspired from \cite{RL}.
-    To write simply, symbolically denote $Uu(t)$ by $\bar u(t)$ in the statement
-    of the lemma.
+    useenv center {
+        \bf{\color{red}[I don't know that this theorem is right because this one
+        is made by myself]}
+    }
 }
 

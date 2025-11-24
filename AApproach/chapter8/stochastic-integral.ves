@@ -1,0 +1,212 @@
+To consider applications to equations with infinitely dimensional Wiener
+processes, we want to discuss the notion of stochastic integral and show that
+\lq\lq basically\rq\rq\ there is nothing more general than series of usual
+one-dimensional stochasic integrals. This will show that equations like
+\cref{eq:the-spde}, containing series of integrals with respect to Wiener
+processes, are of a quite general nature.
+
+The first notion was introduced by Paley, Wiener, and Zygmund in \cite{PWZ},
+where the stochastic integral of a \it{nonrandom smooth} function $f(t)$ against
+a one dimensional Wiener process $w_t$ is defined as
+#eq (eq:sec8.2.1) {
+    \int_0^1 f(s)dw_s = f(1)w_1 - \int_0^1 w_sf'(s)ds.
+}
+Then it is verified that the $L_2(\Omega)$-norm of the stochastic integral is
+equal to the $L_2(0,1)$-norm of $f$, which allows one to extend the stochastic
+integral from smooth functions to all $f\in L_2(0,1)$. One obtains the same integral if, instead of \cref{eq:sec8.2.1}, one starts with
+#eq (eq:sec8.2.2) {
+    \int_0^1 f(s)dw_s = \sum_{i=1}^n a_i(w_{s_i}-w_{s_{i-1}})
+}
+for functions $f$ such that $f(t)=a_i$ on $(s_{i-1},s_i]$ and
+$0=s_0<=s_1<=...<=s_n=1$.
+
+The definition based on \cref{eq:sec8.2.2} has an advantage that it can be
+easily generalized to define an integral of a \it{nonrandom} function against a
+random orthogonal measure on a $\sigma$-finite measure space $(X,\Xc,m)$.
+More precisely, assume that we are given a $\pi$-system $\Pi$ of subsets of $X$
+such that $\sigma(\Pi)=\Xc$, and a random (complex-valued) variable
+$\mu(\gamma)$ defined for each $\gamma\in\Pi$ (and perhaps not for all
+$\gamma\in\Xc$). Assume that $\mu(\gamma)\in L_2(\Omega)$ and
+$\Eb\mu(\gamma_1)\bar\mu(\gamma_2)=m(\gamma_1\cap\gamma_2)$ for each
+$\gamma,\gamma_1,\gamma_2\in\Pi$. Then for functions
+$$
+    f(x) = \sum_{j=1}^n a_j\I_{\gamma_j}(x),
+$$
+where $a_j$'s are constant and $\gamma_j\in\Pi$, one defines the stochastic
+integral of $f$ against $\mu$ as
+#eq (eq:sec8.2.3) {
+    \int_Xf(x)\mu(dx) = \sum_{j=1}^n a_j\mu(\gamma_j),
+}
+and, again by isometry, one extends the stochastic integral to all $f\in
+L_2(X,m)$. Such integrals are used in the theory of stationary processes.
+Suprisingly enough, as we will see, one can also say that this is the most
+general stochastic integral in It\^o's stochastic calculus.
+
+Another advantage of \cref{eq:sec8.2.2} is that one can allow $f$ to depend on $\omega$, and if $a_j$ are independent of the process $w_{t+s_{j-1}}-w{s_{j-1}}$,
+$t>=0$, then \cref{eq:sec8.2.2} is again an isometry between a part of
+$L_2(\Omega\times(0,1])$ and a part of $L_2(\Omega)$. Closing this isometry,
+K. It\^o defines his famous integral.
+
+It turns out that It\^o's integral is a particular case of the integral based on
+\cref{eq:sec8.2.3}. To be more precise, let $w_t$ be (as usual) a Wiener process
+with respect to a filtration $\Fc_t$, $\Pc$ be the predictable $\sigma$-field on
+$\Omega\times(0,1]$, and $\Pi$ be the set of all stochastic intervals
+$\llo0,\tau\rrc$, where $\tau$ are stopping times $<=1$. Then one gets It\^o's
+integral by taking $X=\Omega\times(0,1]$, $\Xc=\Pc$, $\mu\llo0,\tau\rrc=w_\tau$.
+In the same way one defines stochastic integrals with respect to any locally
+square integrable martingales.
+
+K. It\^o \cite{Ito} was also the first to consider integration against
+measure-valued processes, which is a particular case of integration against
+martingale measures. Let $p(t,\Gamma)$, $t>=0$, be a square integrable process
+as a function of $t$ with independent increments in time and a random orthogonal
+measures as a function of $\Gamma$ for any $t$.
+Define $p((s,t],\Gamma)=p(t,\Gamma)-p(s,\Gamma)$. It\^o's way of introducing
+the integral with respect to $p$ is to replace the expression $a_j(w_{s_j},w_{s_{j-1}})$ in \cref{eq:sec8.2.2} with
+#eq (eq:sec8.2.4) {
+    \int_Xf_j(x)p((s_{j-1},s_j],dx)
+    = \int_X f_j(x)p(s_j,dx) - \int_X f_j(x)p(s_{j-1},dx),
+}
+where $f_j$ are assumed to be independent of the processes
+$p((s_{j-1},t],\Gamma)$, $t>=s_{j-1}$.
+
+More generally, for any $\gamma\in\Pi$ let a process $p(t,\gamma)$ be given,
+which is a square integrable martingale with respect to a given filtration
+$\{\Fc_t\}_t$. Let ${<p(\cdot,\gamma_1),p(\cdot,\gamma_2)>}_t =
+q(t,\gamma_1\cap\gamma_2)$, where $q(t,\cdot)$ is a $\sigma$-finite measure
+on $(X,\Xc)$ for any $\omega,t$ and $q(t,\Gamma)$ increases in $t$ for any
+$\Gamma\in\Xc$ and $\omega$. Then there is a measure $q(dt,dx)$ such that
+$$
+    q(t,\gamma) = \int_0^t\int_\gamma q(ds,dx).
+$$
+By following It\^o's method based on \cref{eq:sec8.2.4}, for any $\Pc\otimes\Xc$-measurable $f=f(\omega,t,x)$ such that
+$$
+    \int_0^1\int_X f^2(s,x)q(ds,dx) < oo,
+$$
+one defines the stochastic integral
+#eq (eq:sec8.2.5) {
+    \int_0^1\int_X f(s,x)p(ds,dx).
+}
+
+This integral is also a particular case of the integral of a \it{nonrandom}
+function against a random orthogonal measure. Indeed, define $\bar X =
+\Omega\times(0,1]\times X$, $\bar\Xc = \Pc\otimes\Xc$, and let $m(d\omega
+dtdx)=\Pb(d\omega)q(dt,dx)$. Also let
+$$
+    \bar\Pi = \{\llo0,\tau\rrc\times\gamma : \Eb
+    q(\llo0,\tau\rrc\times\gamma)<oo\},\quad \mu(\llo0,\tau\rrc\times\gamma)
+    = p(\tau,\gamma).
+$$
+Then on functions
+#eq (eq:sec8.2.6) {
+    f = \sum_{j<=n}a_j\I_{t<=\tau_j}\I_{\gamma_j}(x),
+}
+where $\llo0,\tau\rrc\times\gamma_j\in\bar\Pi$ and $a_j$ are some constants,
+integral \cref{eq:sec8.2.5} equals
+$$
+    \sum_{j<=n}a_jp(\tau_j,\gamma_j)
+    = \sum_{j<=n}a_j\mu(\llo0,\tau_j\rrc\times\gamma_j),
+$$
+which agrees with \cref{eq:sec8.2.3}. Finally, by functions of type
+\cref{eq:sec8.2.6} one can approximate any $\Pc\otimes\Xc$-measurable function
+for which \cref{eq:sec8.2.5} can be defined.
+
+It is worth mentioning that there are also other notions of martingale measures
+with respect to which one can define stochastic integration (see \cite{Walsh},
+where the martingale measures discussed abvove are called orthogonal martingale
+measures).
+
+Even though the notion of integral of nonrandom functions with respect to
+random orthogonal measures is very convenient for the purpose of introducing
+It\^o's stochastic integrals (cf. \cite{Kry-diffusion:w}), one works almost always with
+stochastic integrals with variable limits, and a different notation is more
+appropriate.
+
+In connection with this notice that it is shown in \cite{GK} how to reduce
+the stochastic integral with respect to a martingale measure to a series of
+usual stochastic integrals. This was further used in \cite{GK} to treat
+\it{stochastic equations} containing integrals against martingale measures using
+\it{the same notation} as in the case of equations containing just usual
+stochastic integrals.
+
+To be more precise, it is assumed in \cite{GK} that $\Xc$ is countably generated
+and
+$$
+    q(t,\Gamma) = \int_0^t q_s(\Gamma)dV_s,
+$$
+where $V_s$ is a predictable increasing process and $q_s(\Gamma)$ is a measure
+in $\Gamma$ for any $s$ and predictable in $s$ for any $\Gamma\in\Xc$.
+Then it is shown that
+#eq (eq:sec8.2.7) {
+    \int_0^t\int_X f(s,x)p(ds,dx)
+    = \sum_{k=1}^oo\int_0^t f_k(s)dp_s^k,
+}
+where
+$$
+    p_t^k = \int_0^t\int_X \eta_k(s,x)p(ds,dx),\quad
+    f_k(s) = \int_X \eta_k(s,x)f(s,x)q_s(dx),
+$$
+and for any $\omega,s$ the system of functions $\{\eta_k(s,\cdot)\}_k$ forms
+an orthonormal basis in $L_2(X,q_s)$.
+
+A particular case of the stochastic integral with respect to a martingale
+measure is the stochastic integral with respect to the two-dimensional Brownian
+sheet $W(t,x)$ defined for $t>=0$, $x\in\R$. In this case, one takes $\Fc_t$
+so that the random variables $W(t,x)$ are $\Fc_t$-measurable, and defines
+$$
+    p(\llo0,\tau\rrc\times(a,b]) = W(\tau,b) - W(\tau,a).
+$$
+This integral got very popular thanks to the article \cite{Walsh}.
+One can construct $W(s,x)$ by taking independent one-dimensional Wiener
+processes $w_t^k$, $k>=1$, and an orthonormal basis $\{\eta_k(x)\}_{k>=1}$
+in $L_2(\R)$, and letting
+$$
+    W(t,x) = \sum_{k=1}^oo w_t^k\int_0^x \eta_k(y)dt\quad
+    t>=0,\ x\in\R.
+$$
+Incidentally, observe that thus defined $W$ is a Gaussian field and
+$$
+    \Eb W(s,y)W(t,x) = (s\land t)\sum_{k=1}^oo
+    \int_0^x\eta_k(z)dz\int_0^y\eta_k(z)dz,
+$$
+where\footnote{
+    Let $H$ be a Hilbert space and $\Bf$ an orthonormal basis for $H$.
+    Then we have
+    $$
+        {<g,h>} = \sum_{f\in\Bf}{<g,f>}{<f,h>},
+    $$
+    where the sum converges in the net sense.
+}
+$$
+    \sum_{k=1}^oo \int_0^x\eta_k(z)dz\int_0^y\eta_k(z)dz = useenv cases {
+        \int_\R\I_{(0,x)}(z)\I_{(0,y)}(z)dz = x\land y & "if"# x,y>=0, \\
+        \int_\R\I_{(x,0)}(z)\I_{(y,0)}(z)dz = |x|\land |y| & "if"# x,y<=0, \\
+        0 & "otherwise".
+    }
+$$
+
+In particular case \cref{eq:sec8.2.7} becomes
+#eq (eq:sec8.2.8) {
+    \int_0^t\int_\R f(s,x)W(ds,dx)
+    = \sum_{k=1}^oo\int_0^t?\{\int_\R\eta_k(x)f(s,x)dx\}?dw_s^k.
+}
+
+By the way, general one-dimensional equations driven by the cylindrical
+space-time white noise $\dot B_t$ were considered in \cite{Funa}, where the
+right hand side of \cref{eq:sec8.2.8} is taken by definition as
+$\int_0^t{<f(s,\cdot),dB_t>}$. There the series was introduced from the very
+begining.
+
+The last integral we want to discuss is the integral against a Hilbert-space
+valued Wiener process (see, for instance, \cite{RL}).
+Let $H$ be a Hilbert space and $w_t$ be a $H$-valued Wiener proces with
+covariance operator $Q$. This operator is known to be nuclear (see
+\cite{Yosida} for its definition).
+If $h_k$ are its unit eigenvectors with nonzero eigenvalues, then $w_t^k\defeq
+(h^k,w_t)(Qh^k,h^k)^{-1/2}$ are independent standard Wiener processes and, for
+any $H$-valued process $f_t$ for which the integral $\int_0^t f_t\cdot dw_t$ is
+defined, the integral can be written as
+$$
+    \sum_k\int_0^t f_s^k dw_s^k,
+$$
+where $f_s^k=(f_s,h^k)(Qh^k,h^k)^{1/2}$ (see, for instance, \cite{RL}).

@@ -152,7 +152,8 @@ useenv lemma { \label{lemma:stochastic-fubini}
         such that
         useenv enumerate [label=(\roman*)] { \addtocounter{enumii}{3}
             \item For each $t\in[0,T]$ the function $F_t(x)$ is measurable in
-            $(\omega,x)$ with respect to the completion $\cl{\Fc\oplus\Bf(\Gamma)}$
+            $(\omega,x)$ with respect to the completion
+            $\cl{\Fc\otimes\Bf(\Gamma)}$
             of $\Fc\otimes\Bf(\Gamma)$ with respect to the product measure;
             \item For each $t\in[0,T]$ and $x\in\Gamma$
             \cref{eq:lemma:stochastic-fubini-1} holds almost surely,

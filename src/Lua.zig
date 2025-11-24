@@ -11,6 +11,7 @@ const ArrayList = std.ArrayList;
 const Codegen = @import("Codegen.zig");
 const Config = @import("Config.zig");
 const CowStr = @import("CowStr.zig").CowStr;
+const CompileAttribute = @import("Compiler.zig").CompileAttribute;
 const Io = std.Io;
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
@@ -24,11 +25,13 @@ buf: ArrayList(u8),
 engine: LatexEngine,
 make_log: bool,
 line_limit: usize,
+main_ves: ?[:0]const u8,
+compile_attr: CompileAttribute,
 
 const Self = @This();
 pub const Error = Allocator.Error || zlua.Error;
 
-const VESTI_LUA_FUNCTIONS_BUILTINS: [11]zlua.FnReg = .{
+const VESTI_LUA_FUNCTIONS_BUILTINS: [12]zlua.FnReg = .{
     .{ .name = "print", .func = print },
     .{ .name = "parse", .func = parse },
     .{ .name = "getModule", .func = getModule },
@@ -40,12 +43,14 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [11]zlua.FnReg = .{
     .{ .name = "download", .func = download },
     .{ .name = "mkdir", .func = mkdir },
     .{ .name = "joinpath", .func = joinpath },
+    .{ .name = "compile", .func = compile },
 };
 
 pub fn init(
     allocator: Allocator,
     engine: LatexEngine,
     config: *const Config,
+    compile_attr: CompileAttribute,
 ) Error!*Self {
     const self = try allocator.create(Self);
     errdefer allocator.destroy(self);
@@ -59,6 +64,8 @@ pub fn init(
     errdefer self.buf.deinit(self.allocator);
     self.lua = try ZigLua.init(allocator);
     errdefer self.lua.deinit();
+    self.main_ves = null;
+    self.compile_attr = compile_attr;
 
     // open all standard libraries of lua
     self.lua.openLibs();
@@ -75,6 +82,7 @@ pub fn init(
 pub fn deinit(self: *Self) void {
     const allocator = self.allocator;
 
+    if (self.main_ves) |s| allocator.free(s);
     self.buf.deinit(allocator);
     self.lua.deinit();
     allocator.destroy(self);
@@ -790,4 +798,63 @@ fn joinpath(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
     _ = lua.pushString(path);
     return 1;
+}
+
+fn compile(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
+    const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
+    const allocator = self.allocator;
+
+    const nargs = lua.getTop();
+    if (nargs == 0 or nargs > 2) raiseError(
+        lua,
+        \\invalid argument
+        \\Usage: vesti.compile(<main_ves: string>, {{ <configurations> }}?)
+        \\Config: `TODO`
+    ,
+        .{},
+    );
+
+    const main_ves = lua.toString(1) catch raiseError(
+        lua,
+        \\first argument should be a `string`
+        \\Usage: vesti.compile(<main_ves: string>, {{ <configurations> }}?)
+        \\Config: `TODO`
+    ,
+        .{},
+    );
+
+    const tmp = allocator.allocSentinel(u8, main_ves.len, 0) catch @panic("OOM");
+    errdefer allocator.free(tmp);
+    @memcpy(tmp, main_ves);
+    self.main_ves = tmp;
+
+    if (lua.isTable(nargs)) {
+        inline for (.{
+            "compile_all",
+            "watch",
+            "no_color",
+            "no_exit_err",
+        }) |attr| {
+            const ty = lua.getField(nargs, attr);
+            switch (ty) {
+                .nil => {},
+                .boolean => @field(self.compile_attr, attr) = lua.toBoolean(-1),
+                else => {
+                    raiseError(
+                        lua,
+                        "`" ++ attr ++ "` should be a boolean\n",
+                        .{},
+                    );
+                    return 0;
+                },
+            }
+            lua.pop(1); // pop attr
+        }
+    }
+
+    return 0;
 }

@@ -636,17 +636,17 @@ useenv lemma { \label{lemma:l2-estimate-maximal-2}
         &<=(s-r)^{-d/2}?(\int_{|z|<1} + \int_{|z|>=1})?
         \bar\psi(|z|/\sqrt{s-r})\bar f(r,y-z)dz \\
         &= (s-r)^{-d/2}\int_{|z|>=1} \bar\psi(|z|/\sqrt{s-r})\bar f(r,y-z)dz \\
-        &= -(s-r)^{-(d+1)/2}\int_1^oo 
+        &= -(s-r)^{-(d+1)/2}\int_1^oo
         \bar\psi'(\rho/\sqrt{s-r}) ?(\int_{|z|<=\rho}\bar f(r,y-z)dz)?d\rho \\
-        &<= (s-r)^{-(d+1)/2}\int_1^oo 
+        &<= (s-r)^{-(d+1)/2}\int_1^oo
         |\bar\psi'(\rho/\sqrt{s-r})| ?(\int_{|z|<=\rho}\bar f(r,y-z)dz)?d\rho \\
-        &= (s-r)^{-(d+1)/2}\int_1^oo 
+        &= (s-r)^{-(d+1)/2}\int_1^oo
         |\bar\psi'(\rho/\sqrt{s-r})| ?(\int_{B_\rho(y)}\bar f(r,z)dz)?d\rho \\
-        &<= (s-r)^{-(d+1)/2}\int_1^oo 
+        &<= (s-r)^{-(d+1)/2}\int_1^oo
         |\bar\psi'(\rho/\sqrt{s-r})| ?(\int_{B_{\mu\rho}(x)}\bar f(r,z)dz)?d\rho \\
-        &<= N(d)\Mb_x\bar f(r,x)(s-r)^{-(d+1)/2}\int_1^oo 
+        &<= N(d)\Mb_x\bar f(r,x)(s-r)^{-(d+1)/2}\int_1^oo
         |\bar\psi'(\rho/\sqrt{s-r})|\rho^d d\rho \\
-        &= N(d)\Mb_x\bar f(r,x)\int_{(s-r)^{-1/2}}^oo 
+        &= N(d)\Mb_x\bar f(r,x)\int_{(s-r)^{-1/2}}^oo
         |\bar\psi'(\rho)|\rho^d d\rho \\
         &<= N(d,K)(s-r)^{1/2}\Mb_x\bar f(r,x).
     }
@@ -657,7 +657,7 @@ useenv lemma { \label{lemma:l2-estimate-maximal-2}
         if $t\notin(-12,12)$.
     }
     $$
-        |u(s,y)|^2 
+        |u(s,y)|^2
         = \int_{-12}^s|\Psi_{s-r}f(r,\cdot)(y)|^2_H{dr//s-r}
         <= N\int_{-12}^0\Mb_x|f|_H^2(r,x)dr,
     $$
@@ -719,9 +719,9 @@ useenv lemma { \label{lemma:l2-estimate-maximal-3}
         I(r,s,y)
         &<= (r-s)^{-(d+2)/2}\int_0^oo
         |\bar\psi'(\rho/\sqrt{s-r})| ?(\int_{B_\rho(y)}\bar f(r,z)dz)?d\rho \\
-        &<= N(d)\Mb_x f(r,x)\bar(r-s)^{-(d+2)/2}\int_0^oo
+        &<= N(d)\Mb_x \bar f(r,x)(r-s)^{-(d+2)/2}\int_0^oo
         |\bar\psi'(\rho/\sqrt{s-r})| (\nu + \rho)^dd\rho \\
-        &= N(d)\Mb_x f(r,x)\bar(r-s)^{-1/2}\int_0^oo
+        &= N(d)\Mb_x \bar f(r,x)(r-s)^{-1/2}\int_0^oo
         |\bar\psi'(\rho)| (\nu/\sqrt{s-r} + \rho)^dd\rho.
     }
     For $r <= -8$ we have $s-r>=4$ and we conclude
@@ -808,7 +808,7 @@ useenv equation { \label{eq:pf-of-glp-1}
     (\Gc f)^\# <= N(d,K)(\Mb_t\Mb_x|f|_H^2)^{1/2},
 }
 where the sharp function $(\Gc f)^\#$ is defined relative to the parabolic
-dyadic cubes of type \cref{eq:def-dyadic-1}. 
+dyadic cubes of type \cref{eq:def-dyadic-1}.
 By \cref{remark:Fefferman-Stein} shows that to prove \cref{eq:pf-of-glp-1} it
 suffices to prove that for each $Q=Q_n(i_0,...,i_d)$ (see
 \cref{eq:def-dyadic-1}) and $(t,x)\in Q$

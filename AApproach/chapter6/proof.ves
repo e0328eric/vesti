@@ -68,7 +68,7 @@ useenv thm {
 Next, we prove a pertubation result. It needs a proof because we do not allow
 $\epsilon$ to depend on $T$.
 
-#label(thm:6.4) 
+#label(thm:6.4)
 useenv thm {
     Take the operators $L$ and $\Lambda$ from \Cref{thm:6.3}, and let some
     operators $L_1$ and $\Lambda_1$ satisfy the requirements from
@@ -366,7 +366,7 @@ useenv pf [\Cref{thm:sol-the-spde-nonlin}] {
         \Delta\bar u]\I_A(t),
     $$
     $$
-        \bar g^k(v,t,x) = [g^k(v+\bar u,t,x) + \sigma^{ik}(t,x)\bar{u}_{x^i}(t,x)]\I_A(t), 
+        \bar g^k(v,t,x) = [g^k(v+\bar u,t,x) + \sigma^{ik}(t,x)\bar{u}_{x^i}(t,x)]\I_A(t),
     $$
     and $A$ is the set of $\omega$, $t$ for which $\bar u(t,\cdot)\in
     H_p^{n+2}$.\footnote{
@@ -375,7 +375,7 @@ useenv pf [\Cref{thm:sol-the-spde-nonlin}] {
     Then the new function $u = v + \bar u$ satisfies the original equation with
     initical condition $u_0$ because $v(0,\cdot)=0$ and $\bar u(0,\cdot)=u_0$.
 
-    defun [eg] thispageref {\the\count0}
+    #raw_tex defun [ge!] proofpage {\the\count0}
     From \Cref{lemma:5.2}, it follows that $\bar f$ and $\bar g$ satisfy the
     same conditions as $f$ and $g$. This allows us to assume that $u_0=0$.
     Furthermore, one can always extend $f$, $g$ after time $\tau$ by equaling
@@ -516,4 +516,8 @@ useenv pf [\Cref{thm:sol-the-spde-nonlin}] {
     then it is solvable for $\lambda$ satisfying $N_1|\lambda-\lambda_0|<=1/2$.
     In finite number of steps starting from $\lambda=1$, we get to $\lambda=0$.
     This proves the theorem if $f,g$ are independent of $u$.
+
+    To consider general $f$ and $g$, it remains to repeat the proof of
+    \Cref{thm:6.4} taking $f(u,t,x)$ and $g(u,t,x)$ instead of $f+L_1(u)$ and
+    $g+\Lambda_1(u)$ there. The theorem is proved.
 }

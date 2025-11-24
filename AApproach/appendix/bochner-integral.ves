@@ -88,7 +88,7 @@ useenv thm { \label{thm:ident-bochner}
     $$
     Since both $\mu$ and $\nu$ are $\sigma$-finite, we have
     $L_p(\Mf\otimes\Nf,\mu\times\nu) = L_p(\Mf\times\Nf,\mu\times\nu)$ (see
-    \cite{Kry2}), and this implies that $Tf$ is strongly measurable. Furthermore, we have
+    \cite{Kry-diffusion}), and this implies that $Tf$ is strongly measurable. Furthermore, we have
     useenv equation { \label{eq:appen.2.1}
         ||Tf||_{L_p(X,\Mf,L_p(\Nf,\nu))}^p
         = \int_X ||(Tf)(x)||_{L_p(\Nf,\nu)}^p \mu(dx)
@@ -106,7 +106,7 @@ useenv thm { \label{thm:ident-bochner}
         X,
     $$
     $$
-        \lim_{n->oo} ||g-s_n||_{L_p(X,\Mf,L_p(\Nf,\nu))}^p = 
+        \lim_{n->oo} ||g-s_n||_{L_p(X,\Mf,L_p(\Nf,\nu))}^p =
         \lim_{n->oo}\int_X ||g(x) - s_n(x)||_{L_p(\Nf,\nu)}^p\mu(dx) = 0.
     $$
     Define
@@ -142,4 +142,3 @@ useenv thm { \label{thm:ident-bochner}
     Therefore we proved that $T$ is an isometry. Using this map, we can idenfity
     both spaces. \proved
 }
-

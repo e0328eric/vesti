@@ -1,6 +1,5 @@
-compty (tect)
 importmod (coprime)
-docclass coprime (10pt, item, geometry, fancy, tikz, korean)
+docclass coprime (11pt, item, geometry, fancy, tikz, korean)
 
 importpkg {
     xcolor,
@@ -19,6 +18,8 @@ Below is just a note how to call ttf fonts in tectonic
 #chardef 12000 \fooo
 {\notokr\fooo}
 *%
+
+defun cprime {\ensuremath{^\prime}}
 
 \settitle{AApproach Seminar}{Sungbae Jeong}
 \setgeometry{a4paper, margin=2.2cm}
@@ -39,6 +40,8 @@ Below is just a note how to call ttf fonts in tectonic
 \maketheorem{assump}{Assumption}{\bfseries Assumption\ \theAssumption}
 \crefname{Assumption}{\lowercase{Assumption}}{\lowercase{Assumption}}
 \Crefname{Assumption}{Assumption}{Assumption}
+
+% #globaldef_here
 
 startdoc
 defun [r] defeq {\coloneq}
@@ -94,7 +97,7 @@ importves (chapter4/relation.ves)
 of $x$.}
 importves (chapter4/general-case.ves)
 
-\section{Equations with Variable Coefficients}
+\section{Equations with Variable Coefficients} \label{sec:5}
 importves (chapter5/variable-coeff.ves)
 
 \section{Proof of \Cref{thm:sol-the-spde-nonlin}}
@@ -103,6 +106,18 @@ importves (chapter6/proof.ves)
 \section{Embedding Theorems for $\Hc_p^n(\tau)$}
 importves (chapter7/embeddings.ves)
 
+\section{Applications}
+\subsection{Filtering Equation}
+
+\subsection{On the Notion of Stochastic Integral} \label{sect:stochastic-integral}
+importves (chapter8/stochastic-integral.ves)
+
+\subsection{Equations Driven by Space-Time White Noise} \label{sec:white-noise}
+importves (chapter8/white-noise.ves)
+
+\subsection{Non--Explosion for a Nonlinear Equation}
+importves (chapter8/non-explosion.ves)
+
 \section{Appendix}
 \subsection{Sobolev-Slobodeckij space}
 importves (appendix/slobodeckij.ves)
@@ -110,64 +125,40 @@ importves (appendix/slobodeckij.ves)
 \subsection{Checking whether two spaces are same}
 importves (appendix/compare-spaces.ves)
 
+\subsection{Rigorous proof of uniqueness in the page \proofpage} \label{sec:appx-uniqueness}
+importves (appendix/uniqueness.ves)
+
 \subsection{The Heat Kernel} \label{sec:heat-kernel}
 importves (appendix/heat-kernel.ves)
 
-\subsection{Rigorous proof of uniqueness in page \thispageref} \label{sec:appx-uniqueness}
-importves (appendix/uniqueness.ves)
-
-\subsection{Multiple of two distributions} \label{sect:multiple-distribs}
-importves (appendix/multiple-distribs.ves)
-
-\subsection{Brief introduction to Bochner integral}
-importves (appendix/bochner-integral.ves)
+\subsection{The Kernel of $(1-\Delta)^{-\alpha}$} \label{sec:kernel-R}
+importves (appendix/the-kernel.ves)
 
 \subsection{Auxiliary Lemmas}
 importves (appendix/aux-lemmas.ves)
 
 \goodbreak
+\subsection{Separable Measure Space}
+importves (appendix/separable-measure-space.ves)
+
+\subsection{Interpolation Theory}
+importves (appendix/interpolation.ves)
+
+\subsection{Brief introduction to Bochner integral}
+importves (appendix/bochner-integral.ves)
+
 \subsection{Stochastic Fubini's theorem}
 importves (appendix/stochastic-fubini.ves)
 
 \subsection{Recipies to prove \cref{lemma:generalized-littlewood-paley}} \label{sec:sharp-maximal}
 importves (appendix/sharp-maximal.ves)
 
+\subsection{More Possible Results for \cref{eq:white-noise}}
+\label{sec:more-info}
+importves (appendix/more-facts-white-noise.ves)
+
 \hbox{}
 \vfill
-useenv reference {
-  \book{Kra}{Integral operators in spaces of summable functions}
-  {Krasnosel'ski\u i M. A. and Zabre\u iko P. P. and Pustyl'nik E. I. and
-  Sobolevski\u i P. E.}{1976}{Noordhoff International Publishing, Leiden}
-  \book{Yosida}{Functional analysis}{K. Yosida}{1980}{Springer Verlag}
-  \book{Tri1}{Theory of Function spaces}{H. Triebel}{1983}{Birkh\"auser Verlag}
-  \book{Tri2}{Theory of Function spaces II}{H. Triebel}{1992}{Birkh\"auser Verlag}
-  \book{TriI}{Interpolation Theory, Function Spaces, Differential Operators}
-  {H. Triebel}{1978}{North-Holland Publishing Company}
-  \book{Stein}{Harmonic Analysis: Real-Variable Methods, Orthogonality, and
-  Oscillatory Integrals}{Elias M. Stein}{1993}{Princeton University Press}
-  \article{Kry0}{An analytic approach to SPDEs}{N. V. Krylov}{1999}
-  \book{Kry1}{Lectures on Elliptic and Parabolic Equations in Sobolev Spaces}
-  {N. V. Krylov}{2000}{American Mathematical Society}
-  \book{Kry2}{Introduction to the theory of Diffusion Processes}
-  {N. V. Krylov}{1995}{American Mathematical Society}
-  \article{Kry3}{On the Foundation of the $L_p$-Theory of SPDE}{N. V.
-  Krylov}{2005}
-  \article{Kry4}{A Generalization of the Littlewood-Paley Inequality and Some
-  Other Results Related to Stochastic Partial Differential Equations}{N. V.
-  Krylov}{1994}
-  \article{Kry5}{A Parabolic Littlewood-Paley Inequality with Applications to
-  Parabolic Equations}{N. V. Krylov}{1994}
-  \book{Evans}{Measure Theory and Fine Properties of Functions -- Revised
-  Edition}{L. C. Evans, R. F. Gariepy}{2015}{CRC Press}
-  \book{LSU}{Linear and quasi-linear equations of parabolic type}
-  {O. A. Lady\v zenskaja, V. A. Solonnikov, N. N. Ural'ceva}{1968}{AMS}
-  \book{Yor}{Continuous Martingales and Brownian Motion}{Daniel Revuz and Marc
-  Yor}{1999}{Springer Verlag}
-  \article{SF}{On the It\^o-Wentzell formula for distribution-valued processes
-  and related topics}{N. V. Krylov}{2010}
-  \book{Protter}{Stochastic Integration and Differential Equations}{Philip E.
-  Protter}{1999}{Springer Verlag}
-  \book{RL}{Stochastic Evolution Systems -- Linear Theory and Applications to
-  Non-Linear Filtering: Second Edition}{Boris L. Rozovsky, Sergey V. Lototsky}{2018}{Springer Verlag}
-}
 
+\bibliographystyle{amsplain}
+\bibliography{#get_filepath(bib.bib)}
