@@ -62,7 +62,7 @@ extern "C" fn compile_latex_with_tectonic(
         .format_cache_path(format_cache_path)
         .keep_logs(false)
         .keep_intermediates(false)
-        .print_stdout(true)
+        .print_stdout(false)
         .build_date(SystemTime::now())
         .output_format(driver::OutputFormat::Pdf);
 

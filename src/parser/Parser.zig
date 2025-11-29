@@ -2226,6 +2226,10 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
     var output_inner = try ArrayList(Stmt).initCapacity(self.allocator, 5);
     errdefer output_inner.deinit(self.allocator);
 
+    try output_inner.append(
+        self.allocator,
+        Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\\begingroup "}) },
+    );
     if (label_kind) |lk| {
         // TODO: indexOf -> findPos
         if (mem.indexOf(u8, lk.items, "**") != null) {
@@ -2242,13 +2246,16 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
         var reset_label = Io.Writer.Allocating.init(self.allocator);
         errdefer reset_label.deinit();
 
-        try reset_label.writer.print("\\renewcommand{{\\{s}}}{{", .{switch (self.enum_depth) {
-            1 => "labelenumi",
-            2 => "labelenumii",
-            3 => "labelenumiii",
-            4 => "labelenumiv",
-            else => unreachable,
-        }});
+        try reset_label.writer.print(
+            "\\renewcommand{{\\{s}}}{{",
+            .{switch (self.enum_depth) {
+                1 => "labelenumi",
+                2 => "labelenumii",
+                3 => "labelenumiii",
+                4 => "labelenumiv",
+                else => unreachable,
+            }},
+        );
 
         var iter = mem.splitScalar(u8, lk.items, '*');
         while (iter.next()) |s| {
@@ -2271,6 +2278,10 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
     }
 
     try output_inner.append(self.allocator, env);
+    try output_inner.append(
+        self.allocator,
+        Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\\endgroup "}) },
+    );
 
     // back to the previous state of enum depth
     self.enum_depth -= 1;
@@ -2279,6 +2290,37 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
         .unwrap_brace = true,
         .inner = output_inner,
     } };
+}
+
+fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
+    const enum_counter_loc = self.curr_tok.span;
+
+    // TODO: without using `enumitem`, the maximum depth of enum is 4.
+    if (self.enum_depth >= 5) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "enum_counter",
+                .note = "`#enum_counter` builtin cannot be nested more than four times",
+            } },
+            .span = enum_counter_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    var output = try ArrayList(u8).initCapacity(self.allocator, 50);
+    errdefer output.deinit(self.allocator);
+    try output.appendSlice(
+        self.allocator,
+        switch (self.enum_depth) {
+            1 => "enumi",
+            2 => "enumii",
+            3 => "enumiii",
+            4 => "enumiv",
+            else => unreachable,
+        },
+    );
+
+    return Stmt{ .TextLit = .fromArrayList(output) };
 }
 
 fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
