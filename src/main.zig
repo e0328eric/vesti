@@ -187,7 +187,14 @@ fn compileStep(
         diagnostic,
     ) orelse return error.FirstLuaNotFound;
     defer allocator.free(first_lua);
+
+    // we are going to run `first.lua`
+    lua.is_first_lua = true;
     try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
+    lua.is_first_lua = false;
+
+    // first.lua may change engine
+    engine = lua.engine;
 
     const main_ves = if (main_filename.value.string.len != 0)
         main_filename.value.string

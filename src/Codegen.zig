@@ -129,6 +129,11 @@ fn codegenStmt(
                 }
             }
             try writer.print("{{{f}}}\n", .{docclass.name});
+
+            // since vesti uses `\text` command which is not a LaTeX builtin
+            // so we must add at least one package (very minimal one)
+            // TODO: implement my own `\text` command which replace the ams' one
+            try writer.writeAll("\\usepackage{amstext}\n");
         },
         .ImportSinglePkg => |usepkg| {
             try writer.writeAll("\\usepackage");

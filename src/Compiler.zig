@@ -31,6 +31,7 @@ pub const CompileAttribute = packed struct {
     watch: bool,
     no_color: bool,
     no_exit_err: bool,
+    engine_already_changed: bool = false,
 };
 
 pub const LuaScripts = struct {
@@ -392,6 +393,7 @@ fn parseVesti(
             .luacode = true,
             .global_def = true,
             .is_main = is_main,
+            .change_engine = !self.attr.engine_already_changed,
         },
         .{self.engine},
     );

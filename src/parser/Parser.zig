@@ -87,6 +87,7 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 
 pub const ParseError = Allocator.Error ||
     process.GetEnvVarOwnedError ||
+    error{Utf8InvalidStartByte} || // from unicode.utf8ByteSequenceLength
     Io.Writer.Error || Io.Reader.Error || error{ StreamTooLong, FailedOpenConfig } ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
@@ -107,6 +108,7 @@ const ParserAllows = packed struct {
     luacode: bool = false,
     global_def: bool = false,
     is_main: bool = false,
+    change_engine: bool = true,
 };
 
 pub fn init(
@@ -1468,6 +1470,13 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
+    if (!self.allows.change_engine) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .ChangeEngineTwice,
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
 
     try self.expectWithError(.CompileType, .remain);
     if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
@@ -2231,18 +2240,6 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
         Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\\begingroup "}) },
     );
     if (label_kind) |lk| {
-        // TODO: indexOf -> findPos
-        if (mem.indexOf(u8, lk.items, "**") != null) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .WrongBuiltin = .{
-                    .name = "enum",
-                    .note = "consequtive `*` is not allowed",
-                } },
-                .span = enum_loc,
-            } });
-            return ParseError.ParseFailed;
-        }
-
         var reset_label = Io.Writer.Allocating.init(self.allocator);
         errdefer reset_label.deinit();
 
@@ -2257,10 +2254,25 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
             }},
         );
 
-        var iter = mem.splitScalar(u8, lk.items, '*');
-        while (iter.next()) |s| {
-            try reset_label.writer.writeAll(s);
-            if (iter.peek() == null) break;
+        var i: usize = 0;
+        while (i < lk.items.len) {
+            const current = lk.items[i];
+            if (current != '*') {
+                const codepoint_len: usize =
+                    @intCast(try unicode.utf8ByteSequenceLength(current));
+                try reset_label.writer.writeAll(lk.items[i .. i + codepoint_len]);
+                i += codepoint_len;
+                continue;
+            }
+
+            // if `**` was found, replace with `*`
+            if (i + 1 < lk.items.len and lk.items[i + 1] == '*') {
+                i += 2;
+                try reset_label.writer.writeByte('*');
+                continue;
+            }
+
+            // in this point, we have single `*`
             try reset_label.writer.print("{{{s}}}", .{switch (self.enum_depth) {
                 1 => "enumi",
                 2 => "enumii",
@@ -2268,6 +2280,9 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
                 4 => "enumiv",
                 else => unreachable,
             }});
+
+            // increment i to skip `*`
+            i += 1;
         }
         try reset_label.writer.writeAll("}\n");
 

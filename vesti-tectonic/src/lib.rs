@@ -60,8 +60,8 @@ extern "C" fn compile_latex_with_tectonic(
         .tex_input_name(&latex_filename.to_string())
         .format_name("latex")
         .format_cache_path(format_cache_path)
-        .keep_logs(false)
-        .keep_intermediates(false)
+        .keep_logs(true)
+        .keep_intermediates(true)
         .print_stdout(false)
         .build_date(SystemTime::now())
         .output_format(driver::OutputFormat::Pdf);
@@ -71,7 +71,14 @@ extern "C" fn compile_latex_with_tectonic(
     }
 
     let mut sess = unwrap!(sb.create(&mut *status));
-    unwrap!(sess.run(&mut *status));
+
+    match sess.run(&mut *status) {
+        Ok(()) => {}
+        Err(err) => {
+            eprintln!("TECTONIC ERROR: {err}\nSee logs in {vesti_local_dummy_dir}\n");
+            return false;
+        }
+    }
 
     println!("[Compile {} Done]", latex_filename);
 

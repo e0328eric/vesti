@@ -258,6 +258,7 @@ pub const ParseDiagnostic = struct {
         DuplicatedLuaLabel,
         LuaEvalFailed,
         NotLocatedInVeryFirst,
+        ChangeEngineTwice,
         DoubleUsed,
         InvalidLatexEngine,
         VestiInternal,
@@ -304,6 +305,7 @@ pub const ParseDiagnostic = struct {
             err_detail: ArrayList(u8),
         },
         NotLocatedInVeryFirst: TokenType,
+        ChangeEngineTwice,
         DoubleUsed: TokenType,
         InvalidLatexEngine: []const u8,
         VestiInternal: []const u8,
@@ -498,6 +500,10 @@ pub const ParseDiagnostic = struct {
                 "{f} must be located in the very first line of the vesti code",
                 .{tok},
             ),
+            .ChangeEngineTwice => try aw.writer.print(
+                "engine type is tried to changed in twice, which is not allowed",
+                .{},
+            ),
             .DoubleUsed => |tok| try aw.writer.print(
                 "{f} must be used only once",
                 .{tok},
@@ -595,6 +601,16 @@ pub const ParseDiagnostic = struct {
                     \\Internally vesti uses \def family to define latex functions.
                     \\However, latex hates to use environment inside of \def.
                     \\For this reason, vesti emits an error to notice to change.
+                , .{});
+                break :blk output;
+            },
+            .ChangeEngineTwice => blk: {
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+
+                try output.print(allocator,
+                    \\There are two ways to change latex engine: in `first.lua` and `compty`.
+                    \\Vesti allows to use either of them, not both
                 , .{});
                 break :blk output;
             },

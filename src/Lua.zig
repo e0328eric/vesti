@@ -24,6 +24,7 @@ allocator: Allocator,
 buf: ArrayList(u8),
 engine: LatexEngine,
 make_log: bool,
+is_first_lua: bool,
 line_limit: usize,
 main_ves: ?[:0]const u8,
 compile_attr: CompileAttribute,
@@ -38,7 +39,7 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [12]zlua.FnReg = .{
     .{ .name = "vestiDummyDir", .func = vestiDummyDir },
     .{ .name = "getCurrentDir", .func = getCurrentDir },
     .{ .name = "setCurrentDir", .func = setCurrentDir },
-    .{ .name = "engineType", .func = engineType },
+    .{ .name = "getEngineType", .func = getEngineType },
     .{ .name = "unzip", .func = unzip },
     .{ .name = "download", .func = download },
     .{ .name = "mkdir", .func = mkdir },
@@ -64,6 +65,7 @@ pub fn init(
     errdefer self.buf.deinit(self.allocator);
     self.lua = try ZigLua.init(allocator);
     errdefer self.lua.deinit();
+    self.is_first_lua = false;
     self.main_ves = null;
     self.compile_attr = compile_attr;
 
@@ -478,7 +480,7 @@ fn setCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     return 0;
 }
 
-fn engineType(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
+fn getEngineType(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
     const self = getSelf(lua) catch {
         lua.raiseError();
@@ -808,6 +810,13 @@ fn compile(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     };
     const allocator = self.allocator;
 
+    if (!self.is_first_lua) raiseError(
+        lua,
+        \\cannot use `vesti.compile` outside of `first.lua`
+    ,
+        .{},
+    );
+
     const nargs = lua.getTop();
     if (nargs == 0 or nargs > 2) raiseError(
         lua,
@@ -854,6 +863,45 @@ fn compile(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
             }
             lua.pop(1); // pop attr
         }
+
+        // setting engine
+        const engine_ty = lua.getField(nargs, "engine");
+        switch (engine_ty) {
+            .nil => {},
+            .string => blk: {
+                const engine_string = lua.toString(-1) catch @panic("Internal Lua Bug");
+                inline for (.{
+                    .{ "latex", LatexEngine.latex },
+                    .{ "pdf", LatexEngine.pdflatex },
+                    .{ "xe", LatexEngine.xelatex },
+                    .{ "lua", LatexEngine.lualatex },
+                    .{ "tect", LatexEngine.tectonic },
+                }) |info| {
+                    if (std.mem.eql(u8, info[0], @ptrCast(engine_string))) {
+                        self.engine = info[1];
+                        self.compile_attr.engine_already_changed = true;
+                        break :blk;
+                    }
+                }
+
+                // at this point, engine string did not matched
+                raiseError(
+                    lua,
+                    "invalid `engine`. Must either `latex`, `pdf`, `xe`, `lua`, or `tect`\n",
+                    .{},
+                );
+                return 0;
+            },
+            else => {
+                raiseError(
+                    lua,
+                    "`engine` should be a string\n",
+                    .{},
+                );
+                return 0;
+            },
+        }
+        lua.pop(1); // pop engine
     }
 
     return 0;
