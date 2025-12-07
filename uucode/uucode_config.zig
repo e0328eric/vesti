@@ -14,6 +14,7 @@ const vesti_uucode_custom = config.Extension{
         .{ .name = "is_alphanumeric", .type = bool },
         .{ .name = "is_numeric", .type = bool },
         .{ .name = "is_ascii_digit", .type = bool },
+        .{ .name = "is_ascii_alphanumeric", .type = bool },
     },
 };
 
@@ -32,10 +33,17 @@ fn computeVestiUucodeCustom(
 
     if (cp <= 0xFF and ascii.isDigit(@truncate(cp))) {
         data.is_ascii_digit = true;
+        data.is_ascii_alphanumeric = true;
         data.is_alphanumeric = true;
         data.is_numeric = true;
+    } else if (cp <= 0xFF and ascii.isAlphabetic(@truncate(cp))) {
+        data.is_ascii_digit = false;
+        data.is_ascii_alphanumeric = true;
+        data.is_alphanumeric = true;
+        data.is_numeric = false;
     } else {
         data.is_ascii_digit = false;
+        data.is_ascii_alphanumeric = false;
 
         switch (gc) {
             .number_decimal_digit, // Nd
@@ -74,9 +82,10 @@ pub const tables = [_]config.Table{
         },
         .fields = &.{
             wcwidth.field("wcwidth"),
-            vesti_uucode_custom.field("is_ascii_digit"),
             vesti_uucode_custom.field("is_numeric"),
             vesti_uucode_custom.field("is_alphanumeric"),
+            vesti_uucode_custom.field("is_ascii_digit"),
+            vesti_uucode_custom.field("is_ascii_alphanumeric"),
             d.field("is_alphabetic"),
         },
     },

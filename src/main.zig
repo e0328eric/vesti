@@ -113,10 +113,10 @@ fn compileStep(
         break :blk @intCast(tmp);
     };
 
-    const compile_all = compile_subcmd.flags.get("all").?.value.bool;
     const watch = compile_subcmd.flags.get("watch").?.value.bool;
     const no_color = compile_subcmd.flags.get("no_color").?.value.bool;
     const exit_err = compile_subcmd.flags.get("exit_err").?.value.bool;
+    const standalone = compile_subcmd.flags.get("standalone").?.value.bool;
 
     const is_latex = compile_subcmd.flags.get("latex").?.value.bool;
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
@@ -145,7 +145,7 @@ fn compileStep(
         engine,
         &config,
         .{
-            .compile_all = compile_all,
+            .compile_all = true,
             .watch = watch,
             .no_color = no_color,
             .no_exit_err = !exit_err,
@@ -153,48 +153,53 @@ fn compileStep(
     );
     defer lua.deinit();
 
-    // search first.lua in case of not specifying main_filename
-    if (main_filename.value.string.len == 0) blk: {
-        const cwd = std.process.getCwdAlloc(allocator) catch {
-            std.debug.print("error: cannot get the current directory\n", .{});
-            return error.FailedGetCwd;
-        };
-        defer allocator.free(cwd);
+    // -S flag ignores to find and run first.lua, and make compile_all = false
+    if (!standalone) {
+        // search first.lua in case of not specifying main_filename
+        if (main_filename.value.string.len == 0) blk: {
+            const cwd = std.process.getCwdAlloc(allocator) catch {
+                std.debug.print("error: cannot get the current directory\n", .{});
+                return error.FailedGetCwd;
+            };
+            defer allocator.free(cwd);
 
-        var iter = try path.componentIterator(cwd);
-        const last = iter.last() orelse {
-            std.debug.print(
-                "error: cwd {s} is empty. But this might be an undefined behavior\n",
-                .{cwd},
-            );
-            return error.CwdIsEmpty;
-        };
+            var iter = try path.componentIterator(cwd);
+            const last = iter.last() orelse {
+                std.debug.print(
+                    "error: cwd {s} is empty. But this might be an undefined behavior\n",
+                    .{cwd},
+                );
+                return error.CwdIsEmpty;
+            };
 
-        // change current directory where first.lua is located
-        if (try changeCwdAtFirstLua(allocator, &last)) break :blk;
-        while (iter.previous()) |prev| {
-            if (try changeCwdAtFirstLua(allocator, &prev)) break :blk;
+            // change current directory where first.lua is located
+            if (try changeCwdAtFirstLua(allocator, &last)) break :blk;
+            while (iter.previous()) |prev| {
+                if (try changeCwdAtFirstLua(allocator, &prev)) break :blk;
+            }
+
+            // in this point, first.lua is not found, so raise an error
+            std.debug.print("error: `first.lua` is not found.\n", .{});
+            return error.FailedToFindFirstLua;
         }
 
-        // in this point, first.lua is not found, so raise an error
-        std.debug.print("error: `first.lua` is not found.\n", .{});
-        return error.FailedToFindFirstLua;
+        const first_lua = try luascript.getBuildLuaContents(
+            allocator,
+            first_script,
+            diagnostic,
+        ) orelse return error.FirstLuaNotFound;
+        defer allocator.free(first_lua);
+
+        // we are going to run `first.lua`
+        lua.is_first_lua = true;
+        try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
+        lua.is_first_lua = false;
+
+        // first.lua may change engine
+        engine = lua.engine;
+    } else {
+        lua.compile_attr.compile_all = false;
     }
-
-    const first_lua = try luascript.getBuildLuaContents(
-        allocator,
-        first_script,
-        diagnostic,
-    ) orelse return error.FirstLuaNotFound;
-    defer allocator.free(first_lua);
-
-    // we are going to run `first.lua`
-    lua.is_first_lua = true;
-    try luascript.runLuaCode(lua, diagnostic, first_lua, first_script);
-    lua.is_first_lua = false;
-
-    // first.lua may change engine
-    engine = lua.engine;
 
     const main_ves = if (main_filename.value.string.len != 0)
         main_filename.value.string

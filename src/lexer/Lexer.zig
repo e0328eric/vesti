@@ -12,6 +12,8 @@ const Span = @import("../location.zig").Span;
 const Token = @import("Token.zig");
 const TokenType = Token.TokenType;
 
+const MAX_LUACODE_BRACKET_STR = 32;
+
 source: []const u8,
 chr0_idx: usize,
 chr1_idx: usize,
@@ -20,6 +22,9 @@ location: Location,
 make_at_letter: bool,
 is_latex3_on: bool,
 lex_finished: bool,
+luacode_bracket_pin: usize,
+luacode_bracket_strlen: usize,
+luacode_bracket_str: [MAX_LUACODE_BRACKET_STR]u8,
 
 const Self = @This();
 
@@ -34,6 +39,9 @@ pub fn init(source: []const u8) !Self {
     self.make_at_letter = false;
     self.is_latex3_on = false;
     self.lex_finished = false;
+    self.luacode_bracket_pin = 0;
+    self.luacode_bracket_strlen = 0;
+    self.luacode_bracket_str = @splat(0);
 
     self.nextChar(2);
     self.location = Location{};
@@ -98,6 +106,7 @@ fn getChar(self: Self, comptime get_char_t: GetCharType) u21 {
         4 => unicode.utf8Decode4(self.source[start..][0..4].*) catch unreachable,
         else => unreachable,
     };
+
     return output;
 }
 
@@ -108,6 +117,8 @@ const TokenizeState = enum {
     verbatim,
     line_verbatim,
     luacode,
+    luacode_get_bracket_str,
+    luacode_check_bracket_str,
     luacode_end,
     builtin_function,
     latex_function,
@@ -432,21 +443,17 @@ pub fn next(self: *Self) Token {
         },
         .sharp_chr => {
             // mimic a `goto` statement
-            const Goto = enum { a, b };
-            goto: switch (Goto.a) {
-                .a => switch (self.getChar(.current)) {
-                    'l' => if (self.getChar(.peek1) == 'u' and
-                        self.getChar(.peek2) == ':')
-                    {
-                        self.nextChar(3);
+            const Goto = enum { parse_luacode_start, parse_builtin };
+            goto: switch (Goto.parse_luacode_start) {
+                .parse_luacode_start => switch (self.getChar(.current)) {
+                    ':' => {
+                        self.nextChar(1);
                         start_chr0_idx = self.chr0_idx;
-                        continue :tokenize .luacode;
-                    } else {
-                        continue :goto .b;
+                        continue :tokenize .luacode_get_bracket_str;
                     },
-                    else => continue :goto .b,
+                    else => continue :goto .parse_builtin,
                 },
-                .b => {
+                .parse_builtin => {
                     if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
                         uucode.get(.is_alphabetic, self.getChar(.current)))
                     {
@@ -458,6 +465,60 @@ pub fn next(self: *Self) Token {
                     }
                 },
             }
+        },
+        .luacode_get_bracket_str => if (self.getChar(.current) == '#') {
+            // this branch checks that there is no bracket name in between
+            // `:` and `#` characters, which regards an invalid luacode prefix
+            if (self.chr0_idx == start_chr0_idx) {
+                // start_chr0_idx - 1 points `:` character
+                assert(start_chr0_idx > 0);
+                token.init(
+                    self.source[start_chr0_idx - 1 .. self.chr0_idx],
+                    null,
+                    .Illegal,
+                    start_location,
+                    self.location,
+                );
+                self.nextChar(1);
+                break :tokenize;
+            }
+
+            // self.source[start_chr0_idx .. self.chr0_idx] is the luacode
+            // bracket name
+            self.luacode_bracket_strlen = self.chr0_idx - start_chr0_idx;
+            if (self.luacode_bracket_strlen >= MAX_LUACODE_BRACKET_STR) {
+                token.init(
+                    self.source[start_chr0_idx - 1 .. self.chr0_idx],
+                    null,
+                    .Illegal,
+                    start_location,
+                    self.location,
+                );
+                self.nextChar(1);
+                break :tokenize;
+            }
+            @memcpy(
+                self.luacode_bracket_str[0..self.luacode_bracket_strlen],
+                self.source[start_chr0_idx..self.chr0_idx],
+            );
+
+            // start lexing actual luacode contents
+            self.nextChar(1);
+            start_chr0_idx = self.chr0_idx;
+            continue :tokenize .luacode;
+        } else if (isLuacodeBracketChar(self.getChar(.current))) {
+            self.nextChar(1);
+            continue :tokenize .luacode_get_bracket_str;
+        } else {
+            token.init(
+                "",
+                null,
+                .Illegal,
+                start_location,
+                self.location,
+            );
+            self.nextChar(1);
+            break :tokenize;
         },
         .backslash_chr => switch (self.getChar(.current)) {
             '\\' => {
@@ -749,11 +810,13 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .line_verbatim;
             },
         },
-        .luacode => if (self.getChar(.current) == ':' and
-            self.getChar(.peek1) == 'l')
-        {
+        .luacode => if (self.getChar(.current) == '#') {
+            // later, we cut off source code until here, so
+            // self.luacode_bracket_pin points this `#` character, but the
+            // actual luacode_bracket_str starts after this
+            self.luacode_bracket_pin = self.chr0_idx;
             self.nextChar(1);
-            continue :tokenize .luacode_end;
+            continue :tokenize .luacode_check_bracket_str;
         } else if (self.getChar(.current) == 0) {
             token.init(
                 self.source[start_chr0_idx..self.chr0_idx],
@@ -768,15 +831,38 @@ pub fn next(self: *Self) Token {
             self.nextChar(1);
             continue :tokenize .luacode;
         },
-        .luacode_end => if (self.getChar(.current) == 'l' and
-            self.getChar(.peek1) == 'u' and
-            self.getChar(.peek2) == '#')
+        .luacode_check_bracket_str => if (self.getChar(.current) == ':' and
+            self.getChar(.peek1) == '#')
         {
-            const luacode_end = self.chr0_idx - 1; // remove `:` character
-            self.nextChar(3);
-
+            const luacode_bracket_str = self.source[self.luacode_bracket_pin + 1 .. self.chr0_idx];
+            if (!mem.eql(
+                u8,
+                self.luacode_bracket_str[0..self.luacode_bracket_strlen],
+                luacode_bracket_str,
+            )) {
+                token.init(
+                    luacode_bracket_str,
+                    null,
+                    .Illegal,
+                    start_location,
+                    self.location,
+                );
+                self.nextChar(1);
+                break :tokenize;
+            }
+            self.nextChar(1);
+            continue :tokenize .luacode_end;
+        } else if (isLuacodeBracketChar(self.getChar(.current))) {
+            self.nextChar(1);
+            continue :tokenize .luacode_check_bracket_str;
+        } else {
+            self.nextChar(1);
+            continue :tokenize .luacode;
+        },
+        .luacode_end => if (self.getChar(.current) == '#') {
+            self.nextChar(1);
             token.init(
-                self.source[start_chr0_idx..luacode_end],
+                self.source[start_chr0_idx..self.luacode_bracket_pin],
                 null,
                 .LuaCode,
                 start_location,
@@ -900,4 +986,8 @@ fn isVestiIdentChar(
     return uucode.get(.is_alphabetic, chr) or
         (subscript_as_letter and chr == '@') or
         (is_latex3 and (chr == '_' or chr == ':'));
+}
+
+inline fn isLuacodeBracketChar(chr: u21) bool {
+    return chr == ':' or uucode.get(.is_ascii_alphanumeric, chr);
 }

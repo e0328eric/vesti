@@ -5,7 +5,7 @@
     -emit_tex,e     := @false     | compile vesti into tex file only (do nothing at this point);
     -exit_err,E     := @false     | on watch mode, exit immediately when error occurs;
     -no_color,N     := @false     | no color output on a terminal;
-    -all,a          := @false     | compile vesti files given from FILENAMES with directory name;
+    -standalone,S   := @false     | compile vesti without assuming `first.ves` exists;
     -watch,W        := @false     | watch vesti files when modified;
     -latex,L        := @false     | compile vesti using latex (can be changed using `compty` keyword);
     -pdflatex,p     := @false     | compile vesti using pdflatex (can be changed using `compty` keyword);

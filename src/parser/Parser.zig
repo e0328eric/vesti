@@ -344,6 +344,13 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             } });
             return ParseError.ParseFailed;
         },
+        .Illegal => {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .InvalidTokenFound,
+                .span = self.curr_tok.span,
+            } });
+            return ParseError.ParseFailed;
+        },
         .Deprecated => |info| {
             if (info.valid_in_text) return self.parseLiteral();
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1028,8 +1035,13 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
 
     var off_math_state = false;
     var add_newline = false;
+    var push_name = true;
 
     _ = try self.expectWithError(begin_env_tok, .eat);
+    if (!is_real and self.expect(.current, &.{.Bang})) {
+        self.nextToken();
+        push_name = false;
+    }
     if (!is_real and self.expect(.current, &.{.Star})) {
         self.nextToken();
         add_newline = true;
@@ -1108,9 +1120,11 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         }
     }
 
-    // store `name` if begenv is used.
+    // store `name` if `begenv` is used unless `begenv!` is used
     // notice that the ownership of the name will be taken into ast.
-    if (!is_real) try self.pushEndenvStack(name.toStr(), begenv_location);
+    if (!is_real and push_name) {
+        try self.pushEndenvStack(name.toStr(), begenv_location);
+    }
 
     var args = try self.parseFunctionArgs(
         .Lparen,
@@ -1171,8 +1185,39 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
 fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
     const endenv_location = self.curr_tok.span;
     _ = try self.expectWithError(.Endenv, .remain);
-    const name = try self.popEndenvStack(endenv_location);
-    return Stmt{ .EndPhantomEnviron = CowStr.init(.Borrowed, .{name}) };
+    if (self.peekToktype() == .Bang) {
+        self.nextToken(); // eat `endenv`
+        self.nextToken(); // eat `!`
+        self.eatWhitespaces(false);
+
+        const name = switch (@intFromEnum(self.currToktype())) {
+            @intFromEnum(TokenType.Text),
+            @intFromEnum(TokenType.__begin_keywords)...@intFromEnum(TokenType.__end_keywords),
+            => self.curr_tok.lit.in_text,
+            @intFromEnum(TokenType.Eof) => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = endenv_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .NameMissErr = .Endenv },
+                    .span = endenv_location,
+                } });
+                return ParseError.ParseFailed;
+            },
+        };
+
+        return Stmt{ .EndPhantomEnviron = try CowStr.init(.Owned, .{
+            self.allocator,
+            name,
+        }) };
+    } else {
+        const name = try self.popEndenvStack(endenv_location);
+        return Stmt{ .EndPhantomEnviron = CowStr.init(.Borrowed, .{name}) };
+    }
 }
 
 fn parseDefineCommand(

@@ -245,6 +245,7 @@ pub const ParseDiagnostic = struct {
         MathmodeInMath,
         TooManyBegenv,
         BegenvUnderflow,
+        InvalidTokenFound,
         Deprecated,
         InvalidBuiltin,
         WrongBuiltin,
@@ -286,6 +287,7 @@ pub const ParseDiagnostic = struct {
         MathmodeInMath,
         TooManyBegenv: u8,
         BegenvUnderflow,
+        InvalidTokenFound,
         Deprecated: []const u8,
         InvalidBuiltin: CowStr,
         WrongBuiltin: struct {
@@ -454,6 +456,7 @@ pub const ParseDiagnostic = struct {
             .MathmodeInMath => try aw.writer.print("`#mathmode` found in math", .{}),
             .TooManyBegenv => try aw.writer.print("too many `begenv` was found", .{}),
             .BegenvUnderflow => try aw.writer.print("there is no `begenv` to match", .{}),
+            .InvalidTokenFound => try aw.writer.print("invalid token was found", .{}),
             .Deprecated => |info| try aw.writer.print(
                 "deprecated token was found. Replace `{s}` instead",
                 .{info},
