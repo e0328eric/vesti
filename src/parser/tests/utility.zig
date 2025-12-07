@@ -13,6 +13,10 @@ const Stmt = @import("../ast.zig").Stmt;
 const allocator = std.testing.allocator;
 const Codegen = @import("../../Codegen.zig");
 
+pub inline fn concatAmsText(comptime s: []const u8) []const u8 {
+    return s ++ "\n\\usepackage{amstext}\n";
+}
+
 pub fn expect(
     source: []const u8,
     expected: []const u8,

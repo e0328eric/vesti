@@ -8,7 +8,7 @@ const Parser = @import("../Parser.zig");
 
 test "basic luacode" {
     const source =
-        \\#lu:
+        \\#::#
         \\function test(x,y)
         \\  if x < y
         \\    println("x is less than y")
@@ -18,7 +18,7 @@ test "basic luacode" {
         \\    println("x and y are equal")
         \\  end
         \\end
-        \\:lu#
+        \\#::#
     ;
     var diagnostic = diag.Diagnostic{
         .allocator = allocator,

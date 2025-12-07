@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const expect = @import("utility.zig").expect;
+const concat = @import("utility.zig").concatAmsText;
 
 fn trim(output: []const u8) []const u8 {
     return std.mem.trim(u8, output, "\n");

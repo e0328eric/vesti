@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 
 const expect = @import("utility.zig").expect;
+const concat = @import("utility.zig").concatAmsText;
 
 test "text math statement" {
     const source = "startdoc $\\sum_1^oo f(x)$";
@@ -42,8 +43,7 @@ test "simple latex document with math 1" {
         \\}startdoc
         \\$\sum_1^oo f(x) $a b c d
     ;
-    const expected =
-        \\\documentclass[tikz,geometry]{coprime}
+    const expected = concat("\\documentclass[tikz,geometry]{coprime}") ++
         \\
         \\\usepackage[T1]{fontenc}
         \\\usepackage[utf-8]{inputenc}
@@ -65,8 +65,7 @@ test "simple latex document with math 2" {
         \\}startdoc
         \\$\sum_1^oo f(x) $a b c d
     ;
-    const expected =
-        \\\documentclass[tikz,geometry]{coprime}
+    const expected = concat("\\documentclass[tikz,geometry]{coprime}") ++
         \\\usepackage[T1]{fontenc}
         \\\usepackage[utf-8]{inputenc}
         \\
