@@ -4,15 +4,12 @@ importpkg {
     xcolor,
     tikz,
     fancyvrb,
+    amsmath,
 }
 
 \title{Vesti Transpiler User Manual}
 \author{Sungbae Jeong}
-
-importves (font.ves)
-
-% read file contents using lua
-#lu:
+#:readAll#
 local function read_all(path)
   local f, err = io.open(path, "rb")
   assert(f, ("cannot open %s: %s"):format(path, err))
@@ -20,13 +17,13 @@ local function read_all(path)
   f:close()
   return data
 end
-:lu#<readAll>
+#readAll:#<readAll>
 
 % definition of \keyword command
 defun [!] keyword (m) {{\tt\color{purple}#1}}
 defun [!] builtin (v) {{\tt\color{blue!65!yellow}\##1}}
-#lu:
-local commands = { "useenv", "begenv", "endenv", "defun", "defenv" }
+#:1#
+local commands = { "useenv", "defun", "defenv" }
 for _, command in ipairs(commands) do
     local s = string.format(
         "defun %s (s) {\\IfBooleanTF{#1}{\\keyword{%%-%s-%%}}{\\keyword{%%-%s-%%} }}",
@@ -34,7 +31,23 @@ for _, command in ipairs(commands) do
     )
     vesti.print(vesti.parse(s))
 end
-:lu#
+#1:#
+
+#:begenv#
+function begenv(add_space, add_bang)
+    local name = "begenv"
+    if add_bang then name = name .. "!" end
+    if add_space then name = name .. " " end
+    vesti.print("\\keyword{" .. name .. "}")
+end
+
+function endenv(add_space, add_bang)
+    local name = "endenv"
+    if add_bang then name = name .. "!" end
+    if add_space then name = name .. " " end
+    vesti.print("\\keyword{" .. name .. "}")
+end
+#begenv:#*
 
 % space character used in the texbook.
 #at_on
@@ -137,7 +150,7 @@ Followings are reserved as keywords. In this document, every Vesti keyword has
 the form like \keyword{this}.
 useenv table [ht] {
     \centering
-    #lu:
+    #:keywords#
     local content = read_all("../src/lexer/Token.zig")
 
     -- Lua’s built-in patterns don’t support lookahead.
@@ -169,7 +182,7 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    :lu#[readAll]
+    #keywords:#[readAll]
     \caption{Keywords in Vesti}
 }
 
@@ -275,42 +288,67 @@ useenv center {
 where `*' means that the number of <argument> is zero or at least one, and
 $$
     "<argument>" = useenv cases {
-        "(<argument>)" & "mandatory arguments" \\
-        "[<argument>]" & "optional arguments"
+        "(<argument>)" & "mandatory arguments" \cr
+        "[<argument>]" & "optional arguments"  \cr
     }
 $$
 For instance, below one is a valid Vesti code (environment {\tt foo} is
 undefined in general). As one can see, spaces cannot exist in between <argument>s.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#|+color|purple@useenv@ foo (asd)(fff)[\ames and \awdsa](askws)[\rrsaa] {
-%#    foobar
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+|+color|purple@useenv@ foo (asd)(fff)[\ames and \awdsa](askws)[\rrsaa] {
+    foobar
 }
+-%}
 
-\subsection{\begenv and \endenv keywords}
-As the name implies, both keywords \begenv and \endenv are analogous of
-\verb|\begin{...}| and \verb|\end{...}| pair in \LaTeX, respectively.
-Thus below code
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#|+color|purple@begenv@ center
-%#    asdsad
-%#|+color|purple@endenv@
-}
+\subsection{#::#begenv()#::#* and #::#endenv()#::#* keywords}
+As the name implies, both keywords #::#begenv()#::#* and #::#endenv()#::#* are
+analogous of \verb|\begin{...}| and \verb|\end{...}| pair in \LaTeX,
+respectively. Thus below code
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+|+color|purple@begenv@ center
+    asdsad
+|+color|purple@endenv@
+-%}
 is exactly same as
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#+keyword|useenv@ center {
-%#    asdsad
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
++keyword|useenv@ center {
+    asdsad
 }
-Then why we need \begenv and \endenv if we already have \useenv*?
-The only reason which both \begenv and \endenv exist is defining new
-environment.
-For instance, one defines a new environment like following.
+-%}
+Then why we need #::#begenv()#::#* and #::#endenv()#::#* if we already have \useenv*?
+The only reason which both #::#begenv()#::#* and #::#endenv()#::#* exist is
+defining new environment. For instance, one defines a new environment like
+following.
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#+keyword|defenv@ foo {+keyword|begenv@ minipage (\textwidth)}{+keyword|endenv@}
+%#+keyword|defenv@ foo {|+color|purple@begenv@ minipage(\textwidth)}{|+color|purple@endenv@}
 }
 
 \subsection{\defun keyword}
+\defun is the keyword which makes a \LaTeX\ function. Internally, it uses {\tt
+xparse} package which is automatically included from modern \LaTeX$2\epsilon$
+kernel. The grammar of \defun is the following.
+
+begenv center
+    \defun\ob[<attr>]?\ob<command-name>\ob(<param-spec>)?\ob\{<implementation>\}
+endenv
+Here, {\tt`?`} means that this is an optional.
+
+First, let us see some examples for \defun*, and then explain the meaning of
+each fields.
+
+#:examples#
+local examples = {
+    "\\defun foo {Hello, World!}"
+}
+
+for _, example in ipairs(examples) do
+    vesti.print(vesti.parse(
+    "begenv! Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]"
+    ))
+    vesti.print(example)
+    vesti.print(vesti.parse("endenv! Verbatim"))
+end
+#examples:#
 
 \section{Builtins}
 Vesti also has its own builtin functions, which are prefixed with \#.
@@ -320,7 +358,7 @@ language usage, constantly typing the prefix can be somewhat tedious, especially
 for functions that are commonly used.
 
 From the perspective of language design --particularly in Vesti-- it is
-sometimes desirable to use names that cannot serve as keywords. For example,
+sometimes desirable to use names that can not be reserved as keywords. For example,
 Vesti provides a built-in function \builtin|label|, which will be explained
 later. Since Vesti is a typewriting-oriented language, the word \lq\lq
 label\rq\rq\ is often used in its ordinary sense rather than in its special
@@ -330,7 +368,7 @@ Followings are reserved as builtin functions.
 
 useenv table [ht] {
     \centering
-    #lu:
+    #:builtins#
     local content = read_all("../src/lexer/Token.zig")
 
     -- match .{ "here" }
@@ -354,7 +392,7 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    :lu#[readAll]
+    #builtins:#[readAll]
     \caption{Builtins in Vesti}
 }
 Since {\tt fancyvrb} does not allow verbatim-like commands inside of
@@ -363,42 +401,42 @@ Since {\tt fancyvrb} does not allow verbatim-like commands inside of
 \subsection{\builtin|label| builtin}
 For the compiling issue, if one label some environment, one should write like
 follows using \LaTeX\ function \verb|\label|.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@] {
-%#&keyword|useenv@ theorem { \label{eq:1}
-%#    1 + 1 = 2.
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
+&keyword|useenv@ theorem { \label{eq:1}
+    1 + 1 = 2.
 }
+-%}
 
 However, such code is not natural. Thus \builtin|label| comes into the place.
 One can label environments using \builtin|label| builtin like this.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@] {
-%##label(eq:1) &keyword|useenv@ theorem {
-%#    1 + 1 = 2.
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
+#label(eq:1) &keyword|useenv@ theorem {
+    1 + 1 = 2.
 }
+-%}
 One can also write like the following, which I personally prefer.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@] {
-%##label(eq:1)
-%#&keyword|useenv@ theorem {
-%#    1 + 1 = 2.
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
+#label(eq:1)
+&keyword|useenv@ theorem {
+    1 + 1 = 2.
 }
+-%}
 
 \subsection{\builtin|eq| builtin}
 \builtin|eq| is a abbriviation of \lq\keyword{%-useenv-%} equation\rq.
 Actually, below codes are same.
 
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%##label(eq:1)
-%#+keyword|useenv@ equation {
-%#    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
-%#}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#label(eq:1)
++keyword|useenv@ equation {
+    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
 }
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%##eq(eq:1) {
-%#    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
-%#}
+-%}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#eq(eq:1) {
+    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
 }
+-%}
 Since Vesti is used in the mathematical documents mainly, small syntactic suger
 is needed, so Vesti introduce \builtin|eq| builtin.
 
@@ -421,6 +459,97 @@ Before explaining each parameter, introduce some examples.
 useenv itemize {
     \item \builtin|mathchardef|\ob.opening\ob0\ob29d8\ob\verb|\lfooo|
     \item \builtin|mathchardef|\ob.ordinary\ob0\ob2202\ob\verb|\diff|
+}
+
+\subsection{\builtin|enum| and \builtin|enum_counter| builtins}
+\builtin|enum| builtin is just an enumerate environment with minimal support of
+{\tt enumitem} feature. For example,
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#enum {
+    \item aaa
+    \item bbb
+    \item ccc
+}
+-%}
+prints
+#enum {
+    \item aaa
+    \item bbb
+    \item ccc
+}
+\builtin|enum| also can be nested like follows.
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#enum {
+    \item aaa
+    \item #enum {
+        \item bbb
+        \item ccc
+    }
+    \item ddd
+}
+-%}
+It prints
+#enum {
+    \item aaa
+    \item #enum {
+        \item bbb
+        \item ccc
+    }
+    \item ddd
+}
+To customize a format of \verb|\item| like {\tt enumitem}, one can
+write like the following:
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#enum (\Roman*.) {
+    \item aaa
+    \item #enum ({\roman*}**) {
+        \item bbb
+        \item ccc
+    }
+    \item ddd
+}
+-%}
+#enum (\Roman*.) {
+    \item aaa
+    \item #enum ({\roman*}**) {
+        \item bbb
+        \item ccc
+    }
+    \item ddd
+}
+As one can see, \builtin|enum| changes the format with inside of {\tt()}.
+In Vesti, single {\tt *} changes into {\tt \{<enum count>\}} (including braces),
+and consequtive {\tt **} changes into single {\tt *} character.
+Thus, \verb|\Roman*.| changes into \verb|\Roman{enumi}.| and \verb|{\roman*}**|
+changes into \verb|{\roman{enumii}}*| (because this part is inside of another
+\builtin|enum|).
+
+Beware that by the parting mechanism, \verb|\roman***| changes into
+\verb|\roman*{<enum count>}|, and \verb|\roman{*}**| into \verb|\roman{{<enum count>}}*|,
+which are invalid arguments for \verb|\roman| \LaTeX\ internal command.
+
+\builtin|enum_counter| builtin is a helper to get the name of the current enum
+counter. For example, if one wants to start a second enum from 3, one can write
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+#enum {
+    \item aaa
+    \item #enum {
+        \setcounter{#enum_counter}{2}
+        \item bbb
+        \item ccc
+    }
+    \item ddd
+}
+-%}
+and it prints
+#enum {
+    \item aaa
+    \item #enum {
+        \setcounter{#enum_counter}{2}
+        \item bbb
+        \item ccc
+    }
+    \item ddd
 }
 
 \subsection{\builtin|get_filepath| builtin}
@@ -452,11 +581,11 @@ the character \verb|@| is not a valid one except after the \verb|\makeatletter|
 function. Since \keyword{%-defun-%} is a Vesti grammar, there is no way to tell
 Vesti that \verb|@| is a right one although one uses \verb|\makeatletter|.
 By using \builtin|at_on|, below code then compiles.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|&] {
-%##at_on
-%#+keyword|defun& @foo (#1) {Hello, #1!}
-%##at_off
-}
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|&]{%-
+#at_on
++keyword|defun& @foo (#1) {Hello, #1!}
+#at_off
+-%}
 One can not using \builtin|at_off|, but I strongly recommand to match
 pairs.
 
@@ -484,7 +613,7 @@ Vesti uses Lua in both building script and inline inside of Vesti code.
 Below are functions which are baked in Vesti compiler.
 useenv table [ht] {
     \centering
-    #lu:
+    #:lua#
     local content = read_all("../src/Lua.zig")
 
     local pat = '%.name%s*=%s*"([^"]+)"'
@@ -507,7 +636,7 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    :lu#[readAll]
+    #lua:#[readAll]
     \caption{Keywords in Vesti}
 }
 
@@ -516,10 +645,10 @@ useenv table [ht] {
 \section{Source Code of This Document}
 Below code was generated by inline lua.
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single] {
-#lu:
+#:verbatim#
     local content = read_all("vesti_man.ves")
     for line in content:gmatch("([^\r\n]*)\r?\n?") do
         vesti.print(line)
     end
-:lu#[readAll]
+#verbatim:#[readAll]
 }

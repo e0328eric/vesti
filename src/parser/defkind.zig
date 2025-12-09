@@ -155,7 +155,8 @@ pub const DefunKind = packed struct(DefunKindInt) {
             XPARSE | EXPAND | DECLARE => try writer.print(XPARSE_DEF, .{
                 "\\DeclareExpandableDocumentCommand", name,
             }),
-            else => unreachable, // assume every DefunKind comes from parseDefunKind
+            // assume every DefunKind comes from parseDefunKind
+            else => unreachable,
         }
     }
 
