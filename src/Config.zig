@@ -29,7 +29,10 @@ pub fn init(allocator: Allocator, diagnostic: *Diagnostic) !Self {
     });
     defer allocator.free(config_path);
 
-    var config_zon = try fs.openFileAbsolute(config_path, .{});
+    var config_zon = fs.openFileAbsolute(config_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => return .{},
+        else => return err,
+    };
     defer config_zon.close();
 
     var buf: [1024]u8 = undefined;
