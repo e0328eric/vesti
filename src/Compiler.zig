@@ -120,6 +120,47 @@ pub fn deinit(self: *Self) void {
     self.luacode_contents.deinit(self.allocator);
 }
 
+fn raiseMessagebox(
+    allocator: Allocator,
+    comptime title: []const u8,
+    comptime contents: []const u8,
+) !void {
+    switch (builtin.os.tag) {
+        .windows => {
+            const contents_z = try allocator.dupeZ(contents);
+            const title_z = try allocator.dupeZ(title);
+            defer {
+                allocator.free(contents_z);
+                allocator.free(title_z);
+            }
+            _ = win.MessageBoxA(
+                null,
+                @ptrCast(contents_z),
+                @ptrCast(title_z),
+                win.MB_OK | win.MB_ICONEXCLAMATION,
+            );
+        },
+        .linux => {
+            _ = Child.run(
+                .{
+                    .allocator = allocator,
+                    .argv = &.{
+                        "zenity",
+                        "--error",
+                        "--text=" ++ contents,
+                        "--title=" ++ title,
+                    },
+                },
+            ) catch |err| switch (err) {
+                error.FileNotFound => {}, // some machine might not have zenity
+                else => return err,
+            };
+        },
+        .macos => {}, // TODO: how can i raise a macos messagebox?
+        else => @compileError("Non-Supporting OS"),
+    }
+}
+
 pub fn compile(self: *Self) !void {
     // run before.lua to "initialize" vesti projects
     if (self.luacode_contents.before) |lc| {
@@ -133,16 +174,13 @@ pub fn compile(self: *Self) !void {
 
     while (true) {
         self.compileInner() catch |err| {
-            if (builtin.os.tag == .windows) {
-                _ = win.MessageBoxA(
-                    null,
-                    "vesti compilation error occurs. See the console for more information",
-                    "vesti compile failed",
-                    win.MB_OK | win.MB_ICONEXCLAMATION,
-                );
-            }
-            // since diagnostic.prettyPrint is called in compile.compile, we should
-            // avoid to print it twice (also on main)
+            try raiseMessagebox(
+                self.allocator,
+                "vesti compile failed",
+                "vesti compilation error occurs. See the console for more information",
+            );
+            // since diagnostic.prettyPrint is called in compile.compile, we
+            // should avoid to print it twice (also on main)
             self.diagnostic.lock_print_at_main = true;
             try self.diagnostic.prettyPrint(self.attr.no_color);
 

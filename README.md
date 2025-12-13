@@ -57,7 +57,8 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
-This project uses the zig version 0.15.2.
+This project uses the zig version 0.15.2. For linux, I recommend to install
+zenity.
 
 ## Compilation
 If you want to compile with Tectonic backend, just run the following command:
