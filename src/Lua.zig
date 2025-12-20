@@ -437,6 +437,7 @@ fn getCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         "cannot get the current directory",
         .{},
     );
+    defer allocator.free(cwd);
     _ = lua.pushString(cwd);
 
     return 1;
