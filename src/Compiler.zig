@@ -127,8 +127,8 @@ fn raiseMessagebox(
 ) !void {
     switch (builtin.os.tag) {
         .windows => {
-            const contents_z = try allocator.dupeZ(contents);
-            const title_z = try allocator.dupeZ(title);
+            const contents_z = try allocator.dupeZ(u8, contents);
+            const title_z = try allocator.dupeZ(u8, title);
             defer {
                 allocator.free(contents_z);
                 allocator.free(title_z);

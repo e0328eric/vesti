@@ -148,7 +148,7 @@ fn buildVesti(
         .build_config_path = b.path("uucode/uucode_config.zig"),
     });
 
-    const tectonic_lib_name = try getLibName(&target);
+    //const tectonic_lib_name = try getLibName(&target);
     const tectonic_dll_name = try getDllName(&target);
     const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
