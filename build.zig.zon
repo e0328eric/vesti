@@ -2,11 +2,11 @@
     .name = .vesti,
     .version = "0.7.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0-dev.1859+212968c57",
     .dependencies = .{
         .zlap = .{
-            .url = "git+https://github.com/e0328eric/zlap.git#f8a2e532f26b4df3073495e295d2c581165dc224",
-            .hash = "zlap-0.9.0-boKVXN-5AACABS5jc4QxvgfWRpUsSksRWGsDGSafXu9p",
+            .url = "git+https://github.com/e0328eric/zlap.git#9383bc3462e6e40d2ab591865ee234895b1d03a1",
+            .hash = "zlap-0.10.0-boKVXGK3AADtvW7LRhm35iJjCLwtPQ-0VG8yV6abXd6b",
         },
         .zlua = .{
             .url = "git+https://github.com/e0328eric/ziglua.git#39f8df588d0864070deffa308ef575bf492777a0",
