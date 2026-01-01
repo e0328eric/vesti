@@ -21,6 +21,7 @@ const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 lua: *ZigLua,
 allocator: Allocator,
+io: Io,
 buf: ArrayList(u8),
 engine: LatexEngine,
 make_log: bool,
@@ -49,6 +50,7 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [12]zlua.FnReg = .{
 
 pub fn init(
     allocator: Allocator,
+    io: Io,
     engine: LatexEngine,
     config: *const Config,
     compile_attr: CompileAttribute,
@@ -58,6 +60,7 @@ pub fn init(
 
     // initialize fields of self
     self.allocator = allocator;
+    self.io = io;
     self.engine = engine;
     self.make_log = config.lua.make_log;
     self.line_limit = config.lua.line_limit;
@@ -145,14 +148,14 @@ pub fn evalCode(self: *Self, code: [:0]const u8) !void {
                 }
             },
             .make_log => {
-                var vesti_dummy = try fs.cwd().openDir(VESTI_DUMMY_DIR, .{});
-                defer vesti_dummy.close();
+                var vesti_dummy = try Io.Dir.cwd().openDir(self.io, VESTI_DUMMY_DIR, .{});
+                defer vesti_dummy.close(self.io);
 
-                var lua_log_file = try vesti_dummy.createFile("luacode.lua", .{});
-                defer lua_log_file.close();
+                var lua_log_file = try vesti_dummy.createFile(self.io, "luacode.lua", .{});
+                defer lua_log_file.close(self.io);
 
                 var write_buf: [4096]u8 = undefined;
-                var writer = lua_log_file.writer(&write_buf);
+                var writer = lua_log_file.writer(self.io, &write_buf);
 
                 try writer.interface.writeAll(code[0..code.len -| 1]);
                 try writer.end();
@@ -299,6 +302,7 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         return 0;
     };
     const allocator = self.allocator;
+    const io = self.io;
 
     if (lua.getTop() != 1) raiseError(
         lua,
@@ -322,14 +326,13 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         );
     };
 
-    var diagnostic = diag.Diagnostic{
-        .allocator = allocator,
-    };
+    var diagnostic = diag.Diagnostic{ .allocator = allocator, .io = io };
     defer diagnostic.deinit();
 
-    var cwd_dir = std.fs.cwd();
+    var cwd_dir = Io.Dir.cwd();
     var parser = Parser.init(
         allocator,
+        io,
         vesti_code,
         &cwd_dir,
         &diagnostic,
@@ -445,6 +448,11 @@ fn getCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn setCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
+    const io = self.io;
 
     if (lua.getTop() != 1) raiseError(
         lua,
@@ -461,15 +469,15 @@ fn setCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     ,
         .{},
     );
-    var dir = std.fs.cwd().openDirZ(dir_path.ptr, .{}) catch raiseError(
+    var dir = Io.Dir.cwd().openDir(io, dir_path, .{}) catch raiseError(
         lua,
         "cannot open directory `{s}`",
         .{dir_path},
     );
-    defer dir.close();
-    dir.setAsCwd() catch {
+    defer dir.close(io);
+    std.process.setCurrentDir(io, dir) catch {
         // cleanups
-        dir.close();
+        dir.close(io);
 
         raiseError(
             lua,
@@ -494,6 +502,11 @@ fn getEngineType(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn unzip(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
+    const io = self.io;
 
     if (lua.getTop() != 2) raiseError(
         lua,
@@ -518,19 +531,19 @@ fn unzip(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         .{},
     );
 
-    var zip_file = std.fs.cwd().openFileZ(filename.ptr, .{}) catch raiseError(
+    var zip_file = Io.Dir.cwd().openFile(io, filename, .{}) catch raiseError(
         lua,
         "cannot open a file `{s}`",
         .{filename},
     );
-    defer zip_file.close();
+    defer zip_file.close(io);
 
     var reader_buf: [4096]u8 = undefined;
-    var reader = zip_file.reader(&reader_buf);
+    var reader = zip_file.reader(io, &reader_buf);
 
-    var dest_dir = std.fs.cwd().openDirZ(dirpath.ptr, .{}) catch {
+    var dest_dir = Io.Dir.cwd().openDir(io, dirpath, .{}) catch {
         // cleanups
-        zip_file.close();
+        zip_file.close(io);
 
         raiseError(
             lua,
@@ -540,12 +553,12 @@ fn unzip(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
             .{dirpath},
         );
     };
-    defer dest_dir.close();
+    defer dest_dir.close(io);
 
     zip.extract(dest_dir, &reader, .{}) catch {
         // cleanups
-        dest_dir.close();
-        zip_file.close();
+        dest_dir.close(io);
+        zip_file.close(io);
 
         raiseError(
             lua,
@@ -560,7 +573,12 @@ fn unzip(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
     const allocator = lua.allocator();
+    const io = self.io;
 
     if (lua.getTop() != 2) raiseError(
         lua,
@@ -585,7 +603,7 @@ fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         .{},
     );
 
-    var client = http.Client{ .allocator = allocator };
+    var client = http.Client{ .allocator = allocator, .io = io };
     defer client.deinit();
 
     const uri = std.Uri.parse(url) catch {
@@ -645,7 +663,7 @@ fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         &decompress_buf,
     );
 
-    var file = std.fs.cwd().createFileZ(filename.ptr, .{}) catch {
+    var file = Io.Dir.cwd().createFile(io, filename, .{}) catch {
         // cleanups
         req.deinit();
         client.deinit();
@@ -656,17 +674,17 @@ fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
             .{filename},
         );
     };
-    defer file.close();
+    defer file.close(io);
 
     var file_buf: [4096]u8 = undefined;
-    var writer = file.writer(&file_buf);
+    var writer = file.writer(io, &file_buf);
 
     while (true) {
         _ = reader.stream(&writer.interface, .unlimited) catch |err| switch (err) {
             error.EndOfStream => break,
             else => {
                 // cleanups
-                file.close();
+                file.close(io);
                 req.deinit();
                 client.deinit();
 
@@ -680,7 +698,7 @@ fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     }
     writer.interface.flush() catch {
         // cleanups
-        file.close();
+        file.close(io);
         req.deinit();
         client.deinit();
 
@@ -696,7 +714,12 @@ fn download(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn getModule(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
     const allocator = lua.allocator();
+    const io = self.io;
 
     if (lua.getTop() != 1) raiseError(
         lua,
@@ -714,13 +737,12 @@ fn getModule(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         .{},
     );
 
-    var diagnostic = diag.Diagnostic{
-        .allocator = allocator,
-    };
+    var diagnostic = diag.Diagnostic{ .allocator = allocator, .io = io };
     defer diagnostic.deinit();
 
     @import("ves_module.zig").downloadModule(
         allocator,
+        io,
         &diagnostic,
         mod_name,
         null,
@@ -740,6 +762,11 @@ fn getModule(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn mkdir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
+    const io = self.io;
 
     if (lua.getTop() != 1) raiseError(
         lua,
@@ -757,7 +784,7 @@ fn mkdir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
         .{},
     );
 
-    std.fs.cwd().makeDirZ(dir_name.ptr) catch |err| switch (err) {
+    Io.Dir.cwd().createDir(io, dir_name, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => raiseError(
             lua,

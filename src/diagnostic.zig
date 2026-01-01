@@ -12,6 +12,7 @@ const CowStr = @import("CowStr.zig").CowStr;
 
 pub const Diagnostic = struct {
     allocator: Allocator,
+    io: Io,
     lock_print_at_main: bool = false,
     absolute_filename: ?CowStr = null,
     source: ?CowStr = null,
@@ -97,6 +98,7 @@ pub const Diagnostic = struct {
     ) !void {
         if (self.inner) |inner| try inner.prettyPrint(
             self.allocator,
+            self.io,
             self.absolute_filename,
             self.source,
             no_color,
@@ -129,6 +131,7 @@ pub const DiagnosticInner = union(DiagnosticKind) {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
+        io: Io,
         absolute_filename: ?CowStr,
         source: ?CowStr,
         no_color: bool,
@@ -136,6 +139,7 @@ pub const DiagnosticInner = union(DiagnosticKind) {
         switch (self) {
             inline else => |diag| try diag.prettyPrint(
                 allocator,
+                io,
                 absolute_filename,
                 source,
                 no_color,
@@ -192,6 +196,7 @@ pub const IODiagnostic = struct {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
+        io: Io,
         absolute_filename: ?CowStr,
         source: ?CowStr,
         no_color: bool,
@@ -200,11 +205,11 @@ pub const IODiagnostic = struct {
         _ = absolute_filename;
         _ = source;
 
-        const stderr_handle = std.fs.File.stderr();
+        const stderr_handle = Io.File.stderr();
         var stderr_buf: [4096]u8 = undefined;
-        var stderr = stderr_handle.writer(&stderr_buf);
+        var stderr = stderr_handle.writer(io, &stderr_buf);
 
-        if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
+        if (stderr_handle.supportsAnsiEscapeCodes(io) catch false and !no_color) {
             try stderr.interface.print(
                 ansi.@"error" ++ "error: " ++ ansi.reset ++ "{s}\n",
                 .{self.msg.items},
@@ -641,18 +646,19 @@ pub const ParseDiagnostic = struct {
     fn prettyPrint(
         self: Self,
         allocator: Allocator,
+        io: Io,
         absolute_filename: ?CowStr,
         source: ?CowStr,
         no_color: bool,
     ) !void {
         std.debug.assert(source != null);
 
-        const stderr_handle = std.fs.File.stderr();
+        const stderr_handle = Io.File.stderr();
         var stderr_buf: [4096]u8 = undefined;
-        var stderr = stderr_handle.writer(&stderr_buf);
+        var stderr = stderr_handle.writer(io, &stderr_buf);
 
         const filename = if (absolute_filename) |af| blk: {
-            const current_dir = try std.fs.cwd().realpathAlloc(allocator, ".");
+            const current_dir = try Io.Dir.cwd().realPathFileAlloc(io, ".", allocator);
             defer allocator.free(current_dir);
             break :blk try std.fs.path.relative(
                 allocator,
@@ -671,7 +677,7 @@ pub const ParseDiagnostic = struct {
             for (1..span.start.row) |_| _ = line_iter.next();
             const line = line_iter.next() orelse @panic("span.start.row is invalid");
 
-            const source_trim = mem.trimRight(u8, line, "\r");
+            const source_trim = mem.trimEnd(u8, line, "\r");
             const underline = if (span.start.row == span.end.row) blk: {
                 @branchHint(.likely);
                 break :blk try allocator.alloc(u8, span.end.col - 1);
@@ -688,7 +694,7 @@ pub const ParseDiagnostic = struct {
                 @memset(underline[span.start.col - 1 ..], '^');
             }
 
-            if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
+            if (stderr_handle.supportsAnsiEscapeCodes(io) catch false and !no_color) {
                 try stderr.interface.print(
                     ansi.makeAnsi(null, .Bold) ++ "{s}:{}:{}: " ++ ansi.@"error" ++
                         "error: " ++ ansi.reset ++ "{s}\n" ++
@@ -725,7 +731,7 @@ pub const ParseDiagnostic = struct {
                 }
             }
         } else {
-            if (stderr_handle.supportsAnsiEscapeCodes() and !no_color) {
+            if (stderr_handle.supportsAnsiEscapeCodes(io) catch false and !no_color) {
                 try stderr.interface.print(
                     ansi.makeAnsi(null, .Bold) ++ "{s}: " ++ ansi.@"error" ++
                         "error: " ++ ansi.reset ++ "{s}\n" ++ ansi.reset,

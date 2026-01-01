@@ -1,12 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const fs = std.fs;
-const path = fs.path;
+const path = std.fs.path;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const EnvMap = std.process.EnvMap;
+const Io = std.Io;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_VERSION_STR = @import("build.zig.zon").version;
@@ -115,7 +115,7 @@ pub fn build(b: *Build) !void {
         release_step.dependOn(&target_output.step);
 
         // since this is a build script, leaking memories are safe
-        const dir_path = try fs.path.join(b.allocator, &.{
+        const dir_path = try path.join(b.allocator, &.{
             b.install_prefix,
             target_output.dest_dir.?.custom,
         });
@@ -150,7 +150,7 @@ fn buildVesti(
 
     //const tectonic_lib_name = try getLibName(&target);
     const tectonic_dll_name = try getDllName(&target);
-    const tectonic_dll_hash = try calculateDllHash(b.allocator, tectonic_dll_name[1]);
+    const tectonic_dll_hash = try calculateDllHash(b.allocator, b.graph.io, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
@@ -251,6 +251,7 @@ fn makeBuildRust(
 
     const b = step.owner;
     const alloc = b.allocator;
+    const io = b.graph.io;
     const build_rust: *BuildRust = @fieldParentPtr("step", step);
 
     var envmap = try std.process.getEnvMap(alloc);
@@ -268,13 +269,12 @@ fn makeBuildRust(
         try envmap.put("VCPKG_ROOT", vcpkg_root);
     }
 
-    var tectonic_dir = try b.build_root.handle.openDir("./vesti-tectonic", .{});
-    defer tectonic_dir.close();
-    try tectonic_dir.setAsCwd();
-    defer b.build_root.handle.setAsCwd() catch unreachable;
+    var tectonic_dir = try b.build_root.handle.openDir(io, "./vesti-tectonic", .{});
+    defer tectonic_dir.close(io);
+    try std.process.setCurrentDir(io, tectonic_dir);
+    defer std.process.setCurrentDir(io, b.build_root.handle) catch unreachable;
 
-    const vcpkg_result = try Child.run(.{
-        .allocator = alloc,
+    const vcpkg_result = try Child.run(alloc, io, .{
         .argv = &.{ "cargo", "vcpkg", "build" },
         .env_map = &envmap,
         .max_output_bytes = 2500 * 1024,
@@ -288,8 +288,7 @@ fn makeBuildRust(
         vcpkg_result.stderr,
     });
 
-    const cargo_result = try Child.run(.{
-        .allocator = alloc,
+    const cargo_result = try Child.run(alloc, io, .{
         .argv = &.{ "cargo", "build", "--release" },
         .env_map = &envmap,
         .max_output_bytes = 2500 * 1024,
@@ -303,13 +302,14 @@ fn makeBuildRust(
         cargo_result.stderr,
     });
 
-    try getTectonic(b, alloc, build_rust, &envmap, .lib);
-    try getTectonic(b, alloc, build_rust, &envmap, .dll);
+    try getTectonic(b, alloc, io, build_rust, &envmap, .lib);
+    try getTectonic(b, alloc, io, build_rust, &envmap, .dll);
 }
 
 fn getTectonic(
     b: *Build,
     alloc: Allocator,
+    io: Io,
     build_rust: *BuildRust,
     envmap: *EnvMap,
     comptime ty: enum(u1) { lib, dll },
@@ -344,6 +344,7 @@ fn getTectonic(
         source_path,
         b.build_root.handle,
         dest_path,
+        io,
         .{},
     );
 
@@ -357,8 +358,7 @@ fn getTectonic(
         // compress binary using upx (only for dll)
         switch (build_rust.target.result.os.tag) {
             .windows, .linux => {
-                const upx = try Child.run(.{
-                    .allocator = alloc,
+                const upx = try Child.run(alloc, io, .{
                     .argv = &.{ "upx", "-9", dll_path },
                     .env_map = envmap,
                     .max_output_bytes = 2500 * 1024,
@@ -412,6 +412,7 @@ fn makeInstallDll(
 
     const b = step.owner;
     const alloc = b.allocator;
+    const io = b.graph.io;
     const install_dll: *InstallDll = @fieldParentPtr("step", step);
 
     const dll_name = try getDllName(&install_dll.target);
@@ -420,7 +421,7 @@ fn makeInstallDll(
         dll_name[1],
     });
     defer alloc.free(source_path_rel);
-    const source_path = try b.build_root.handle.realpathAlloc(alloc, source_path_rel);
+    const source_path = try b.build_root.handle.realPathFileAlloc(io, source_path_rel, alloc);
     defer alloc.free(source_path);
 
     const dest_path = install_dll.dest_path orelse b.exe_dir;
@@ -430,7 +431,7 @@ fn makeInstallDll(
     });
     defer alloc.free(dest_path_with_dll);
 
-    try fs.cwd().makePath(dest_path);
+    try Io.Dir.cwd().createDirPath(io, dest_path);
 
     std.debug.print(
         \\[NOTE]
@@ -439,7 +440,7 @@ fn makeInstallDll(
         \\
     , .{ source_path, dest_path_with_dll });
 
-    try fs.copyFileAbsolute(source_path, dest_path_with_dll, .{});
+    try Io.Dir.copyFileAbsolute(source_path, dest_path_with_dll, io, .{});
 }
 
 fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
@@ -569,17 +570,17 @@ fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
     };
 }
 
-fn calculateDllHash(allocator: Allocator, tectonic_dll_name: []const u8) !u512 {
+fn calculateDllHash(allocator: Allocator, io: Io, tectonic_dll_name: []const u8) !u512 {
     const dll_path = try path.join(allocator, &.{
         "./vesti-tectonic/bin/",
         tectonic_dll_name,
     });
     defer allocator.free(dll_path);
 
-    var dll = try std.fs.cwd().openFile(dll_path, .{});
-    defer dll.close();
+    var dll = try Io.Dir.cwd().openFile(io, dll_path, .{});
+    defer dll.close(io);
     var dll_read_buf: [4096]u8 = undefined;
-    var dll_reader = dll.reader(&dll_read_buf);
+    var dll_reader = dll.reader(io, &dll_read_buf);
 
     var sha_out: [Sha3.digest_length]u8 = undefined;
     var sha3 = Sha3.init(.{});

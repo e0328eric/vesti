@@ -43,16 +43,18 @@ pub const LuaContents = struct {
     before: ?[:0]const u8 = null,
     step: ?[:0]const u8 = null,
 
-    fn init(
-        scripts: *const LuaScripts,
+    pub fn init(
         allocator: Allocator,
+        io: Io,
         diagnostic: *diag.Diagnostic,
+        scripts: *const LuaScripts,
     ) !@This() {
         var output: @This() = .{};
 
         inline for (&.{ "before", "step" }) |ty| {
             @field(output, ty) = try luascript.getBuildLuaContents(
                 allocator,
+                io,
                 @field(scripts, ty),
                 diagnostic,
             );
@@ -62,7 +64,7 @@ pub const LuaContents = struct {
         return output;
     }
 
-    fn deinit(self: *const @This(), allocator: Allocator) void {
+    pub fn deinit(self: *const @This(), allocator: Allocator) void {
         inline for (&.{ "before", "step" }) |ty| {
             if (@field(self, ty)) |lf| allocator.free(lf);
         }
@@ -70,51 +72,19 @@ pub const LuaContents = struct {
 };
 
 allocator: Allocator,
+io: Io,
 main_filename: []const u8,
 lua: *Lua,
 diagnostic: *diag.Diagnostic,
 engine: *LatexEngine,
 compile_limit: usize,
-prev_mtime: *?i128,
+prev_mtime: *?i96,
 luacode_scripts: LuaScripts,
 luacode_contents: LuaContents,
 global_defkinds: ArrayList(Stmt),
 attr: CompileAttribute,
 
 const Self = @This();
-
-pub fn init(
-    allocator: Allocator,
-    main_filename: []const u8,
-    lua: *Lua,
-    diagnostic: *diag.Diagnostic,
-    engine: *LatexEngine,
-    compile_limit: usize,
-    prev_mtime: *?i128,
-    luacode_scripts: LuaScripts,
-    attr: CompileAttribute,
-) !Self {
-    const luacode_contents = try LuaContents.init(
-        &luacode_scripts,
-        allocator,
-        diagnostic,
-    );
-    errdefer luacode_contents.deinit(allocator);
-
-    return .{
-        .allocator = allocator,
-        .main_filename = main_filename,
-        .lua = lua,
-        .diagnostic = diagnostic,
-        .engine = engine,
-        .compile_limit = compile_limit,
-        .prev_mtime = prev_mtime,
-        .luacode_scripts = luacode_scripts,
-        .luacode_contents = luacode_contents,
-        .global_defkinds = .empty,
-        .attr = attr,
-    };
-}
 
 pub fn deinit(self: *Self) void {
     self.luacode_contents.deinit(self.allocator);
@@ -188,8 +158,9 @@ pub fn compile(self: *Self) !void {
             if (!self.attr.watch) return err;
             if (self.attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
-                self.prev_mtime.* = std.time.nanoTimestamp();
-                std.Thread.sleep(200 * time.ns_per_ms);
+                const timestamp = try Io.Clock.now(.real, self.io);
+                self.prev_mtime.* = timestamp.toNanoseconds();
+                Io.sleep(self.io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
                 continue;
             } else {
                 return err;
@@ -202,19 +173,19 @@ pub fn compile(self: *Self) !void {
 
 fn compileInner(self: *Self) !void {
     // make vesti-dummy directory
-    fs.cwd().makeDir(VESTI_DUMMY_DIR) catch |err| switch (err) {
+    Io.Dir.cwd().createDir(self.io, VESTI_DUMMY_DIR, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    var vesti_dummy = try fs.cwd().openDir(VESTI_DUMMY_DIR, .{});
-    defer vesti_dummy.close();
+    var vesti_dummy = try Io.Dir.cwd().openDir(self.io, VESTI_DUMMY_DIR, .{});
+    defer vesti_dummy.close(self.io);
 
     // add .gitignore file in default
-    var git_ignore = try vesti_dummy.createFile(".gitignore", .{});
-    defer git_ignore.close();
+    var git_ignore = try vesti_dummy.createFile(self.io, ".gitignore", .{});
+    defer git_ignore.close(self.io);
 
     var write_buf: [120]u8 = undefined;
-    var writer = git_ignore.writer(&write_buf);
+    var writer = git_ignore.writer(self.io, &write_buf);
     try writer.interface.writeAll("*\n");
     try writer.end();
 
@@ -235,7 +206,11 @@ fn compileInner(self: *Self) !void {
         return error.ExtensionDifferent;
     }
 
-    const real_filename = fs.cwd().realpathAlloc(self.allocator, self.main_filename) catch {
+    const real_filename = Io.Dir.cwd().realPathFileAlloc(
+        self.io,
+        self.main_filename,
+        self.allocator,
+    ) catch {
         const io_diag = try diag.IODiagnostic.init(
             self.diagnostic.allocator,
             null,
@@ -263,8 +238,8 @@ fn compileInner(self: *Self) !void {
         }
     }
 
-    var walk_dir = try fs.cwd().openDir(".", .{ .iterate = true });
-    defer walk_dir.close();
+    var walk_dir = try Io.Dir.cwd().openDir(self.io, ".", .{ .iterate = true });
+    defer walk_dir.close(self.io);
 
     var is_compiled = false;
     var vesti_contents: StringArrayHashMap(VestiContent) = .empty;
@@ -283,8 +258,8 @@ fn compileInner(self: *Self) !void {
         // parse vesti
         for (vesti_files.keys()) |vesti_file| {
             if (self.prev_mtime.*) |pmtime| {
-                const stat = try fs.cwd().statFile(vesti_file);
-                if (stat.mtime > pmtime) {
+                const stat = try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
+                if (stat.mtime.toNanoseconds() > pmtime) {
                     // this code comes first because if content.fond_existing is true
                     // and if vesti failes to parse, then the double free occurs.
                     //                   2025/11/09 Almagest
@@ -339,8 +314,9 @@ fn compileInner(self: *Self) !void {
             is_compiled = false;
         }
 
-        self.prev_mtime.* = std.time.nanoTimestamp();
-        std.Thread.sleep(200 * time.ns_per_ms);
+        const timestamp = try Io.Clock.now(.real, self.io);
+        self.prev_mtime.* = timestamp.toNanoseconds();
+        Io.sleep(self.io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
     } else {
         try self.updateVesFiles(
             &walk_dir,
@@ -392,10 +368,10 @@ fn parseVesti(
     // since filename is an absolute name and it is a FILE, so dirname
     // always gives a dir_path
     const dir_path = path.dirname(filename) orelse unreachable;
-    var vesti_file_dir = try fs.openDirAbsolute(dir_path, .{});
-    defer vesti_file_dir.close();
+    var vesti_file_dir = try Io.Dir.openDirAbsolute(self.io, dir_path, .{});
+    defer vesti_file_dir.close(self.io);
 
-    var vesti_file = fs.cwd().openFile(filename, .{}) catch |err| {
+    var vesti_file = Io.Dir.cwd().openFile(self.io, filename, .{}) catch |err| {
         const io_diag = try diag.IODiagnostic.init(
             self.diagnostic.allocator,
             null,
@@ -405,10 +381,10 @@ fn parseVesti(
         self.diagnostic.initDiagInner(.{ .IOError = io_diag });
         return err;
     };
-    defer vesti_file.close();
+    defer vesti_file.close(self.io);
 
     var buf: [1024]u8 = undefined;
-    var vesti_file_reader = vesti_file.reader(&buf);
+    var vesti_file_reader = vesti_file.reader(self.io, &buf);
 
     const source = vesti_file_reader.interface.allocRemaining(self.allocator, .unlimited) catch {
         const io_diag = try diag.IODiagnostic.init(
@@ -424,6 +400,7 @@ fn parseVesti(
 
     var parser: Parser = try .init(
         self.allocator,
+        self.io,
         source,
         &vesti_file_dir,
         self.diagnostic,
@@ -467,7 +444,7 @@ fn parseVesti(
 pub fn vestiToLatex(
     self: *Self,
     content: *const VestiContent,
-    vesti_dummy_dir: *fs.Dir,
+    vesti_dummy_dir: *Io.Dir,
 ) !void {
     var aw: Io.Writer.Allocating = try .initCapacity(self.allocator, 256);
     defer aw.deinit();
@@ -496,12 +473,12 @@ pub fn vestiToLatex(
         content.is_main,
     );
     defer self.allocator.free(output_filename);
-    var output_file = try vesti_dummy_dir.createFile(output_filename, .{});
-    defer output_file.close();
+    var output_file = try vesti_dummy_dir.createFile(self.io, output_filename, .{});
+    defer output_file.close(self.io);
 
     // write prologue
     var out_file_buf: [4096]u8 = undefined;
-    var out_file_writer = output_file.writer(&out_file_buf);
+    var out_file_writer = output_file.writer(self.io, &out_file_buf);
     try out_file_writer.interface.print(
         \\%
         \\%    this file was generated by vesti {f}
@@ -522,7 +499,7 @@ pub fn vestiToLatex(
 fn compileLatex(
     self: *Self,
     filename: []const u8,
-    vesti_dummy: *fs.Dir,
+    vesti_dummy: *Io.Dir,
 ) !void {
     const main_tex_file = try getTexFilename(self.allocator, filename, true);
     defer self.allocator.free(main_tex_file);
@@ -561,29 +538,31 @@ fn compileLatex(
     const main_pdf_file = try changeExtension(self.allocator, filename, "pdf");
     defer self.allocator.free(main_pdf_file);
 
-    var from = try vesti_dummy.openFile(main_pdf_file, .{});
-    defer from.close();
-    var into = try fs.cwd().createFile(main_pdf_file, .{});
-    defer into.close();
+    var from = try vesti_dummy.openFile(self.io, main_pdf_file, .{});
+    defer from.close(self.io);
+    var into = try Io.Dir.cwd().createFile(self.io, main_pdf_file, .{});
+    defer into.close(self.io);
 
-    var buf: [1024]u8 = undefined;
-    var from_reader = from.reader(&buf);
+    var reader_buf: [1024]u8 = undefined;
+    var writer_buf: [1024]u8 = undefined;
+    var from_reader = from.reader(self.io, &reader_buf);
+    var into_writer = into.writer(self.io, &writer_buf);
 
     const pdf_context = try from_reader.interface.allocRemaining(
         self.allocator,
         .unlimited,
     );
     defer self.allocator.free(pdf_context);
-    try into.writeAll(pdf_context);
+    try into_writer.interface.writeAll(pdf_context);
+    try into_writer.end();
 }
 
 fn compileLatexWithInner(
     self: *Self,
     main_tex_file: []const u8,
-    vesti_dummy: *fs.Dir,
+    vesti_dummy: *Io.Dir,
 ) !void {
-    const result = try Child.run(.{
-        .allocator = self.allocator,
+    const result = try Child.run(self.allocator, self.io, .{
         .argv = &.{ self.engine.toStr(), main_tex_file },
         .cwd = VESTI_DUMMY_DIR,
         .max_output_bytes = std.math.maxInt(usize),
@@ -596,11 +575,11 @@ fn compileLatexWithInner(
     }
 
     // write stdout and stderr in .vesti_dummy
-    try vesti_dummy.writeFile(.{
+    try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stdout.txt",
         .data = result.stdout,
     });
-    try vesti_dummy.writeFile(.{
+    try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stderr.txt",
         .data = result.stderr,
     });
@@ -624,7 +603,7 @@ fn compileLatexWithInner(
 
 fn updateVesFiles(
     self: *Self,
-    root_dir: *fs.Dir,
+    root_dir: *Io.Dir,
     main_vesti_files: *const StringArrayHashMap(bool),
     vesti_files: *StringArrayHashMap(bool),
 ) !void {
@@ -634,11 +613,15 @@ fn updateVesFiles(
     var walker = try root_dir.walk(self.allocator);
     defer walker.deinit();
 
-    while (try walker.next()) |entry| {
+    while (try walker.next(self.io)) |entry| {
         if (entry.kind != .file) continue;
         if (!mem.eql(u8, path.extension(entry.basename), ".ves")) continue;
 
-        const real_filename = try entry.dir.realpathAlloc(self.allocator, entry.basename);
+        const real_filename = try entry.dir.realPathFileAlloc(
+            self.io,
+            entry.basename,
+            self.allocator,
+        );
         errdefer self.allocator.free(real_filename);
 
         if (vesti_files.get(real_filename) == null) {
@@ -699,7 +682,7 @@ const TectonicFnt = *const fn ([*]const u8, usize, [*]const u8, usize, usize) ca
 fn compileLatexWithTectonic(
     self: *Self,
     main_tex_file: []const u8,
-    vesti_dummy: *fs.Dir,
+    vesti_dummy: *Io.Dir,
 ) !void {
     // message templates
     const DLL_NOT_FOUND =
@@ -713,9 +696,9 @@ fn compileLatexWithTectonic(
 
     // tectonic dll is assumed to locate at the same directory with the vesti
     // below function follows symlink, which is expected
-    const exe_dir = try fs.selfExeDirPathAlloc(self.allocator);
+    const exe_dir = try std.process.executableDirPathAlloc(self.io, self.allocator);
     defer self.allocator.free(exe_dir);
-    const dll_hash = calculateDllHash(exe_dir) catch |err| switch (err) {
+    const dll_hash = calculateDllHash(self.io, exe_dir) catch |err| switch (err) {
         error.FileNotFound => {
             const io_diag = try diag.IODiagnostic.initWithNote(
                 self.diagnostic.allocator,
@@ -766,10 +749,10 @@ fn compileLatexWithTectonic(
         "compile_latex_with_tectonic",
     );
 
-    var curr_dir = try fs.cwd().openDir(".", .{});
-    defer curr_dir.close();
-    try vesti_dummy.setAsCwd();
-    defer curr_dir.setAsCwd() catch @panic("failed to recover cwd");
+    var curr_dir = try Io.Dir.cwd().openDir(self.io, ".", .{});
+    defer curr_dir.close(self.io);
+    try std.process.setCurrentDir(self.io, vesti_dummy.*);
+    defer std.process.setCurrentDir(self.io, curr_dir) catch @panic("failed to recover cwd");
 
     if (compile_latex_with_tectonic) |fnt| {
         if (!fnt(
@@ -793,16 +776,16 @@ fn compileLatexWithTectonic(
     } else return error.FindTectonicFunctionFailed;
 }
 
-fn calculateDllHash(exe_dir_path: []const u8) !u512 {
+fn calculateDllHash(io: Io, exe_dir_path: []const u8) !u512 {
     // tectonic dll is assumed to locate at the same directory with the vesti
     // below function follows symlink, which is expected
-    var exe_dir = try std.fs.openDirAbsolute(exe_dir_path, .{});
-    defer exe_dir.close();
+    var exe_dir = try Io.Dir.openDirAbsolute(io, exe_dir_path, .{});
+    defer exe_dir.close(io);
 
-    var dll = try exe_dir.openFile(TECTONIC_DLL, .{});
-    defer dll.close();
+    var dll = try exe_dir.openFile(io, TECTONIC_DLL, .{});
+    defer dll.close(io);
     var dll_read_buf: [4096]u8 = undefined;
-    var dll_reader = dll.reader(&dll_read_buf);
+    var dll_reader = dll.reader(io, &dll_read_buf);
 
     var sha_out: [Sha3.digest_length]u8 = undefined;
     var sha3 = Sha3.init(.{});

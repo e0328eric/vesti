@@ -15,7 +15,10 @@ const Config = @import("Config.zig");
 const Compiler = @import("Compiler.zig");
 const CompileAttribute = Compiler.CompileAttribute;
 const Diagnostic = diag.Diagnostic;
+const Io = std.Io;
 const Lua = @import("Lua.zig");
+const LuaScripts = Compiler.LuaScripts;
+const LuaContents = Compiler.LuaContents;
 const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
@@ -27,9 +30,13 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
+
+    var threaded = std.Io.Threaded.init(allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
 
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
@@ -41,7 +48,7 @@ pub fn main() !void {
         return;
     }
 
-    var diagnostic = Diagnostic{ .allocator = allocator };
+    var diagnostic = Diagnostic{ .allocator = allocator, .io = io };
     defer diagnostic.deinit();
 
     const subcmds = .{
@@ -54,6 +61,7 @@ pub fn main() !void {
             const subcmd = zlap_cmd.subcommands.get(subcmd_str).?;
             @field(@This(), subcmd_str ++ "Step")(
                 allocator,
+                io,
                 &diagnostic,
                 &subcmd,
             ) catch |err| {
@@ -75,6 +83,7 @@ pub fn main() !void {
 
 fn clearStep(
     allocator: Allocator,
+    io: Io,
     diagnostic: *Diagnostic,
     clear_step: *const zlap.Subcmd,
 ) !void {
@@ -82,16 +91,18 @@ fn clearStep(
     _ = diagnostic;
     _ = clear_step;
 
-    try std.fs.cwd().deleteTree(VESTI_DUMMY_DIR);
+    try Io.Dir.cwd().deleteTree(io, VESTI_DUMMY_DIR);
     std.debug.print("[successively remove {s}]\n", .{VESTI_DUMMY_DIR});
 }
 
 fn tex2vesStep(
     allocator: Allocator,
+    io: Io,
     diagnostic: *Diagnostic,
     tex2ves_subcmd: *const zlap.Subcmd,
 ) !void {
     _ = allocator;
+    _ = io;
     _ = diagnostic;
 
     const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
@@ -103,6 +114,7 @@ fn tex2vesStep(
 
 fn compileStep(
     allocator: Allocator,
+    io: Io,
     diagnostic: *Diagnostic,
     compile_subcmd: *const zlap.Subcmd,
 ) !void {
@@ -128,7 +140,7 @@ fn compileStep(
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    const config = try Config.init(allocator, diagnostic);
+    const config = try Config.init(allocator, io, diagnostic);
     defer config.deinit(allocator);
 
     var engine = try getEngine(config.engine, .{
@@ -142,6 +154,7 @@ fn compileStep(
     // initializing Lua globally
     var lua = try Lua.init(
         allocator,
+        io,
         engine,
         &config,
         .{
@@ -163,7 +176,7 @@ fn compileStep(
             };
             defer allocator.free(cwd);
 
-            var iter = try path.componentIterator(cwd);
+            var iter = path.componentIterator(cwd);
             const last = iter.last() orelse {
                 std.debug.print(
                     "error: cwd {s} is empty. But this might be an undefined behavior\n",
@@ -173,9 +186,9 @@ fn compileStep(
             };
 
             // change current directory where first.lua is located
-            if (try changeCwdAtFirstLua(allocator, &last)) break :blk;
+            if (try changeCwdAtFirstLua(allocator, io, &last)) break :blk;
             while (iter.previous()) |prev| {
-                if (try changeCwdAtFirstLua(allocator, &prev)) break :blk;
+                if (try changeCwdAtFirstLua(allocator, io, &prev)) break :blk;
             }
 
             // in this point, first.lua is not found, so raise an error
@@ -185,6 +198,7 @@ fn compileStep(
 
         const first_lua = try luascript.getBuildLuaContents(
             allocator,
+            io,
             first_script,
             diagnostic,
         ) orelse return error.FirstLuaNotFound;
@@ -209,44 +223,56 @@ fn compileStep(
             return error.NoMainVestiFilename;
         }));
 
-    var prev_mtime: ?i128 = null;
+    var prev_mtime: ?i96 = null;
 
-    var compiler = try Compiler.init(
+    const luacode_scripts = LuaScripts{
+        .before = before_script,
+        .step = step_script,
+    };
+    const luacode_contents = try LuaContents.init(
         allocator,
-        main_ves,
-        lua,
+        io,
         diagnostic,
-        &engine,
-        compile_lim,
-        &prev_mtime,
-        .{
-            .before = before_script,
-            .step = step_script,
-        },
-        lua.compile_attr,
+        &luacode_scripts,
     );
+    errdefer luacode_contents.deinit(allocator);
+    var compiler = Compiler{
+        .allocator = allocator,
+        .io = io,
+        .main_filename = main_ves,
+        .lua = lua,
+        .diagnostic = diagnostic,
+        .engine = &engine,
+        .compile_limit = compile_lim,
+        .prev_mtime = &prev_mtime,
+        .luacode_scripts = luacode_scripts,
+        .luacode_contents = luacode_contents,
+        .global_defkinds = .empty,
+        .attr = lua.compile_attr,
+    };
     defer compiler.deinit();
     try compiler.compile();
 }
 
 fn changeCwdAtFirstLua(
     allocator: Allocator,
+    io: Io,
     component: *const path.NativeComponentIterator.Component,
 ) !bool {
     const first_lua_path = try path.join(allocator, &.{ component.path, "first.lua" });
     defer allocator.free(first_lua_path);
 
     // open file to check whether it exists
-    var f = std.fs.openFileAbsolute(first_lua_path, .{}) catch |err| switch (err) {
+    var f = Io.Dir.openFileAbsolute(io, first_lua_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };
 
     // f is not needed anymore
-    f.close();
-    var dir = try std.fs.openDirAbsolute(component.path, .{});
-    defer dir.close();
-    try dir.setAsCwd();
+    f.close(io);
+    var dir = try Io.Dir.openDirAbsolute(io, component.path, .{});
+    defer dir.close(io);
+    try std.process.setCurrentDir(io, dir);
     return true;
 }
 

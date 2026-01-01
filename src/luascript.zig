@@ -9,10 +9,11 @@ const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
 pub fn getBuildLuaContents(
     allocator: Allocator,
+    io: Io,
     luacode_path: []const u8,
     diagnostic: *diag.Diagnostic,
 ) !?[:0]const u8 {
-    const luacode_file = fs.cwd().openFile(luacode_path, .{}) catch |err| switch (err) {
+    const luacode_file = Io.Dir.cwd().openFile(io, luacode_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => {
             const io_diag = try diag.IODiagnostic.init(
@@ -25,35 +26,17 @@ pub fn getBuildLuaContents(
             return error.CompileVesFailed;
         },
     };
-    defer luacode_file.close();
+    defer luacode_file.close(io);
 
     var buf: [1024]u8 = undefined;
-    var buf_reader = luacode_file.reader(&buf);
-    const reader = &buf_reader.interface;
+    var buf_reader = luacode_file.reader(io, &buf);
 
-    // TODO: if 0.16.0 is finalized, replace this code with the following
-    //
-    //const luacode_contents = reader.interface.allocRemainingAlignedSentinel(
-    //  allocator,
-    //  .unlimited,
-    //  .of(u8),
-    //  0,
-    //)
-    const luacode_contents = blk: {
-        var tmp = Io.Writer.Allocating.init(allocator);
-        defer tmp.deinit();
-
-        var remaining: Io.Limit = .unlimited;
-        while (remaining.nonzero()) {
-            const n = Io.Reader.stream(reader, &tmp.writer, remaining) catch |err| switch (err) {
-                error.EndOfStream => break :blk try tmp.toOwnedSliceSentinel(0),
-                error.WriteFailed => return error.OutOfMemory,
-                error.ReadFailed => return error.ReadFailed,
-            };
-            remaining = remaining.subtract(n).?;
-        }
-        return error.StreamTooLong;
-    };
+    const luacode_contents = try buf_reader.interface.allocRemainingAlignedSentinel(
+        allocator,
+        .unlimited,
+        .of(u8),
+        0,
+    );
     return luacode_contents;
 }
 

@@ -23,6 +23,7 @@ pub const VestiModule = struct {
 
 pub fn downloadModule(
     allocator: Allocator,
+    io: Io,
     diagnostic: *diag.Diagnostic,
     mod_name: []const u8,
     import_file_loc: ?Span,
@@ -42,7 +43,7 @@ pub fn downloadModule(
     defer mod_data_path.deinit(allocator);
     try mod_data_path.print(allocator, "{s}/vesti.zon", .{mod_dir_path.items});
 
-    var mod_zon_file = fs.cwd().openFile(mod_data_path.items, .{}) catch {
+    var mod_zon_file = Io.Dir.cwd().openFile(io, mod_data_path.items, .{}) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             import_file_loc,
@@ -54,36 +55,18 @@ pub fn downloadModule(
         diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.FailedGetModule;
     };
-    defer mod_zon_file.close();
+    defer mod_zon_file.close(io);
 
     var buf: [1024]u8 = undefined;
-    var mod_zon_file_reader = mod_zon_file.reader(&buf);
+    var mod_zon_file_reader = mod_zon_file.reader(io, &buf);
 
     // what kind of such simple config file has 4MB size?
-    // TODO: if 0.16.0 is finalized, replace this code with the following
-    //
-    //config_zon_reader.interface.allocRemainingAlignedSentinel(
-    //  allocator,
-    //  .limited(4 * 1024 * 1024),
-    //  .of(u8),
-    //  0,
-    //)
-    const context = blk: {
-        const reader = &mod_zon_file_reader.interface;
-        var tmp = Io.Writer.Allocating.init(allocator);
-        defer tmp.deinit();
-
-        var remaining: Io.Limit = .limited(4 * 1024 * 1024);
-        while (remaining.nonzero()) {
-            const n = Io.Reader.stream(reader, &tmp.writer, remaining) catch |err| switch (err) {
-                error.EndOfStream => break :blk try tmp.toOwnedSliceSentinel(0),
-                error.WriteFailed => break :blk error.OutOfMemory,
-                error.ReadFailed => break :blk error.ReadFailed,
-            };
-            remaining = remaining.subtract(n).?;
-        }
-        break :blk error.StreamTooLong;
-    } catch {
+    const context = mod_zon_file_reader.interface.allocRemainingAlignedSentinel(
+        allocator,
+        .limited(4 * 1024 * 1024),
+        .of(u8),
+        0,
+    ) catch {
         const io_diag = try diag.IODiagnostic.init(
             allocator,
             null,
@@ -95,7 +78,7 @@ pub fn downloadModule(
     };
     defer allocator.free(context);
 
-    const ves_module = try zon.parse.fromSlice(
+    const ves_module = try zon.parse.fromSliceAlloc(
         VestiModule,
         allocator,
         context,
@@ -128,10 +111,11 @@ pub fn downloadModule(
             .{ location, @"export".name },
         );
 
-        fs.cwd().copyFile(
+        Io.Dir.cwd().copyFile(
             mod_filename.items,
-            fs.cwd(),
+            Io.Dir.cwd(),
             into_copy_filename.items,
+            io,
             .{},
         ) catch {
             const io_diag = try diag.IODiagnostic.init(

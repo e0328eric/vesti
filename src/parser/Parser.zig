@@ -4,9 +4,8 @@ const ast = @import("ast.zig");
 const defkind = @import("defkind.zig");
 const diag = @import("../diagnostic.zig");
 const fmt = std.fmt;
-const fs = std.fs;
 const mem = std.mem;
-const path = fs.path;
+const path = std.fs.path;
 const process = std.process;
 const unicode = std.unicode;
 const zon = std.zon;
@@ -33,11 +32,12 @@ const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const MAX_BEGENV_NUM = 64;
 
 allocator: Allocator,
+io: Io,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
 diagnostic: *diag.Diagnostic,
-file_dir: *fs.Dir,
+file_dir: *Io.Dir,
 current_engine: LatexEngine,
 engine_ptr: ?*LatexEngine,
 // NOTE: I left this because later, it might support using Stmt.Placeholder.
@@ -113,8 +113,9 @@ const ParserAllows = packed struct {
 
 pub fn init(
     allocator: Allocator,
+    io: Io,
     source: []const u8,
-    file_dir: *fs.Dir,
+    file_dir: *Io.Dir,
     diagnostic: *diag.Diagnostic,
     allows: ParserAllows,
     engine: anytype,
@@ -122,6 +123,7 @@ pub fn init(
     var self: Self = undefined;
 
     self.allocator = allocator;
+    self.io = io;
     self.lexer = try Lexer.init(source);
     self.curr_tok = .invalid;
     self.peek_tok = .invalid;
@@ -867,10 +869,11 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
         VESTI_DUMMY_DIR, raw_filename,
     });
 
-    fs.cwd().copyFile(
+    Io.Dir.cwd().copyFile(
         file_name.items,
-        fs.cwd(),
+        Io.Dir.cwd(),
         into_copy_filename.items,
+        self.io,
         .{},
     ) catch {
         const io_diag = try diag.IODiagnostic.init(
@@ -933,8 +936,9 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
     try @import("../ves_module.zig").downloadModule(
         self.allocator,
+        self.io,
         self.diagnostic,
-        mem.trimLeft(u8, mem.trim(u8, mod_dir_path_str, " \t"), "/\\"),
+        mem.trimStart(u8, mem.trim(u8, mod_dir_path_str, " \t"), "/\\"),
         import_file_loc,
     );
 
@@ -979,9 +983,10 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
     }
     self.nextToken();
 
-    const real_filepath = self.file_dir.realpathAlloc(
-        self.allocator,
+    const real_filepath = self.file_dir.realPathFileAlloc(
+        self.io,
         file_path_str.items,
+        self.allocator,
     ) catch {
         const io_diag = try diag.IODiagnostic.init(
             self.allocator,
@@ -1805,7 +1810,7 @@ fn parseFilepathHelper(
         );
     }
 
-    return .{ file_path_str, fs.path.basename(file_path_str.items) };
+    return .{ file_path_str, path.basename(file_path_str.items) };
 }
 
 // NOTE: This special function is needed because of following zig compiler bug:

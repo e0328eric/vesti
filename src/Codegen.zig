@@ -268,10 +268,10 @@ fn codegenStmt(
 
             var body_content: []const u8 = body.written();
             if (ctx.kind.trim_left) {
-                body_content = std.mem.trimLeft(u8, body_content, " \t\r\n");
+                body_content = std.mem.trimStart(u8, body_content, " \t\r\n");
             }
             if (ctx.kind.trim_right) {
-                body_content = std.mem.trimRight(u8, body_content, " \t\r\n");
+                body_content = std.mem.trimEnd(u8, body_content, " \t\r\n");
             }
             try writer.writeAll(body_content);
 
@@ -295,10 +295,10 @@ fn codegenStmt(
 
             var begin_body_content: []const u8 = begin_body.written();
             if (ctx.kind.begin_trim_left) {
-                begin_body_content = std.mem.trimLeft(u8, begin_body_content, " \t\r\n");
+                begin_body_content = std.mem.trimStart(u8, begin_body_content, " \t\r\n");
             }
             if (ctx.kind.begin_trim_right) {
-                begin_body_content = std.mem.trimRight(u8, begin_body_content, " \t\r\n");
+                begin_body_content = std.mem.trimEnd(u8, begin_body_content, " \t\r\n");
             }
             try writer.writeAll(begin_body_content);
 
@@ -311,10 +311,10 @@ fn codegenStmt(
 
             var end_body_content: []const u8 = end_body.written();
             if (ctx.kind.end_trim_left) {
-                end_body_content = std.mem.trimLeft(u8, end_body_content, " \t\r\n");
+                end_body_content = std.mem.trimStart(u8, end_body_content, " \t\r\n");
             }
             if (ctx.kind.end_trim_right) {
-                end_body_content = std.mem.trimRight(u8, end_body_content, " \t\r\n");
+                end_body_content = std.mem.trimEnd(u8, end_body_content, " \t\r\n");
             }
             try writer.writeAll(end_body_content);
 

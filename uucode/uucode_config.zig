@@ -81,7 +81,7 @@ pub const tables = [_]config.Table{
             vesti_uucode_custom,
         },
         .fields = &.{
-            wcwidth.field("wcwidth"),
+            wcwidth.field("wcwidth_standalone"),
             vesti_uucode_custom.field("is_numeric"),
             vesti_uucode_custom.field("is_alphanumeric"),
             vesti_uucode_custom.field("is_ascii_digit"),

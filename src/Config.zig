@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const diag = @import("diagnostic.zig");
-const fs = std.fs;
+const path = std.fs.path;
 const process = std.process;
 const zon = std.zon;
 
@@ -19,59 +19,39 @@ lua: struct {
 
 const Self = @This();
 
-pub fn init(allocator: Allocator, diagnostic: *Diagnostic) !Self {
+pub fn init(allocator: Allocator, io: Io, diagnostic: *Diagnostic) !Self {
     const config_dir_path = try getConfigPath(allocator);
     defer allocator.free(config_dir_path);
 
-    const config_path = try fs.path.join(allocator, &.{
-        config_dir_path,
-        "config.zon",
-    });
+    const config_path = try path.join(allocator, &.{ config_dir_path, "config.zon" });
     defer allocator.free(config_path);
 
-    var config_zon = fs.openFileAbsolute(config_path, .{}) catch |err| switch (err) {
+    var config_zon = Io.Dir.openFileAbsolute(io, config_path, .{}) catch |err| switch (err) {
         error.FileNotFound => return .{},
         else => return err,
     };
-    defer config_zon.close();
+    defer config_zon.close(io);
 
     var buf: [1024]u8 = undefined;
-    var config_zon_reader = config_zon.reader(&buf);
+    var config_zon_reader = config_zon.reader(io, &buf);
 
     // what kind of such simple config file has 4MB size?
-    // TODO: if 0.16.0 is finalized, replace this code with the following
-    //
-    //config_zon_reader.interface.allocRemainingAlignedSentinel(
-    //  allocator,
-    //  .limited(4 * 1024 * 1024),
-    //  .of(u8),
-    //  0,
-    //)
-    const context = blk: {
-        const reader = &config_zon_reader.interface;
-        var tmp = Io.Writer.Allocating.init(allocator);
-        defer tmp.deinit();
-
-        var remaining: Io.Limit = .limited(4 * 1024 * 1024);
-        while (remaining.nonzero()) {
-            const n = Io.Reader.stream(reader, &tmp.writer, remaining) catch |err| switch (err) {
-                error.EndOfStream => break :blk try tmp.toOwnedSliceSentinel(0),
-                error.WriteFailed => break :blk error.OutOfMemory,
-                error.ReadFailed => break :blk error.ReadFailed,
-            };
-            remaining = remaining.subtract(n).?;
-        }
-        break :blk error.StreamTooLong;
-    } catch {
-        const io_diag = try diag.IODiagnostic.init(
+    const context =
+        config_zon_reader.interface.allocRemainingAlignedSentinel(
             allocator,
-            null,
-            "cannot read context from {s}",
-            .{config_path},
-        );
-        diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.FailedOpenConfig;
-    };
+            .limited(4 * 1024 * 1024),
+            .of(u8),
+            0,
+        ) catch {
+            const io_diag = try diag.IODiagnostic.init(
+                allocator,
+                null,
+                "cannot read context from {s}",
+                .{config_path},
+            );
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.FailedOpenConfig;
+        };
     defer allocator.free(context);
 
     return zon.parse.fromSlice(
