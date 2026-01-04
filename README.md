@@ -57,7 +57,7 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
-This project uses the zig version 0.15.2. For linux, I recommend to install
+This project uses the master zig version. For linux, I recommend to install
 zenity.
 
 ## Compilation
