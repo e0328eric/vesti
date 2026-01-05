@@ -132,27 +132,6 @@ const TokenizeState = enum {
     less_chr,
 };
 
-pub fn nextRaw(self: *Self) Token {
-    var token: Token = undefined;
-
-    const start_location = self.location;
-    const chr = self.getChar(.current);
-    const start = self.chr0_idx;
-    const len =
-        unicode.utf8CodepointSequenceLength(self.getChar(.current)) catch unreachable;
-
-    self.nextChar(1);
-    token.init(
-        self.source[start .. start + len],
-        null,
-        .{ .RawChar = .{ .start = start, .end = start + len, .chr = chr } },
-        start_location,
-        self.location,
-    );
-
-    return token;
-}
-
 pub fn next(self: *Self) Token {
     var token: Token = undefined;
     var start_location = self.location;

@@ -47,11 +47,6 @@ pub const TokenType = union(enum(u8)) {
     Latex3Fnt,
     RawLatex,
     OtherChar,
-    RawChar: struct {
-        start: usize = 0,
-        end: usize = 0,
-        chr: u21 = 0,
-    },
     BuiltinFunction: []const u8,
     LuaCode,
 
@@ -176,7 +171,6 @@ pub const TokenType = union(enum(u8)) {
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
             .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
-            .RawChar => |info|           try writer.print("`<rawchr `{u}`>`", .{info.chr}),
             .LuaCode =>                  try writer.writeAll("`<luacode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),

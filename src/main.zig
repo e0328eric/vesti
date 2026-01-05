@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 const c = @import("vesti_c.zig");
 const diag = @import("diagnostic.zig");
@@ -30,6 +31,16 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
 }
 
 pub fn main() !void {
+    // change the console encoding into utf-8
+    // One can find the magic number in here
+    // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
+    if (builtin.os.tag == .windows) {
+        if (std.os.windows.kernel32.SetConsoleOutputCP(65001) == 0) {
+            std.debug.print("ERROR: cannot set the codepoint into utf-8\n", .{});
+            return error.FailedToSetUTF8Codepoint;
+        }
+    }
+
     var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -53,8 +64,8 @@ pub fn main() !void {
 
     const subcmds = .{
         "clear",
-        "tex2ves",
         "compile",
+        "experimental",
     };
     inline for (subcmds) |subcmd_str| {
         if (zlap_cmd.isSubcmdActive(subcmd_str)) {
@@ -81,6 +92,8 @@ pub fn main() !void {
 //          │                  Subcommand Functions                   │
 //          ╰─────────────────────────────────────────────────────────╯
 
+const experimentalStep = @import("experimental.zig").experimentalStep;
+
 fn clearStep(
     allocator: Allocator,
     io: Io,
@@ -93,23 +106,6 @@ fn clearStep(
 
     try Io.Dir.cwd().deleteTree(io, VESTI_DUMMY_DIR);
     std.debug.print("[successively remove {s}]\n", .{VESTI_DUMMY_DIR});
-}
-
-fn tex2vesStep(
-    allocator: Allocator,
-    io: Io,
-    diagnostic: *Diagnostic,
-    tex2ves_subcmd: *const zlap.Subcmd,
-) !void {
-    _ = allocator;
-    _ = io;
-    _ = diagnostic;
-
-    const tex_files = tex2ves_subcmd.args.get("FILENAMES").?;
-    // TODO: implement tex2ves
-    _ = tex_files;
-
-    std.debug.print("currently, this subcommand does nothing.\n", .{});
 }
 
 fn compileStep(

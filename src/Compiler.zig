@@ -92,6 +92,7 @@ pub fn deinit(self: *Self) void {
 
 fn raiseMessagebox(
     allocator: Allocator,
+    io: Io,
     comptime title: []const u8,
     comptime contents: []const u8,
 ) !void {
@@ -112,8 +113,9 @@ fn raiseMessagebox(
         },
         .linux => {
             _ = Child.run(
+                allocator,
+                io,
                 .{
-                    .allocator = allocator,
                     .argv = &.{
                         "zenity",
                         "--error",
@@ -146,6 +148,7 @@ pub fn compile(self: *Self) !void {
         self.compileInner() catch |err| {
             try raiseMessagebox(
                 self.allocator,
+                self.io,
                 "vesti compile failed",
                 "vesti compilation error occurs. See the console for more information",
             );
@@ -192,7 +195,10 @@ fn compileInner(self: *Self) !void {
     // store "absolute paths" for vesti files
     var main_vesti_files: StringArrayHashMap(bool) = .{};
     defer {
-        for (main_vesti_files.keys()) |vesti_file| self.allocator.free(vesti_file);
+        for (main_vesti_files.keys()) |vesti_file|
+            // since Io.Dir.realPathFileAlloc returns [:0]u8, we must cast to
+            // this pointer before deallocating it.
+            self.allocator.free(@as([:0]const u8, @ptrCast(vesti_file)));
         main_vesti_files.deinit(self.allocator);
     }
     if (!mem.eql(u8, path.extension(self.main_filename), ".ves")) {

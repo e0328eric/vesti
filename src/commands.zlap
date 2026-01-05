@@ -20,3 +20,6 @@
 
 #clear | Remove .vesti-dummy directory {}
 
+#experimental | Compile vesti into Latex file (experimental part) {
+    *FILENAME := @null | filename to test stuff;
+}

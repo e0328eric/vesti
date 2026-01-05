@@ -3,7 +3,7 @@
 /**/.vesti-dummy
 /**/foo.ves
 /**/foo.pdf
-/vesti-tectonic/target
+/vesti-tectonic/target/*
 /first.lua
 /before.lua
 /step.lua

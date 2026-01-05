@@ -193,11 +193,6 @@ inline fn nextToken(self: *Self) void {
     self.peek_tok = self.lexer.next();
 }
 
-inline fn nextRawToken(self: *Self) void {
-    self.curr_tok = self.peek_tok;
-    self.peek_tok = self.lexer.nextRaw();
-}
-
 inline fn expect(
     self: Self,
     comptime is_peek: enum(u1) { current, peek },
@@ -842,16 +837,8 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
 
 fn parseCopyFile(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    try self.expectWithError(.CopyFile, .remain);
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lparen, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
+    _ = try self.expectWithError(.CopyFile, .eat);
+    self.eatWhitespaces(false);
 
     try self.expectWithError(.Lparen, .remain);
 
@@ -894,16 +881,8 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
 
 fn parseImportModule(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    try self.expectWithError(.ImportModule, .remain);
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lparen, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
+    _ = try self.expectWithError(.ImportModule, .eat);
+    self.eatWhitespaces(false);
 
     const open_paren_span = self.curr_tok.span;
     try self.expectWithError(.Lparen, .remain);
@@ -911,23 +890,26 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     var mod_dir_path = try ArrayList(u8).initCapacity(self.allocator, 30);
     defer mod_dir_path.deinit(self.allocator);
 
-    while (true) : (self.nextRawToken()) {
-        assert(self.expect(.peek, &.{
-            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-        }));
-        const chr = self.peek_tok.toktype.RawChar.chr;
+    var nested: usize = 1;
+    while (true) : (self.nextToken()) {
+        const chr_ty = self.peek_tok.toktype;
         const chr_str = self.peek_tok.lit.in_text;
 
-        if (chr == ')') {
-            break;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = open_paren_span,
-            } });
-            return ParseError.ParseFailed;
+        switch (chr_ty) {
+            .Lparen => nested += 1,
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break;
+            },
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = open_paren_span,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => try mod_dir_path.appendSlice(self.allocator, chr_str),
         }
-        try mod_dir_path.appendSlice(self.allocator, chr_str);
     }
     self.nextToken();
 
@@ -947,39 +929,33 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
 fn parseImportVesti(self: *Self) ParseError!Stmt {
     const import_ves_loc = self.curr_tok.span;
-    try self.expectWithError(.ImportVesti, .remain);
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lparen, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
-
+    _ = try self.expectWithError(.ImportVesti, .eat);
+    self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
 
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
     defer file_path_str.deinit(self.allocator);
 
-    while (true) : (self.nextRawToken()) {
-        assert(self.expect(.peek, &.{
-            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-        }));
-        const chr = self.peek_tok.toktype.RawChar.chr;
+    var nested: usize = 1;
+    while (true) : (self.nextToken()) {
+        const chr_ty = self.peek_tok.toktype;
         const chr_str = self.peek_tok.lit.in_text;
 
-        if (chr == ')') {
-            break;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .EofErr,
-                .span = import_ves_loc,
-            } });
-            return ParseError.ParseFailed;
+        switch (chr_ty) {
+            .Lparen => nested += 1,
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break;
+            },
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .EofErr,
+                    .span = import_ves_loc,
+                } });
+                return ParseError.ParseFailed;
+            },
+            else => try file_path_str.appendSlice(self.allocator, chr_str),
         }
-        try file_path_str.appendSlice(self.allocator, chr_str);
     }
     self.nextToken();
 
@@ -1736,53 +1712,63 @@ fn parseFilepathHelper(
     self: *Self,
     left_parn_loc: Span,
 ) ParseError!struct { ArrayList(u8), []const u8 } {
+    assert(self.currToktype() == .Lparen);
+
     var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
     errdefer file_path_str.deinit(self.allocator);
 
     var inside_config_dir = false;
     var parse_very_first_chr = false;
+    var nested: usize = 1;
 
     while (true) {
-        assert(self.expect(.peek, &.{
-            .{ .RawChar = .{ .start = 0, .end = 0, .chr = 0 } },
-        }));
-        const chr = self.peek_tok.toktype.RawChar.chr;
+        const chr_ty = self.peek_tok.toktype;
         const chr_str = self.peek_tok.lit.in_text;
 
-        if (chr == ')') {
-            break;
-        } else if (chr_str.len == 1 and std.ascii.isWhitespace(chr_str[0])) {
-            self.nextRawToken();
-            continue;
-        } else if (!parse_very_first_chr and chr == '@') {
-            inside_config_dir = true;
-            self.nextRawToken();
+        switch (chr_ty) {
+            .Lparen => nested += 1,
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break;
+            },
+            .Tilde => if (!parse_very_first_chr) {
+                const home_dir = try getHomePath(self.allocator);
+                defer self.allocator.free(home_dir);
+                try file_path_str.appendSlice(self.allocator, home_dir);
+            } else {
+                try file_path_str.appendSlice(self.allocator, chr_str);
+            },
+            .At => if (!parse_very_first_chr) {
+                inside_config_dir = true;
+                self.nextToken();
 
-            if (self.peek_tok.toktype.RawChar.chr != '/') {
+                if (self.peekToktype() != .Slash) {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .IllegalUseErr = "The next token for `@` should be `/`",
+                        },
+                        .span = left_parn_loc,
+                    } });
+                    return ParseError.ParseFailed;
+                }
+                continue;
+            },
+            .Eof => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
-                    .err_info = .{
-                        .IllegalUseErr = "The next token for `@` should be `/`",
-                    },
+                    .err_info = .{ .IsNotClosed = .{
+                        .open = &.{.Lparen},
+                        .close = .Rparen,
+                    } },
                     .span = left_parn_loc,
                 } });
                 return ParseError.ParseFailed;
-            }
-            continue;
-        } else if (chr == 0) {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .IsNotClosed = .{
-                    .open = &.{.Lparen},
-                    .close = .Rparen,
-                } },
-                .span = left_parn_loc,
-            } });
-            return ParseError.ParseFailed;
-        } else {
-            @branchHint(.likely);
-            try file_path_str.appendSlice(self.allocator, chr_str);
+            },
+            else => {
+                try file_path_str.appendSlice(self.allocator, chr_str);
+            },
         }
         parse_very_first_chr = true;
-        self.nextRawToken();
+        self.nextToken();
     }
     self.nextToken();
 
@@ -1819,6 +1805,14 @@ fn parseFilepathHelper(
 // After these are resolved, remove this function
 inline fn preventBug(s: *const volatile Span) void {
     _ = s;
+}
+
+inline fn getHomePath(allocator: Allocator) ![]const u8 {
+    return switch (builtin.os.tag) {
+        .windows => process.getEnvVarOwned(allocator, "USERPROFILE"),
+        .linux, .macos => process.getEnvVarOwned(allocator, "HOME"),
+        else => @compileError("only linux, macos and windows are supported"),
+    };
 }
 
 //          ╭─────────────────────────────────────────────────────────╮
@@ -2390,16 +2384,8 @@ fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
 
 fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
     const import_file_loc = self.curr_tok.span;
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (self.expect(.current, &.{ .Space, .Tab }) and
-        !self.expect(.peek, &.{ .Lparen, .Eof }))
-    {
-        self.nextToken();
-    } else {
-        self.nextRawToken();
-    }
-
+    self.nextToken(); // eat #get_filepath
+    self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
 
     const left_parn_loc = self.curr_tok.span;
