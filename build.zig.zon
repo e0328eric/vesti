@@ -5,16 +5,16 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .zlap = .{
-            .url = "git+https://github.com/e0328eric/zlap.git#9383bc3462e6e40d2ab591865ee234895b1d03a1",
-            .hash = "zlap-0.10.0-boKVXGK3AADtvW7LRhm35iJjCLwtPQ-0VG8yV6abXd6b",
+            .url = "git+https://github.com/e0328eric/zlap.git#950e50a9502c8ec2df0c9fb4cb5850e75688e135",
+            .hash = "zlap-0.10.1-boKVXLu7AABBJA7E-_rFQEcBzKf6OFIwV81ed3HvBJFE",
         },
         .zlua = .{
             .url = "git+https://github.com/e0328eric/ziglua.git#8f87e4034f8813044e7ad4d345e0b8b6ecfec0da",
             .hash = "zlua-0.1.0-hGRpC-87BQCtmVz3Noy3uOq2cQ80mdQhW3QkuZP9_6m2",
         },
         .uucode = .{
-            .url = "git+https://github.com/e0328eric/uucode.git?ref=zig-0.16.0#5019d17e5894b1b411982ac29f64ce41be0a1f5c",
-            .hash = "uucode-0.1.0-ZZjBPhNITQDUWRY2BXUWcM_jp4jcCbP2W7g-jY2ERJCG",
+            .url = "git+https://github.com/e0328eric/uucode.git?ref=zig-0.16#e53d01dbeac05e6b737237218324f2af1dfba5c0",
+            .hash = "uucode-0.1.0-ZZjBPgxJTQCXXtNux5hg5AN7XbI9dMJKiXFRlkUyOd3j",
         },
     },
     .paths = .{

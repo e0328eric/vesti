@@ -13,6 +13,7 @@ const Config = @import("Config.zig");
 const CowStr = @import("CowStr.zig").CowStr;
 const CompileAttribute = @import("Compiler.zig").CompileAttribute;
 const Io = std.Io;
+const EnvMap = std.process.Environ.Map;
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
 const ZigLua = zlua.Lua;
@@ -22,6 +23,7 @@ const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 lua: *ZigLua,
 allocator: Allocator,
 io: Io,
+env_map: *const EnvMap,
 buf: ArrayList(u8),
 engine: LatexEngine,
 make_log: bool,
@@ -51,6 +53,7 @@ const VESTI_LUA_FUNCTIONS_BUILTINS: [12]zlua.FnReg = .{
 pub fn init(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     engine: LatexEngine,
     config: *const Config,
     compile_attr: CompileAttribute,
@@ -61,6 +64,7 @@ pub fn init(
     // initialize fields of self
     self.allocator = allocator;
     self.io = io;
+    self.env_map = env_map;
     self.engine = engine;
     self.make_log = config.lua.make_log;
     self.line_limit = config.lua.line_limit;
@@ -333,6 +337,7 @@ fn parse(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     var parser = Parser.init(
         allocator,
         io,
+        self.env_map,
         vesti_code,
         &cwd_dir,
         &diagnostic,
@@ -743,6 +748,7 @@ fn getModule(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     @import("ves_module.zig").downloadModule(
         allocator,
         io,
+        self.env_map,
         &diagnostic,
         mod_name,
         null,

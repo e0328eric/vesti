@@ -4,8 +4,6 @@ const path = std.fs.path;
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Child = std.process.Child;
-const EnvMap = std.process.EnvMap;
 const Io = std.Io;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
@@ -253,8 +251,7 @@ fn makeBuildRust(
     const alloc = b.allocator;
     const io = b.graph.io;
     const build_rust: *BuildRust = @fieldParentPtr("step", step);
-
-    var envmap = try std.process.getEnvMap(alloc);
+    var envmap = try b.graph.environ_map.clone(alloc);
     defer envmap.deinit();
 
     if (build_rust.target.result.os.tag == .windows) {
@@ -274,32 +271,56 @@ fn makeBuildRust(
     try std.process.setCurrentDir(io, tectonic_dir);
     defer std.process.setCurrentDir(io, b.build_root.handle) catch unreachable;
 
-    const vcpkg_result = try Child.run(alloc, io, .{
+    var vcpkg_child = try std.process.spawn(io, .{
         .argv = &.{ "cargo", "vcpkg", "build" },
-        .env_map = &envmap,
-        .max_output_bytes = 2500 * 1024,
+        .environ_map = &envmap,
+        .stdout = .pipe,
+        .stderr = .pipe,
     });
+    errdefer vcpkg_child.kill(io);
+
+    var vcpkg_result_stdout: ArrayList(u8) = .empty;
+    var vcpkg_result_stderr: ArrayList(u8) = .empty;
     defer {
-        alloc.free(vcpkg_result.stdout);
-        alloc.free(vcpkg_result.stderr);
+        vcpkg_result_stdout.deinit(alloc);
+        vcpkg_result_stderr.deinit(alloc);
     }
+    try vcpkg_child.collectOutput(
+        alloc,
+        &vcpkg_result_stdout,
+        &vcpkg_result_stderr,
+        2500 * 1024,
+    );
+    _ = try vcpkg_child.wait(io);
     std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-        vcpkg_result.stdout,
-        vcpkg_result.stderr,
+        vcpkg_result_stdout.items,
+        vcpkg_result_stderr.items,
     });
 
-    const cargo_result = try Child.run(alloc, io, .{
+    var cargo_child = try std.process.spawn(io, .{
         .argv = &.{ "cargo", "build", "--release" },
-        .env_map = &envmap,
-        .max_output_bytes = 2500 * 1024,
+        .environ_map = &envmap,
+        .stdout = .pipe,
+        .stderr = .pipe,
     });
+    errdefer cargo_child.kill(io);
+
+    var cargo_result_stdout: ArrayList(u8) = .empty;
+    var cargo_result_stderr: ArrayList(u8) = .empty;
     defer {
-        alloc.free(cargo_result.stdout);
-        alloc.free(cargo_result.stderr);
+        cargo_result_stdout.deinit(alloc);
+        cargo_result_stderr.deinit(alloc);
     }
+    try cargo_child.collectOutput(
+        alloc,
+        &cargo_result_stdout,
+        &cargo_result_stderr,
+        2500 * 1024,
+    );
+    _ = try cargo_child.wait(io);
     std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-        cargo_result.stdout,
-        cargo_result.stderr,
+        cargo_result_stdout.items,
+        cargo_result_stderr.items,
     });
 
     try getTectonic(b, alloc, io, build_rust, &envmap, .lib);
@@ -311,7 +332,7 @@ fn getTectonic(
     alloc: Allocator,
     io: Io,
     build_rust: *BuildRust,
-    envmap: *EnvMap,
+    envmap: *std.process.Environ.Map,
     comptime ty: enum(u1) { lib, dll },
 ) !void {
     const name = switch (ty) {
@@ -358,18 +379,30 @@ fn getTectonic(
         // compress binary using upx (only for dll)
         switch (build_rust.target.result.os.tag) {
             .windows, .linux => {
-                const upx = try Child.run(alloc, io, .{
+                var upx_child = try std.process.spawn(io, .{
                     .argv = &.{ "upx", "-9", dll_path },
-                    .env_map = envmap,
-                    .max_output_bytes = 2500 * 1024,
+                    .environ_map = envmap,
+                    .stdout = .pipe,
+                    .stderr = .pipe,
                 });
+                errdefer upx_child.kill(io);
+
+                var upx_stdout: ArrayList(u8) = .empty;
+                var upx_stderr: ArrayList(u8) = .empty;
                 defer {
-                    alloc.free(upx.stdout);
-                    alloc.free(upx.stderr);
+                    upx_stdout.deinit(alloc);
+                    upx_stderr.deinit(alloc);
                 }
+                try upx_child.collectOutput(
+                    alloc,
+                    &upx_stdout,
+                    &upx_stderr,
+                    2500 * 1024,
+                );
+                _ = try upx_child.wait(io);
                 std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-                    upx.stdout,
-                    upx.stderr,
+                    upx_stdout.items,
+                    upx_stderr.items,
                 });
             },
             else => {},

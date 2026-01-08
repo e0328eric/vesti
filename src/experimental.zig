@@ -7,15 +7,19 @@ const Config = @import("Config.zig");
 const Compiler = @import("Compiler.zig");
 const CompileAttribute = Compiler.CompileAttribute;
 const Diagnostic = diag.Diagnostic;
+const EnvMap = std.process.Environ.Map;
 const Io = std.Io;
 const Preprocessor = @import("parser/Preprocessor.zig");
 
 pub fn experimentalStep(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     diagnostic: *Diagnostic,
     experimental_subcmd: *const zlap.Subcmd,
 ) !void {
+    _ = env_map;
+
     const filename = experimental_subcmd.args.get("FILENAME").?.value.string;
 
     var vesti_file = Io.Dir.cwd().openFile(io, filename, .{}) catch |err| {

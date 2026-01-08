@@ -8,6 +8,7 @@ const zon = std.zon;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const Diagnostic = diag.Diagnostic;
+const EnvMap = process.Environ.Map;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
@@ -19,8 +20,8 @@ lua: struct {
 
 const Self = @This();
 
-pub fn init(allocator: Allocator, io: Io, diagnostic: *Diagnostic) !Self {
-    const config_dir_path = try getConfigPath(allocator);
+pub fn init(allocator: Allocator, io: Io, env_map: *const EnvMap, diagnostic: *Diagnostic) !Self {
+    const config_dir_path = try getConfigPath(allocator, env_map);
     defer allocator.free(config_dir_path);
 
     const config_path = try path.join(allocator, &.{ config_dir_path, "config.zon" });
@@ -79,22 +80,17 @@ pub fn deinit(self: Self, allocator: Allocator) void {
     zon.parse.free(allocator, self);
 }
 
-pub fn getConfigPath(allocator: Allocator) ![]const u8 {
+pub fn getConfigPath(allocator: Allocator, env_map: *const EnvMap) ![]const u8 {
     var output = try ArrayList(u8).initCapacity(allocator, 30);
     errdefer output.deinit(allocator);
 
     switch (builtin.os.tag) {
         .linux, .macos => {
-            try output.appendSlice(allocator, std.posix.getenv("HOME").?);
+            try output.appendSlice(allocator, env_map.get("HOME").?);
             try output.appendSlice(allocator, "/.config/vesti");
         },
         .windows => {
-            const appdata_location = try process.getEnvVarOwned(
-                allocator,
-                "APPDATA",
-            );
-            defer allocator.free(appdata_location);
-            try output.appendSlice(allocator, appdata_location);
+            try output.appendSlice(allocator, env_map.get("APPDATA").?);
             try output.appendSlice(allocator, "\\vesti");
         },
         else => @compileError("only linux, macos and windows are supported"),

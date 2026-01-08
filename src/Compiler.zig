@@ -13,6 +13,7 @@ const ArrayList = std.ArrayList;
 const Child = std.process.Child;
 const Codegen = @import("Codegen.zig");
 const DynLib = std.DynLib;
+const EnvMap = std.process.Environ.Map;
 const Io = std.Io;
 const Lua = @import("Lua.zig");
 const LatexEngine = Parser.LatexEngine;
@@ -73,6 +74,7 @@ pub const LuaContents = struct {
 
 allocator: Allocator,
 io: Io,
+env_map: *const EnvMap,
 main_filename: []const u8,
 lua: *Lua,
 diagnostic: *diag.Diagnostic,
@@ -407,6 +409,7 @@ fn parseVesti(
     var parser: Parser = try .init(
         self.allocator,
         self.io,
+        self.env_map,
         source,
         &vesti_file_dir,
         self.diagnostic,
@@ -568,37 +571,50 @@ fn compileLatexWithInner(
     main_tex_file: []const u8,
     vesti_dummy: *Io.Dir,
 ) !void {
-    const result = try Child.run(self.allocator, self.io, .{
+    var latex_child = try std.process.spawn(self.io, .{
         .argv = &.{ self.engine.toStr(), main_tex_file },
         .cwd = VESTI_DUMMY_DIR,
-        .max_output_bytes = std.math.maxInt(usize),
-        // XXX: https://github.com/ziglang/zig/issues/5190
+        .stdout = .pipe,
+        .stderr = .pipe,
+        // NOTE: https://github.com/ziglang/zig/issues/5190
         //.cwd_dir = vesti_dummy,
     });
+    errdefer latex_child.kill(self.io);
+
+    var result_stdout: ArrayList(u8) = .empty;
+    var result_stderr: ArrayList(u8) = .empty;
     defer {
-        self.allocator.free(result.stdout);
-        self.allocator.free(result.stderr);
+        result_stdout.deinit(self.allocator);
+        result_stderr.deinit(self.allocator);
     }
+
+    try latex_child.collectOutput(
+        self.allocator,
+        &result_stdout,
+        &result_stderr,
+        std.math.maxInt(usize),
+    );
 
     // write stdout and stderr in .vesti_dummy
     try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stdout.txt",
-        .data = result.stdout,
+        .data = result_stdout.items,
     });
     try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stderr.txt",
-        .data = result.stderr,
+        .data = result_stderr.items,
     });
 
-    switch (result.term) {
-        .Exited => |errcode| if (errcode != 0) {
+    const result = try latex_child.wait(self.io);
+    switch (result) {
+        .exited => |errcode| if (errcode != 0) {
             const io_diag = try diag.IODiagnostic.initWithNote(
                 self.diagnostic.allocator,
                 null,
                 "{s} gaves an error while processing",
                 .{self.engine.toStr()},
                 "<Latex Engine Log>\n{s}",
-                .{result.stdout},
+                .{result_stdout.items},
             );
             self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;

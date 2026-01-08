@@ -14,6 +14,7 @@ const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const CowStr = @import("../CowStr.zig").CowStr;
 const Io = std.Io;
+const EnvMap = process.Environ.Map;
 const ParseErrKind = diag.ParseDiagnostic.ParseErrKind;
 const Lexer = @import("../lexer/Lexer.zig");
 const Literal = Token.Literal;
@@ -33,6 +34,7 @@ const MAX_BEGENV_NUM = 64;
 
 allocator: Allocator,
 io: Io,
+env_map: *const EnvMap,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
@@ -86,7 +88,6 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
 });
 
 pub const ParseError = Allocator.Error ||
-    process.GetEnvVarOwnedError ||
     error{Utf8InvalidStartByte} || // from unicode.utf8ByteSequenceLength
     Io.Writer.Error || Io.Reader.Error || error{ StreamTooLong, FailedOpenConfig } ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
@@ -114,6 +115,7 @@ const ParserAllows = packed struct {
 pub fn init(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     source: []const u8,
     file_dir: *Io.Dir,
     diagnostic: *diag.Diagnostic,
@@ -124,6 +126,7 @@ pub fn init(
 
     self.allocator = allocator;
     self.io = io;
+    self.env_map = env_map;
     self.lexer = try Lexer.init(source);
     self.curr_tok = .invalid;
     self.peek_tok = .invalid;
@@ -919,6 +922,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
     try @import("../ves_module.zig").downloadModule(
         self.allocator,
         self.io,
+        self.env_map,
         self.diagnostic,
         mem.trimStart(u8, mem.trim(u8, mod_dir_path_str, " \t"), "/\\"),
         import_file_loc,
@@ -1732,8 +1736,15 @@ fn parseFilepathHelper(
                 if (nested == 0) break;
             },
             .Tilde => if (!parse_very_first_chr) {
-                const home_dir = try getHomePath(self.allocator);
-                defer self.allocator.free(home_dir);
+                const home_dir = getHomePath(self.env_map) orelse {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .VestiInternal = "Cannot find home. Check `HOME` env is defined on linux and macos, or `USERPROFILE` on windows",
+                        },
+                        .span = self.curr_tok.span,
+                    } });
+                    return error.ParseFailed;
+                };
                 try file_path_str.appendSlice(self.allocator, home_dir);
             } else {
                 try file_path_str.appendSlice(self.allocator, chr_str);
@@ -1775,7 +1786,7 @@ fn parseFilepathHelper(
     const file_path_str_raw = try file_path_str.toOwnedSlice(self.allocator);
     defer self.allocator.free(file_path_str_raw);
     if (inside_config_dir) {
-        const config_path = try getConfigPath(self.allocator);
+        const config_path = try getConfigPath(self.allocator, self.env_map);
         defer self.allocator.free(config_path);
         try file_path_str.print(
             self.allocator,
@@ -1807,10 +1818,10 @@ inline fn preventBug(s: *const volatile Span) void {
     _ = s;
 }
 
-inline fn getHomePath(allocator: Allocator) ![]const u8 {
+inline fn getHomePath(env_map: *const EnvMap) ?[]const u8 {
     return switch (builtin.os.tag) {
-        .windows => process.getEnvVarOwned(allocator, "USERPROFILE"),
-        .linux, .macos => process.getEnvVarOwned(allocator, "HOME"),
+        .windows => env_map.get("USERPROFILE"),
+        .linux, .macos => env_map.get("HOME"),
         else => @compileError("only linux, macos and windows are supported"),
     };
 }
@@ -2395,6 +2406,8 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
 
     const filepath_diff = path.relative(
         self.allocator,
+        ".",
+        null,
         VESTI_DUMMY_DIR,
         file_name_str.items,
     ) catch {

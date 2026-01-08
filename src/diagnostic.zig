@@ -660,11 +660,7 @@ pub const ParseDiagnostic = struct {
         const filename = if (absolute_filename) |af| blk: {
             const current_dir = try Io.Dir.cwd().realPathFileAlloc(io, ".", allocator);
             defer allocator.free(current_dir);
-            break :blk try std.fs.path.relative(
-                allocator,
-                current_dir,
-                af.toStr(),
-            );
+            break :blk try std.fs.path.relative(allocator, ".", null, current_dir, af.toStr());
         } else "^.^";
         defer if (absolute_filename != null) allocator.free(filename);
 

@@ -6,6 +6,7 @@ const zon = std.zon;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Io = std.Io;
+const EnvMap = std.process.Environ.Map;
 const Span = @import("location.zig").Span;
 
 const getConfigPath = @import("Config.zig").getConfigPath;
@@ -24,6 +25,7 @@ pub const VestiModule = struct {
 pub fn downloadModule(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     diagnostic: *diag.Diagnostic,
     mod_name: []const u8,
     import_file_loc: ?Span,
@@ -31,7 +33,7 @@ pub fn downloadModule(
     var mod_dir_path = try ArrayList(u8).initCapacity(allocator, 30);
     defer mod_dir_path.deinit(allocator);
 
-    const config_path = try getConfigPath(allocator);
+    const config_path = try getConfigPath(allocator, env_map);
     defer allocator.free(config_path);
 
     try mod_dir_path.print(allocator, "{s}/{s}", .{ config_path, mod_name });

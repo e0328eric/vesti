@@ -10,18 +10,20 @@ const path = std.fs.path;
 const assert = std.debug.assert;
 const getConfigPath = Config.getConfigPath;
 
-const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
-const Config = @import("Config.zig");
-const Compiler = @import("Compiler.zig");
+const ArrayList = std.ArrayList;
 const CompileAttribute = Compiler.CompileAttribute;
+const Compiler = @import("Compiler.zig");
+const Config = @import("Config.zig");
 const Diagnostic = diag.Diagnostic;
+const EnvMap = std.process.Environ.Map;
 const Io = std.Io;
-const Lua = @import("Lua.zig");
-const LuaScripts = Compiler.LuaScripts;
-const LuaContents = Compiler.LuaContents;
-const Parser = @import("parser/Parser.zig");
 const LatexEngine = Parser.LatexEngine;
+const Lua = @import("Lua.zig");
+const LuaContents = Compiler.LuaContents;
+const LuaScripts = Compiler.LuaScripts;
+const Parser = @import("parser/Parser.zig");
+const Zlap = zlap.Zlap(@embedFile("commands.zlap"), null);
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 
 fn signalHandler(signal: c_int) callconv(.c) noreturn {
@@ -30,7 +32,7 @@ fn signalHandler(signal: c_int) callconv(.c) noreturn {
     std.process.exit(0);
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     // change the console encoding into utf-8
     // One can find the magic number in here
     // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
@@ -41,18 +43,13 @@ pub fn main() !void {
         }
     }
 
-    var gpa: std.heap.DebugAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    var threaded = std.Io.Threaded.init(allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    const allocator = init.gpa;
+    const io = init.io;
 
     // set signal handling
     _ = c.signal(c.SIGINT, signalHandler);
 
-    var zlap_cmd = try zlap.Zlap(@embedFile("commands.zlap"), null).init(allocator);
+    var zlap_cmd: Zlap = try .init(allocator, init.minimal.args);
     defer zlap_cmd.deinit();
     if (zlap_cmd.is_help) {
         std.debug.print("{s}\n", .{zlap_cmd.help_msg});
@@ -73,6 +70,7 @@ pub fn main() !void {
             @field(@This(), subcmd_str ++ "Step")(
                 allocator,
                 io,
+                init.environ_map,
                 &diagnostic,
                 &subcmd,
             ) catch |err| {
@@ -97,10 +95,12 @@ const experimentalStep = @import("experimental.zig").experimentalStep;
 fn clearStep(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     diagnostic: *Diagnostic,
     clear_step: *const zlap.Subcmd,
 ) !void {
     _ = allocator;
+    _ = env_map;
     _ = diagnostic;
     _ = clear_step;
 
@@ -111,6 +111,7 @@ fn clearStep(
 fn compileStep(
     allocator: Allocator,
     io: Io,
+    env_map: *const EnvMap,
     diagnostic: *Diagnostic,
     compile_subcmd: *const zlap.Subcmd,
 ) !void {
@@ -136,7 +137,7 @@ fn compileStep(
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
-    const config = try Config.init(allocator, io, diagnostic);
+    const config = try Config.init(allocator, io, env_map, diagnostic);
     defer config.deinit(allocator);
 
     var engine = try getEngine(config.engine, .{
@@ -151,6 +152,7 @@ fn compileStep(
     var lua = try Lua.init(
         allocator,
         io,
+        env_map,
         engine,
         &config,
         .{
@@ -235,6 +237,7 @@ fn compileStep(
     var compiler = Compiler{
         .allocator = allocator,
         .io = io,
+        .env_map = env_map,
         .main_filename = main_ves,
         .lua = lua,
         .diagnostic = diagnostic,
