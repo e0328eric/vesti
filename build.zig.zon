@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .zlap = .{
-            .url = "git+https://github.com/e0328eric/zlap.git#950e50a9502c8ec2df0c9fb4cb5850e75688e135",
-            .hash = "zlap-0.10.1-boKVXLu7AABBJA7E-_rFQEcBzKf6OFIwV81ed3HvBJFE",
+            .url = "git+https://github.com/e0328eric/zlap.git#0534a407f6b372a18b6a0ff1a7c27cf40a69e227",
+            .hash = "zlap-0.10.2-boKVXBu7AACHtErrFzi9Nt9_-NKLx3u7o3_rnrpygzor",
         },
         .zlua = .{
             .url = "git+https://github.com/e0328eric/ziglua.git#8f87e4034f8813044e7ad4d345e0b8b6ecfec0da",
