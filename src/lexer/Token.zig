@@ -283,23 +283,29 @@ pub fn isFunctionParam(val: []const u8) ?usize {
 
 pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
-    .{ "at_off" },
-    .{ "at_on" },
     .{ "chardef" },
     .{ "enum" },
     .{ "enum_counter" },
     .{ "eq" },
     .{ "get_filepath" },
     .{ "label" },
-    .{ "ltx3_off" },
-    .{ "ltx3_on" },
     .{ "mathchardef" },
     .{ "mathmode" },
-    .{ "noltx3" },
     .{ "picture" },
     .{ "raw_tex" },
     .{ "showfont" },
     .{ "textmode" },
+    // zig fmt: on
+});
+
+pub const VESTI_PREPROCESS_BUILTINS = std.StaticStringMap(void).initComptime(.{
+    // zig fmt: off
+    .{ "at_off" },
+    .{ "at_on" },
+    .{ "def" },
+    .{ "ltx3_off" },
+    .{ "ltx3_on" },
+    .{ "noltx3" },
     // zig fmt: on
 });
 
@@ -318,4 +324,15 @@ pub fn init(
         .toktype = toktype,
         .span = .{ .start = start, .end = end },
     };
+}
+
+// format function for Token
+pub fn format(
+    self: @This(),
+    writer: *std.Io.Writer,
+) !void {
+    try writer.print(
+        "[ toktype: {f}, lit: < text: {s}, math: {s} > span: {f} ]",
+        .{self.toktype, self.lit.in_text, self.lit.in_math, self.span,},
+    );
 }

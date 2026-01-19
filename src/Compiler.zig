@@ -18,6 +18,7 @@ const Io = std.Io;
 const Lua = @import("Lua.zig");
 const LatexEngine = Parser.LatexEngine;
 const Parser = @import("parser/Parser.zig");
+const Preprocessor = @import("parser/Preprocessor.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Stmt = @import("parser/ast.zig").Stmt;
 const Sha3 = std.crypto.hash.sha3.Sha3_512;
@@ -406,7 +407,7 @@ fn parseVesti(
     };
     errdefer self.allocator.free(source);
 
-    var parser: Parser = try .init(
+    var parser = Parser.init(
         self.allocator,
         self.io,
         self.env_map,
@@ -420,7 +421,13 @@ fn parseVesti(
             .change_engine = !self.attr.engine_already_changed,
         },
         .{self.engine},
-    );
+    ) catch |err| switch (err) {
+        Preprocessor.PreprocessError.ParseFailed => {
+            try self.diagnostic.initMetadataAlloc(filename, source);
+            return err;
+        },
+        else => return err,
+    };
     defer parser.deinit();
 
     var ast = parser.parse() catch |err| switch (err) {

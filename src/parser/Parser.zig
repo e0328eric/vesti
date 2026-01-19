@@ -16,12 +16,15 @@ const CowStr = @import("../CowStr.zig").CowStr;
 const Io = std.Io;
 const EnvMap = process.Environ.Map;
 const ParseErrKind = diag.ParseDiagnostic.ParseErrKind;
-const Lexer = @import("../lexer/Lexer.zig");
+const PreProcessor = @import("Preprocessor.zig");
 const Literal = Token.Literal;
+const MultiArrayList = std.MultiArrayList;
 const Stmt = ast.Stmt;
 const Span = @import("../location.zig").Span;
 const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
+
+const TokenList = MultiArrayList(Token);
 
 const assert = std.debug.assert;
 const getConfigPath = @import("../Config.zig").getConfigPath;
@@ -35,10 +38,10 @@ const MAX_BEGENV_NUM = 64;
 allocator: Allocator,
 io: Io,
 env_map: *const EnvMap,
-lexer: Lexer,
-curr_tok: Token,
-peek_tok: Token,
 diagnostic: *diag.Diagnostic,
+tok_list: TokenList,
+tok_idx: usize,
+parse_finished: bool,
 file_dir: *Io.Dir,
 current_engine: LatexEngine,
 engine_ptr: ?*LatexEngine,
@@ -94,10 +97,6 @@ pub const ParseError = Allocator.Error ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
 const DocState = packed struct {
-    // after 2020-10-01, latex kernel now allows to use expl3 without importing
-    // it. Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
-    // Also, use xparse commands in default by defining commands and environments
-    allow_latex3: bool = true,
     xparse_defun: bool = true,
     doc_start: bool = false,
     prevent_end_doc: bool = false,
@@ -122,14 +121,17 @@ pub fn init(
     allows: ParserAllows,
     engine: anytype,
 ) !Self {
+    var preprop: PreProcessor = try .init(allocator, diagnostic, source);
+    defer preprop.deinit();
+
     var self: Self = undefined;
 
     self.allocator = allocator;
     self.io = io;
     self.env_map = env_map;
-    self.lexer = try Lexer.init(source);
-    self.curr_tok = .invalid;
-    self.peek_tok = .invalid;
+    self.tok_list = try preprop.preprocess();
+    self.tok_idx = 0;
+    self.parse_finished = false;
     self.doc_state = DocState{};
     self.enum_depth = 0;
     self.diagnostic = diagnostic;
@@ -150,36 +152,27 @@ pub fn init(
         self.current_engine = engine[1];
     }
 
-    // fill curr_tok and peek_tok
-    self.nextToken();
-    self.nextToken();
-
     return self;
 }
 
 pub fn deinit(self: *Self) void {
+    self.tok_list.deinit(self.allocator);
     for (self.global_defkinds.items) |*stmt| stmt.deinit(self.allocator);
     self.global_defkinds.deinit(self.allocator);
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
-    var stmts = try ArrayList(Stmt).initCapacity(self.allocator, 100);
+    var stmts: ArrayList(Stmt) = try .initCapacity(self.allocator, 100);
     errdefer {
         for (stmts.items) |*stmt| stmt.deinit(self.allocator);
         stmts.deinit(self.allocator);
     }
 
-    // lexer.lex_finished means that peek_tok is the "last" token from lexer
-    while (!self.lexer.lex_finished) : (self.nextToken()) {
+    while (!self.parse_finished) : (self.nextToken()) {
         var stmt = try self.parseStatement();
         errdefer stmt.deinit(self.allocator);
         try stmts.append(self.allocator, stmt);
     } else {
-        // so we need one more step to exhaust peek_tok
-        var stmt = try self.parseStatement();
-        errdefer stmt.deinit(self.allocator);
-        try stmts.append(self.allocator, stmt);
-
         if (self.doc_state.doc_start and !self.doc_state.prevent_end_doc)
             try stmts.append(self.allocator, Stmt.DocumentEnd);
     }
@@ -192,8 +185,11 @@ inline fn isPremiere(self: Self) bool {
 }
 
 inline fn nextToken(self: *Self) void {
-    self.curr_tok = self.peek_tok;
-    self.peek_tok = self.lexer.next();
+    if (self.tok_idx + 1 < self.tok_list.len) {
+        self.tok_idx += 1;
+    } else {
+        self.parse_finished = true;
+    }
 }
 
 inline fn expect(
@@ -203,12 +199,11 @@ inline fn expect(
 ) bool {
     var output: u1 = 0;
     const what_token = switch (is_peek) {
-        .current => "curr_tok",
-        .peek => "peek_tok",
+        .current => "currToktype",
+        .peek => "peekToktype",
     };
     inline for (toktypes) |toktype| {
-        output |= @intFromBool(@intFromEnum(@field(self, what_token).toktype) ==
-            @intFromEnum(toktype));
+        output |= @intFromBool(@intFromEnum(@field(Self, what_token)(self)) == @intFromEnum(toktype));
     }
     return output == 1;
 }
@@ -227,23 +222,27 @@ inline fn expectWithError(
                 .expected = &.{token},
                 .obtained = self.currToktype(),
             } },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
     if (is_eat == .eat) {
-        const curr_tok = self.curr_tok;
+        const curr_tok = self.getTok(.current);
         self.nextToken();
         return curr_tok;
     }
 }
 
+inline fn getTok(self: Self, comptime ty: enum(u1) { current, peek }) Token {
+    return self.tok_list.get(self.tok_idx + @intFromEnum(ty));
+}
+
 inline fn currToktype(self: Self) TokenType {
-    return self.curr_tok.toktype;
+    return self.getTok(.current).toktype;
 }
 
 inline fn peekToktype(self: Self) TokenType {
-    return self.peek_tok.toktype;
+    return self.getTok(.peek).toktype;
 }
 
 fn eatWhitespaces(self: *Self, comptime handle_newline: bool) void {
@@ -281,7 +280,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
                 .err_info = .{
                     .IllegalUseErr = "math block is not properly closed",
                 },
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         },
@@ -294,7 +293,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
                 .err_info = .{
                     .IllegalUseErr = "math block is not properly closed",
                 },
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         },
@@ -340,14 +339,14 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .DisallowLuacode,
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         },
         .Illegal => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .InvalidTokenFound,
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         },
@@ -355,7 +354,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
             if (info.valid_in_text) return self.parseLiteral();
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .Deprecated = info.instead },
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         },
@@ -365,13 +364,13 @@ fn parseStatement(self: *Self) ParseError!Stmt {
 
 fn parseLiteral(self: *Self) Stmt {
     return if (self.doc_state.math_mode)
-        Stmt{ .MathLit = self.curr_tok.lit.in_math }
+        Stmt{ .MathLit = self.getTok(.current).lit.in_math }
     else
-        Stmt{ .TextLit = CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}) };
+        Stmt{ .TextLit = CowStr.init(.Borrowed, .{self.getTok(.current).lit.in_text}) };
 }
 
 fn parseDocclass(self: *Self) ParseError!Stmt {
-    const docclass_span = self.curr_tok.span;
+    const docclass_span = self.getTok(.current).span;
     _ = try self.expectWithError(.Docclass, .eat);
     self.eatWhitespaces(false);
 
@@ -399,7 +398,7 @@ fn parseDocclass(self: *Self) ParseError!Stmt {
 }
 
 fn parseSinglePkg(self: *Self) ParseError!Stmt {
-    const importpkg_span = self.curr_tok.span;
+    const importpkg_span = self.getTok(.current).span;
     _ = try self.expectWithError(.ImportPkg, .eat);
     self.eatWhitespaces(false);
 
@@ -429,7 +428,7 @@ fn parseSinglePkg(self: *Self) ParseError!Stmt {
 }
 
 fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
-    const lbrace_span = self.curr_tok.span;
+    const lbrace_span = self.getTok(.current).span;
     _ = try self.expectWithError(.Lbrace, .eat);
 
     var output = try ArrayList(ast.UsePackage).initCapacity(self.allocator, 10);
@@ -455,7 +454,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
         name = try self.takeName(lbrace_span);
         self.eatWhitespaces(false);
 
-        const open_paren_loc = self.curr_tok.span;
+        const open_paren_loc = self.getTok(.current).span;
         options = switch (self.currToktype()) {
             .Lparen => blk: {
                 const tmp = try self.parseOptions();
@@ -488,7 +487,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
                         .expected = &.{ .Comma, .Rbrace },
                         .obtained = self.currToktype(),
                     } },
-                    .span = self.curr_tok.span,
+                    .span = self.getTok(.current).span,
                 } });
                 return ParseError.ParseFailed;
             },
@@ -499,7 +498,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
             .err_info = .{
                 .VestiInternal = "`parseMultiplePkgs` implementation bug occurs",
             },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
@@ -510,7 +509,7 @@ fn parseMultiplePkgs(self: *Self) ParseError!Stmt {
 }
 
 fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
-    const open_paren_span: Span = self.curr_tok.span;
+    const open_paren_span: Span = self.getTok(.current).span;
     _ = try self.expectWithError(.Lparen, .eat);
 
     var output = try ArrayList(CowStr).initCapacity(self.allocator, 10);
@@ -541,7 +540,7 @@ fn parseOptions(self: *Self) ParseError!ArrayList(CowStr) {
                 }
             },
             .Space, .Tab, .Newline => continue,
-            else => try tmp.append(self.allocator, self.curr_tok.lit.in_text),
+            else => try tmp.append(self.allocator, self.getTok(.current).lit.in_text),
         }
     } else {
         if (tmp != .Empty) {
@@ -565,15 +564,15 @@ fn takeName(self: *Self, span: Span) ParseError!CowStr {
     var output = switch (self.currToktype()) {
         .Text, .Minus, .Integer => try CowStr.init(
             .Owned,
-            .{ self.allocator, self.curr_tok.lit.in_text },
+            .{ self.allocator, self.getTok(.current).lit.in_text },
         ),
-        else => return CowStr.init(.Borrowed, .{self.curr_tok.lit.in_text}),
+        else => return CowStr.init(.Borrowed, .{self.getTok(.current).lit.in_text}),
     };
     errdefer output.deinit(self.allocator);
     self.nextToken();
 
     while (self.expect(.current, &.{ .Text, .Minus, .Integer })) : (self.nextToken()) {
-        try output.append(self.allocator, self.curr_tok.lit.in_text);
+        try output.append(self.allocator, self.getTok(.current).lit.in_text);
     }
 
     return output;
@@ -613,7 +612,7 @@ fn parseMathStmtInner(self: *Self, comptime open_tok: TokenType) !Stmt {
         ctx.deinit(self.allocator);
     }
 
-    const open_tok_span = self.curr_tok.span;
+    const open_tok_span = self.getTok(.current).span;
     _ = try self.expectWithError(open_tok, .eat);
 
     while (switch (self.currToktype()) {
@@ -649,7 +648,7 @@ fn parseTextInMath(self: *Self, comptime add_front_space: bool) ParseError!Stmt 
         inner.deinit(self.allocator);
     }
 
-    const open_text_span = self.curr_tok.span;
+    const open_text_span = self.getTok(.current).span;
     if (add_front_space) _ = try self.expectWithError(.RawSharp, .eat);
     _ = try self.expectWithError(.DoubleQuote, .eat);
 
@@ -703,7 +702,7 @@ fn parseOpenDelimiter(self: *Self) ParseError!Stmt {
     }))
         Stmt{
             .MathDelimiter = .{
-                .delimiter = self.curr_tok.lit.in_math,
+                .delimiter = self.getTok(.current).lit.in_math,
                 .kind = .LeftBig,
             },
         }
@@ -711,7 +710,7 @@ fn parseOpenDelimiter(self: *Self) ParseError!Stmt {
         Stmt{ .MathLit = "?" };
 }
 fn parseClosedDelimiter(self: *Self) ParseError!Stmt {
-    const delimiter = self.curr_tok.lit.in_math;
+    const delimiter = self.getTok(.current).lit.in_math;
 
     return if (self.expect(.peek, &.{.Question})) blk: {
         self.nextToken();
@@ -730,7 +729,7 @@ fn parseClosedDelimiter(self: *Self) ParseError!Stmt {
 }
 
 fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
-    const begin_location = self.curr_tok.span;
+    const begin_location = self.getTok(.current).span;
     _ = try self.expectWithError(.Lbrace, .eat);
 
     var is_fraction = false;
@@ -798,7 +797,7 @@ fn parseBrace(self: *Self, comptime frac_enable: bool) ParseError!Stmt {
 }
 
 fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
-    const builtin_location = self.curr_tok.span;
+    const builtin_location = self.getTok(.current).span;
 
     // parsing function parameter attributes
     if (Token.isFunctionParam(builtin_fnt)) |fnt_param| {
@@ -839,13 +838,13 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
 }
 
 fn parseCopyFile(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.curr_tok.span;
+    const import_file_loc = self.getTok(.current).span;
     _ = try self.expectWithError(.CopyFile, .eat);
     self.eatWhitespaces(false);
 
     try self.expectWithError(.Lparen, .remain);
 
-    const left_parn_loc = self.curr_tok.span;
+    const left_parn_loc = self.getTok(.current).span;
     preventBug(&left_parn_loc);
     var file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
     defer file_name.deinit(self.allocator);
@@ -883,11 +882,11 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
 }
 
 fn parseImportModule(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.curr_tok.span;
+    const import_file_loc = self.getTok(.current).span;
     _ = try self.expectWithError(.ImportModule, .eat);
     self.eatWhitespaces(false);
 
-    const open_paren_span = self.curr_tok.span;
+    const open_paren_span = self.getTok(.current).span;
     try self.expectWithError(.Lparen, .remain);
 
     var mod_dir_path = try ArrayList(u8).initCapacity(self.allocator, 30);
@@ -895,8 +894,8 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 
     var nested: usize = 1;
     while (true) : (self.nextToken()) {
-        const chr_ty = self.peek_tok.toktype;
-        const chr_str = self.peek_tok.lit.in_text;
+        const chr_ty = self.getTok(.peek).toktype;
+        const chr_str = self.getTok(.peek).lit.in_text;
 
         switch (chr_ty) {
             .Lparen => nested += 1,
@@ -932,7 +931,7 @@ fn parseImportModule(self: *Self) ParseError!Stmt {
 }
 
 fn parseImportVesti(self: *Self) ParseError!Stmt {
-    const import_ves_loc = self.curr_tok.span;
+    const import_ves_loc = self.getTok(.current).span;
     _ = try self.expectWithError(.ImportVesti, .eat);
     self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
@@ -942,8 +941,8 @@ fn parseImportVesti(self: *Self) ParseError!Stmt {
 
     var nested: usize = 1;
     while (true) : (self.nextToken()) {
-        const chr_ty = self.peek_tok.toktype;
-        const chr_str = self.peek_tok.lit.in_text;
+        const chr_ty = self.getTok(.peek).toktype;
+        const chr_str = self.getTok(.peek).lit.in_text;
 
         switch (chr_ty) {
             .Lparen => nested += 1,
@@ -1015,7 +1014,7 @@ fn popEndenvStack(self: *Self, endenv_location: Span) ![]const u8 {
 }
 
 fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
-    const begenv_location = self.curr_tok.span;
+    const begenv_location = self.getTok(.current).span;
     const begin_env_tok: TokenType = if (is_real) .Useenv else .Begenv;
 
     var off_math_state = false;
@@ -1037,7 +1036,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
         const tmp = switch (@intFromEnum(self.currToktype())) {
             @intFromEnum(TokenType.Text),
             @intFromEnum(TokenType.__begin_keywords)...@intFromEnum(TokenType.__end_keywords),
-            => self.curr_tok.lit.in_text,
+            => self.getTok(.current).lit.in_text,
             @intFromEnum(TokenType.Eof) => {
                 if (is_real) {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1144,7 +1143,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
                     .expected = &.{ .Rparen, .Rsqbrace },
                     .obtained = self.currToktype(),
                 } },
-                .span = self.curr_tok.span,
+                .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
         }
@@ -1168,7 +1167,7 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
 }
 
 fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
-    const endenv_location = self.curr_tok.span;
+    const endenv_location = self.getTok(.current).span;
     _ = try self.expectWithError(.Endenv, .remain);
     if (self.peekToktype() == .Bang) {
         self.nextToken(); // eat `endenv`
@@ -1178,7 +1177,7 @@ fn parseEndPhantomEnvironment(self: *Self) ParseError!Stmt {
         const name = switch (@intFromEnum(self.currToktype())) {
             @intFromEnum(TokenType.Text),
             @intFromEnum(TokenType.__begin_keywords)...@intFromEnum(TokenType.__end_keywords),
-            => self.curr_tok.lit.in_text,
+            => self.getTok(.current).lit.in_text,
             @intFromEnum(TokenType.Eof) => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .EofErr,
@@ -1211,7 +1210,7 @@ fn parseDefineCommand(
     is_xparse: if (kind == .fnt) bool else void,
 ) ParseError!Stmt {
     const def_toktype: TokenType = if (kind == .fnt) .DefineFunction else .DefineEnv;
-    const def_location = self.curr_tok.span;
+    const def_location = self.getTok(.current).span;
     var def_kind: if (kind == .fnt) defkind.DefunKind else defkind.DefenvKind = .{};
 
     _ = try self.expectWithError(def_toktype, .eat);
@@ -1219,13 +1218,13 @@ fn parseDefineCommand(
 
     // parsing defun attributes
     if (self.expect(.current, &.{.Lsqbrace})) {
-        const kind_brace_location = self.curr_tok.span;
+        const kind_brace_location = self.getTok(.current).span;
         self.nextToken();
         var kind_str = try ArrayList(u8).initCapacity(self.allocator, 10);
         defer kind_str.deinit(self.allocator);
 
         while (!self.expect(.current, &.{ .Rsqbrace, .Eof })) : (self.nextToken()) {
-            try kind_str.appendSlice(self.allocator, self.curr_tok.lit.in_text);
+            try kind_str.appendSlice(self.allocator, self.getTok(.current).lit.in_text);
         }
         if (self.currToktype() == .Eof) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -1266,7 +1265,7 @@ fn parseDefineCommand(
         const tmp = switch (@intFromEnum(self.currToktype())) {
             @intFromEnum(TokenType.Text),
             @intFromEnum(TokenType.__begin_keywords)...@intFromEnum(TokenType.__end_keywords),
-            => self.curr_tok.lit.in_text,
+            => self.getTok(.current).lit.in_text,
             @intFromEnum(TokenType.Eof) => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .EofErr,
@@ -1277,7 +1276,7 @@ fn parseDefineCommand(
             else => {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .{ .NameMissErr = .DefineFunction },
-                    .span = self.curr_tok.span,
+                    .span = self.getTok(.current).span,
                 } });
                 return ParseError.ParseFailed;
             },
@@ -1330,7 +1329,7 @@ fn parseDefineCommand(
             },
             else => true,
         }) : (self.nextToken()) {
-            try param_toks.append(self.allocator, self.curr_tok);
+            try param_toks.append(self.allocator, self.getTok(.current));
         }
         assert(self.expect(.current, &.{.Rparen}));
         try self.parseDefineFunctionParam(&param_toks, &param_str);
@@ -1414,10 +1413,10 @@ fn parseDefineFunctionParam(
 }
 
 fn parseLuaCode(self: *Self) ParseError!Stmt {
-    const codeblock_loc = self.curr_tok.span;
+    const codeblock_loc = self.getTok(.current).span;
 
     try self.expectWithError(.LuaCode, .remain);
-    const luacode_contents = self.curr_tok.lit.in_text;
+    const luacode_contents = self.getTok(.current).lit.in_text;
 
     // coping luacode contents
     var luacode: ArrayList(u8) = .empty;
@@ -1447,7 +1446,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             if (self.expect(.current, &.{.Rsqbrace})) break;
             try self.expectWithError(.Text, .remain);
 
-            try code_import.?.append(self.allocator, self.curr_tok.lit.in_text);
+            try code_import.?.append(self.allocator, self.getTok(.current).lit.in_text);
             self.nextToken();
             self.eatWhitespaces(true);
 
@@ -1460,7 +1459,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
                             .expected = &.{ .Comma, .Rsqbrace },
                             .obtained = self.currToktype(),
                         } },
-                        .span = self.curr_tok.span,
+                        .span = self.getTok(.current).span,
                     } });
                     return ParseError.ParseFailed;
                 },
@@ -1474,7 +1473,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         self.nextToken(); // skip '<' token
 
         try self.expectWithError(.Text, .remain);
-        code_export = self.curr_tok.lit.in_text;
+        code_export = self.getTok(.current).lit.in_text;
         self.nextToken();
 
         try self.expectWithError(.Great, .remain);
@@ -1492,7 +1491,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
 }
 
 fn parseCompileType(self: *Self) ParseError!Stmt {
-    const comp_ty_loc = self.curr_tok.span;
+    const comp_ty_loc = self.getTok(.current).span;
     if (comp_ty_loc.start.row != 1) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .NotLocatedInVeryFirst = .CompileType },
@@ -1521,10 +1520,10 @@ fn parseCompileType(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(true);
 
     try self.expectWithError(.Text, .remain);
-    const engine = COMPILE_TYPE.get(self.curr_tok.lit.in_text) orelse {
+    const engine = COMPILE_TYPE.get(self.getTok(.current).lit.in_text) orelse {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .InvalidLatexEngine = self.curr_tok.lit.in_text },
-            .span = self.curr_tok.span,
+            .err_info = .{ .InvalidLatexEngine = self.getTok(.current).lit.in_text },
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     };
@@ -1633,7 +1632,7 @@ fn parseFunctionArgsCore(
     comptime closed: TokenType,
     arg_need: ast.ArgNeed,
 ) ParseError!void {
-    const open_brace_location = self.curr_tok.span;
+    const open_brace_location = self.getTok(.current).span;
     _ = try self.expectWithError(open, .eat);
 
     var tmp = try ArrayList(Stmt).initCapacity(self.allocator, 20);
@@ -1702,7 +1701,7 @@ fn parseBuiltinsArguments(
             } });
             return ParseError.ParseFailed;
         }
-        try inner.writer.writeAll(self.curr_tok.lit.in_text);
+        try inner.writer.writeAll(self.getTok(.current).lit.in_text);
     }
 
     _ = try self.expectWithError(closed, .eat);
@@ -1726,8 +1725,8 @@ fn parseFilepathHelper(
     var nested: usize = 1;
 
     while (true) {
-        const chr_ty = self.peek_tok.toktype;
-        const chr_str = self.peek_tok.lit.in_text;
+        const chr_ty = self.getTok(.peek).toktype;
+        const chr_str = self.getTok(.peek).lit.in_text;
 
         switch (chr_ty) {
             .Lparen => nested += 1,
@@ -1741,7 +1740,7 @@ fn parseFilepathHelper(
                         .err_info = .{
                             .VestiInternal = "Cannot find home. Check `HOME` env is defined on linux and macos, or `USERPROFILE` on windows",
                         },
-                        .span = self.curr_tok.span,
+                        .span = self.getTok(.current).span,
                     } });
                     return error.ParseFailed;
                 };
@@ -1832,72 +1831,8 @@ inline fn getHomePath(env_map: *const EnvMap) ?[]const u8 {
 // NOTE: All functions should have a name parseBuiltin_<builtin_name>
 // where <builtin_name> can be found at Token.VESTI_BUILTINS.
 
-fn parseBuiltin_at_on(self: *Self) Stmt {
-    self.lexer.make_at_letter = true;
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatletter\n"}) };
-}
-
-fn parseBuiltin_at_off(self: *Self) Stmt {
-    self.lexer.make_at_letter = false;
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-    return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\makeatother\n"}) };
-}
-
-fn parseBuiltin_ltx3_on(self: *Self) ParseError!Stmt {
-    self.lexer.is_latex3_on = true;
-    if (self.doc_state.allow_latex3) {
-        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOn\n"}) };
-    } else {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{
-                .WrongBuiltin = .{
-                    .name = "ltx3_on",
-                    .note = "must remove `#noltx3` to use this builtin",
-                },
-            },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-}
-
-fn parseBuiltin_ltx3_off(self: *Self) ParseError!Stmt {
-    self.lexer.is_latex3_on = false;
-    if (self.doc_state.allow_latex3) {
-        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-        return Stmt{ .TextLit = CowStr.init(.Borrowed, .{"\n\\ExplSyntaxOff\n"}) };
-    } else {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{
-                .WrongBuiltin = .{
-                    .name = "ltx3_off",
-                    .note = "must remove `#noltx3` to use this builtin",
-                },
-            },
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-}
-
-fn parseBuiltin_noltx3(self: *Self) ParseError!Stmt {
-    if (self.isPremiere()) {
-        self.doc_state.allow_latex3 = false;
-        if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-        return Stmt.NopStmt;
-    } else {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .PreambleErr,
-            .span = self.curr_tok.span,
-        } });
-        return ParseError.ParseFailed;
-    }
-}
-
 fn parseBuiltin_textmode(self: *Self) ParseError!Stmt {
-    const textmode_block_loc = self.curr_tok.span;
+    const textmode_block_loc = self.getTok(.current).span;
     self.nextToken();
     self.eatWhitespaces(false);
 
@@ -1920,7 +1855,7 @@ fn parseBuiltin_textmode(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_mathmode(self: *Self) ParseError!Stmt {
-    const mathmode_block_loc = self.curr_tok.span;
+    const mathmode_block_loc = self.getTok(.current).span;
     self.nextToken();
     self.eatWhitespaces(false);
 
@@ -1943,7 +1878,7 @@ fn parseBuiltin_mathmode(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
-    const eq_block_loc = self.curr_tok.span;
+    const eq_block_loc = self.getTok(.current).span;
     if (self.doc_state.math_mode) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
@@ -1982,7 +1917,7 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_label(self: *Self) ParseError!Stmt {
-    const label_block_loc = self.curr_tok.span;
+    const label_block_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#label`
     self.eatWhitespaces(false);
 
@@ -2014,7 +1949,7 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
-    const showfont_loc = self.curr_tok.span;
+    const showfont_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#showfont`
     self.eatWhitespaces(false);
 
@@ -2030,7 +1965,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
-    const num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
+    const num = fmt.parseInt(u8, self.getTok(.current).lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = "showfont",
@@ -2055,7 +1990,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
-    const chardef_loc = self.curr_tok.span;
+    const chardef_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#chardef`
     self.eatWhitespaces(false);
 
@@ -2065,12 +2000,12 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
                 .expected = &.{ .Text, .Integer },
                 .obtained = self.currToktype(),
             } },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
 
-    const unicode_codepoint = fmt.parseInt(usize, self.curr_tok.lit.in_text, 16) catch {
+    const unicode_codepoint = fmt.parseInt(usize, self.getTok(.current).lit.in_text, 16) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = "chardef",
@@ -2089,11 +2024,11 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
                 .expected = &.{ .LatexFunction, .MakeAtLetterFnt },
                 .obtained = self.currToktype(),
             } },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
-    const latex_function = self.curr_tok.lit.in_text;
+    const latex_function = self.getTok(.current).lit.in_text;
     self.nextToken();
     self.eatWhitespaces(false);
 
@@ -2134,14 +2069,14 @@ const MathClass = enum(u3) {
 };
 
 fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
-    const mchardef_loc = self.curr_tok.span;
+    const mchardef_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#mathchardef`
     self.eatWhitespaces(false);
 
     _ = try self.expectWithError(.Period, .eat);
     try self.expectWithError(.Text, .remain);
 
-    const kind_txt = self.curr_tok.lit.in_text;
+    const kind_txt = self.getTok(.current).lit.in_text;
     const kind_txt_z = try self.allocator.allocSentinel(u8, kind_txt.len + 1, 0);
     defer self.allocator.free(kind_txt_z);
 
@@ -2168,7 +2103,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     try self.expectWithError(.Integer, .remain);
-    const font_num = fmt.parseInt(u8, self.curr_tok.lit.in_text, 10) catch {
+    const font_num = fmt.parseInt(u8, self.getTok(.current).lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = "mathchardef",
@@ -2187,12 +2122,12 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
                 .expected = &.{ .Text, .Integer },
                 .obtained = self.currToktype(),
             } },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
 
-    const unicode_codepoint = fmt.parseInt(usize, self.curr_tok.lit.in_text, 16) catch {
+    const unicode_codepoint = fmt.parseInt(usize, self.getTok(.current).lit.in_text, 16) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = "mathchardef",
@@ -2211,11 +2146,11 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
                 .expected = &.{ .LatexFunction, .MakeAtLetterFnt },
                 .obtained = self.currToktype(),
             } },
-            .span = self.curr_tok.span,
+            .span = self.getTok(.current).span,
         } });
         return ParseError.ParseFailed;
     }
-    const latex_function = self.curr_tok.lit.in_text;
+    const latex_function = self.getTok(.current).lit.in_text;
     self.nextToken();
     self.eatWhitespaces(false);
 
@@ -2247,7 +2182,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
-    const enum_loc = self.curr_tok.span;
+    const enum_loc = self.getTok(.current).span;
 
     // TODO: without using `enumitem`, the maximum depth of enum is 4.
     if (self.enum_depth >= 5) {
@@ -2363,7 +2298,7 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
-    const enum_counter_loc = self.curr_tok.span;
+    const enum_counter_loc = self.getTok(.current).span;
 
     // TODO: without using `enumitem`, the maximum depth of enum is 4.
     if (self.enum_depth >= 5) {
@@ -2394,12 +2329,12 @@ fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.curr_tok.span;
+    const import_file_loc = self.getTok(.current).span;
     self.nextToken(); // eat #get_filepath
     self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
 
-    const left_parn_loc = self.curr_tok.span;
+    const left_parn_loc = self.getTok(.current).span;
     preventBug(&left_parn_loc);
     var file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
     defer file_name_str.deinit(self.allocator);
@@ -2444,7 +2379,7 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
 // Builtin which supports `picture` environment
 // reference: https://lab.uklee.pe.kr/tex-archive/info/latex2e-help-texinfo/latex2e.html#picture
 fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
-    const picture_block_loc = self.curr_tok.span;
+    const picture_block_loc = self.getTok(.current).span;
 
     self.nextToken(); // eat `#picture`
     self.eatWhitespaces(false);
@@ -2462,7 +2397,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
 
     _ = try self.expectWithError(.Lparen, .eat); // eat (
 
-    const width_tok_loc = self.curr_tok.span;
+    const width_tok_loc = self.getTok(.current).span;
     preventBug(&width_tok_loc);
     const width_token = try self.expectWithError(.Integer, .eat);
     const width = fmt.parseInt(usize, width_token.lit.in_text, 10) catch {
@@ -2479,7 +2414,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     _ = try self.expectWithError(.Comma, .eat); // eat ,
     self.eatWhitespaces(false);
 
-    const height_tok_loc = self.curr_tok.span;
+    const height_tok_loc = self.getTok(.current).span;
     preventBug(&height_tok_loc);
     const height_token = try self.expectWithError(.Integer, .eat);
     const height = fmt.parseInt(usize, height_token.lit.in_text, 10) catch {
@@ -2500,7 +2435,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     if (self.expect(.current, &.{.Lparen})) {
         _ = try self.expectWithError(.Lparen, .eat); // eat (
 
-        const xoffset_tok_loc = self.curr_tok.span;
+        const xoffset_tok_loc = self.getTok(.current).span;
         preventBug(&xoffset_tok_loc);
         const xoffset_token = try self.expectWithError(.Integer, .eat);
         xoffset = fmt.parseInt(usize, xoffset_token.lit.in_text, 10) catch {
@@ -2517,7 +2452,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         _ = try self.expectWithError(.Comma, .eat); // eat ,
         self.eatWhitespaces(false);
 
-        const yoffset_tok_loc = self.curr_tok.span;
+        const yoffset_tok_loc = self.getTok(.current).span;
         preventBug(&yoffset_tok_loc);
         const yoffset_token = try self.expectWithError(.Integer, .eat);
         yoffset = fmt.parseInt(usize, yoffset_token.lit.in_text, 10) catch {
@@ -2549,7 +2484,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_raw_tex(self: *Self) ParseError!Stmt {
-    const raw_tex_block_loc = self.curr_tok.span;
+    const raw_tex_block_loc = self.getTok(.current).span;
     // if there is a space after #raw_tex, eat all spaces except the last one.
     // oherwise, stop the parser position to #raw_tex
     while (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();

@@ -49,11 +49,15 @@ pub fn experimentalStep(
     };
     defer allocator.free(source);
 
-    var preprocessor = try Preprocessor.init(allocator, source);
-    var tokens = try preprocessor.preprocess();
+    var preprocessor = try Preprocessor.init(allocator, diagnostic, source);
+    defer preprocessor.deinit();
+    var tokens = preprocessor.preprocess() catch |err| {
+        try diagnostic.initMetadataAlloc(filename, source);
+        return err;
+    };
     defer tokens.deinit(allocator);
 
     for (0..tokens.len) |i| {
-        std.debug.print("Token: {any}\n", .{tokens.get(i)});
+        std.debug.print("Token: {f}\n", .{tokens.get(i)});
     }
 }
