@@ -284,6 +284,7 @@ fn expandTokens(
                         input_tokens,
                         i + 1,
                         nested_def.params,
+                        tok.span,
                     );
 
                     var resolved_args = try ArrayList(TokenList).initCapacity(
@@ -347,7 +348,7 @@ fn parseArgs(
             // TODO: fill note
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = try CowStr.init(.Borrowed, .{"def"}),
+                    .name = CowStr.init(.Borrowed, .{"def"}),
                     .note = "TODO: fill note later",
                 } },
                 .span = loc,
@@ -376,7 +377,7 @@ fn parseArgs(
             // TODO: fill note
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = try CowStr.init(.Borrowed, .{"def"}),
+                    .name = CowStr.init(.Borrowed, .{"def"}),
                     .note = "TODO: fill note later",
                 } },
                 .span = loc,
