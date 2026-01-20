@@ -34,7 +34,7 @@ pub const TokenList = struct {
     inner: MultiArrayList(Token) = .{},
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
-        self.deinit(allocator);
+        self.inner.deinit(allocator);
     }
 
     pub fn append(self: *@This(), allocator: Allocator, val: Token) !void {
