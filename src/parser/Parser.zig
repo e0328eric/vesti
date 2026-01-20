@@ -1877,45 +1877,6 @@ fn parseBuiltin_mathmode(self: *Self) ParseError!Stmt {
     return inner;
 }
 
-fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
-    const eq_block_loc = self.getTok(.current).span;
-    if (self.doc_state.math_mode) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .WrongBuiltin = .{
-                .name = "eq",
-                .note = "`#eq` cannot be used inside math mode",
-            } },
-            .span = eq_block_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    self.nextToken(); // eat `#eq`
-    self.eatWhitespaces(false);
-
-    var label = if (self.expect(.current, &.{.Lparen}))
-        try self.parseBuiltinsArguments(
-            eq_block_loc,
-            .Lparen,
-            .Rparen,
-            true,
-        )
-    else
-        null;
-    errdefer if (label) |*l| l.deinit(self.allocator);
-
-    self.doc_state.math_mode = true;
-    var inner = try self.parseBrace(false);
-    errdefer inner.deinit();
-    self.doc_state.math_mode = false;
-
-    return Stmt{ .MathCtx = .{
-        .state = .Labeled,
-        .inner = inner.Braced.inner,
-        .label = label,
-    } };
-}
-
 fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     const label_block_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#label`

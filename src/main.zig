@@ -275,7 +275,8 @@ fn compileStep(
         diagnostic,
         &luacode_scripts,
     );
-    errdefer luacode_contents.deinit(allocator);
+    // luacode_contents is passed into compiler, and when compiler
+    // deinitialized, then luacode_contents also deinitialized.
     var compiler = Compiler{
         .allocator = allocator,
         .io = io,

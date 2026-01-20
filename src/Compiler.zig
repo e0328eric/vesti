@@ -242,7 +242,8 @@ fn compileInner(self: *Self) !void {
         main_vesti_files;
     defer {
         if (self.attr.compile_all) {
-            for (vesti_files.keys()) |vesti_file| self.allocator.free(vesti_file);
+            for (vesti_files.keys()) |vesti_file|
+                self.allocator.free(@as([:0]const u8, @ptrCast(vesti_file)));
             vesti_files.deinit(self.allocator);
         }
     }

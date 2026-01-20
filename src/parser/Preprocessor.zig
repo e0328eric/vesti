@@ -166,9 +166,6 @@ fn preprocessExpandDef(
     fnt_name: []const u8,
     tok_list: *MultiArrayList(Token),
 ) PreprocessError!void {
-    // assertion
-    try self.expectWithError(.Lparen, .remain);
-
     const contents = self.comptime_fnt.get(fnt_name) orelse {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
@@ -186,11 +183,13 @@ fn preprocessExpandDef(
         params.deinit(self.allocator);
     }
 
+    // assertion
+    if (contents.params > 0) try self.expectWithError(.Lparen, .remain);
     for (0..contents.params) |_| {
         try self.parseParameter(fnt_loc, &params);
         if (self.expect(.peek, &.{.Lparen})) self.nextToken();
     }
-    try self.expectWithError(.Rparen, .remain);
+    if (contents.params > 0) try self.expectWithError(.Rparen, .remain);
 
     // expand function contents
     for (0..contents.contents.len) |i| {
@@ -225,6 +224,11 @@ fn preprocessExpandDef(
             else => try tok_list.append(self.allocator, tok),
         }
     }
+
+    // when contents.params == 0, preprocessor points the next token of the
+    // vesti function. After that, preprocessor skip the token, so we need to
+    // add the token manually in here
+    if (contents.params == 0) try tok_list.append(self.allocator, self.curr_tok);
 }
 
 fn parseParameter(self: *Self, loc: Span, params: *ArrayList(MultiArrayList(Token))) PreprocessError!void {
