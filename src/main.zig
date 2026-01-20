@@ -60,6 +60,7 @@ pub fn main(init: std.process.Init) !void {
     defer diagnostic.deinit();
 
     const subcmds = .{
+        "init",
         "clear",
         "compile",
         "experimental",
@@ -92,17 +93,58 @@ pub fn main(init: std.process.Init) !void {
 
 const experimentalStep = @import("experimental.zig").experimentalStep;
 
+fn initStep(
+    allocator: Allocator,
+    io: Io,
+    env_map: *const EnvMap,
+    diagnostic: *Diagnostic,
+    init_subcmd: *const zlap.Subcmd,
+) !void {
+    _ = env_map;
+    _ = diagnostic;
+
+    const project_name = init_subcmd.args.get("PROJECT").?.value.string;
+    var project_filename: Io.Writer.Allocating = .init(allocator);
+    defer project_filename.deinit();
+
+    try project_filename.writer.print("{s}.ves", .{project_name});
+    try project_filename.writer.flush();
+
+    var first_lua = try Io.Dir.createFile(.cwd(), io, "first.lua", .{});
+    defer first_lua.close(io);
+    var project_ves = try Io.Dir.createFile(.cwd(), io, project_filename.written(), .{});
+    defer project_ves.close(io);
+
+    var buf: [1024]u8 = undefined;
+    var first_lua_writer = first_lua.writer(io, &buf);
+
+    try first_lua_writer.interface.print(
+        \\-- below code imports vesti module
+        \\-- vesti.getModule("module_name")
+        \\vesti.compile("{s}.ves", {{ engine = "tect", compile_all = true }})
+    , .{project_name});
+    try first_lua_writer.end();
+
+    var project_ves_writer = project_ves.writer(io, &buf);
+    try project_ves_writer.interface.print(
+        \\docclass article
+        \\startdoc
+        \\Hello, World!
+    , .{});
+    try project_ves_writer.end();
+}
+
 fn clearStep(
     allocator: Allocator,
     io: Io,
     env_map: *const EnvMap,
     diagnostic: *Diagnostic,
-    clear_step: *const zlap.Subcmd,
+    clear_subcmd: *const zlap.Subcmd,
 ) !void {
     _ = allocator;
     _ = env_map;
     _ = diagnostic;
-    _ = clear_step;
+    _ = clear_subcmd;
 
     try Io.Dir.cwd().deleteTree(io, VESTI_DUMMY_DIR);
     std.debug.print("[successively remove {s}]\n", .{VESTI_DUMMY_DIR});

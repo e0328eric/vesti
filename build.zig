@@ -610,10 +610,7 @@ fn calculateDllHash(allocator: Allocator, io: Io, tectonic_dll_name: []const u8)
     });
     defer allocator.free(dll_path);
 
-    var dll = Io.Dir.cwd().openFile(io, dll_path, .{}) catch |err| switch (err) {
-        error.FileNotFound => return 0, // zig build rust will make a dll
-        else => return err,
-    };
+    var dll = try Io.Dir.cwd().openFile(io, dll_path, .{});
     defer dll.close(io);
     var dll_read_buf: [4096]u8 = undefined;
     var dll_reader = dll.reader(io, &dll_read_buf);
