@@ -1914,7 +1914,7 @@ fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
     if (self.doc_state.math_mode) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "eq",
+                .name = CowStr.init(.Borrowed, .{"eq"}),
                 .note = "`#eq` cannot be used inside math mode",
             } },
             .span = eq_block_loc,
