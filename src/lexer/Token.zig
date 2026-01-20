@@ -306,6 +306,7 @@ pub const VESTI_PREPROCESS_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "ltx3_off" },
     .{ "ltx3_on" },
     .{ "noltx3" },
+    .{ "undef" },
     // zig fmt: on
 });
 

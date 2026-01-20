@@ -719,7 +719,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
 
 fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
     const undef_fnt_loc = self.curr_tok.span;
-    // eat #def builtin
+    // eat #undef builtin
     _ = try self.expectWithError(.{ .BuiltinFunction = "undef" }, .eat);
     self.eatWhitespaces(false);
     const undef_name = switch (self.curr_tok.toktype) {
@@ -730,7 +730,7 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
         else => {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = CowStr.init(.Borrowed, .{"def"}),
+                    .name = CowStr.init(.Borrowed, .{"undef"}),
                     .note = "<builtin> expected here",
                 } },
                 .span = self.curr_tok.span,
