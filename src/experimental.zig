@@ -57,7 +57,7 @@ pub fn experimentalStep(
     };
     defer tokens.deinit(allocator);
 
-    for (0..tokens.len) |i| {
+    for (0..tokens.inner.len) |i| {
         std.debug.print("Token: {f}\n", .{tokens.get(i)});
     }
 }

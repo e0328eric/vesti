@@ -22,9 +22,8 @@ const MultiArrayList = std.MultiArrayList;
 const Stmt = ast.Stmt;
 const Span = @import("../location.zig").Span;
 const Token = @import("../lexer/Token.zig");
+const TokenList = PreProcessor.TokenList;
 const TokenType = Token.TokenType;
-
-const TokenList = MultiArrayList(Token);
 
 const assert = std.debug.assert;
 const getConfigPath = @import("../Config.zig").getConfigPath;
@@ -185,7 +184,7 @@ inline fn isPremiere(self: Self) bool {
 }
 
 inline fn nextToken(self: *Self) void {
-    if (self.tok_idx + 1 < self.tok_list.len) {
+    if (self.tok_idx + 1 < self.tok_list.inner.len) {
         self.tok_idx += 1;
     } else {
         self.parse_finished = true;
