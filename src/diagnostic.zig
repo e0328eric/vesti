@@ -315,12 +315,13 @@ pub const ParseDiagnostic = struct {
         TooManyBegenv: u8,
         VestiInternal: []const u8,
         WrongBuiltin: struct {
-            name: []const u8,
+            name: CowStr,
             note: []const u8,
         },
 
         fn deinit(self: *@This(), allocator: Allocator) void {
             switch (self.*) {
+                .WrongBuiltin => |*inner| inner.name.deinit(allocator),
                 .InvalidBuiltin => |*inner| inner.deinit(allocator),
                 .InvalidDefunKind => |*inner| inner.deinit(allocator),
                 .LuaLabelNotFound => |*inner| inner.deinit(allocator),
@@ -485,7 +486,7 @@ pub const ParseDiagnostic = struct {
                 .{builtin_fnt},
             ),
             .WrongBuiltin => |builtin_fnt| try aw.writer.print(
-                "wrong usage for builtin `#{s}`",
+                "wrong usage for builtin `#{f}`",
                 .{builtin_fnt.name},
             ),
             .InvalidDefunParam => |val| try aw.writer.print(

@@ -4,6 +4,7 @@ const mem = std.mem;
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
+const CowStr = @import("../CowStr.zig").CowStr;
 const Lexer = @import("../lexer/Lexer.zig");
 const MultiArrayList = std.MultiArrayList;
 const Span = @import("../location.zig").Span;
@@ -169,7 +170,7 @@ fn preprocessExpandDef(
     const contents = self.comptime_fnt.get(fnt_name) orelse {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = fnt_name,
+                .name = try CowStr.init(.Owned, .{ self.allocator, fnt_name }),
                 .note = "builtins is not defined",
             } },
             .span = fnt_loc,
@@ -199,7 +200,7 @@ fn preprocessExpandDef(
                 if (mem.eql(u8, builtin_fnt, "def")) {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
                         .err_info = .{ .WrongBuiltin = .{
-                            .name = builtin_fnt,
+                            .name = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
                             .note = "nested #def is not allowed yet",
                         } },
                         .span = fnt_loc,
@@ -261,7 +262,7 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(MultiArrayList(Toke
                 if (mem.eql(u8, builtin_fnt, "def")) {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
                         .err_info = .{ .WrongBuiltin = .{
-                            .name = builtin_fnt,
+                            .name = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
                             .note = "#def cannot be used in vesti function parameters",
                         } },
                         .span = loc,
@@ -362,7 +363,7 @@ fn preprocessBuiltin_ltx3_on(self: *Self, tok_list: *MultiArrayList(Token)) !voi
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{
                 .WrongBuiltin = .{
-                    .name = "ltx3_on",
+                    .name = CowStr.init(.Borrowed, .{"ltx3_on"}),
                     .note = "must remove `#noltx3` to use this builtin",
                 },
             },
@@ -400,7 +401,7 @@ fn preprocessBuiltin_ltx3_off(self: *Self, tok_list: *MultiArrayList(Token)) !vo
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{
                 .WrongBuiltin = .{
-                    .name = "ltx3_off",
+                    .name = CowStr.init(.Borrowed, .{"ltx3_off"}),
                     .note = "must remove `#noltx3` to use this builtin",
                 },
             },
@@ -440,7 +441,7 @@ fn preprocessBuiltin_def(self: *Self, _: *MultiArrayList(Token)) !void {
     {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "def",
+                .name = CowStr.init(.Borrowed, .{"def"}),
                 .note = "one tried to change override builtin function",
             } },
             .span = def_fnt_loc,
@@ -479,7 +480,7 @@ fn preprocessBuiltin_def(self: *Self, _: *MultiArrayList(Token)) !void {
                 if (mem.eql(u8, builtin_fnt, "def")) {
                     self.diagnostic.initDiagInner(.{ .ParseError = .{
                         .err_info = .{ .WrongBuiltin = .{
-                            .name = builtin_fnt,
+                            .name = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
                             .note = "nested #def is not allowed yet",
                         } },
                         .span = def_fnt_loc,

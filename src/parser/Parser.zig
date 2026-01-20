@@ -1399,7 +1399,7 @@ fn parseDefineFunctionParam(
             } else {
                 self.diagnostic.initDiagInner(.{ .ParseError = .{
                     .err_info = .{ .WrongBuiltin = .{
-                        .name = builtin_fnt,
+                        .name = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
                         .note = "this is not a valid function parameter",
                     } },
                     .span = param_tok.span,
@@ -1893,7 +1893,7 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     if (!self.expect(.current, &.{.Useenv})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "label",
+                .name = CowStr.init(.Borrowed, .{"label"}),
                 .note = "`#label` must be located before `useenv`",
             } },
             .span = label_block_loc,
@@ -1909,6 +1909,45 @@ fn parseBuiltin_label(self: *Self) ParseError!Stmt {
     return env;
 }
 
+fn parseBuiltin_eq(self: *Self) ParseError!Stmt {
+    const eq_block_loc = self.getTok(.current).span;
+    if (self.doc_state.math_mode) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = "eq",
+                .note = "`#eq` cannot be used inside math mode",
+            } },
+            .span = eq_block_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.nextToken(); // eat `#eq`
+    self.eatWhitespaces(false);
+
+    var label = if (self.expect(.current, &.{.Lparen}))
+        try self.parseBuiltinsArguments(
+            eq_block_loc,
+            .Lparen,
+            .Rparen,
+            true,
+        )
+    else
+        null;
+    errdefer if (label) |*l| l.deinit(self.allocator);
+
+    self.doc_state.math_mode = true;
+    var inner = try self.parseBrace(false);
+    errdefer inner.deinit();
+    self.doc_state.math_mode = false;
+
+    return Stmt{ .MathCtx = .{
+        .state = .Labeled,
+        .inner = inner.Braced.inner,
+        .label = label,
+    } };
+}
+
 fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     const showfont_loc = self.getTok(.current).span;
     self.nextToken(); // eat `#showfont`
@@ -1919,7 +1958,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     if (!self.expect(.current, &.{.Integer})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "showfont",
+                .name = CowStr.init(.Borrowed, .{"showfont"}),
                 .note = "only integer values are possible",
             } },
             .span = showfont_loc,
@@ -1929,7 +1968,7 @@ fn parseBuiltin_showfont(self: *Self) ParseError!Stmt {
     const num = fmt.parseInt(u8, self.getTok(.current).lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "showfont",
+                .name = CowStr.init(.Borrowed, .{"showfont"}),
                 .note = "integer should be in 0 to 255",
             } },
             .span = showfont_loc,
@@ -1969,7 +2008,7 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
     const unicode_codepoint = fmt.parseInt(usize, self.getTok(.current).lit.in_text, 16) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "chardef",
+                .name = CowStr.init(.Borrowed, .{"chardef"}),
                 .note = "hexdecimal number expected in the third argument",
             } },
             .span = chardef_loc,
@@ -1996,7 +2035,7 @@ fn parseBuiltin_chardef(self: *Self) ParseError!Stmt {
     if (!self.expect(.current, &.{.Newline})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "chardef",
+                .name = CowStr.init(.Borrowed, .{"chardef"}),
                 .note = "this builtin must end with the newline",
             } },
             .span = chardef_loc,
@@ -2048,7 +2087,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
         zon.parse.fromSlice(MathClass, self.allocator, kind_txt_z, null, .{}) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = "mathchardef",
+                    .name = CowStr.init(.Borrowed, .{"mathchardef"}),
                     .note =
                     \\invalid math class was found. Here is the list of math class available:
                     \\.ordinary  .largeop  .binary  .relation
@@ -2067,7 +2106,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     const font_num = fmt.parseInt(u8, self.getTok(.current).lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "mathchardef",
+                .name = CowStr.init(.Borrowed, .{"mathchardef"}),
                 .note = "integer should be in 0 to 255",
             } },
             .span = mchardef_loc,
@@ -2091,7 +2130,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     const unicode_codepoint = fmt.parseInt(usize, self.getTok(.current).lit.in_text, 16) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "mathchardef",
+                .name = CowStr.init(.Borrowed, .{"mathchardef"}),
                 .note = "hexdecimal number expected in the third argument",
             } },
             .span = mchardef_loc,
@@ -2118,7 +2157,7 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     if (!self.expect(.current, &.{.Newline})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "mathchardef",
+                .name = CowStr.init(.Borrowed, .{"mathchardef"}),
                 .note = "this builtin must end with the newline",
             } },
             .span = mchardef_loc,
@@ -2149,7 +2188,7 @@ fn parseBuiltin_enum(self: *Self) ParseError!Stmt {
     if (self.enum_depth >= 5) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "enum",
+                .name = CowStr.init(.Borrowed, .{"enum"}),
                 .note = "`#enum` builtin cannot be nested more than four times",
             } },
             .span = enum_loc,
@@ -2265,7 +2304,7 @@ fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
     if (self.enum_depth >= 5) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "enum_counter",
+                .name = CowStr.init(.Borrowed, .{"enum_counter"}),
                 .note = "`#enum_counter` builtin cannot be nested more than four times",
             } },
             .span = enum_counter_loc,
@@ -2364,7 +2403,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     const width = fmt.parseInt(usize, width_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "picture",
+                .name = CowStr.init(.Borrowed, .{"picture"}),
                 .note = "integer should be nonnegative",
             } },
             .span = width_tok_loc,
@@ -2381,7 +2420,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     const height = fmt.parseInt(usize, height_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "picture",
+                .name = CowStr.init(.Borrowed, .{"picture"}),
                 .note = "integer should be nonnegative",
             } },
             .span = height_tok_loc,
@@ -2402,7 +2441,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         xoffset = fmt.parseInt(usize, xoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = "picture",
+                    .name = CowStr.init(.Borrowed, .{"picture"}),
                     .note = "integer should be nonnegative",
                 } },
                 .span = xoffset_tok_loc,
@@ -2419,7 +2458,7 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         yoffset = fmt.parseInt(usize, yoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
-                    .name = "picture",
+                    .name = CowStr.init(.Borrowed, .{"picture"}),
                     .note = "integer should be nonnegative",
                 } },
                 .span = yoffset_tok_loc,
@@ -2453,7 +2492,7 @@ fn parseBuiltin_raw_tex(self: *Self) ParseError!Stmt {
     if (!self.expect(.peek, &.{.DefineFunction})) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
-                .name = "raw_tex",
+                .name = CowStr.init(.Borrowed, .{"raw_tex"}),
                 .note = "`#raw_tex` must be located before `defun`",
             } },
             .span = raw_tex_block_loc,
