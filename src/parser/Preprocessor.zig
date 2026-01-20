@@ -19,7 +19,8 @@ curr_tok: Token,
 peek_tok: Token,
 comptime_fnt: StringHashMap(ComptimeFunction),
 // after 2020-10-01, latex kernel now allows to use expl3 without importing
-// it. Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
+// it.
+// Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
 // Also, use xparse commands in default by defining commands and environments
 allow_latex3: bool = true,
 is_premiere: bool = true,
@@ -29,7 +30,6 @@ const Self = @This();
 pub const PreprocessError = Allocator.Error || error{
     ParseFailed,
 };
-
 pub const TokenList = struct {
     inner: MultiArrayList(Token) = .{},
 
@@ -48,14 +48,12 @@ pub const TokenList = struct {
 
 pub fn init(allocator: Allocator, diagnostic: *diag.Diagnostic, source: []const u8) !Self {
     var self: Self = undefined;
-
     self.allocator = allocator;
     self.diagnostic = diagnostic;
     self.lexer = try .init(source);
     self.comptime_fnt = .init(allocator);
     self.curr_tok = .invalid;
     self.peek_tok = .invalid;
-
     // fill curr_tok and peek_tok
     self.nextToken();
     self.nextToken();
@@ -74,7 +72,6 @@ pub fn deinit(self: *Self) void {
 pub fn preprocess(self: *Self) !TokenList {
     var output: TokenList = .{};
     errdefer output.deinit(self.allocator);
-
     // lexer.lex_finished triggered when self.peek_tok == .Eof.
     // Thus we need to preprocess token once more.
     while (!self.lexer.lex_finished) : (self.nextToken()) {
@@ -171,7 +168,8 @@ fn preprocessToken(self: *Self, tok_list: *TokenList) !void {
             }
 
             const fnt_loc = self.curr_tok.span;
-            self.nextToken(); // eat vesti function
+            self.nextToken();
+            // eat vesti function
             self.eatWhitespaces(false);
             try self.preprocessExpandDef(fnt_loc, name, tok_list);
         },
@@ -202,6 +200,7 @@ fn preprocessExpandDef(
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = try CowStr.init(.Owned, .{ self.allocator, fnt_name }),
+
                 .note = "builtins is not defined",
             } },
             .span = fnt_loc,
@@ -223,9 +222,25 @@ fn preprocessExpandDef(
     }
     if (contents.params > 0) try self.expectWithError(.Rparen, .remain);
 
-    // expand function contents
-    for (0..contents.contents.inner.len) |i| {
-        const tok = contents.contents.get(i);
+    // Expand the function body recursively
+    try self.expandTokens(contents.contents, params.items, tok_list);
+
+    // when contents.params == 0, preprocessor points the next token of the
+    // vesti function. After that, preprocessor skip the token, so we need to
+    // say to lexer "sleep"
+    if (contents.params == 0) self.lex_sleep = true;
+}
+
+// Recursive function to expand tokens (handling substitution and nested macros)
+fn expandTokens(
+    self: *Self,
+    input_tokens: TokenList,
+    args: []const TokenList,
+    output: *TokenList,
+) PreprocessError!void {
+    var i: usize = 0;
+    while (i < input_tokens.inner.len) : (i += 1) {
+        const tok = input_tokens.get(i);
         switch (tok.toktype) {
             .BuiltinFunction => |builtin_fnt| {
                 if (isBuiltin(builtin_fnt, .preprocess)) {
@@ -234,14 +249,14 @@ fn preprocessExpandDef(
                             .name = try CowStr.init(.Owned, .{ self.allocator, builtin_fnt }),
                             .note = "there is a builtin function which cannot be used inside of vesti function body",
                         } },
-                        .span = fnt_loc,
+                        .span = tok.span,
                     } });
                     return PreprocessError.ParseFailed;
                 }
 
                 if (isBuiltin(builtin_fnt, .normal)) {
                     // they are evaluated in the parser
-                    try tok_list.append(self.allocator, tok);
+                    try output.append(self.allocator, tok);
                     continue;
                 }
 
@@ -249,31 +264,136 @@ fn preprocessExpandDef(
                     if (fnt_param == 0) {
                         self.diagnostic.initDiagInner(.{ .ParseError = .{
                             .err_info = .{ .InvalidDefunParam = fnt_param },
-                            .span = fnt_loc,
+                            .span = tok.span,
                         } });
                         return PreprocessError.ParseFailed;
                     }
-
-                    const param = &params.items[fnt_param - 1];
-                    for (0..param.inner.len) |j| {
-                        try tok_list.append(self.allocator, param.get(j));
+                    if (fnt_param > args.len) {
+                        // Parameter index out of bounds, maybe error or ignore?
+                        // For safety, assuming strict match, but here just robust check.
+                        self.diagnostic.initDiagInner(.{ .ParseError = .{
+                            .err_info = .{ .InvalidDefunParam = fnt_param },
+                            .span = tok.span,
+                        } });
+                        return PreprocessError.ParseFailed;
                     }
+                    const param_toks = args[fnt_param - 1];
+                    try self.expandTokens(param_toks, &.{}, output);
+                } else if (self.comptime_fnt.get(builtin_fnt)) |nested_def| {
+                    const parse_res = try self.parseArgs(
+                        input_tokens,
+                        i + 1,
+                        nested_def.params,
+                    );
+
+                    var resolved_args = try ArrayList(TokenList).initCapacity(
+                        self.allocator,
+                        nested_def.params,
+                    );
+                    defer {
+                        for (resolved_args.items) |*arg| arg.deinit(self.allocator);
+                        resolved_args.deinit(self.allocator);
+                    }
+
+                    for (parse_res.args.items) |raw_arg| {
+                        var resolved_arg: TokenList = .{};
+                        try self.expandTokens(raw_arg, args, &resolved_arg);
+                        try resolved_args.append(self.allocator, resolved_arg);
+                    }
+
+                    try self.expandTokens(nested_def.contents, resolved_args.items, output);
+
+                    i += parse_res.consumed;
+
+                    var mutable_args = parse_res.args;
+                    for (mutable_args.items) |*arg| arg.deinit(self.allocator);
+                    mutable_args.deinit(self.allocator);
+                } else {
+                    try output.append(self.allocator, tok);
                 }
             },
-            else => try tok_list.append(self.allocator, tok),
+            else => try output.append(self.allocator, tok),
         }
     }
+}
 
-    // when contents.params == 0, preprocessor points the next token of the
-    // vesti function. After that, preprocessor skip the token, so we need to
-    // say to lexer "sleep"
-    if (contents.params == 0) self.lex_sleep = true;
+fn parseArgs(
+    self: *Self,
+    slice: TokenList,
+    start_idx: usize,
+    params_count: usize,
+    loc: Span,
+) !struct {
+    args: ArrayList(TokenList),
+    consumed: usize,
+} {
+    var args = try ArrayList(TokenList).initCapacity(self.allocator, params_count);
+    errdefer {
+        for (args.items) |*a| a.deinit(self.allocator);
+        args.deinit(self.allocator);
+    }
+
+    var idx = start_idx;
+    var count: usize = 0;
+
+    while (count < params_count) : (count += 1) {
+        // Skip whitespace
+        while (idx < slice.inner.len and
+            (slice.get(idx).toktype == .Space or slice.get(idx).toktype == .Tab or
+                slice.get(idx).toktype == .Newline)) : (idx += 1)
+        {}
+
+        if (idx >= slice.inner.len or slice.get(idx).toktype != .Lparen) {
+            // TODO: fill note
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = try CowStr.init(.Borrowed, .{"def"}),
+                    .note = "TODO: fill note later",
+                } },
+                .span = loc,
+            } });
+            return PreprocessError.ParseFailed;
+        }
+
+        idx += 1; // Consume '('
+
+        var content = TokenList{};
+        errdefer content.deinit(self.allocator);
+
+        var nested: usize = 1;
+        while (idx < slice.inner.len) : (idx += 1) {
+            const tok = slice.get(idx);
+            if (tok.toktype == .Lparen) {
+                nested += 1;
+            } else if (tok.toktype == .Rparen) {
+                nested -= 1;
+                if (nested == 0) break;
+            }
+            try content.append(self.allocator, tok);
+        }
+
+        if (nested != 0) {
+            // TODO: fill note
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = try CowStr.init(.Borrowed, .{"def"}),
+                    .note = "TODO: fill note later",
+                } },
+                .span = loc,
+            } });
+            return PreprocessError.ParseFailed;
+        }
+
+        try args.append(self.allocator, content);
+        idx += 1; // Consume ')'
+    }
+
+    return .{ .args = args, .consumed = idx - start_idx };
 }
 
 fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) PreprocessError!void {
     var contents: TokenList = .{};
     errdefer contents.deinit(self.allocator);
-
     _ = try self.expectWithError(.Lparen, .eat);
     var nested: usize = 1;
     while (switch (self.curr_tok.toktype) {
@@ -284,6 +404,7 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) Preproc
         .Rparen => blk: {
             nested -= 1;
             if (nested == 0) break :blk false;
+
             break :blk true;
         },
         .Eof => {
@@ -291,6 +412,7 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) Preproc
                 .err_info = .EofErr,
                 .span = loc,
             } });
+
             return PreprocessError.ParseFailed;
         },
         else => true,
@@ -325,7 +447,6 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) Preproc
 
     // To be sure that preprocessor stop at .Rbrace
     try self.expectWithError(.Rparen, .remain);
-
     try params.append(self.allocator, contents);
 }
 
@@ -396,7 +517,6 @@ fn preprocessBuiltin_ltx3_on(self: *Self, tok_list: *TokenList) !void {
     self.lexer.is_latex3_on = true;
     if (self.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
         try tok_list.append(self.allocator, .{
             .toktype = .Newline,
             .lit = .{
@@ -440,7 +560,6 @@ fn preprocessBuiltin_ltx3_off(self: *Self, tok_list: *TokenList) !void {
     self.lexer.is_latex3_on = true;
     if (self.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
         try tok_list.append(self.allocator, .{
             .toktype = .Newline,
             .lit = .{
@@ -495,16 +614,29 @@ fn preprocessBuiltin_noltx3(self: *Self, _: *TokenList) !void {
 // TODO: one should track locations of parameters inside of luacode
 fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
     const def_fnt_loc = self.curr_tok.span;
-
     // eat #def builtin
     _ = try self.expectWithError(.{ .BuiltinFunction = "def" }, .eat);
     self.eatWhitespaces(false);
-
-    const def_name_tok = try self.expectWithError(.Text, .eat);
+    const def_name = switch (self.curr_tok.toktype) {
+        .BuiltinFunction => |name| blk: {
+            self.nextToken();
+            break :blk name;
+        },
+        else => {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = CowStr.init(.Borrowed, .{"def"}),
+                    .note = "<builtin> expected here",
+                } },
+                .span = self.curr_tok.span,
+            } });
+            return PreprocessError.ParseFailed;
+        },
+    };
     self.eatWhitespaces(false);
 
     // prevent to override existing builtin functions
-    if (isBuiltin(def_name_tok.lit.in_text, .all)) {
+    if (isBuiltin(def_name, .all)) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
             .err_info = .{ .WrongBuiltin = .{
                 .name = CowStr.init(.Borrowed, .{"def"}),
@@ -517,7 +649,6 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
 
     var contents: TokenList = .{};
     errdefer contents.deinit(self.allocator);
-
     // start to parse body of the contents
     _ = try self.expectWithError(.Lbrace, .eat);
     var params: usize = 0;
@@ -530,6 +661,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
         .Rbrace => blk: {
             nested -= 1;
             if (nested == 0) break :blk false;
+
             break :blk true;
         },
         .Eof => {
@@ -537,6 +669,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
                 .err_info = .EofErr,
                 .span = def_fnt_loc,
             } });
+
             return PreprocessError.ParseFailed;
         },
         else => true,
@@ -564,6 +697,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
                     if (fnt_param == 0) {
                         self.diagnostic.initDiagInner(.{ .ParseError = .{
                             .err_info = .{ .InvalidDefunParam = fnt_param },
+
                             .span = def_fnt_loc,
                         } });
                         return PreprocessError.ParseFailed;
@@ -578,26 +712,33 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
 
     // To be sure that preprocessor stop at .Rbrace
     try self.expectWithError(.Rbrace, .remain);
-
     // def_name_tok.lit should point the source code
-    try self.comptime_fnt.put(def_name_tok.lit.in_text, .{
-        .params = params,
-        .contents = contents,
-    });
+    try self.comptime_fnt.put(def_name, .{ .params = params, .contents = contents });
 }
 
 fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
     const undef_fnt_loc = self.curr_tok.span;
-
     // eat #def builtin
     _ = try self.expectWithError(.{ .BuiltinFunction = "undef" }, .eat);
     self.eatWhitespaces(false);
-
-    const undef_name_tok = try self.expectWithError(.Text, .eat);
-    const undef_name = undef_name_tok.lit.in_text.toStr();
+    const undef_name = switch (self.curr_tok.toktype) {
+        .BuiltinFunction => |name| blk: {
+            self.nextToken();
+            break :blk name;
+        },
+        else => {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = CowStr.init(.Borrowed, .{"def"}),
+                    .note = "<builtin> expected here",
+                } },
+                .span = self.curr_tok.span,
+            } });
+            return PreprocessError.ParseFailed;
+        },
+    };
     self.eatWhitespaces(false);
     try self.expectWithError(.Newline, .remain);
-
     // prevent to override existing builtin functions
     if (isBuiltin(undef_name, .all)) {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -605,6 +746,7 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
                 .name = CowStr.init(.Borrowed, .{"undef"}),
                 .note = "cannot undef builtin functions",
             } },
+
             .span = undef_fnt_loc,
         } });
         return PreprocessError.ParseFailed;
@@ -616,6 +758,7 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
                 .name = CowStr.init(.Borrowed, .{"undef"}),
                 .note = "cannot undef undefined vesti function",
             } },
+
             .span = undef_fnt_loc,
         } });
         return PreprocessError.ParseFailed;
