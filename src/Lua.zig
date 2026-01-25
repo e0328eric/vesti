@@ -35,19 +35,20 @@ compile_attr: CompileAttribute,
 const Self = @This();
 pub const Error = Allocator.Error || zlua.Error;
 
-const VESTI_LUA_FUNCTIONS_BUILTINS: [12]zlua.FnReg = .{
-    .{ .name = "print", .func = print },
-    .{ .name = "parse", .func = parse },
-    .{ .name = "getModule", .func = getModule },
-    .{ .name = "vestiDummyDir", .func = vestiDummyDir },
-    .{ .name = "getCurrentDir", .func = getCurrentDir },
-    .{ .name = "setCurrentDir", .func = setCurrentDir },
-    .{ .name = "getEngineType", .func = getEngineType },
-    .{ .name = "unzip", .func = unzip },
-    .{ .name = "download", .func = download },
-    .{ .name = "mkdir", .func = mkdir },
-    .{ .name = "joinpath", .func = joinpath },
+const VESTI_LUA_FUNCTIONS_BUILTINS: [13]zlua.FnReg = .{
     .{ .name = "compile", .func = compile },
+    .{ .name = "download", .func = download },
+    .{ .name = "getCurrentDir", .func = getCurrentDir },
+    .{ .name = "getEngineType", .func = getEngineType },
+    .{ .name = "getModule", .func = getModule },
+    .{ .name = "joinpath", .func = joinpath },
+    .{ .name = "mkdir", .func = mkdir },
+    .{ .name = "parse", .func = parse },
+    .{ .name = "ping", .func = ping },
+    .{ .name = "print", .func = print },
+    .{ .name = "setCurrentDir", .func = setCurrentDir },
+    .{ .name = "unzip", .func = unzip },
+    .{ .name = "vestiDummyDir", .func = vestiDummyDir },
 };
 
 pub fn init(
@@ -570,6 +571,62 @@ fn unzip(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
             "failed to extract `{s}`",
             .{filename},
         );
+    };
+
+    lua.pushBoolean(true);
+    return 1;
+}
+
+fn ping(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
+    const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
+    const allocator = lua.allocator();
+    const io = self.io;
+
+    if (lua.getTop() != 1) raiseError(
+        lua,
+        \\invalid argument
+        \\Usage: vesti.ping(<url: string>)
+    ,
+        .{},
+    );
+    const url = lua.toString(1) catch raiseError(
+        lua,
+        \\first argument should be a `string`
+        \\Usage: vesti.download(<url: string>)
+    ,
+        .{},
+    );
+
+    var client = http.Client{ .allocator = allocator, .io = io };
+    defer client.deinit();
+
+    const uri = std.Uri.parse(url) catch {
+        // cleanups
+        client.deinit();
+
+        lua.pushBoolean(false);
+        return 1;
+    };
+    var req = client.request(.GET, uri, .{}) catch {
+        // cleanups
+        client.deinit();
+
+        lua.pushBoolean(false);
+        return 1;
+    };
+    defer req.deinit();
+
+    req.sendBodiless() catch {
+        // cleanups
+        req.deinit();
+        client.deinit();
+
+        lua.pushBoolean(false);
+        return 1;
     };
 
     lua.pushBoolean(true);
