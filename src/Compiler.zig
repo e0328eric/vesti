@@ -115,21 +115,36 @@ fn raiseMessagebox(
             );
         },
         .linux => {
-            _ = Child.run(
-                allocator,
-                io,
-                .{
-                    .argv = &.{
-                        "zenity",
-                        "--error",
-                        "--text=" ++ contents,
-                        "--title=" ++ title,
-                    },
+            var zenity_child = std.process.spawn(io, .{
+                .argv = &.{
+                    "zenity",
+                    "--error",
+                    "--text=" ++ contents,
+                    "--title=" ++ title,
                 },
-            ) catch |err| switch (err) {
-                error.FileNotFound => {}, // some machine might not have zenity
+                .environ_map = null,
+                .stdout = .pipe,
+                .stderr = .pipe,
+            }) catch |err| switch (err) {
+                error.FileNotFound => return, // some machine might not have zenity
                 else => return err,
             };
+            errdefer zenity_child.kill(io);
+
+            var zenity_result_stdout: ArrayList(u8) = .empty;
+            var zenity_result_stderr: ArrayList(u8) = .empty;
+            defer {
+                zenity_result_stdout.deinit(allocator);
+                zenity_result_stderr.deinit(allocator);
+            }
+
+            try zenity_child.collectOutput(
+                allocator,
+                &zenity_result_stdout,
+                &zenity_result_stderr,
+                2500 * 1024,
+            );
+            _ = try zenity_child.wait(io);
         },
         .macos => {}, // TODO: how can i raise a macos messagebox?
         else => @compileError("Non-Supporting OS"),
