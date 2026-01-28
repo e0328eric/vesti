@@ -47,7 +47,7 @@ engine_ptr: ?*LatexEngine,
 // NOTE: I left this because later, it might support using Stmt.Placeholder.
 global_defkinds: ArrayList(Stmt), // NOTE: not used
 allows: ParserAllows,
-doc_state: DocState,
+doc_state: ParserState,
 enum_depth: u8,
 endenv_sp: u8,
 endenv_stack: [MAX_BEGENV_NUM][]const u8,
@@ -95,7 +95,7 @@ pub const ParseError = Allocator.Error ||
     error{ CodepointTooLarge, Utf8CannotEncodeSurrogateHalf } ||
     error{ FailedGetModule, ParseFailed, ParseZon, NameMangle };
 
-const DocState = packed struct {
+const ParserState = packed struct {
     xparse_defun: bool = true,
     doc_start: bool = false,
     prevent_end_doc: bool = false,
@@ -131,7 +131,7 @@ pub fn init(
     self.tok_list = try preprop.preprocess();
     self.tok_idx = 0;
     self.parse_finished = false;
-    self.doc_state = DocState{};
+    self.doc_state = ParserState{};
     self.enum_depth = 0;
     self.diagnostic = diagnostic;
     self.file_dir = file_dir;

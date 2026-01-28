@@ -18,13 +18,7 @@ lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
 comptime_fnt: StringHashMap(ComptimeFunction),
-// after 2020-10-01, latex kernel now allows to use expl3 without importing
-// it.
-// Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
-// Also, use xparse commands in default by defining commands and environments
-allow_latex3: bool = true,
-is_premiere: bool = true,
-lex_sleep: bool = false, // "sleep" lexer for one "clock"
+state: PreprocessorState,
 
 const Self = @This();
 pub const PreprocessError = Allocator.Error || error{
@@ -46,14 +40,27 @@ pub const TokenList = struct {
     }
 };
 
+const PreprocessorState = packed struct {
+    // after 2020-10-01, latex kernel now allows to use expl3 without importing
+    // it.
+    // Therefore, we allow to use #ltx3_on and #ltx3_off builtins in default.
+    // Also, use xparse commands in default by defining commands and environments
+    allow_latex3: bool = true,
+    is_premiere: bool = true,
+    lex_sleep: bool = false, // "sleep" lexer for one "clock"
+};
+
 pub fn init(allocator: Allocator, diagnostic: *diag.Diagnostic, source: []const u8) !Self {
     var self: Self = undefined;
+
     self.allocator = allocator;
     self.diagnostic = diagnostic;
     self.lexer = try .init(source);
     self.comptime_fnt = .init(allocator);
     self.curr_tok = .invalid;
     self.peek_tok = .invalid;
+    self.state = .{};
+
     // fill curr_tok and peek_tok
     self.nextToken();
     self.nextToken();
@@ -84,12 +91,11 @@ pub fn preprocess(self: *Self) !TokenList {
 }
 
 inline fn nextToken(self: *Self) void {
-    if (!self.lex_sleep) {
-        @branchHint(.likely);
+    if (!self.state.lex_sleep) {
         self.curr_tok = self.peek_tok;
         self.peek_tok = self.lexer.next();
     } else {
-        self.lex_sleep = false;
+        self.state.lex_sleep = false;
     }
 }
 
@@ -174,7 +180,7 @@ fn preprocessToken(self: *Self, tok_list: *TokenList) !void {
             try self.preprocessExpandDef(fnt_loc, name, tok_list);
         },
         .StartDoc => {
-            self.is_premiere = false;
+            self.state.is_premiere = false;
             try tok_list.append(self.allocator, self.curr_tok);
         },
         else => try tok_list.append(self.allocator, self.curr_tok),
@@ -228,7 +234,7 @@ fn preprocessExpandDef(
     // when contents.params == 0, preprocessor points the next token of the
     // vesti function. After that, preprocessor skip the token, so we need to
     // say to lexer "sleep"
-    if (contents.params == 0) self.lex_sleep = true;
+    if (contents.params == 0) self.state.lex_sleep = true;
 }
 
 // Recursive function to expand tokens (handling substitution and nested macros)
@@ -516,7 +522,7 @@ fn preprocessBuiltin_at_off(self: *Self, tok_list: *TokenList) !void {
 fn preprocessBuiltin_ltx3_on(self: *Self, tok_list: *TokenList) !void {
     const loc = self.curr_tok.span;
     self.lexer.is_latex3_on = true;
-    if (self.allow_latex3) {
+    if (self.state.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
         try tok_list.append(self.allocator, .{
             .toktype = .Newline,
@@ -559,7 +565,7 @@ fn preprocessBuiltin_ltx3_on(self: *Self, tok_list: *TokenList) !void {
 fn preprocessBuiltin_ltx3_off(self: *Self, tok_list: *TokenList) !void {
     const loc = self.curr_tok.span;
     self.lexer.is_latex3_on = true;
-    if (self.allow_latex3) {
+    if (self.state.allow_latex3) {
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
         try tok_list.append(self.allocator, .{
             .toktype = .Newline,
@@ -600,8 +606,8 @@ fn preprocessBuiltin_ltx3_off(self: *Self, tok_list: *TokenList) !void {
 }
 
 fn preprocessBuiltin_noltx3(self: *Self, _: *TokenList) !void {
-    if (self.is_premiere) {
-        self.allow_latex3 = false;
+    if (self.state.is_premiere) {
+        self.state.allow_latex3 = false;
         if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
     } else {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
