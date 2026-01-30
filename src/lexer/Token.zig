@@ -13,10 +13,7 @@ const Self = @This();
 
 pub const invalid: Self = .{
     .toktype = .Illegal,
-    .lit = .{
-        .in_text = "",
-        .in_math = "",
-    },
+    .lit = .{ .in_text = "", .in_math = "" },
     .span = .{},
 };
 
@@ -309,6 +306,14 @@ pub const VESTI_PREPROCESS_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "undef" },
     // zig fmt: on
 });
+
+pub fn eof(span: Span) Self {
+    return .{
+        .toktype = .Eof,
+        .lit = .{ .in_text = "", .in_math = "" },
+        .span = span,
+    };
+}
 
 pub fn init(
     self: *Self,

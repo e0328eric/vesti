@@ -87,6 +87,7 @@ pub fn preprocess(self: *Self) !TokenList {
         try self.preprocessToken(&output);
     }
 
+    try output.append(self.allocator, Token.eof(self.curr_tok.span));
     return output;
 }
 
