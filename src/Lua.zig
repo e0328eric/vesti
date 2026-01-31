@@ -439,9 +439,14 @@ fn vestiDummyDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
 
 fn getCurrentDir(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     const lua: *ZigLua = @ptrCast(lua_state.?);
+    const self = getSelf(lua) catch {
+        lua.raiseError();
+        return 0;
+    };
     const allocator = lua.allocator();
+    const io = self.io;
 
-    const cwd = std.process.getCwdAlloc(allocator) catch raiseError(
+    const cwd = std.process.currentPathAlloc(io, allocator) catch raiseError(
         lua,
         "cannot get the current directory",
         .{},

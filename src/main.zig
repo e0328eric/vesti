@@ -210,7 +210,7 @@ fn compileStep(
     if (!standalone) {
         // search first.lua in case of not specifying main_filename
         if (main_filename.value.string.len == 0) blk: {
-            const cwd = std.process.getCwdAlloc(allocator) catch {
+            const cwd = std.process.currentPathAlloc(io, allocator) catch {
                 std.debug.print("error: cannot get the current directory\n", .{});
                 return error.FailedGetCwd;
             };
