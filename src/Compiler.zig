@@ -597,8 +597,8 @@ fn compileLatexWithInner(
     var latex_child = try std.process.spawn(self.io, .{
         .argv = &.{ self.engine.toStr(), main_tex_file },
         .cwd = VESTI_DUMMY_DIR,
-        .stdout = .pipe,
-        .stderr = .pipe,
+        //.stdout = .pipe,
+        //.stderr = .pipe,
         // NOTE: https://github.com/ziglang/zig/issues/5190
         //.cwd_dir = vesti_dummy,
     });
