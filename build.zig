@@ -134,7 +134,7 @@ fn buildVesti(
     else => *Build.Step.Compile,
 } {
     const strip = switch (optimize) {
-        .Debug => false,
+        .Debug, .ReleaseSafe => false,
         else => true,
     };
 
@@ -271,56 +271,32 @@ fn makeBuildRust(
     try std.process.setCurrentDir(io, tectonic_dir);
     defer std.process.setCurrentDir(io, b.build_root.handle) catch unreachable;
 
-    var vcpkg_child = try std.process.spawn(io, .{
+    const vcpkg = try std.process.run(b.allocator, io, .{
         .argv = &.{ "cargo", "vcpkg", "build" },
         .environ_map = &envmap,
-        .stdout = .pipe,
-        .stderr = .pipe,
     });
-    errdefer vcpkg_child.kill(io);
-
-    var vcpkg_result_stdout: ArrayList(u8) = .empty;
-    var vcpkg_result_stderr: ArrayList(u8) = .empty;
     defer {
-        vcpkg_result_stdout.deinit(alloc);
-        vcpkg_result_stderr.deinit(alloc);
+        b.allocator.free(vcpkg.stdout);
+        b.allocator.free(vcpkg.stderr);
     }
-    try vcpkg_child.collectOutput(
-        alloc,
-        &vcpkg_result_stdout,
-        &vcpkg_result_stderr,
-        2500 * 1024,
-    );
-    _ = try vcpkg_child.wait(io);
+
     std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-        vcpkg_result_stdout.items,
-        vcpkg_result_stderr.items,
+        vcpkg.stdout,
+        vcpkg.stderr,
     });
 
-    var cargo_child = try std.process.spawn(io, .{
+    var cargo = try std.process.run(b.allocator, io, .{
         .argv = &.{ "cargo", "build", "--release" },
         .environ_map = &envmap,
-        .stdout = .pipe,
-        .stderr = .pipe,
     });
-    errdefer cargo_child.kill(io);
-
-    var cargo_result_stdout: ArrayList(u8) = .empty;
-    var cargo_result_stderr: ArrayList(u8) = .empty;
     defer {
-        cargo_result_stdout.deinit(alloc);
-        cargo_result_stderr.deinit(alloc);
+        b.allocator.free(cargo.stdout);
+        b.allocator.free(cargo.stderr);
     }
-    try cargo_child.collectOutput(
-        alloc,
-        &cargo_result_stdout,
-        &cargo_result_stderr,
-        2500 * 1024,
-    );
-    _ = try cargo_child.wait(io);
+
     std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-        cargo_result_stdout.items,
-        cargo_result_stderr.items,
+        cargo.stdout,
+        cargo.stderr,
     });
 
     try getTectonic(b, alloc, io, build_rust, &envmap, .lib);
@@ -379,30 +355,18 @@ fn getTectonic(
         // compress binary using upx (only for dll)
         switch (build_rust.target.result.os.tag) {
             .windows, .linux => {
-                var upx_child = try std.process.spawn(io, .{
+                var upx = try std.process.run(alloc, io, .{
                     .argv = &.{ "upx", "-9", dll_path },
                     .environ_map = envmap,
-                    .stdout = .pipe,
-                    .stderr = .pipe,
                 });
-                errdefer upx_child.kill(io);
-
-                var upx_stdout: ArrayList(u8) = .empty;
-                var upx_stderr: ArrayList(u8) = .empty;
                 defer {
-                    upx_stdout.deinit(alloc);
-                    upx_stderr.deinit(alloc);
+                    alloc.free(upx.stdout);
+                    alloc.free(upx.stderr);
                 }
-                try upx_child.collectOutput(
-                    alloc,
-                    &upx_stdout,
-                    &upx_stderr,
-                    2500 * 1024,
-                );
-                _ = try upx_child.wait(io);
+
                 std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-                    upx_stdout.items,
-                    upx_stderr.items,
+                    upx.stdout,
+                    upx.stderr,
                 });
             },
             else => {},

@@ -115,7 +115,7 @@ fn raiseMessagebox(
             );
         },
         .linux => {
-            var zenity_child = std.process.spawn(io, .{
+            var zenity = std.process.run(allocator, io, .{
                 .argv = &.{
                     "zenity",
                     "--error",
@@ -123,28 +123,14 @@ fn raiseMessagebox(
                     "--title=" ++ title,
                 },
                 .environ_map = null,
-                .stdout = .pipe,
-                .stderr = .pipe,
             }) catch |err| switch (err) {
                 error.FileNotFound => return, // some machine might not have zenity
                 else => return err,
             };
-            errdefer zenity_child.kill(io);
-
-            var zenity_result_stdout: ArrayList(u8) = .empty;
-            var zenity_result_stderr: ArrayList(u8) = .empty;
             defer {
-                zenity_result_stdout.deinit(allocator);
-                zenity_result_stderr.deinit(allocator);
+                allocator.free(zenity.stdout);
+                allocator.free(zenity.stderr);
             }
-
-            try zenity_child.collectOutput(
-                allocator,
-                &zenity_result_stdout,
-                &zenity_result_stderr,
-                2500 * 1024,
-            );
-            _ = try zenity_child.wait(io);
         },
         .macos => {}, // TODO: how can i raise a macos messagebox?
         else => @compileError("Non-Supporting OS"),
@@ -594,42 +580,28 @@ fn compileLatexWithInner(
     main_tex_file: []const u8,
     vesti_dummy: *Io.Dir,
 ) !void {
-    var latex_child = try std.process.spawn(self.io, .{
+    var latex = try std.process.run(self.allocator, self.io, .{
         .argv = &.{ self.engine.toStr(), "-halt-on-error", main_tex_file },
-        .cwd = VESTI_DUMMY_DIR,
-        .stdout = .pipe,
-        .stderr = .pipe,
+        .cwd = .{ .path = VESTI_DUMMY_DIR },
         // NOTE: https://github.com/ziglang/zig/issues/5190
         //.cwd_dir = vesti_dummy,
     });
-    errdefer latex_child.kill(self.io);
-
-    var result_stdout: ArrayList(u8) = .empty;
-    var result_stderr: ArrayList(u8) = .empty;
     defer {
-        result_stdout.deinit(self.allocator);
-        result_stderr.deinit(self.allocator);
+        self.allocator.free(latex.stdout);
+        self.allocator.free(latex.stderr);
     }
-
-    try latex_child.collectOutput(
-        self.allocator,
-        &result_stdout,
-        &result_stderr,
-        std.math.maxInt(usize),
-    );
 
     // write stdout and stderr in .vesti_dummy
     try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stdout.txt",
-        .data = result_stdout.items,
+        .data = latex.stdout,
     });
     try vesti_dummy.writeFile(self.io, .{
         .sub_path = "stderr.txt",
-        .data = result_stderr.items,
+        .data = latex.stderr,
     });
 
-    const result = try latex_child.wait(self.io);
-    switch (result) {
+    switch (latex.term) {
         .exited => |errcode| if (errcode != 0) {
             const io_diag = try diag.IODiagnostic.initWithNote(
                 self.diagnostic.allocator,
@@ -637,7 +609,7 @@ fn compileLatexWithInner(
                 "{s} gaves an error while processing",
                 .{self.engine.toStr()},
                 "<Latex Engine Log>\n{s}",
-                .{result_stdout.items},
+                .{latex.stdout},
             );
             self.diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;

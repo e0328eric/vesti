@@ -720,6 +720,11 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
 
     // To be sure that preprocessor stop at .Rbrace
     try self.expectWithError(.Rbrace, .remain);
+    if (self.expect(.peek, &.{ .Space, .Tab, .Newline })) {
+        self.nextToken(); // eat `}`
+        while (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+    }
+
     // def_name_tok.lit should point the source code
     try self.comptime_fnt.put(def_name, .{ .params = params, .contents = contents });
 }
