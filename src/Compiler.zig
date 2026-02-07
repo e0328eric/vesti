@@ -165,7 +165,7 @@ pub fn compile(self: *Self) !void {
             if (!self.attr.watch) return err;
             if (self.attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
-                const timestamp = try Io.Clock.now(.real, self.io);
+                const timestamp = Io.Clock.now(.real, self.io);
                 self.prev_mtime.* = timestamp.toNanoseconds();
                 Io.sleep(self.io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
                 continue;
@@ -325,7 +325,7 @@ fn compileInner(self: *Self) !void {
             is_compiled = false;
         }
 
-        const timestamp = try Io.Clock.now(.real, self.io);
+        const timestamp = Io.Clock.now(.real, self.io);
         self.prev_mtime.* = timestamp.toNanoseconds();
         Io.sleep(self.io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
     } else {

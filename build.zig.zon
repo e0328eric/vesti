@@ -2,7 +2,7 @@
     .name = .vesti,
     .version = "0.7.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0-dev.2510+bcb5218a2",
     .dependencies = .{
         .zlap = .{
             .url = "git+https://codeberg.org/e0328eric/zlap#0534a407f6b372a18b6a0ff1a7c27cf40a69e227",
@@ -13,8 +13,8 @@
             .hash = "zlua-0.1.0-hGRpC-87BQCtmVz3Noy3uOq2cQ80mdQhW3QkuZP9_6m2",
         },
         .uucode = .{
-            .url = "git+https://github.com/e0328eric/uucode.git?ref=zig-0.16#e53d01dbeac05e6b737237218324f2af1dfba5c0",
-            .hash = "uucode-0.1.0-ZZjBPgxJTQCXXtNux5hg5AN7XbI9dMJKiXFRlkUyOd3j",
+            .url = "git+https://github.com/andrewrk/uucode.git?ref=zig-0.16#b8aa6f513621057eabe3b0e99039fda2cf0d92dd",
+            .hash = "uucode-0.1.0-ZZjBPvtWUACf5dqD_f9I37VGFsN24436CuceC5pTJ25n",
         },
     },
     .paths = .{
