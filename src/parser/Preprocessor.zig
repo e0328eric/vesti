@@ -28,6 +28,7 @@ pub const TokenList = struct {
     inner: MultiArrayList(Token) = .{},
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
+        for (0..self.inner.len) |i| self.inner.get(i).deinit(allocator);
         self.inner.deinit(allocator);
     }
 

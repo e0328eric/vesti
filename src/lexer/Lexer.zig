@@ -132,6 +132,7 @@ const TokenizeState = enum {
     less_chr,
 };
 
+// next does not make an allocation to make Token, so there is no deinit for token
 pub fn next(self: *Self) Token {
     var token: Token = undefined;
     var start_location = self.location;

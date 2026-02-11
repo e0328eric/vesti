@@ -1,5 +1,6 @@
 /**/.zig-cache
 /**/zig-out
+/**/zig-pkg
 /**/.vesti-dummy
 /**/foo.ves
 /**/foo.pdf

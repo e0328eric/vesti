@@ -195,6 +195,12 @@ fn buildVesti(
                     .windows => {}, // windows does not use rpath
                     else => @panic("Non supported OS"),
                 }
+            } else {
+                exe_mod.addLibraryPath(b.path("vesti-tectonic/lib"));
+                exe_mod.linkSystemLibrary("vesti_tectonic_x86_64", .{
+                    .use_pkg_config = .no,
+                    .preferred_link_mode = .static,
+                });
             }
             exe_mod.addOptions("vesti-info", vesti_opt);
 
