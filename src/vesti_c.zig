@@ -2,6 +2,7 @@
 //          │       Minimal Manual Translate C for <windows.h>        │
 //          ╰─────────────────────────────────────────────────────────╯
 const builtin = @import("builtin");
+const win = @import("std").os.windows;
 
 pub const MessageBoxA = switch (builtin.os.tag) {
     .windows => struct {
@@ -14,6 +15,31 @@ pub const MessageBoxA = switch (builtin.os.tag) {
     }.MessageBoxA,
     else => {},
 };
+pub const SetConsoleOutputCP = switch (builtin.os.tag) {
+    .windows => struct {
+        pub extern "kernel32" fn SetConsoleOutputCP(wCodePageID: c_uint) callconv(.winapi) c_int;
+    }.SetConsoleOutputCP,
+    else => {},
+};
+pub const LoadLibraryW = switch (builtin.os.tag) {
+    .windows => struct {
+        pub extern "kernel32" fn LoadLibraryW(lib_name: win.LPCWSTR) callconv(.winapi) ?win.HMODULE;
+    }.LoadLibraryW,
+    else => {},
+};
+pub const GetProcAddress = switch (builtin.os.tag) {
+    .windows => struct {
+        pub extern "kernel32" fn GetProcAddress(handle: win.HMODULE, proc_name: win.LPCSTR) callconv(.winapi) ?win.FARPROC;
+    }.GetProcAddress,
+    else => {},
+};
+pub const FreeLibrary = switch (builtin.os.tag) {
+    .windows => struct {
+        pub extern "kernel32" fn FreeLibrary(handle: win.HMODULE) callconv(.winapi) void;
+    }.FreeLibrary,
+    else => {},
+};
+
 pub const MB_OK: c_uint = 0x00;
 pub const MB_ICONEXCLAMATION: c_uint = 0x30;
 

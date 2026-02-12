@@ -37,7 +37,7 @@ pub fn main(init: std.process.Init) !void {
     // One can find the magic number in here
     // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
     if (builtin.os.tag == .windows) {
-        if (std.os.windows.kernel32.SetConsoleOutputCP(65001) == 0) {
+        if (c.SetConsoleOutputCP(65001) == 0) {
             std.debug.print("ERROR: cannot set the codepoint into utf-8\n", .{});
             return error.FailedToSetUTF8Codepoint;
         }

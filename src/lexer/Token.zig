@@ -48,7 +48,6 @@ pub const TokenType = union(enum(u8)) {
     OtherChar,
     BuiltinFunction: []const u8,
     LuaCode,
-    LuaCodeOwned: CowStr,
 
     // Keywords
     __begin_keywords, // NOTE: this is only used internally
@@ -143,12 +142,6 @@ pub const TokenType = union(enum(u8)) {
         instead: []const u8,
     },
 
-    pub fn deinit(self: *@This(), allocator: Allocator) void {
-        if (self == .LuaCodeOwned) {
-            self.LuaCodeOwned.deinit(allocator);
-        }
-    }
-
     pub inline fn deprecated(valid_in_text: bool, instead: []const u8) @This() {
         comptime return .{ .Deprecated = .{
             .valid_in_text = valid_in_text,
@@ -177,7 +170,7 @@ pub const TokenType = union(enum(u8)) {
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
             .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
-            .LuaCode, .LuaCodeOwned =>   try writer.writeAll("`<luacode>`"),
+            .LuaCode =>                  try writer.writeAll("`<luacode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
             .ImportVesti =>              try writer.writeAll("`importves`"),

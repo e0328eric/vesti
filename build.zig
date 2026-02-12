@@ -204,6 +204,11 @@ fn buildVesti(
             }
             exe_mod.addOptions("vesti-info", vesti_opt);
 
+            if (target.result.os.tag == .windows) {
+                exe_mod.linkSystemLibrary("Kernel32", .{});
+                exe_mod.linkSystemLibrary("User32", .{});
+            }
+
             // TODO: link static library
             return b.addExecutable(.{
                 .name = PROGRAM_NAME,
