@@ -13,8 +13,8 @@ pub const WinDynLib = struct {
     const Self = @This();
 
     pub fn open(dll_name: []const u8) !Self {
-        // what kind of dll name exceed 512 bytes?
-        var buf: [512]u8 = undefined;
+        // what kind of dll name exceed 1024 bytes?
+        var buf: [1024]u8 = undefined;
         var arena = std.heap.FixedBufferAllocator.init(&buf);
         const allocator = arena.allocator();
 
