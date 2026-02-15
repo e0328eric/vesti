@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 
+const ArrayList = std.ArrayList;
 const Allocator = mem.Allocator;
 const Location = @import("../location.zig").Location;
 const Span = @import("../location.zig").Span;
@@ -13,14 +14,14 @@ span: Span,
 
 const Self = @This();
 
-pub const invalid: Self = .{
+pub const INVALID: Self = .{
     .toktype = .Illegal,
     .lit = .{ .in_text = "", .in_math = "" },
     .span = .{},
 };
 
 pub const Literal = struct {
-    in_text: []const u8,
+    in_text: []const u8, // allocated if toktype is .LuaCode
     in_math: []const u8,
 
     const Self = @This();
@@ -47,6 +48,8 @@ pub const TokenType = union(enum(u8)) {
     RawLatex,
     OtherChar,
     BuiltinFunction: []const u8,
+    LuaCodeStart,
+    LuaCodeEnd,
     LuaCode,
 
     // Keywords
@@ -68,7 +71,9 @@ pub const TokenType = union(enum(u8)) {
     // Symbols
     Plus, // +
     Minus, // -
-    SetMinus, // --
+    SetMinus, // -!
+    EnDash, // --!
+    EmDash, // ---
     Star, // *
     Slash, // /
     FracDefiner, // //
@@ -93,7 +98,7 @@ pub const TokenType = union(enum(u8)) {
     MapsTo, // |->
     Bang, // !
     Question, // ?
-    LatexComment, // %!
+    LatexComment, // %
     TextPercent, // \%
     RawPercent, // %
     TextSharp, // \#
@@ -170,6 +175,8 @@ pub const TokenType = union(enum(u8)) {
             .RawLatex =>                 try writer.writeAll("`<rawlatex>`"),
             .OtherChar =>                try writer.writeAll("`<otherchr>`"),
             .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
+            .LuaCodeStart =>             try writer.writeAll("`<luacode_start>`"),
+            .LuaCodeEnd =>               try writer.writeAll("`<luacode_end>`"),
             .LuaCode =>                  try writer.writeAll("`<luacode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
@@ -185,7 +192,9 @@ pub const TokenType = union(enum(u8)) {
             .DefineEnv =>                try writer.writeAll("`defenv`"),
             .Plus =>                     try writer.writeAll("`+`"),
             .Minus =>                    try writer.writeAll("`-`"),
-            .SetMinus =>                 try writer.writeAll("`--`"),
+            .SetMinus =>                 try writer.writeAll("`-!`"),
+            .EnDash =>                   try writer.writeAll("`--!`"),
+            .EmDash =>                   try writer.writeAll("`---`"),
             .Star =>                     try writer.writeAll("`*`"),
             .Slash =>                    try writer.writeAll("`/`"),
             .FracDefiner =>              try writer.writeAll("`//`"),
@@ -210,9 +219,9 @@ pub const TokenType = union(enum(u8)) {
             .MapsTo =>                   try writer.writeAll("`|->`"),
             .Bang =>                     try writer.writeAll("`!`"),
             .Question =>                 try writer.writeAll("`?`"),
-            .LatexComment =>             try writer.writeAll("`%!`"),
+            .LatexComment =>             try writer.writeAll("`%`"),
             .TextPercent =>              try writer.writeAll("`\\%`"),
-            .RawPercent =>               try writer.writeAll("`%!`"),
+            .RawPercent =>               try writer.writeAll("`<rawpercent>`"),
             .TextSharp =>                try writer.writeAll("`\\#`"),
             .RawSharp =>                 try writer.writeAll("`#`"),
             .TextDollar =>               try writer.writeAll("`\\$`"),
@@ -335,7 +344,9 @@ pub fn init(
 }
 
 pub inline fn deinit(self: *Self, allocator: Allocator) void {
-    self.toktype.deinit(allocator);
+    if (self.toktype == .LuaCode) {
+        allocator.free(self.lit.in_text);
+    }
 }
 
 // format function for Token

@@ -28,6 +28,10 @@ pub const TokenList = struct {
     inner: MultiArrayList(Token) = .{},
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
+        for (0..self.inner.len) |i| {
+            var token = self.inner.get(i);
+            token.deinit(allocator);
+        }
         self.inner.deinit(allocator);
     }
 
@@ -57,8 +61,8 @@ pub fn init(allocator: Allocator, diagnostic: *diag.Diagnostic, source: []const 
     self.diagnostic = diagnostic;
     self.lexer = try .init(source);
     self.comptime_fnt = .init(allocator);
-    self.curr_tok = .invalid;
-    self.peek_tok = .invalid;
+    self.curr_tok = .INVALID;
+    self.peek_tok = .INVALID;
     self.state = .{};
 
     // fill curr_tok and peek_tok
@@ -77,17 +81,65 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn preprocess(self: *Self) !TokenList {
-    var output: TokenList = .{};
-    errdefer output.deinit(self.allocator);
+    var stage1: TokenList = .{};
+    defer stage1.deinit(self.allocator);
+
+    // Stage 1: Preprocess builtin functions
+    //
     // lexer.lex_finished triggered when self.peek_tok == .Eof.
     // Thus we need to preprocess token once more.
     while (!self.lexer.lex_finished) : (self.nextToken()) {
-        try self.preprocessToken(&output);
+        try self.preprocessToken(&stage1);
     } else {
-        try self.preprocessToken(&output);
+        try self.preprocessToken(&stage1);
+    }
+    try stage1.append(self.allocator, Token.eof(self.curr_tok.span));
+
+    // Stage 2: concat single luacode
+    var output: TokenList = .{};
+    errdefer output.deinit(self.allocator);
+
+    var idx: usize = 0;
+    while (idx < stage1.inner.len) {
+        if (stage1.get(idx).toktype != .LuaCodeStart) {
+            try output.append(self.allocator, stage1.get(idx));
+            idx += 1;
+            continue;
+        }
+
+        const start_loc = stage1.get(idx).span.start;
+        idx += 1; // skip .LuaCodeStart
+
+        var luacode = try ArrayList(u8).initCapacity(self.allocator, 25);
+        errdefer luacode.deinit(self.allocator);
+        while (stage1.get(idx).toktype != .LuaCodeEnd and
+            stage1.get(idx).toktype != .Eof)
+        {
+            try luacode.appendSlice(self.allocator, stage1.get(idx).lit.in_text);
+            idx += 1;
+        }
+
+        // TODO: make a error message
+        if (stage1.get(idx).toktype == .Eof) {
+            return PreprocessError.ParseFailed;
+        }
+
+        std.debug.assert(stage1.get(idx).toktype == .LuaCodeEnd);
+        try output.append(self.allocator, .{
+            .toktype = .LuaCode,
+            .lit = .{
+                .in_text = try luacode.toOwnedSlice(self.allocator),
+                .in_math = "",
+            },
+            .span = .{
+                .start = start_loc,
+                .end = stage1.get(idx).span.end,
+            },
+        });
+
+        idx += 1;
     }
 
-    try output.append(self.allocator, Token.eof(self.curr_tok.span));
     return output;
 }
 
@@ -169,7 +221,7 @@ fn preprocessToken(self: *Self, tok_list: *TokenList) !void {
                 }
             }
 
-            if (isBuiltin(name, .normal)) {
+            if (isBuiltin(name, .normal) or Token.isFunctionParam(name) != null) {
                 // they are evaluated in the parser
                 return try tok_list.append(self.allocator, self.curr_tok);
             }

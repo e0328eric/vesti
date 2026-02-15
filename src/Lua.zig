@@ -106,8 +106,9 @@ pub fn clearVestiOutputStr(self: *Self) void {
     self.buf.clearRetainingCapacity();
 }
 
-pub fn evalCode(self: *Self, code: [:0]const u8) !void {
-    self.lua.doString(code) catch {
+pub fn evalCode(self: *Self, raw_code: [:0]const u8) !void {
+    const code = std.mem.trim(u8, @ptrCast(raw_code), " \t\n");
+    self.lua.doString(raw_code) catch {
         const err_msg = self.lua.toString(-1) catch unreachable;
 
         std.debug.print("================== <LUA ERROR> ==================\n", .{});
@@ -146,7 +147,7 @@ pub fn evalCode(self: *Self, code: [:0]const u8) !void {
                 var i: usize = 1;
                 while (line_iter.next()) |line| : (i += 1) {
                     std.debug.print("{d}", .{i});
-                    for (0..(padding - std.math.log10_int(i))) |_| {
+                    for (0..(padding -| std.math.log10_int(i))) |_| {
                         std.debug.print(" ", .{});
                     }
                     std.debug.print(" | {s}\n", .{line});

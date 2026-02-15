@@ -22,9 +22,8 @@ location: Location,
 make_at_letter: bool,
 is_latex3_on: bool,
 lex_finished: bool,
-luacode_bracket_pin: usize,
-luacode_bracket_strlen: usize,
-luacode_bracket_str: [MAX_LUACODE_BRACKET_STR]u8,
+comment_open_eq_count: usize,
+comment_closed_eq_count: usize,
 
 const Self = @This();
 
@@ -39,9 +38,8 @@ pub fn init(source: []const u8) !Self {
     self.make_at_letter = false;
     self.is_latex3_on = false;
     self.lex_finished = false;
-    self.luacode_bracket_pin = 0;
-    self.luacode_bracket_strlen = 0;
-    self.luacode_bracket_str = @splat(0);
+    self.comment_open_eq_count = 0;
+    self.comment_closed_eq_count = 0;
 
     self.nextChar(2);
     self.location = Location{};
@@ -113,13 +111,11 @@ fn getChar(self: Self, comptime get_char_t: GetCharType) u21 {
 const TokenizeState = enum {
     start,
     comment,
+    multiline_comment_start,
     multiline_comment,
+    multiline_comment_end,
     verbatim,
     line_verbatim,
-    luacode,
-    luacode_get_bracket_str,
-    luacode_check_bracket_str,
-    luacode_end,
     builtin_function,
     latex_function,
     text,
@@ -165,13 +161,30 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .o_chr;
             },
             '-' => switch (self.getChar(.peek1)) {
-                '-' => if (self.getChar(.peek2) == '>') {
-                    self.nextChar(3);
-                    self.str2Token("-->", &token, start_location);
-                    break :tokenize;
-                } else {
+                '-' => switch (self.getChar(.peek2)) {
+                    '>' => {
+                        self.nextChar(3);
+                        self.str2Token("-->", &token, start_location);
+                        break :tokenize;
+                    },
+                    '-' => {
+                        self.nextChar(3);
+                        self.str2Token("---", &token, start_location);
+                        break :tokenize;
+                    },
+                    '!' => {
+                        self.nextChar(3);
+                        self.str2Token("--!", &token, start_location);
+                        break :tokenize;
+                    },
+                    else => {
+                        self.nextChar(2);
+                        continue :tokenize .comment;
+                    },
+                },
+                '!' => {
                     self.nextChar(2);
-                    self.str2Token("--", &token, start_location);
+                    self.str2Token("-!", &token, start_location);
                     break :tokenize;
                 },
                 '>' => {
@@ -328,6 +341,21 @@ pub fn next(self: *Self) Token {
                 self.nextChar(1);
                 continue :tokenize .less_chr;
             },
+            ':' => if (self.getChar(.peek1) == ':' and self.getChar(.peek2) == '#') {
+                self.nextChar(3);
+                token.init(
+                    self.source[start_chr0_idx..self.chr0_idx],
+                    null,
+                    .LuaCodeEnd,
+                    start_location,
+                    self.location,
+                );
+                break :tokenize;
+            } else {
+                self.nextChar(1);
+                self.str2Token(":", &token, start_location);
+                break :tokenize;
+            },
             '@' => if (self.make_at_letter) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
@@ -348,7 +376,6 @@ pub fn next(self: *Self) Token {
             '^',
             '&',
             ',',
-            ':',
             ';',
             '~',
             '`',
@@ -397,10 +424,6 @@ pub fn next(self: *Self) Token {
             break :tokenize;
         } else continue :tokenize .text,
         .percent_chr => switch (self.getChar(.current)) {
-            '*' => {
-                self.nextChar(1);
-                continue :tokenize .multiline_comment;
-            },
             '#' => {
                 self.nextChar(1);
                 start_chr0_idx = self.chr0_idx;
@@ -413,25 +436,32 @@ pub fn next(self: *Self) Token {
             },
             '!' => {
                 self.nextChar(1);
-                self.str2Token("%!", &token, start_location);
+                self.str2Token("%", &token, start_location);
                 break :tokenize;
             },
             else => {
-                self.nextChar(1);
-                continue :tokenize .comment;
+                self.str2Token("%", &token, start_location);
+                break :tokenize;
             },
         },
         .sharp_chr => {
             // mimic a `goto` statement
-            const Goto = enum { parse_luacode_start, parse_builtin };
+            const Goto = enum { parse_luacode_start, parse_builtin, raw_sharp };
             goto: switch (Goto.parse_luacode_start) {
-                .parse_luacode_start => switch (self.getChar(.current)) {
-                    ':' => {
-                        self.nextChar(1);
-                        start_chr0_idx = self.chr0_idx;
-                        continue :tokenize .luacode_get_bracket_str;
-                    },
-                    else => continue :goto .parse_builtin,
+                .parse_luacode_start => if (self.getChar(.current) == ':' and
+                    self.getChar(.peek1) == ':')
+                {
+                    self.nextChar(2);
+                    token.init(
+                        self.source[start_chr0_idx..self.chr0_idx],
+                        null,
+                        .LuaCodeStart,
+                        start_location,
+                        self.location,
+                    );
+                    break :tokenize;
+                } else {
+                    continue :goto .parse_builtin;
                 },
                 .parse_builtin => {
                     if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
@@ -439,66 +469,16 @@ pub fn next(self: *Self) Token {
                     {
                         self.nextChar(1);
                         continue :tokenize .builtin_function;
-                    } else {
-                        self.str2Token("#", &token, start_location);
-                        break :tokenize;
+                    } else if (self.getChar(.current) == '!') {
+                        self.nextChar(1);
                     }
+                    continue :goto .raw_sharp; // kind of fallthrough
+                },
+                .raw_sharp => {
+                    self.str2Token("#", &token, start_location);
+                    break :tokenize;
                 },
             }
-        },
-        .luacode_get_bracket_str => if (self.getChar(.current) == '#') {
-            // this branch checks that there is no bracket name in between
-            // `:` and `#` characters, which regards an invalid luacode prefix
-            if (self.chr0_idx == start_chr0_idx) {
-                // start_chr0_idx - 1 points `:` character
-                assert(start_chr0_idx > 0);
-                token.init(
-                    self.source[start_chr0_idx - 1 .. self.chr0_idx],
-                    null,
-                    .Illegal,
-                    start_location,
-                    self.location,
-                );
-                self.nextChar(1);
-                break :tokenize;
-            }
-
-            // self.source[start_chr0_idx .. self.chr0_idx] is the luacode
-            // bracket name
-            self.luacode_bracket_strlen = self.chr0_idx - start_chr0_idx;
-            if (self.luacode_bracket_strlen >= MAX_LUACODE_BRACKET_STR) {
-                token.init(
-                    self.source[start_chr0_idx - 1 .. self.chr0_idx],
-                    null,
-                    .Illegal,
-                    start_location,
-                    self.location,
-                );
-                self.nextChar(1);
-                break :tokenize;
-            }
-            @memcpy(
-                self.luacode_bracket_str[0..self.luacode_bracket_strlen],
-                self.source[start_chr0_idx..self.chr0_idx],
-            );
-
-            // start lexing actual luacode contents
-            self.nextChar(1);
-            start_chr0_idx = self.chr0_idx;
-            continue :tokenize .luacode;
-        } else if (isLuacodeBracketChar(self.getChar(.current))) {
-            self.nextChar(1);
-            continue :tokenize .luacode_get_bracket_str;
-        } else {
-            token.init(
-                "",
-                null,
-                .Illegal,
-                start_location,
-                self.location,
-            );
-            self.nextChar(1);
-            break :tokenize;
         },
         .backslash_chr => switch (self.getChar(.current)) {
             '\\' => {
@@ -718,23 +698,75 @@ pub fn next(self: *Self) Token {
                 start_location = self.location;
                 continue :tokenize .start;
             },
+            '[' => {
+                self.nextChar(1);
+                self.comment_open_eq_count = 0;
+                self.comment_closed_eq_count = 0;
+                continue :tokenize .multiline_comment_start;
+            },
             else => {
                 self.nextChar(1);
                 continue :tokenize .comment;
             },
         },
-        .multiline_comment => if (self.getChar(.current) == '*' and
-            self.getChar(.peek1) == '%')
-        {
-            self.nextChar(2);
-            start_location = self.location;
-            continue :tokenize .start;
-        } else if (self.getChar(.current) == 0) {
-            self.nextChar(1);
-            continue :tokenize .start;
-        } else {
-            self.nextChar(1);
-            continue :tokenize .multiline_comment;
+        .multiline_comment_start => switch (self.getChar(.current)) {
+            '=' => {
+                self.nextChar(1);
+                self.comment_open_eq_count += 1;
+                continue :tokenize .multiline_comment_start;
+            },
+            '[' => {
+                self.nextChar(1);
+                continue :tokenize .multiline_comment;
+            },
+            else => {
+                token.init(
+                    self.source[start_chr0_idx..self.chr0_idx],
+                    null,
+                    .Illegal,
+                    start_location,
+                    self.location,
+                );
+                self.nextChar(1);
+                break :tokenize;
+            },
+        },
+        .multiline_comment => switch (self.getChar(.current)) {
+            ']' => {
+                self.nextChar(1);
+                continue :tokenize .multiline_comment_end;
+            },
+            0 => {
+                self.nextChar(1);
+                continue :tokenize .start;
+            },
+            else => {
+                self.nextChar(1);
+                continue :tokenize .multiline_comment;
+            },
+        },
+        .multiline_comment_end => switch (self.getChar(.current)) {
+            ']' => if (self.comment_open_eq_count == self.comment_closed_eq_count) {
+                self.nextChar(1);
+                start_location = self.location;
+                continue :tokenize .start;
+            } else {
+                self.nextChar(1);
+                continue :tokenize .multiline_comment;
+            },
+            0 => {
+                self.nextChar(1);
+                continue :tokenize .start;
+            },
+            '=' => {
+                self.nextChar(1);
+                self.comment_closed_eq_count += 1;
+                continue :tokenize .multiline_comment_end;
+            },
+            else => {
+                self.nextChar(1);
+                continue :tokenize .multiline_comment;
+            },
         },
         .verbatim => if (self.getChar(.current) == '-' and
             self.getChar(.peek1) == '%')
@@ -790,79 +822,6 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .line_verbatim;
             },
         },
-        .luacode => if (self.getChar(.current) == '#') {
-            // later, we cut off source code until here, so
-            // self.luacode_bracket_pin points this `#` character, but the
-            // actual luacode_bracket_str starts after this
-            self.luacode_bracket_pin = self.chr0_idx;
-            self.nextChar(1);
-            continue :tokenize .luacode_check_bracket_str;
-        } else if (self.getChar(.current) == 0) {
-            token.init(
-                self.source[start_chr0_idx..self.chr0_idx],
-                null,
-                .Illegal,
-                start_location,
-                self.location,
-            );
-            self.nextChar(1);
-            break :tokenize;
-        } else {
-            self.nextChar(1);
-            continue :tokenize .luacode;
-        },
-        .luacode_check_bracket_str => if (self.getChar(.current) == ':' and
-            self.getChar(.peek1) == '#')
-        {
-            const luacode_bracket_str = self.source[self.luacode_bracket_pin + 1 .. self.chr0_idx];
-            if (!mem.eql(
-                u8,
-                self.luacode_bracket_str[0..self.luacode_bracket_strlen],
-                luacode_bracket_str,
-            )) {
-                token.init(
-                    luacode_bracket_str,
-                    null,
-                    .Illegal,
-                    start_location,
-                    self.location,
-                );
-                self.nextChar(1);
-                break :tokenize;
-            }
-            self.nextChar(1);
-            continue :tokenize .luacode_end;
-        } else if (isLuacodeBracketChar(self.getChar(.current))) {
-            self.nextChar(1);
-            continue :tokenize .luacode_check_bracket_str;
-        } else {
-            self.nextChar(1);
-            continue :tokenize .luacode;
-        },
-        .luacode_end => if (self.getChar(.current) == '#') {
-            self.nextChar(1);
-            token.init(
-                self.source[start_chr0_idx..self.luacode_bracket_pin],
-                null,
-                .LuaCode,
-                start_location,
-                self.location,
-            );
-            break :tokenize;
-        } else if (self.getChar(.current) == 0) {
-            token.init(
-                self.source[start_chr0_idx..self.chr0_idx],
-                null,
-                .Illegal,
-                start_location,
-                self.location,
-            );
-            self.nextChar(1);
-            break :tokenize;
-        } else {
-            self.nextChar(1);
-            continue :tokenize .luacode;
-        },
     }
 
     return token;
@@ -880,6 +839,8 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ " ",    .{ " ", null, .Space } },
     .{ "+",    .{ "+", null, .Plus } },
     .{ "-",    .{ "-", null, .Minus } },
+    .{ "--!",  .{ "--", null, .EnDash } },
+    .{ "---",  .{ "---", null, .EmDash } },
     .{ "*",    .{ "*", null, .Star } },
     .{ "/",    .{ "/", null, .Slash } },
     .{ "//",   .{ "//", null, .FracDefiner } },
@@ -927,7 +888,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "_",    .{ "_", null, .Subscript } },
     .{ "!",    .{ "!", null, .Bang } },
     .{ "?",    .{ "?", null, .Question } },
-    .{ "%!",   .{ "%", null, .LatexComment } },
+    .{ "%",   .{ "%", null, .LatexComment } },
     .{ "\\%",  .{ "\\%", null, .TextPercent } },
     .{ "#",    .{ "#", null, .RawSharp } },
     .{ "\\#",  .{ "\\#", null, .TextSharp } },
@@ -937,7 +898,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ ";",    .{ ";", null, .Semicolon } },
     .{ ".",    .{ ".", null, .Period } },
     .{ ",",    .{ ",", null, .Comma } },
-    .{ "--",   .{ "--", "\\setminus ", .SetMinus } },
+    .{ "-!",   .{ "-!", "\\setminus ", .SetMinus } },
     .{ "|",    .{ "|", null, .Vert } },
     .{ "||",   .{ "||", "\\|", .Norm } },
     .{ "&",    .{ "&", null, .Ampersand } },

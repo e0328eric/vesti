@@ -9,7 +9,7 @@ importpkg {
 
 \title{Vesti Transpiler User Manual}
 \author{Sungbae Jeong}
-#:readAll#
+#::
 local function read_all(path)
   local f, err = io.open(path, "rb")
   assert(f, ("cannot open %s: %s"):format(path, err))
@@ -17,39 +17,41 @@ local function read_all(path)
   f:close()
   return data
 end
-#readAll:#<readAll>
+::#<readAll>
 
-% definition of \keyword command
+-- definition of \keyword command
 defun [!] keyword (m) {{\tt\color{purple}#1}}
 defun [!] builtin (v) {{\tt\color{blue!65!yellow}\##1}}
-#:1#
+#::
 local commands = { "useenv", "defun", "defenv" }
 for _, command in ipairs(commands) do
     local s = string.format(
-        "defun %s (s) {\\IfBooleanTF{#1}{\\keyword{%%-%s-%%}}{\\keyword{%%-%s-%%} }}",
+        "defun %s (s) {\\IfBooleanTF{#!1}{\\keyword{%%!-%s-%%}}{\\keyword{%%!-%s-%%} }}",
         command, command, command
     )
     vesti.print(vesti.parse(s))
 end
-#1:#
+::#
 
-#:begenv#
-function begenv(add_space, add_bang)
+#::
+function begenv(add_bang, add_space)
     local name = "begenv"
     if add_bang then name = name .. "!" end
-    if add_space then name = name .. " " end
-    vesti.print("\\keyword{" .. name .. "}")
+    local begenv = "\\keyword{" .. name .. "}"
+    if add_space then begenv = begenv .. " " end
+    vesti.print(begenv, { nl = 0 })
 end
 
-function endenv(add_space, add_bang)
+function endenv(add_bang, add_space)
     local name = "endenv"
     if add_bang then name = name .. "!" end
-    if add_space then name = name .. " " end
-    vesti.print("\\keyword{" .. name .. "}")
+    local endenv = "\\keyword{" .. name .. "}"
+    if add_space then endenv = endenv .. " " end
+    vesti.print(endenv, { nl = 0 })
 end
-#begenv:#*
+::#*
 
-% space character used in the texbook.
+-- space character used in the texbook.
 #at_on
 #chardef 2423 \@b
 defun ob {\kern2pt{\tt\@b}\kern2pt}
@@ -136,7 +138,7 @@ own keywords (keywords are colored with purple). It makes the code readable and
 it is easier and faster to write the document. The keyword startdoc splits
 the preamble and the main part of the documentation similar with
 
-% Don't ask why I chose Q for catcode 0.
+-- Don't ask why I chose Q for catcode 0.
 %#{\tt\catcode`Q=0 Qcatcode`\\=12 \beginQ{documentQ}} in \LaTeX.
 However, Vesti does not have the analogous part of
 %#{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}},
@@ -150,7 +152,7 @@ Followings are reserved as keywords. In this document, every Vesti keyword has
 the form like \keyword{this}.
 useenv table [ht] {
     \centering
-    #:keywords#
+    #::
     local content = read_all("../src/lexer/Token.zig")
 
     -- Lua’s built-in patterns don’t support lookahead.
@@ -164,7 +166,7 @@ useenv table [ht] {
     local keywords = {}
     for name, tok in content:gmatch(pat) do
       if tok ~= "deprecated" then
-        keywords[#keywords + 1] = name
+        keywords[#!keywords + 1] = name
       end
     end
 
@@ -182,7 +184,7 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    #keywords:#[readAll]
+    ::#[readAll]
     \caption{Keywords in Vesti}
 }
 
@@ -300,8 +302,13 @@ useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
 }
 -%}
 
-\subsection{#::#begenv()#::#* and #::#endenv()#::#* keywords}
-As the name implies, both keywords #::#begenv()#::#* and #::#endenv()#::#* are
+#def #begenv {#::begenv(false,true)::#*}
+#def #begenv_arg {#::begenv(#1,#2)::#*}
+#def #endenv {#::endenv(false,true)::#*}
+#def #endenv_arg {#::endenv(#1,#2)::#*}
+
+\subsection{#begenv and #endenv keywords}
+As the name implies, both keywords #begenv and #endenv are
 analogous of \verb|\begin{...}| and \verb|\end{...}| pair in \LaTeX,
 respectively. Thus below code
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
@@ -315,8 +322,8 @@ useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
     asdsad
 }
 -%}
-Then why we need #::#begenv()#::#* and #::#endenv()#::#* if we already have \useenv*?
-The only reason which both #::#begenv()#::#* and #::#endenv()#::#* exist is
+Then why we need #begenv and #endenv if we already have \useenv*?
+The only reason which both #begenv and #endenv exist is
 defining new environment. For instance, one defines a new environment like
 following.
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
@@ -336,7 +343,7 @@ Here, {\tt`?`} means that this is an optional.
 First, let us see some examples for \defun*, and then explain the meaning of
 each fields.
 
-#:examples#
+#::
 local examples = {
     "\\defun foo {Hello, World!}"
 }
@@ -348,7 +355,7 @@ for _, example in ipairs(examples) do
     vesti.print(example)
     vesti.print(vesti.parse("endenv! Verbatim"))
 end
-#examples:#
+::#
 
 \section{Builtins}
 Vesti also has its own builtin functions, which are prefixed with \#.
@@ -368,7 +375,7 @@ Followings are reserved as builtin functions.
 
 useenv table [ht] {
     \centering
-    #:builtins#
+    #::
     local content = read_all("../src/lexer/Token.zig")
 
     -- match .{ "here" }
@@ -376,7 +383,7 @@ useenv table [ht] {
 
     local builtins = {}
     for name, tok in content:gmatch(pat) do
-        builtins[#builtins + 1] = name
+        builtins[#!builtins + 1] = name
     end
     table.sort(builtins)
 
@@ -392,7 +399,7 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    #builtins:#[readAll]
+    ::#[readAll]
     \caption{Builtins in Vesti}
 }
 Since {\tt fancyvrb} does not allow verbatim-like commands inside of
@@ -613,20 +620,20 @@ Vesti uses Lua in both building script and inline inside of Vesti code.
 Below are functions which are baked in Vesti compiler.
 useenv table [ht] {
     \centering
-    #:lua#
+    #::
     local content = read_all("../src/Lua.zig")
 
     local pat = '%.name%s*=%s*"([^"]+)"'
 
-    local builtins = {}
+    local lua = {}
     for name, tok in content:gmatch(pat) do
-        builtins[#builtins + 1] = name
+        lua[#!lua + 1] = name
     end
-    table.sort(builtins)
+    table.sort(lua)
 
     vesti.print([[\begin{tabular}{ccccc}]])
 
-    for i, kw in ipairs(builtins) do
+    for i, kw in ipairs(lua) do
         local cell = string.format("\\tt{%s}", kw)
         if (i % 4) == 0 then
             vesti.print(cell .. [[\\]])
@@ -636,8 +643,8 @@ useenv table [ht] {
     end
 
     vesti.print([[\end{tabular}]])
-    #lua:#[readAll]
-    \caption{Keywords in Vesti}
+    ::#[readAll]
+    \caption{Lua builtin functions in Vesti}
 }
 
 
@@ -645,10 +652,10 @@ useenv table [ht] {
 \section{Source Code of This Document}
 Below code was generated by inline lua.
 useenv Verbatim [numbers=left, numbersep=5pt, frame=single] {
-#:verbatim#
+#::
     local content = read_all("vesti_man.ves")
     for line in content:gmatch("([^\r\n]*)\r?\n?") do
         vesti.print(line)
     end
-#verbatim:#[readAll]
+::#[readAll]
 }
