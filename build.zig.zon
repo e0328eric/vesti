@@ -2,7 +2,7 @@
     .name = .vesti,
     .version = "0.8.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.16.0-dev.2510+bcb5218a2",
+    .minimum_zig_version = "0.16.0-dev.2565+684032671",
     .dependencies = .{
         .zlap = .{
             .url = "git+https://codeberg.org/e0328eric/zlap#0534a407f6b372a18b6a0ff1a7c27cf40a69e227",
