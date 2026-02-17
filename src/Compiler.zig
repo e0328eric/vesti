@@ -161,7 +161,15 @@ pub fn compile(self: *Self) !void {
             self.diagnostic.lock_print_at_main = true;
             try self.diagnostic.prettyPrint(self.attr.no_color);
 
-            if (err == error.FailedToOpenFile) return err;
+            // some errors must be terminated without waiting
+            switch (err) {
+                error.FileNotFound => {}, // XXX: fix FIXME in below before remove this
+                error.FailedToOpenFile,
+                error.OutOfMemory,
+                => return err,
+                else => {},
+            }
+
             if (!self.attr.watch) return err;
             if (self.attr.no_exit_err) {
                 std.debug.print("Ctrl+C to quit...\n", .{});
@@ -269,6 +277,8 @@ fn compileInner(self: *Self) !void {
         // parse vesti
         for (vesti_files.keys()) |vesti_file| {
             if (self.prev_mtime.*) |pmtime| {
+                // FIXME: i don't know why the FileNotFound bug happens when
+                // uses -SW command
                 const stat = try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
                 if (stat.mtime.toNanoseconds() > pmtime) {
                     // this code comes first because if content.fond_existing is true
