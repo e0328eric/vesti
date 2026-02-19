@@ -88,7 +88,7 @@ pub fn build(b: *Build) !void {
     const targets: []const std.Target.Query = &.{
         .{ .cpu_arch = .aarch64, .os_tag = .macos },
         .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
-        .{ .cpu_arch = .x86_64, .os_tag = .windows },
+        .{ .cpu_arch = .x86_64, .os_tag = .windows, .abi = .msvc },
         // NOTE: rpath is ignored, so I remove this target
         //.{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
     };
