@@ -25,22 +25,26 @@ pub const PreprocessError = Allocator.Error || error{
     ParseFailed,
 };
 pub const TokenList = struct {
-    inner: MultiArrayList(Token) = .{},
+    inner: ArrayList(Token) = .{},
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
-        for (0..self.inner.len) |i| {
-            var token = self.inner.get(i);
+        for (0..self.len()) |i| {
+            var token = self.get(i);
             token.deinit(allocator);
         }
         self.inner.deinit(allocator);
     }
 
-    pub fn append(self: *@This(), allocator: Allocator, val: Token) !void {
+    pub inline fn len(self: *const @This()) usize {
+        return self.inner.items.len;
+    }
+
+    pub inline fn append(self: *@This(), allocator: Allocator, val: Token) !void {
         try self.inner.append(allocator, val);
     }
 
-    pub fn get(self: @This(), idx: usize) Token {
-        return self.inner.get(idx);
+    pub inline fn get(self: @This(), idx: usize) Token {
+        return self.inner.items[idx];
     }
 };
 
@@ -81,51 +85,57 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn preprocess(self: *Self) !TokenList {
-    var stage1: TokenList = .{};
-    defer stage1.deinit(self.allocator);
+    var output: TokenList = .{};
+    defer output.deinit(self.allocator);
 
     // Stage 1: Preprocess builtin functions
     //
     // lexer.lex_finished triggered when self.peek_tok == .Eof.
     // Thus we need to preprocess token once more.
     while (!self.lexer.lex_finished) : (self.nextToken()) {
-        try self.preprocessToken(&stage1);
+        try self.preprocessToken(&output);
     } else {
-        try self.preprocessToken(&stage1);
+        try self.preprocessToken(&output);
     }
-    try stage1.append(self.allocator, Token.eof(self.curr_tok.span));
+    try output.append(self.allocator, Token.eof(self.curr_tok.span));
 
     // Stage 2: concat single luacode
-    var output: TokenList = .{};
-    errdefer output.deinit(self.allocator);
-
     var idx: usize = 0;
-    while (idx < stage1.inner.len) {
-        if (stage1.get(idx).toktype != .LuaCodeStart) {
-            try output.append(self.allocator, stage1.get(idx));
+    while (idx < output.len()) {
+        if (output.get(idx).toktype != .LuaCodeStart) {
             idx += 1;
             continue;
         }
 
-        const start_loc = stage1.get(idx).span.start;
+        const start_idx = idx; // points to .LuaCodeStart
+        const start_loc = output.get(idx).span.start;
         idx += 1; // skip .LuaCodeStart
 
         var luacode = try ArrayList(u8).initCapacity(self.allocator, 25);
         errdefer luacode.deinit(self.allocator);
-        while (stage1.get(idx).toktype != .LuaCodeEnd and
-            stage1.get(idx).toktype != .Eof)
+        while (output.get(idx).toktype != .LuaCodeEnd and
+            output.get(idx).toktype != .Eof)
         {
-            try luacode.appendSlice(self.allocator, stage1.get(idx).lit.in_text);
+            try luacode.appendSlice(self.allocator, output.get(idx).lit.in_text);
             idx += 1;
         }
 
         // TODO: make a error message
-        if (stage1.get(idx).toktype == .Eof) {
+        if (output.get(idx).toktype == .Eof) {
             return PreprocessError.ParseFailed;
         }
 
-        std.debug.assert(stage1.get(idx).toktype == .LuaCodeEnd);
-        try output.append(self.allocator, .{
+        std.debug.assert(output.get(idx).toktype == .LuaCodeEnd);
+        const end_idx = idx;
+        const end_loc = output.get(idx).span.end;
+
+        // memmove every contents
+        @memmove(output.inner.items[start_idx..], output.inner.items[end_idx..]);
+        // after memmove, output.get(start_idx) == .LuaCodeEnd
+        std.debug.assert(output.get(start_idx).toktype == .LuaCodeEnd);
+
+        // then replace output.inner.items[start_idx] with generated LuaCode
+        output.inner.items[start_idx] = .{
             .toktype = .LuaCode,
             .lit = .{
                 .in_text = try luacode.toOwnedSlice(self.allocator),
@@ -133,9 +143,9 @@ pub fn preprocess(self: *Self) !TokenList {
             },
             .span = .{
                 .start = start_loc,
-                .end = stage1.get(idx).span.end,
+                .end = end_loc,
             },
-        });
+        };
 
         idx += 1;
     }
@@ -298,7 +308,7 @@ fn expandTokens(
     output: *TokenList,
 ) PreprocessError!void {
     var i: usize = 0;
-    while (i < input_tokens.inner.len) : (i += 1) {
+    while (i < input_tokens.len()) : (i += 1) {
         const tok = input_tokens.get(i);
         switch (tok.toktype) {
             .BuiltinFunction => |builtin_fnt| {
@@ -398,12 +408,12 @@ fn parseArgs(
 
     while (count < params_count) : (count += 1) {
         // Skip whitespace
-        while (idx < slice.inner.len and
+        while (idx < slice.len() and
             (slice.get(idx).toktype == .Space or slice.get(idx).toktype == .Tab or
                 slice.get(idx).toktype == .Newline)) : (idx += 1)
         {}
 
-        if (idx >= slice.inner.len or slice.get(idx).toktype != .Lparen) {
+        if (idx >= slice.len() or slice.get(idx).toktype != .Lparen) {
             // TODO: fill note
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
@@ -421,7 +431,7 @@ fn parseArgs(
         errdefer content.deinit(self.allocator);
 
         var nested: usize = 1;
-        while (idx < slice.inner.len) : (idx += 1) {
+        while (idx < slice.len()) : (idx += 1) {
             const tok = slice.get(idx);
             if (tok.toktype == .Lparen) {
                 nested += 1;

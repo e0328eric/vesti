@@ -184,7 +184,7 @@ inline fn isPremiere(self: Self) bool {
 }
 
 inline fn nextToken(self: *Self) void {
-    if (self.tok_idx + 1 < self.tok_list.inner.len) {
+    if (self.tok_idx + 1 < self.tok_list.len()) {
         self.tok_idx += 1;
     } else {
         self.parse_finished = true;
