@@ -43,7 +43,8 @@ pub const TokenList = struct {
         try self.inner.append(allocator, val);
     }
 
-    pub inline fn get(self: @This(), idx: usize) Token {
+    pub inline fn get(self: *const @This(), idx: usize) Token {
+        std.debug.assert(idx < self.inner.items.len);
         return self.inner.items[idx];
     }
 };
@@ -86,7 +87,7 @@ pub fn deinit(self: *Self) void {
 
 pub fn preprocess(self: *Self) !TokenList {
     var output: TokenList = .{};
-    defer output.deinit(self.allocator);
+    errdefer output.deinit(self.allocator);
 
     // Stage 1: Preprocess builtin functions
     //
