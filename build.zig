@@ -5,7 +5,6 @@ const path = std.fs.path;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Io = std.Io;
-const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_VERSION_STR = @import("build.zig.zon").version;
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
@@ -148,12 +147,10 @@ fn buildVesti(
 
     //const tectonic_lib_name = try getLibName(&target);
     const tectonic_dll_name = try getDllName(&target);
-    const tectonic_dll_hash = try calculateDllHash(b.allocator, b.graph.io, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
-    vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
     vesti_opt.addOption(bool, "TECTONIC_STATIC", tectonic_static);
 
     switch (build_mode) {
@@ -576,31 +573,4 @@ fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
         },
         else => @panic("Not supported"),
     };
-}
-
-fn calculateDllHash(allocator: Allocator, io: Io, tectonic_dll_name: []const u8) !u512 {
-    const dll_path = try path.join(allocator, &.{
-        "./vesti-tectonic/bin/",
-        tectonic_dll_name,
-    });
-    defer allocator.free(dll_path);
-
-    var dll = try Io.Dir.cwd().openFile(io, dll_path, .{});
-    defer dll.close(io);
-    var dll_read_buf: [4096]u8 = undefined;
-    var dll_reader = dll.reader(io, &dll_read_buf);
-
-    var sha_out: [Sha3.digest_length]u8 = undefined;
-    var sha3 = Sha3.init(.{});
-
-    var block: [Sha3.block_length]u8 = @splat(0);
-    while (dll_reader.interface.readSliceAll(&block)) {
-        sha3.update(&block);
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        error.ReadFailed => return err,
-    }
-    sha3.final(&sha_out);
-
-    return std.mem.bytesToValue(u512, &sha_out);
 }
