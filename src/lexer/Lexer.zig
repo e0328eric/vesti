@@ -234,9 +234,9 @@ pub fn next(self: *Self) Token {
                 },
             },
             '$' => switch (self.getChar(.peek1)) {
-                '!' => {
+                '#' => {
                     self.nextChar(2);
-                    self.str2Token("$!", &token, start_location);
+                    self.str2Token("$#", &token, start_location);
                     break :tokenize;
                 },
                 '$' => {
@@ -892,7 +892,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "\\%",  .{ "\\%", null, .TextPercent } },
     .{ "#",    .{ "#", null, .RawSharp } },
     .{ "\\#",  .{ "\\#", null, .TextSharp } },
-    .{ "$!",   .{ "$", null, .RawDollar } },
+    .{ "$#",   .{ "$", null, .RawDollar } },
     .{ "\\$",  .{ "\\$", null, .TextDollar } },
     .{ ":",    .{ ":", null, .Colon } },
     .{ ";",    .{ ";", null, .Semicolon } },

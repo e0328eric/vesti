@@ -104,7 +104,7 @@ pub const TokenType = union(enum(u8)) {
     TextSharp, // \#
     RawSharp, // #
     TextDollar, // \$
-    RawDollar, // $!
+    RawDollar, // $#
     At, // @
     Superscript, // ^
     Subscript, // _
