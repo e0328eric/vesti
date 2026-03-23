@@ -293,7 +293,7 @@ fn makeBuildRust(
         vcpkg.stderr,
     });
 
-    var cargo = try std.process.run(b.allocator, io, .{
+    const cargo = try std.process.run(b.allocator, io, .{
         .argv = &.{ "cargo", "build", "--release" },
         .environ_map = &envmap,
     });
@@ -363,7 +363,7 @@ fn getTectonic(
         // compress binary using upx (only for dll)
         switch (build_rust.target.result.os.tag) {
             .windows, .linux => {
-                var upx = try std.process.run(alloc, io, .{
+                const upx = try std.process.run(alloc, io, .{
                     .argv = &.{ "upx", "-9", dll_path },
                     .environ_map = envmap,
                 });
