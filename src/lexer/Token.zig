@@ -356,6 +356,11 @@ pub fn format(
 ) !void {
     try writer.print(
         "[ toktype: {f}, lit: < text: {s}, math: {s} > span: {f} ]",
-        .{self.toktype, self.lit.in_text, self.lit.in_math, self.span,},
+        .{
+            self.toktype,
+            self.lit.in_text,
+            self.lit.in_math,
+            self.span,
+        },
     );
 }

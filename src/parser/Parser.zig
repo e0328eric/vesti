@@ -1610,7 +1610,7 @@ fn parseFunctionArgs(
                     if (!first_token)
                         try args.append(self.allocator, .{
                             .needed = .StarArg,
-                            .ctx = .{},
+                            .ctx = .empty,
                         });
                 },
                 else => unreachable,

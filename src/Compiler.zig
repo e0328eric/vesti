@@ -114,7 +114,7 @@ fn raiseMessagebox(
             );
         },
         .linux => {
-            var zenity = std.process.run(allocator, io, .{
+            const zenity = std.process.run(allocator, io, .{
                 .argv = &.{
                     "zenity",
                     "--error",
@@ -278,7 +278,16 @@ fn compileInner(self: *Self) !void {
             if (self.prev_mtime.*) |pmtime| {
                 // FIXME: i don't know why the FileNotFound bug happens when
                 // uses -SW command
-                const stat = try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
+                const stat = Io.Dir.cwd().statFile(self.io, vesti_file, .{}) catch |err| blk: {
+                    // if file is not found, changes are one cannot open file
+                    // although there exists. so try once more
+                    if (err == error.FileNotFound) {
+                        try self.io.sleep(.fromMilliseconds(200), .real);
+                        break :blk try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
+                    } else {
+                        return err;
+                    }
+                };
                 if (stat.mtime.toNanoseconds() > pmtime) {
                     // this code comes first because if content.fond_existing is true
                     // and if vesti failes to parse, then the double free occurs.
@@ -589,7 +598,7 @@ fn compileLatexWithInner(
     main_tex_file: []const u8,
     vesti_dummy: *Io.Dir,
 ) !void {
-    var latex = try std.process.run(self.allocator, self.io, .{
+    const latex = try std.process.run(self.allocator, self.io, .{
         .argv = &.{ self.engine.toStr(), "-halt-on-error", main_tex_file },
         .cwd = .{ .path = VESTI_DUMMY_DIR },
         // NOTE: https://github.com/ziglang/zig/issues/5190

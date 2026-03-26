@@ -1,74 +1,83 @@
 const std = @import("std");
 const config = @import("config.zig");
-const config_x = @import("config.x.zig");
 const ascii = std.ascii;
 
 const d = config.default;
-const wcwidth = config_x.wcwidth;
+
+pub const fields = &config.mergeFields(config.fields, &.{
+    .{ .name = "vesti_uucode_custom", .type = CharType },
+});
 
 // implemetn is_alphanumeric and is_ascii_digit
-const vesti_uucode_custom = config.Extension{
-    .inputs = &.{"general_category"},
-    .compute = &computeVestiUucodeCustom,
-    .fields = &.{
-        .{ .name = "is_alphanumeric", .type = bool },
-        .{ .name = "is_numeric", .type = bool },
-        .{ .name = "is_ascii_digit", .type = bool },
-        .{ .name = "is_ascii_alphanumeric", .type = bool },
+pub const build_components = &config.mergeComponents(config.build_components, &.{
+    .{
+        .Impl = ComputeVestiUucodeCustom,
+        .inputs = &.{"general_category"},
+        .fields = &.{"vesti_uucode_custom"},
     },
+});
+
+pub const get_components: []const config.Component = &.{}; // not supported in uucode yet
+
+const CharType = enum(u3) {
+    is_ascii_digit,
+    is_ascii_alphanumeric,
+    is_nonascii_numeric,
+    is_nonascii_nonnumber_alphabetic,
+    otherwise,
 };
 
-fn computeVestiUucodeCustom(
-    allocator: std.mem.Allocator,
-    cp: u21,
-    data: anytype,
-    backing: anytype,
-    tracking: anytype,
-) std.mem.Allocator.Error!void {
-    _ = allocator;
-    _ = backing;
-    _ = tracking;
+const ComputeVestiUucodeCustom = struct {
+    pub fn build(
+        comptime InputRow: type,
+        comptime Row: type,
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        inputs: config.MultiSlice(InputRow),
+        rows: *config.MultiSlice(Row),
+        backing: anytype,
+        tracking: anytype,
+    ) !void {
+        _ = allocator;
+        _ = io;
+        _ = backing;
+        _ = tracking;
 
-    const gc = data.general_category;
+        rows.len = config.num_code_points;
+        const items = rows.items(.vesti_uucode_custom);
+        const gc = inputs.items(.general_category);
 
-    if (cp <= 0xFF and ascii.isDigit(@truncate(cp))) {
-        data.is_ascii_digit = true;
-        data.is_ascii_alphanumeric = true;
-        data.is_alphanumeric = true;
-        data.is_numeric = true;
-    } else if (cp <= 0xFF and ascii.isAlphabetic(@truncate(cp))) {
-        data.is_ascii_digit = false;
-        data.is_ascii_alphanumeric = true;
-        data.is_alphanumeric = true;
-        data.is_numeric = false;
-    } else {
-        data.is_ascii_digit = false;
-        data.is_ascii_alphanumeric = false;
+        for (0..config.num_code_points) |i| {
+            const cp: u21 = @intCast(i);
 
-        switch (gc) {
-            .number_decimal_digit, // Nd
-            .number_letter, // Nl
-            .number_other, // No
-            => {
-                data.is_numeric = true;
-                data.is_alphanumeric = true;
-            },
-            .letter_uppercase, // Lu
-            .letter_lowercase, // Ll
-            .letter_titlecase, // Lt
-            .letter_modifier, // Lm
-            .letter_other, // Lo
-            => {
-                data.is_numeric = false;
-                data.is_alphanumeric = true;
-            },
-            else => {
-                data.is_numeric = false;
-                data.is_alphanumeric = false;
-            },
+            if (cp <= 0xFF and ascii.isDigit(@truncate(cp))) {
+                items[i] = CharType.is_ascii_digit;
+            } else if (cp <= 0xFF and ascii.isAlphanumeric(@truncate(cp))) {
+                items[i] = CharType.is_ascii_alphanumeric;
+            } else {
+                switch (gc[i]) {
+                    .number_decimal_digit, // Nd
+                    .number_letter, // Nl
+                    .number_other, // No
+                    => {
+                        items[i] = CharType.is_nonascii_numeric;
+                    },
+                    .letter_uppercase, // Lu
+                    .letter_lowercase, // Ll
+                    .letter_titlecase, // Lt
+                    .letter_modifier, // Lm
+                    .letter_other, // Lo
+                    => {
+                        items[i] = CharType.is_nonascii_nonnumber_alphabetic;
+                    },
+                    else => {
+                        items[i] = CharType.otherwise;
+                    },
+                }
+            }
         }
     }
-}
+};
 
 // Configure tables with the `tables` declaration.
 // The only required field is `fields`, and the rest have reasonable defaults.
@@ -76,17 +85,10 @@ pub const tables = [_]config.Table{
     .{
         .stages = .auto,
         .packing = .auto,
-        .extensions = &.{
-            wcwidth,
-            vesti_uucode_custom,
-        },
         .fields = &.{
-            wcwidth.field("wcwidth_standalone"),
-            vesti_uucode_custom.field("is_numeric"),
-            vesti_uucode_custom.field("is_alphanumeric"),
-            vesti_uucode_custom.field("is_ascii_digit"),
-            vesti_uucode_custom.field("is_ascii_alphanumeric"),
-            d.field("is_alphabetic"),
+            "vesti_uucode_custom",
+            "is_alphabetic",
+            "wcwidth_standalone",
         },
     },
 };

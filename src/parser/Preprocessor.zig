@@ -25,7 +25,7 @@ pub const PreprocessError = Allocator.Error || error{
     ParseFailed,
 };
 pub const TokenList = struct {
-    inner: ArrayList(Token) = .{},
+    inner: ArrayList(Token) = .empty,
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
         for (0..self.len()) |i| {
