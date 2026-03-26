@@ -234,7 +234,14 @@ pub fn next(self: *Self) Token {
                 },
             },
             '$' => switch (self.getChar(.peek1)) {
-                '#' => {
+                '#' => if (getCharType(self.getChar(.peek2)) == .is_ascii_digit or
+                    uucode.get(.is_alphabetic, self.getChar(.peek2)))
+                {
+                    // This parses $#foo for example by |$| |#foo|
+                    self.nextChar(1);
+                    self.str2Token("$", &token, start_location);
+                    break :tokenize;
+                } else {
                     self.nextChar(2);
                     self.str2Token("$#", &token, start_location);
                     break :tokenize;
