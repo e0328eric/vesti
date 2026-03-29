@@ -972,7 +972,6 @@ fn compile(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
                     .{ "pdf", LatexEngine.pdflatex },
                     .{ "xe", LatexEngine.xelatex },
                     .{ "lua", LatexEngine.lualatex },
-                    .{ "tect", LatexEngine.tectonic },
                 }) |info| {
                     if (std.mem.eql(u8, info[0], @ptrCast(engine_string))) {
                         self.engine = info[1];
@@ -984,7 +983,7 @@ fn compile(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
                 // at this point, engine string did not matched
                 raiseError(
                     lua,
-                    "invalid `engine`. Must either `latex`, `pdf`, `xe`, `lua`, or `tect`\n",
+                    "invalid `engine`. Must either `latex`, `pdf`, `xe`, or `lua`\n",
                     .{},
                 );
                 return 0;

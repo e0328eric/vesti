@@ -173,7 +173,6 @@ fn compileStep(
     const is_pdflatex = compile_subcmd.flags.get("pdflatex").?.value.bool;
     const is_xelatex = compile_subcmd.flags.get("xelatex").?.value.bool;
     const is_lualatex = compile_subcmd.flags.get("lualatex").?.value.bool;
-    const is_tectonic = compile_subcmd.flags.get("tectonic").?.value.bool;
 
     const first_script = compile_subcmd.flags.get("first_script").?.value.string;
     const before_script = compile_subcmd.flags.get("before_script").?.value.string;
@@ -187,7 +186,6 @@ fn compileStep(
         .is_pdflatex = is_pdflatex,
         .is_xelatex = is_xelatex,
         .is_lualatex = is_lualatex,
-        .is_tectonic = is_tectonic,
     });
 
     // initializing Lua globally
@@ -327,7 +325,6 @@ const EngineTypeInput = packed struct {
     is_pdflatex: bool,
     is_xelatex: bool,
     is_lualatex: bool,
-    is_tectonic: bool,
 };
 
 fn getEngine(
@@ -338,12 +335,10 @@ fn getEngine(
     const is_pdflatex_num = @as(u8, @intCast(@intFromBool(ty.is_pdflatex))) << 1;
     const is_xelatex_num = @as(u8, @intCast(@intFromBool(ty.is_xelatex))) << 2;
     const is_lualatex_num = @as(u8, @intCast(@intFromBool(ty.is_lualatex))) << 3;
-    const is_tectonic_num = @as(u8, @intCast(@intFromBool(ty.is_tectonic))) << 4;
     const engine_num = is_latex_num |
         is_pdflatex_num |
         is_xelatex_num |
-        is_lualatex_num |
-        is_tectonic_num;
+        is_lualatex_num;
 
     switch (engine_num) {
         0 => return default_engine,
@@ -351,7 +346,6 @@ fn getEngine(
         1 << 1 => return .pdflatex,
         1 << 2 => return .xelatex,
         1 << 3 => return .lualatex,
-        1 << 4 => return .tectonic,
         else => return error.InvalidEngineFlag,
     }
 }

@@ -54,12 +54,11 @@ endenv_stack: [MAX_BEGENV_NUM][]const u8,
 
 const Self = @This();
 
-pub const LatexEngine = enum(u8) { // it also uses in c
+pub const LatexEngine = enum(u3) { // it also uses in c
     latex,
     pdflatex,
     xelatex,
     lualatex,
-    tectonic,
 
     pub fn toStr(self: @This()) []const u8 {
         return switch (self) {
@@ -67,7 +66,6 @@ pub const LatexEngine = enum(u8) { // it also uses in c
             .pdflatex => "pdflatex",
             .xelatex => "xelatex",
             .lualatex => "lualatex",
-            .tectonic => "tectonic",
         };
     }
 };
@@ -86,7 +84,6 @@ const COMPILE_TYPE = std.StaticStringMap(LatexEngine).initComptime(.{
     .{ "pdf", LatexEngine.pdflatex },
     .{ "xe", LatexEngine.xelatex },
     .{ "lua", LatexEngine.lualatex },
-    .{ "tect", LatexEngine.tectonic },
 });
 
 pub const ParseError = Allocator.Error ||
