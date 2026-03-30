@@ -9,8 +9,8 @@
             .hash = "zlap-0.10.2-boKVXBu7AACHtErrFzi9Nt9_-NKLx3u7o3_rnrpygzor",
         },
         .zlua = .{
-            .url = "git+https://github.com/e0328eric/ziglua.git#8f87e4034f8813044e7ad4d345e0b8b6ecfec0da",
-            .hash = "zlua-0.1.0-hGRpC-87BQCtmVz3Noy3uOq2cQ80mdQhW3QkuZP9_6m2",
+            .url = "git+https://github.com/natecraddock/ziglua.git#9f5f3db7ed893000e44badc073e0f3632b731021",
+            .hash = "zlua-0.1.0-hGRpC-xTBQDwe5Mu1zKV5SB2VOY9AmSco05_vurY5jGh",
         },
         .uucode = .{
             .path = "../uucode",

@@ -138,7 +138,11 @@ fn buildVesti(
     };
 
     const zlap = b.dependency("zlap", .{ .target = target, .optimize = optimize });
-    const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
+    const zlua = b.dependency("zlua", .{
+        .target = target,
+        .optimize = optimize,
+        .lang = .lua55,
+    });
     const uucode = b.dependency("uucode", .{
         .target = target,
         .optimize = optimize,
