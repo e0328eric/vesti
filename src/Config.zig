@@ -12,7 +12,7 @@ const EnvMap = process.Environ.Map;
 const Io = std.Io;
 const LatexEngine = @import("parser/Parser.zig").LatexEngine;
 
-engine: LatexEngine = .pdflatex,
+engine: LatexEngine = .tectonic,
 lua: struct {
     make_log: bool = false,
     line_limit: usize = 45,

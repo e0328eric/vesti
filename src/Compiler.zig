@@ -24,6 +24,8 @@ const Stmt = @import("parser/ast.zig").Stmt;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
+const TECTONIC_DLL = @import("vesti-info").TECTONIC_DLL;
+const TECTONIC_DLL_HASH = @import("vesti-info").TECTONIC_DLL_HASH;
 
 pub const CompileAttribute = packed struct {
     compile_all: bool,
@@ -538,23 +540,35 @@ fn compileLatex(
     const main_tex_file = try getTexFilename(self.allocator, filename, true);
     defer self.allocator.free(main_tex_file);
 
-    for (0..self.compile_limit) |i| {
-        std.debug.print("[compile number {}, engine: {s}]\n", .{
-            i + 1,
-            self.engine.toStr(),
-        });
-
-        try self.compileLatexWithInner(main_tex_file, vesti_dummy);
-        if (self.luacode_contents.step) |lc| {
+    if (self.engine.* == .tectonic) {
+        try self.compileLatexWithTectonic(main_tex_file, vesti_dummy);
+        if (self.luacode_contents.before) |lc| {
             try luascript.runLuaCode(
                 self.lua,
                 self.diagnostic,
                 lc,
-                self.luacode_scripts.step,
+                self.luacode_scripts.before,
             );
         }
+    } else {
+        for (0..self.compile_limit) |i| {
+            std.debug.print("[compile number {}, engine: {s}]\n", .{
+                i + 1,
+                self.engine.toStr(),
+            });
 
-        std.debug.print("[compiled]\n", .{});
+            try self.compileLatexWithInner(main_tex_file, vesti_dummy);
+            if (self.luacode_contents.step) |lc| {
+                try luascript.runLuaCode(
+                    self.lua,
+                    self.diagnostic,
+                    lc,
+                    self.luacode_scripts.step,
+                );
+            }
+
+            std.debug.print("[compiled]\n", .{});
+        }
     }
 
     const main_pdf_file = try changeExtension(self.allocator, filename, "pdf");
@@ -695,4 +709,73 @@ fn changeExtension(
     output[idx] = '.';
     @memcpy(output[idx + 1 .. idx + 1 + into.len], into);
     return output;
+}
+
+// tectonic dlopen
+const TectonicFnt = *const fn ([*]const u8, usize, [*]const u8, usize, usize) callconv(.c) bool;
+
+fn compileLatexWithTectonic(
+    self: *Self,
+    main_tex_file: []const u8,
+    vesti_dummy: *Io.Dir,
+) !void {
+    // message templates
+    const DLL_NOT_FOUND =
+        "cannot find {s}, critical error!!!";
+    const DLL_NOT_FOUND_NOTE =
+        \\{0s} is assumed to locate at the same directory where the vesti exists.
+        \\if this error message apprears, first check the {0s} location.
+        \\otherwise, please make an issue on vesti github.
+        \\repo url: https://github.com/e0328eric/vesti
+    ;
+
+    // tectonic dll is assumed to locate at the same directory with the vesti
+    // below function follows symlink, which is expected
+    const exe_dir = try std.process.executableDirPathAlloc(self.io, self.allocator);
+    defer self.allocator.free(exe_dir);
+
+    var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
+        const io_diag = try diag.IODiagnostic.initWithNote(
+            self.diagnostic.allocator,
+            null,
+            DLL_NOT_FOUND,
+            .{TECTONIC_DLL},
+            DLL_NOT_FOUND_NOTE,
+            .{TECTONIC_DLL},
+        );
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.CompileLatexFailed;
+    };
+    defer tectonic_dll.close();
+
+    const compile_latex_with_tectonic = tectonic_dll.lookup(
+        TectonicFnt,
+        "compile_latex_with_tectonic",
+    );
+
+    var curr_dir = try Io.Dir.cwd().openDir(self.io, ".", .{});
+    defer curr_dir.close(self.io);
+    try std.process.setCurrentDir(self.io, vesti_dummy.*);
+    defer std.process.setCurrentDir(self.io, curr_dir) catch @panic("failed to recover cwd");
+
+    if (compile_latex_with_tectonic) |fnt| {
+        if (!fnt(
+            main_tex_file.ptr,
+            main_tex_file.len,
+            @ptrCast(VESTI_DUMMY_DIR),
+            VESTI_DUMMY_DIR.len,
+            self.compile_limit,
+        )) {
+            const io_diag = try diag.IODiagnostic.initWithNote(
+                self.diagnostic.allocator,
+                null,
+                "tectonic gaves an error while processing",
+                .{},
+                "",
+                .{},
+            );
+            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+            return error.CompileLatexFailed;
+        }
+    } else return error.FindTectonicFunctionFailed;
 }

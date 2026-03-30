@@ -11,6 +11,7 @@
     -pdflatex,p     := @false     | compile vesti using pdflatex (can be changed using `compty` keyword);
     -xelatex,x      := @false     | compile vesti using xelatex (can be changed using `compty` keyword);
     -lualatex,l     := @false     | compile vesti using lualatex (can be changed using `compty` keyword);
+    -tectonic,T     := @false     | compile vesti using tectonic (can be changed using `compty` keyword);
     -lim,           := 3          | set the number of the compile cycle;
     -first_script,  := first.lua  | run lua code once;
     -before_script, := before.lua | run lua code once for each vesti runs;
