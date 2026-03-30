@@ -185,14 +185,7 @@ fn buildVesti(
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
-            if (!tectonic_static) {
-                switch (target.result.os.tag) {
-                    .linux => exe_mod.addRPath(.{ .cwd_relative = "$ORIGIN" }),
-                    .macos => exe_mod.addRPath(.{ .cwd_relative = "@executable_path" }),
-                    .windows => {}, // windows does not use rpath
-                    else => @panic("Non supported OS"),
-                }
-            } else {
+            if (tectonic_static) {
                 exe_mod.addLibraryPath(b.path("vesti-tectonic/lib"));
                 exe_mod.linkSystemLibrary("vesti_tectonic_x86_64", .{
                     .use_pkg_config = .no,
@@ -293,8 +286,61 @@ fn makeBuildRust(
         vcpkg.stderr,
     });
 
+    const target_string = blk: {
+        const target = build_rust.target;
+        const os_tag = target.result.os.tag;
+        const cpu_arch_tag = target.result.cpu.arch;
+        const abi_tag = target.result.abi;
+
+        break :blk switch (os_tag) {
+            .windows => switch (cpu_arch_tag) {
+                // Do we need musl on windows?
+                .x86_64 => "x86_64-pc-windows-msvc",
+                .aarch64 => "aarch64-pc-windows-msvc",
+                else => {
+                    std.debug.print(
+                        "Not supported for cpu architecture {} on Windows",
+                        .{cpu_arch_tag},
+                    );
+                    return error.NotSupport;
+                },
+            },
+            .linux => switch (cpu_arch_tag) {
+                .x86_64 => switch (abi_tag) {
+                    .gnu => "x86_64-unknown-linux-gnu",
+                    .musl => "x86_64-unknown-linux-musl",
+                    else => {
+                        std.debug.print(
+                            "Not supported for abi {} on Linux x86_64",
+                            .{abi_tag},
+                        );
+                        return error.NotSupport;
+                    },
+                },
+                .x86 => "i686-unknwon-linux-gnu",
+                .aarch64 => "aarch64_be-unknown-linux-gnu",
+                .arm => "arm-unknown-linux-gnueabi",
+                else => {
+                    std.debug.print(
+                        "Not supported for cpu architecture {} on Linux",
+                        .{cpu_arch_tag},
+                    );
+                    return error.NotSupport;
+                },
+            },
+            .macos => switch (cpu_arch_tag) {
+                .aarch64 => "aarch64-apple-darwin",
+                else => {
+                    std.debug.print("Only arm MacOS is supported", .{});
+                    return error.NotSupport;
+                },
+            },
+            else => @panic("Not supported"),
+        };
+    };
+
     const cargo = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "build", "--release" },
+        .argv = &.{ "cargo", "build", "--release", "--target", target_string },
         .environ_map = &envmap,
     });
     defer {
@@ -426,7 +472,11 @@ fn makeInstallDll(
         dll_name[1],
     });
     defer alloc.free(source_path_rel);
-    const source_path = try b.build_root.handle.realPathFileAlloc(io, source_path_rel, alloc);
+    const source_path = try b.build_root.handle.realPathFileAlloc(
+        io,
+        source_path_rel,
+        alloc,
+    );
     defer alloc.free(source_path);
 
     const dest_path = install_dll.dest_path orelse b.exe_dir;
@@ -451,6 +501,7 @@ fn makeInstallDll(
 fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
     const os_tag = target.result.os.tag;
     const cpu_arch_tag = target.result.cpu.arch;
+    const abi_tag = target.result.abi;
 
     return switch (os_tag) {
         .windows => switch (cpu_arch_tag) {
@@ -471,9 +522,22 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .linux => switch (cpu_arch_tag) {
-            .x86_64 => &.{
-                "libvesti_tectonic.so",
-                "libvesti_tectonic_x86_64.so",
+            .x86_64 => switch (abi_tag) {
+                .gnu => &.{
+                    "libvesti_tectonic.so",
+                    "libvesti_tectonic_x86_64_gnu.so",
+                },
+                .musl => &.{
+                    "libvesti_tectonic.so",
+                    "libvesti_tectonic_x86_64_musl.so",
+                }, // TODO: compile prebuilt dll
+                else => blk: {
+                    std.debug.print(
+                        "Not supported for abi {} on Linux x86_64",
+                        .{abi_tag},
+                    );
+                    break :blk error.NotSupport;
+                },
             },
             .x86 => &.{
                 "libvesti_tectonic.so",
@@ -512,6 +576,7 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
 fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
     const os_tag = target.result.os.tag;
     const cpu_arch_tag = target.result.cpu.arch;
+    const abi_tag = target.result.abi;
 
     return switch (os_tag) {
         .windows => switch (cpu_arch_tag) {
@@ -532,9 +597,22 @@ fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .linux => switch (cpu_arch_tag) {
-            .x86_64 => &.{
-                "libvesti_tectonic.a",
-                "libvesti_tectonic_x86_64.a",
+            .x86_64 => switch (abi_tag) {
+                .gnu => &.{
+                    "libvesti_tectonic.a",
+                    "libvesti_tectonic_x86_64_gnu.a",
+                },
+                .musl => &.{
+                    "libvesti_tectonic.a",
+                    "libvesti_tectonic_x86_64_musl.a",
+                },
+                else => blk: {
+                    std.debug.print(
+                        "Not supported for abi {} on Linux x86_64",
+                        .{abi_tag},
+                    );
+                    break :blk error.NotSupport;
+                },
             },
             .x86 => &.{
                 "libvesti_tectonic.a",

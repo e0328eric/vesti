@@ -725,7 +725,12 @@ fn compileLatexWithTectonic(
     const DLL_NOT_FOUND_NOTE =
         \\{0s} is assumed to locate at the same directory where the vesti exists.
         \\if this error message apprears, first check the {0s} location.
-        \\otherwise, please make an issue on vesti github.
+        \\Or, there might have an error while linking against dll.
+        \\Here is an error from either dlopen or GetLastError.
+        \\
+        \\open dll failed error: {1s}
+        \\
+        \\If you think vesti has a bug, please make an issue on vesti github.
         \\repo url: https://github.com/e0328eric/vesti
     ;
 
@@ -733,18 +738,25 @@ fn compileLatexWithTectonic(
     // below function follows symlink, which is expected
     const exe_dir = try std.process.executableDirPathAlloc(self.io, self.allocator);
     defer self.allocator.free(exe_dir);
+    const tectonic_dll_path = try path.join(self.allocator, &.{ exe_dir, TECTONIC_DLL });
+    defer self.allocator.free(tectonic_dll_path);
 
-    var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
+    var tectonic_dll = DynLib.open(tectonic_dll_path) catch {
+        // TODO: implement obtaining dlopen error string
+        const err_msg = if (builtin.os.tag == .windows)
+            "TODO: implement obtaining dlopen error string"
+        else
+            std.c.dlerror() orelse "(error not found)";
         const io_diag = try diag.IODiagnostic.initWithNote(
             self.diagnostic.allocator,
             null,
             DLL_NOT_FOUND,
             .{TECTONIC_DLL},
             DLL_NOT_FOUND_NOTE,
-            .{TECTONIC_DLL},
+            .{ TECTONIC_DLL, err_msg },
         );
         self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.CompileLatexFailed;
+        return error.OpenDllError;
     };
     defer tectonic_dll.close();
 
