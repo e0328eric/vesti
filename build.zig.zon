@@ -13,9 +13,8 @@
             .hash = "zlua-0.1.0-hGRpC-xTBQDwe5Mu1zKV5SB2VOY9AmSco05_vurY5jGh",
         },
         .uucode = .{
-            .path = "../uucode",
-            //.url = "git+https://github.com/jacobsandlund/uucode.git?ref=zig-0.16#7c90c06abe44bb26a7c119247ae629699c0fe31c",
-            //.hash = "uucode-0.2.0-ZZjBPp6fVADDm8yvJabmPvL0WhkVQVx8VPk5ItaaFleJ",
+            .url = "git+https://github.com/jacobsandlund/uucode.git?ref=zig-0.16#eeb612b7c0d9b369d321e43b21d4b7d295db39e3",
+            .hash = "uucode-0.2.0-ZZjBPtCgVAC0n0LjD6AxVBtsdi3kJb6lHEvgYDaR0Ltn",
         },
     },
     .paths = .{
