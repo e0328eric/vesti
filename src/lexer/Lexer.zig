@@ -1,5 +1,6 @@
 const std = @import("std");
-const uucode = @import("uucode");
+const utf8proc = @import("utf8proc");
+const ascii = std.ascii;
 const unicode = std.unicode;
 const fmt = std.fmt;
 const mem = std.mem;
@@ -197,7 +198,7 @@ pub fn next(self: *Self) Token {
                     self.nextChar(1);
                     continue :tokenize .float;
                 },
-                else => |chr| if (uucode.get(.is_ascii_digit, chr)) {
+                else => |chr| if (isAsciiDigit(chr)) {
                     start_chr0_idx = self.chr0_idx;
                     self.nextChar(1);
                     continue :tokenize .integer;
@@ -234,9 +235,16 @@ pub fn next(self: *Self) Token {
                 },
             },
             '$' => switch (self.getChar(.peek1)) {
-                '!' => {
+                '#' => if (isAsciiDigit(self.getChar(.peek2)) or
+                    utf8proc.isletter(self.getChar(.peek2)))
+                {
+                    // This parses $#foo for example by |$| |#foo|
+                    self.nextChar(1);
+                    self.str2Token("$", &token, start_location);
+                    break :tokenize;
+                } else {
                     self.nextChar(2);
-                    self.str2Token("$!", &token, start_location);
+                    self.str2Token("$#", &token, start_location);
                     break :tokenize;
                 },
                 '$' => {
@@ -256,7 +264,7 @@ pub fn next(self: *Self) Token {
                 self.nextChar(3);
                 self.str2Token("...", &token, start_location);
                 break :tokenize;
-            } else if (uucode.get(.is_ascii_digit, self.getChar(.peek1))) {
+            } else if (isAsciiDigit(self.getChar(.peek1))) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .float;
@@ -391,33 +399,45 @@ pub fn next(self: *Self) Token {
                 self.str2Token(&.{@intCast(chr)}, &token, start_location);
                 break :tokenize;
             },
-            else => |chr| if (uucode.get(.is_ascii_digit, chr)) {
+            else => |chr| if (isAsciiDigit(chr)) {
                 start_chr0_idx = self.chr0_idx;
                 self.nextChar(1);
                 continue :tokenize .integer;
-            } else if (uucode.get(.is_alphanumeric, chr)) {
-                start_chr0_idx = self.chr0_idx;
-                self.nextChar(1);
-                continue :tokenize .text;
-            } else {
-                start_chr0_idx = self.chr0_idx;
-                self.nextChar(1);
-                const codepoint_len = unicode.utf8CodepointSequenceLength(chr) catch {
-                    token.init("<???>", null, .Illegal, start_location, self.location);
+            } else switch (utf8proc.getCategory(chr)) {
+                // those checks that chr is either a letter or a number
+                .LU,
+                .LL,
+                .LT,
+                .LM,
+                .LO,
+                .ND,
+                .NL,
+                .NO,
+                => {
+                    start_chr0_idx = self.chr0_idx;
+                    self.nextChar(1);
+                    continue :tokenize .text;
+                },
+                else => {
+                    start_chr0_idx = self.chr0_idx;
+                    self.nextChar(1);
+                    const codepoint_len = unicode.utf8CodepointSequenceLength(chr) catch {
+                        token.init("<???>", null, .Illegal, start_location, self.location);
+                        break :tokenize;
+                    };
+                    token.init(
+                        self.source[start_chr0_idx..][0..codepoint_len],
+                        null,
+                        .OtherChar,
+                        start_location,
+                        self.location,
+                    );
                     break :tokenize;
-                };
-                token.init(
-                    self.source[start_chr0_idx..][0..codepoint_len],
-                    null,
-                    .OtherChar,
-                    start_location,
-                    self.location,
-                );
-                break :tokenize;
+                },
             },
         },
         .o_chr => if (self.getChar(.current) == 'o' and
-            !uucode.get(.is_alphabetic, self.getChar(.peek1)))
+            !utf8proc.isletter(self.getChar(.peek1)))
         {
             self.nextChar(1);
             self.str2Token("oo", &token, start_location);
@@ -464,8 +484,8 @@ pub fn next(self: *Self) Token {
                     continue :goto .parse_builtin;
                 },
                 .parse_builtin => {
-                    if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
-                        uucode.get(.is_alphabetic, self.getChar(.current)))
+                    if (isAsciiDigit(self.getChar(.current)) or
+                        utf8proc.isletter(self.getChar(.current)))
                     {
                         self.nextChar(1);
                         continue :tokenize .builtin_function;
@@ -596,13 +616,11 @@ pub fn next(self: *Self) Token {
                 break :tokenize;
             },
         },
-        .text => if (uucode.get(.is_ascii_digit, self.getChar(.current)) or
-            isVestiIdentChar(
-                self.getChar(.current),
-                self.make_at_letter,
-                self.is_latex3_on,
-            ))
-        {
+        .text => if (isAsciiDigit(self.getChar(.current)) or isVestiIdentChar(
+            self.getChar(.current),
+            self.make_at_letter,
+            self.is_latex3_on,
+        )) {
             self.nextChar(1);
             continue :tokenize .text;
         } else {
@@ -614,7 +632,8 @@ pub fn next(self: *Self) Token {
             }
             break :tokenize;
         },
-        .builtin_function => if (uucode.get(.is_alphanumeric, self.getChar(.current)) or
+        // TODO: support non-ascii character
+        .builtin_function => if (isAsciiAlphanumeric(self.getChar(.current)) or
             self.getChar(.current) == '_')
         {
             self.nextChar(1);
@@ -623,8 +642,7 @@ pub fn next(self: *Self) Token {
             const fnt_name = self.source[start_chr0_idx..self.chr0_idx];
             const end_location = self.location;
             if (self.getChar(.current) == ' ' and
-                (uucode.get(.is_alphanumeric, self.getChar(.peek1)) or
-                    self.getChar(.peek1) == ' '))
+                (isAsciiAlphanumeric(self.getChar(.peek1)) or self.getChar(.peek1) == ' '))
             {
                 self.nextChar(1);
             }
@@ -660,26 +678,43 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .integer => if (uucode.get(.is_ascii_digit, self.getChar(.current))) {
-            self.nextChar(1);
-            continue :tokenize .integer;
-        } else if (self.getChar(.current) == '.') {
-            self.nextChar(1);
-            continue :tokenize .float;
-        } else if (uucode.get(.is_alphanumeric, self.getChar(.current))) {
-            self.nextChar(1);
-            continue :tokenize .text;
-        } else {
-            token.init(
-                self.source[start_chr0_idx..self.chr0_idx],
-                null,
-                .Integer,
-                start_location,
-                self.location,
-            );
-            break :tokenize;
+        .integer => {
+            const current = self.getChar(.current);
+            if (isAsciiDigit(current)) {
+                self.nextChar(1);
+                continue :tokenize .integer;
+            } else switch (utf8proc.getCategory(current)) {
+                // those checks that chr is either a letter or a number
+                .LU,
+                .LL,
+                .LT,
+                .LM,
+                .LO,
+                .ND,
+                .NL,
+                .NO,
+                => {
+                    self.nextChar(1);
+                    continue :tokenize .text;
+                },
+                else => {
+                    if (self.getChar(.current) == '.') {
+                        self.nextChar(1);
+                        continue :tokenize .float;
+                    } else {
+                        token.init(
+                            self.source[start_chr0_idx..self.chr0_idx],
+                            null,
+                            .Integer,
+                            start_location,
+                            self.location,
+                        );
+                        break :tokenize;
+                    }
+                },
+            }
         },
-        .float => if (uucode.get(.is_ascii_digit, self.getChar(.current))) {
+        .float => if (isAsciiDigit(self.getChar(.current))) {
             self.nextChar(1);
             continue :tokenize .float;
         } else {
@@ -892,7 +927,7 @@ const STR_TOKEN_TABLE = std.StaticStringMap(struct {
     .{ "\\%",  .{ "\\%", null, .TextPercent } },
     .{ "#",    .{ "#", null, .RawSharp } },
     .{ "\\#",  .{ "\\#", null, .TextSharp } },
-    .{ "$!",   .{ "$", null, .RawDollar } },
+    .{ "$#",   .{ "$", null, .RawDollar } },
     .{ "\\$",  .{ "\\$", null, .TextDollar } },
     .{ ":",    .{ ":", null, .Colon } },
     .{ ";",    .{ ";", null, .Semicolon } },
@@ -924,11 +959,19 @@ fn isVestiIdentChar(
     subscript_as_letter: bool,
     is_latex3: bool,
 ) bool {
-    return uucode.get(.is_alphabetic, chr) or
+    return utf8proc.isletter(chr) or
         (subscript_as_letter and chr == '@') or
         (is_latex3 and (chr == '_' or chr == ':'));
 }
 
+inline fn isAsciiDigit(chr: u21) bool {
+    return chr <= 0x7F and ascii.isDigit(@intCast(chr));
+}
+
+inline fn isAsciiAlphanumeric(chr: u21) bool {
+    return chr <= 0x7F and ascii.isAlphanumeric(@intCast(chr));
+}
+
 inline fn isLuacodeBracketChar(chr: u21) bool {
-    return chr == ':' or uucode.get(.is_ascii_alphanumeric, chr);
+    return chr == ':' or (chr <= 0x7F and ascii.isAlphanumeric(@intCast(chr)));
 }

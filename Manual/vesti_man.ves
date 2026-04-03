@@ -8,7 +8,6 @@ importpkg {
 }
 
 \title{Vesti Transpiler User Manual}
-\author{Sungbae Jeong}
 #::
 local function read_all(path)
   local f, err = io.open(path, "rb")

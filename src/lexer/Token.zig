@@ -50,7 +50,6 @@ pub const TokenType = union(enum(u8)) {
     BuiltinFunction: []const u8,
     LuaCodeStart,
     LuaCodeEnd,
-    LuaCode,
 
     // Keywords
     __begin_keywords, // NOTE: this is only used internally
@@ -104,7 +103,7 @@ pub const TokenType = union(enum(u8)) {
     TextSharp, // \#
     RawSharp, // #
     TextDollar, // \$
-    RawDollar, // $!
+    RawDollar, // $#
     At, // @
     Superscript, // ^
     Subscript, // _
@@ -177,7 +176,6 @@ pub const TokenType = union(enum(u8)) {
             .BuiltinFunction=> |val|     try writer.print("`<builtin #{s}>`", .{val}),
             .LuaCodeStart =>             try writer.writeAll("`<luacode_start>`"),
             .LuaCodeEnd =>               try writer.writeAll("`<luacode_end>`"),
-            .LuaCode =>                  try writer.writeAll("`<luacode>`"),
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
             .ImportVesti =>              try writer.writeAll("`importves`"),
@@ -343,12 +341,6 @@ pub fn init(
     };
 }
 
-pub inline fn deinit(self: *Self, allocator: Allocator) void {
-    if (self.toktype == .LuaCode) {
-        allocator.free(self.lit.in_text);
-    }
-}
-
 // format function for Token
 pub fn format(
     self: @This(),
@@ -356,6 +348,11 @@ pub fn format(
 ) !void {
     try writer.print(
         "[ toktype: {f}, lit: < text: {s}, math: {s} > span: {f} ]",
-        .{self.toktype, self.lit.in_text, self.lit.in_math, self.span,},
+        .{
+            self.toktype,
+            self.lit.in_text,
+            self.lit.in_math,
+            self.span,
+        },
     );
 }

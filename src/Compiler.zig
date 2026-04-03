@@ -21,7 +21,6 @@ const Parser = @import("parser/Parser.zig");
 const Preprocessor = @import("parser/Preprocessor.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Stmt = @import("parser/ast.zig").Stmt;
-const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_DUMMY_DIR = @import("vesti-info").VESTI_DUMMY_DIR;
 const VESTI_VERSION = @import("vesti-info").VESTI_VERSION;
@@ -115,7 +114,7 @@ fn raiseMessagebox(
             );
         },
         .linux => {
-            var zenity = std.process.run(allocator, io, .{
+            const zenity = std.process.run(allocator, io, .{
                 .argv = &.{
                     "zenity",
                     "--error",
@@ -279,7 +278,16 @@ fn compileInner(self: *Self) !void {
             if (self.prev_mtime.*) |pmtime| {
                 // FIXME: i don't know why the FileNotFound bug happens when
                 // uses -SW command
-                const stat = try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
+                const stat = Io.Dir.cwd().statFile(self.io, vesti_file, .{}) catch |err| blk: {
+                    // if file is not found, changes are one cannot open file
+                    // although there exists. so try once more
+                    if (err == error.FileNotFound) {
+                        try self.io.sleep(.fromMilliseconds(200), .real);
+                        break :blk try Io.Dir.cwd().statFile(self.io, vesti_file, .{});
+                    } else {
+                        return err;
+                    }
+                };
                 if (stat.mtime.toNanoseconds() > pmtime) {
                     // this code comes first because if content.fond_existing is true
                     // and if vesti failes to parse, then the double free occurs.
@@ -590,7 +598,7 @@ fn compileLatexWithInner(
     main_tex_file: []const u8,
     vesti_dummy: *Io.Dir,
 ) !void {
-    var latex = try std.process.run(self.allocator, self.io, .{
+    const latex = try std.process.run(self.allocator, self.io, .{
         .argv = &.{ self.engine.toStr(), "-halt-on-error", main_tex_file },
         .cwd = .{ .path = VESTI_DUMMY_DIR },
         // NOTE: https://github.com/ziglang/zig/issues/5190
@@ -717,7 +725,12 @@ fn compileLatexWithTectonic(
     const DLL_NOT_FOUND_NOTE =
         \\{0s} is assumed to locate at the same directory where the vesti exists.
         \\if this error message apprears, first check the {0s} location.
-        \\otherwise, please make an issue on vesti github.
+        \\Or, there might have an error while linking against dll.
+        \\Here is an error from either dlopen or GetLastError.
+        \\
+        \\open dll failed error: {1s}
+        \\
+        \\If you think vesti has a bug, please make an issue on vesti github.
         \\repo url: https://github.com/e0328eric/vesti
     ;
 
@@ -725,49 +738,25 @@ fn compileLatexWithTectonic(
     // below function follows symlink, which is expected
     const exe_dir = try std.process.executableDirPathAlloc(self.io, self.allocator);
     defer self.allocator.free(exe_dir);
-    const dll_hash = calculateDllHash(self.io, exe_dir) catch |err| switch (err) {
-        error.FileNotFound => {
-            const io_diag = try diag.IODiagnostic.initWithNote(
-                self.diagnostic.allocator,
-                null,
-                DLL_NOT_FOUND,
-                .{TECTONIC_DLL},
-                DLL_NOT_FOUND_NOTE,
-                .{TECTONIC_DLL},
-            );
-            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-            return error.CompileLatexFailed;
-        },
-        else => return err,
-    };
+    const tectonic_dll_path = try path.join(self.allocator, &.{ exe_dir, TECTONIC_DLL });
+    defer self.allocator.free(tectonic_dll_path);
 
-    if (dll_hash != TECTONIC_DLL_HASH) {
-        const io_diag = try diag.IODiagnostic.initWithNote(
-            self.diagnostic.allocator,
-            null,
-            "{s} is poisoned, critical error!!!",
-            .{TECTONIC_DLL},
-            \\{s} has unexpected hash value.
-            \\For the security issue, please replace the dll from the repo.
-            \\repo url: https://github.com/e0328eric/vesti
-        ,
-            .{TECTONIC_DLL},
-        );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.CompileLatexFailed;
-    }
-
-    var tectonic_dll = DynLib.open(TECTONIC_DLL) catch {
+    var tectonic_dll = DynLib.open(tectonic_dll_path) catch {
+        // TODO: implement obtaining dlopen error string
+        const err_msg = if (builtin.os.tag == .windows)
+            "TODO: implement obtaining dlopen error string"
+        else
+            std.c.dlerror() orelse "(error not found)";
         const io_diag = try diag.IODiagnostic.initWithNote(
             self.diagnostic.allocator,
             null,
             DLL_NOT_FOUND,
             .{TECTONIC_DLL},
             DLL_NOT_FOUND_NOTE,
-            .{TECTONIC_DLL},
+            .{ TECTONIC_DLL, err_msg },
         );
         self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return error.CompileLatexFailed;
+        return error.OpenDllError;
     };
     defer tectonic_dll.close();
 
@@ -801,30 +790,4 @@ fn compileLatexWithTectonic(
             return error.CompileLatexFailed;
         }
     } else return error.FindTectonicFunctionFailed;
-}
-
-fn calculateDllHash(io: Io, exe_dir_path: []const u8) !u512 {
-    // tectonic dll is assumed to locate at the same directory with the vesti
-    // below function follows symlink, which is expected
-    var exe_dir = try Io.Dir.openDirAbsolute(io, exe_dir_path, .{});
-    defer exe_dir.close(io);
-
-    var dll = try exe_dir.openFile(io, TECTONIC_DLL, .{});
-    defer dll.close(io);
-    var dll_read_buf: [4096]u8 = undefined;
-    var dll_reader = dll.reader(io, &dll_read_buf);
-
-    var sha_out: [Sha3.digest_length]u8 = undefined;
-    var sha3 = Sha3.init(.{});
-
-    var block: [Sha3.block_length]u8 = @splat(0);
-    while (dll_reader.interface.readSliceAll(&block)) {
-        sha3.update(&block);
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        error.ReadFailed => return err,
-    }
-    sha3.final(&sha_out);
-
-    return std.mem.bytesToValue(u512, &sha_out);
 }

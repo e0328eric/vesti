@@ -5,7 +5,6 @@ const path = std.fs.path;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Io = std.Io;
-const Sha3 = std.crypto.hash.sha3.Sha3_512;
 
 const VESTI_VERSION_STR = @import("build.zig.zon").version;
 const VESTI_VERSION = std.SemanticVersion.parse(VESTI_VERSION_STR) catch unreachable;
@@ -30,7 +29,9 @@ const Build = blk: {
 };
 
 pub fn build(b: *Build) !void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{
+        .default_target = .{ .abi = .gnu },
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     const tectonic_static = b.option(
@@ -88,7 +89,7 @@ pub fn build(b: *Build) !void {
     const targets: []const std.Target.Query = &.{
         .{ .cpu_arch = .aarch64, .os_tag = .macos },
         .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
-        .{ .cpu_arch = .x86_64, .os_tag = .windows },
+        .{ .cpu_arch = .x86_64, .os_tag = .windows, .abi = .msvc },
         // NOTE: rpath is ignored, so I remove this target
         //.{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
     };
@@ -139,21 +140,22 @@ fn buildVesti(
     };
 
     const zlap = b.dependency("zlap", .{ .target = target, .optimize = optimize });
-    const zlua = b.dependency("zlua", .{ .target = target, .optimize = optimize });
-    const uucode = b.dependency("uucode", .{
+    const zlua = b.dependency("zlua", .{
         .target = target,
         .optimize = optimize,
-        .build_config_path = b.path("uucode/uucode_config.zig"),
+        .lang = .lua55,
+    });
+    const utf8proc = b.dependency("utf8proc", .{
+        .target = target,
+        .optimize = optimize,
     });
 
     //const tectonic_lib_name = try getLibName(&target);
     const tectonic_dll_name = try getDllName(&target);
-    const tectonic_dll_hash = try calculateDllHash(b.allocator, b.graph.io, tectonic_dll_name[1]);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
-    vesti_opt.addOption(u512, "TECTONIC_DLL_HASH", tectonic_dll_hash);
     vesti_opt.addOption(bool, "TECTONIC_STATIC", tectonic_static);
 
     switch (build_mode) {
@@ -164,7 +166,7 @@ fn buildVesti(
                 .optimize = optimize,
                 .link_libc = true,
                 .imports = &.{
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
@@ -184,18 +186,11 @@ fn buildVesti(
                 .strip = strip,
                 .imports = &.{
                     .{ .name = "zlap", .module = zlap.module("zlap") },
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
-            if (!tectonic_static) {
-                switch (target.result.os.tag) {
-                    .linux => exe_mod.addRPath(.{ .cwd_relative = "$ORIGIN" }),
-                    .macos => exe_mod.addRPath(.{ .cwd_relative = "@executable_path" }),
-                    .windows => {}, // windows does not use rpath
-                    else => @panic("Non supported OS"),
-                }
-            } else {
+            if (tectonic_static) {
                 exe_mod.addLibraryPath(b.path("vesti-tectonic/lib"));
                 exe_mod.linkSystemLibrary("vesti_tectonic_x86_64", .{
                     .use_pkg_config = .no,
@@ -222,7 +217,7 @@ fn buildVesti(
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                 },
             });
             vesti_mod.addOptions("vesti-info", vesti_opt);
@@ -296,8 +291,61 @@ fn makeBuildRust(
         vcpkg.stderr,
     });
 
-    var cargo = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "build", "--release" },
+    const target_string = blk: {
+        const target = build_rust.target;
+        const os_tag = target.result.os.tag;
+        const cpu_arch_tag = target.result.cpu.arch;
+        const abi_tag = target.result.abi;
+
+        break :blk switch (os_tag) {
+            .windows => switch (cpu_arch_tag) {
+                // Do we need musl on windows?
+                .x86_64 => "x86_64-pc-windows-msvc",
+                .aarch64 => "aarch64-pc-windows-msvc",
+                else => {
+                    std.debug.print(
+                        "Not supported for cpu architecture {} on Windows",
+                        .{cpu_arch_tag},
+                    );
+                    return error.NotSupport;
+                },
+            },
+            .linux => switch (cpu_arch_tag) {
+                .x86_64 => switch (abi_tag) {
+                    .gnu => "x86_64-unknown-linux-gnu",
+                    .musl => "x86_64-unknown-linux-musl",
+                    else => {
+                        std.debug.print(
+                            "Not supported for abi {} on Linux x86_64",
+                            .{abi_tag},
+                        );
+                        return error.NotSupport;
+                    },
+                },
+                .x86 => "i686-unknwon-linux-gnu",
+                .aarch64 => "aarch64_be-unknown-linux-gnu",
+                .arm => "arm-unknown-linux-gnueabi",
+                else => {
+                    std.debug.print(
+                        "Not supported for cpu architecture {} on Linux",
+                        .{cpu_arch_tag},
+                    );
+                    return error.NotSupport;
+                },
+            },
+            .macos => switch (cpu_arch_tag) {
+                .aarch64 => "aarch64-apple-darwin",
+                else => {
+                    std.debug.print("Only arm MacOS is supported", .{});
+                    return error.NotSupport;
+                },
+            },
+            else => @panic("Not supported"),
+        };
+    };
+
+    const cargo = try std.process.run(b.allocator, io, .{
+        .argv = &.{ "cargo", "build", "--release", "--target", target_string },
         .environ_map = &envmap,
     });
     defer {
@@ -366,7 +414,7 @@ fn getTectonic(
         // compress binary using upx (only for dll)
         switch (build_rust.target.result.os.tag) {
             .windows, .linux => {
-                var upx = try std.process.run(alloc, io, .{
+                const upx = try std.process.run(alloc, io, .{
                     .argv = &.{ "upx", "-9", dll_path },
                     .environ_map = envmap,
                 });
@@ -429,7 +477,11 @@ fn makeInstallDll(
         dll_name[1],
     });
     defer alloc.free(source_path_rel);
-    const source_path = try b.build_root.handle.realPathFileAlloc(io, source_path_rel, alloc);
+    const source_path = try b.build_root.handle.realPathFileAlloc(
+        io,
+        source_path_rel,
+        alloc,
+    );
     defer alloc.free(source_path);
 
     const dest_path = install_dll.dest_path orelse b.exe_dir;
@@ -454,6 +506,7 @@ fn makeInstallDll(
 fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
     const os_tag = target.result.os.tag;
     const cpu_arch_tag = target.result.cpu.arch;
+    const abi_tag = target.result.abi;
 
     return switch (os_tag) {
         .windows => switch (cpu_arch_tag) {
@@ -474,9 +527,22 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .linux => switch (cpu_arch_tag) {
-            .x86_64 => &.{
-                "libvesti_tectonic.so",
-                "libvesti_tectonic_x86_64.so",
+            .x86_64 => switch (abi_tag) {
+                .gnu => &.{
+                    "libvesti_tectonic.so",
+                    "libvesti_tectonic_x86_64_gnu.so",
+                },
+                .musl => &.{
+                    "libvesti_tectonic.so",
+                    "libvesti_tectonic_x86_64_musl.so",
+                }, // TODO: compile prebuilt dll
+                else => blk: {
+                    std.debug.print(
+                        "Not supported for abi {} on Linux x86_64",
+                        .{abi_tag},
+                    );
+                    break :blk error.NotSupport;
+                },
             },
             .x86 => &.{
                 "libvesti_tectonic.so",
@@ -515,6 +581,7 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
 fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
     const os_tag = target.result.os.tag;
     const cpu_arch_tag = target.result.cpu.arch;
+    const abi_tag = target.result.abi;
 
     return switch (os_tag) {
         .windows => switch (cpu_arch_tag) {
@@ -535,9 +602,22 @@ fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
             },
         },
         .linux => switch (cpu_arch_tag) {
-            .x86_64 => &.{
-                "libvesti_tectonic.a",
-                "libvesti_tectonic_x86_64.a",
+            .x86_64 => switch (abi_tag) {
+                .gnu => &.{
+                    "libvesti_tectonic.a",
+                    "libvesti_tectonic_x86_64_gnu.a",
+                },
+                .musl => &.{
+                    "libvesti_tectonic.a",
+                    "libvesti_tectonic_x86_64_musl.a",
+                },
+                else => blk: {
+                    std.debug.print(
+                        "Not supported for abi {} on Linux x86_64",
+                        .{abi_tag},
+                    );
+                    break :blk error.NotSupport;
+                },
             },
             .x86 => &.{
                 "libvesti_tectonic.a",
@@ -576,31 +656,4 @@ fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
         },
         else => @panic("Not supported"),
     };
-}
-
-fn calculateDllHash(allocator: Allocator, io: Io, tectonic_dll_name: []const u8) !u512 {
-    const dll_path = try path.join(allocator, &.{
-        "./vesti-tectonic/bin/",
-        tectonic_dll_name,
-    });
-    defer allocator.free(dll_path);
-
-    var dll = try Io.Dir.cwd().openFile(io, dll_path, .{});
-    defer dll.close(io);
-    var dll_read_buf: [4096]u8 = undefined;
-    var dll_reader = dll.reader(io, &dll_read_buf);
-
-    var sha_out: [Sha3.digest_length]u8 = undefined;
-    var sha3 = Sha3.init(.{});
-
-    var block: [Sha3.block_length]u8 = @splat(0);
-    while (dll_reader.interface.readSliceAll(&block)) {
-        sha3.update(&block);
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        error.ReadFailed => return err,
-    }
-    sha3.final(&sha_out);
-
-    return std.mem.bytesToValue(u512, &sha_out);
 }

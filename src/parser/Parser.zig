@@ -184,7 +184,7 @@ inline fn isPremiere(self: Self) bool {
 }
 
 inline fn nextToken(self: *Self) void {
-    if (self.tok_idx + 1 < self.tok_list.inner.len) {
+    if (self.tok_idx + 1 < self.tok_list.len()) {
         self.tok_idx += 1;
     } else {
         self.parse_finished = true;
@@ -333,11 +333,20 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
         .CompileType => try self.parseCompileType(),
-        .LuaCode => if (self.allows.luacode)
+        .LuaCodeStart => if (self.allows.luacode)
             try self.parseLuaCode()
         else {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .DisallowLuacode,
+                .span = self.getTok(.current).span,
+            } });
+            return ParseError.ParseFailed;
+        },
+        .LuaCodeEnd => {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{
+                    .VestiInternal = "unexpected `LuacodeEnd` was found",
+                },
                 .span = self.getTok(.current).span,
             } });
             return ParseError.ParseFailed;
@@ -1413,14 +1422,25 @@ fn parseDefineFunctionParam(
 
 fn parseLuaCode(self: *Self) ParseError!Stmt {
     const codeblock_loc = self.getTok(.current).span;
+    _ = try self.expectWithError(.LuaCodeStart, .eat);
 
-    try self.expectWithError(.LuaCode, .remain);
-    const luacode_contents = self.getTok(.current).lit.in_text;
-
-    // coping luacode contents
-    var luacode: ArrayList(u8) = .empty;
+    // obtain actural luacode
+    var luacode = try ArrayList(u8).initCapacity(self.allocator, 25);
     errdefer luacode.deinit(self.allocator);
-    try luacode.appendSlice(self.allocator, luacode_contents);
+    while (!self.expect(.current, &.{ .LuaCodeEnd, .Eof })) : (self.nextToken()) {
+        try luacode.appendSlice(self.allocator, self.getTok(.current).lit.in_text);
+    }
+
+    if (self.expect(.current, &.{.Eof})) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .EofErr,
+            .span = codeblock_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    std.debug.assert(self.expect(.current, &.{.Eof}));
+
+    // now we have a luacode
 
     var is_global = false;
     if (self.expect(.peek, &.{.Star})) {
@@ -1610,7 +1630,7 @@ fn parseFunctionArgs(
                     if (!first_token)
                         try args.append(self.allocator, .{
                             .needed = .StarArg,
-                            .ctx = .{},
+                            .ctx = .empty,
                         });
                 },
                 else => unreachable,

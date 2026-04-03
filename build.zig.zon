@@ -9,12 +9,12 @@
             .hash = "zlap-0.10.2-boKVXBu7AACHtErrFzi9Nt9_-NKLx3u7o3_rnrpygzor",
         },
         .zlua = .{
-            .url = "git+https://github.com/e0328eric/ziglua.git#8f87e4034f8813044e7ad4d345e0b8b6ecfec0da",
-            .hash = "zlua-0.1.0-hGRpC-87BQCtmVz3Noy3uOq2cQ80mdQhW3QkuZP9_6m2",
+            .url = "git+https://github.com/natecraddock/ziglua.git#9f5f3db7ed893000e44badc073e0f3632b731021",
+            .hash = "zlua-0.1.0-hGRpC-xTBQDwe5Mu1zKV5SB2VOY9AmSco05_vurY5jGh",
         },
-        .uucode = .{
-            .url = "git+https://github.com/jacobsandlund/uucode.git?ref=zig-0.16#8983a5f484f5185e584281ad6cafece5c704131f",
-            .hash = "uucode-0.1.0-ZZjBPmVsUQC7X8o7MR-vv3HeSNY-1gxwIqvoWeR0HA6s",
+        .utf8proc = .{
+            .url = "git+https://codeberg.org/e0328eric/utf8proc-zig-wrapper.git#82bd2a8e7756bc1ad0080ab132344fd32d1bcec4",
+            .hash = "utf8proc_zig-0.0.0-7S1mHukOAABNiO4nBIyifrZPMmWnhAspVpX-3O2AtBPG",
         },
     },
     .paths = .{

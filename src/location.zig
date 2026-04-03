@@ -1,5 +1,5 @@
 const std = @import("std");
-const uucode = @import("uucode");
+const utf8proc = @import("utf8proc");
 const unicode = std.unicode;
 
 pub const Location = struct {
@@ -15,7 +15,7 @@ pub const Location = struct {
 
         // codePointWidth can return -1 only if chr is either a backspace or DEL.
         // but these are special character, so in this case, I will ignore it.
-        self.col += @intCast(@max(0, uucode.get(.wcwidth_standalone, chr)));
+        self.col += @intCast(@max(0, utf8proc.charwidth(chr)));
     }
 };
 
