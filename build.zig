@@ -29,7 +29,9 @@ const Build = blk: {
 };
 
 pub fn build(b: *Build) !void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{
+        .default_target = .{ .abi = .gnu },
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     const tectonic_static = b.option(
@@ -143,10 +145,9 @@ fn buildVesti(
         .optimize = optimize,
         .lang = .lua55,
     });
-    const uucode = b.dependency("uucode", .{
+    const utf8proc = b.dependency("utf8proc", .{
         .target = target,
         .optimize = optimize,
-        .build_config_path = b.path("uucode/uucode_config.zig"),
     });
 
     //const tectonic_lib_name = try getLibName(&target);
@@ -165,7 +166,7 @@ fn buildVesti(
                 .optimize = optimize,
                 .link_libc = true,
                 .imports = &.{
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
@@ -185,7 +186,7 @@ fn buildVesti(
                 .strip = strip,
                 .imports = &.{
                     .{ .name = "zlap", .module = zlap.module("zlap") },
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
@@ -216,7 +217,7 @@ fn buildVesti(
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
-                    .{ .name = "uucode", .module = uucode.module("uucode") },
+                    .{ .name = "utf8proc", .module = utf8proc.module("utf8proc_zig") },
                 },
             });
             vesti_mod.addOptions("vesti-info", vesti_opt);

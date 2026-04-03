@@ -12,9 +12,9 @@
             .url = "git+https://github.com/natecraddock/ziglua.git#9f5f3db7ed893000e44badc073e0f3632b731021",
             .hash = "zlua-0.1.0-hGRpC-xTBQDwe5Mu1zKV5SB2VOY9AmSco05_vurY5jGh",
         },
-        .uucode = .{
-            .url = "git+https://github.com/jacobsandlund/uucode.git?ref=zig-0.16#eeb612b7c0d9b369d321e43b21d4b7d295db39e3",
-            .hash = "uucode-0.2.0-ZZjBPtCgVAC0n0LjD6AxVBtsdi3kJb6lHEvgYDaR0Ltn",
+        .utf8proc = .{
+            .url = "git+https://codeberg.org/e0328eric/utf8proc-zig-wrapper.git#82bd2a8e7756bc1ad0080ab132344fd32d1bcec4",
+            .hash = "utf8proc_zig-0.0.0-7S1mHukOAABNiO4nBIyifrZPMmWnhAspVpX-3O2AtBPG",
         },
     },
     .paths = .{
