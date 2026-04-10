@@ -626,7 +626,6 @@ fn preprocessBuiltin_noltx3(self: *Self, _: *TokenList) !void {
     }
 }
 
-// TODO: one should track locations of parameters inside of luacode
 fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
     const def_fnt_loc = self.curr_tok.span;
     // eat #def builtin
