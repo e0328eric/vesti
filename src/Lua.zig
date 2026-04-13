@@ -115,11 +115,7 @@ pub fn evalCode(self: *Self, raw_code: [:0]const u8) !void {
         std.debug.print("                    <LUACODE>\n", .{});
 
         // mimic goto
-        const Goto = enum {
-            start,
-            print_console,
-            make_log,
-        };
+        const Goto = enum { start, print_console, make_log };
         goto: switch (Goto.start) {
             .start => {
                 if (self.make_log) {
