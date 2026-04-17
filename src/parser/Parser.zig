@@ -1438,7 +1438,7 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
         } });
         return ParseError.ParseFailed;
     }
-    std.debug.assert(self.expect(.current, &.{.Eof}));
+    std.debug.assert(self.expect(.current, &.{.LuaCodeEnd}));
 
     // now we have a luacode
 

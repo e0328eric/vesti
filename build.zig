@@ -41,9 +41,6 @@ pub fn build(b: *Build) !void {
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                       Build Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    // vesti-toolkit module
-    _ = try buildVesti(b, target, optimize, .mod, tectonic_static);
-
     const exe = try buildVesti(b, target, optimize, .exe, tectonic_static);
     const install_dll = InstallDll.create(b, target, null);
     b.getInstallStep().dependOn(&install_dll.step);
@@ -126,12 +123,9 @@ fn buildVesti(
     b: *Build,
     target: Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    comptime build_mode: enum(u2) { mod, exe, @"test" },
+    comptime build_mode: enum(u1) { exe, @"test" },
     tectonic_static: bool,
-) !switch (build_mode) {
-    .mod => *Build.Module,
-    else => *Build.Step.Compile,
-} {
+) !*Build.Step.Compile {
     const strip = switch (optimize) {
         .Debug, .ReleaseSafe => false,
         else => true,
@@ -208,18 +202,6 @@ fn buildVesti(
                 .version = VESTI_VERSION,
                 .root_module = exe_mod,
             });
-        },
-        .mod => {
-            const vesti_mod = b.addModule("vesti-toolkit", .{
-                .root_source_file = b.path("src/vesti-toolkit.zig"),
-                .target = target,
-                .optimize = optimize,
-                .imports = &.{
-                    .{ .name = "unicoz", .module = unicoz.module("unicoz") },
-                },
-            });
-            vesti_mod.addOptions("vesti-info", vesti_opt);
-            return vesti_mod;
         },
     }
 }

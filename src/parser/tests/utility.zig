@@ -4,6 +4,7 @@ const mem = std.mem;
 const diag = @import("../../diagnostic.zig");
 
 const ArrayList = std.ArrayList;
+const Codegen = @import("../../Codegen.zig");
 const CowStr = @import("../../CowStr.zig").CowStr;
 const Expr = @import("../ast.zig").Expr;
 const Io = std.Io;
@@ -11,7 +12,7 @@ const Parser = @import("../Parser.zig");
 const Stmt = @import("../ast.zig").Stmt;
 
 const allocator = std.testing.allocator;
-const Codegen = @import("../../Codegen.zig");
+const io = std.testing.io;
 
 pub inline fn concatAmsText(comptime s: []const u8) []const u8 {
     return s ++ "\n\\usepackage{amstext}\n";
@@ -22,11 +23,17 @@ pub fn expect(
     expected: []const u8,
     output_modifier: ?fn ([]const u8) []const u8,
 ) !void {
-    var diagnostic = diag.Diagnostic{ .allocator = allocator };
+    const environ = std.testing.environ;
+    var envmap = try environ.createMap(allocator);
+    defer envmap.deinit();
+
+    var diagnostic = diag.Diagnostic{ .allocator = allocator, .io = io };
     defer diagnostic.deinit();
 
     var parser = try Parser.init(
         allocator,
+        io,
+        &envmap,
         source,
         undefined,
         &diagnostic,
@@ -36,6 +43,7 @@ pub fn expect(
         },
         .{ null, .pdflatex }, // disallow changing latex engine type
     );
+    defer parser.deinit();
 
     var ast = parser.parse() catch |err| switch (err) {
         Parser.ParseError.ParseFailed => {

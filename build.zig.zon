@@ -2,15 +2,15 @@
     .name = .vesti,
     .version = "0.8.0",
     .fingerprint = 0x95c25644562f92c1,
-    .minimum_zig_version = "0.16.0-dev.2565+684032671",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .zlap = .{
             .url = "git+https://codeberg.org/e0328eric/zlap#b2285c32d8fc9cc36ef399ab35f34c29c3be8178",
             .hash = "zlap-0.10.2-boKVXBu7AACHtErrFzi9Nt9_-NKLx3u7o3_rnrpygzor",
         },
         .zlua = .{
-            .url = "git+https://github.com/natecraddock/ziglua.git#9f5f3db7ed893000e44badc073e0f3632b731021",
-            .hash = "zlua-0.1.0-hGRpC-xTBQDwe5Mu1zKV5SB2VOY9AmSco05_vurY5jGh",
+            .url = "git+https://github.com/natecraddock/ziglua.git#350ec18b90edf9dd569bdd64f4de9b330620529f",
+            .hash = "zlua-0.1.0-hGRpC9VUBQC0BjcD5XP3frF2gNtTXBB5LhJFf_ygafpd",
         },
         .unicoz = .{
             .url = "git+https://codeberg.org/e0328eric/unicoz.git#5c8580f33180fd2e1d92cfb29e22f563565554e5",
