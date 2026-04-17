@@ -1,5 +1,5 @@
 const std = @import("std");
-const unicoz = @import("unicoz");
+const uucode = @import("uucode");
 const unicode = std.unicode;
 
 pub const Location = struct {
@@ -13,7 +13,7 @@ pub const Location = struct {
             return;
         }
 
-        self.col += unicoz.wcwidth(chr);
+        self.col += uucode.get(.wcwidth_standalone, chr);
     }
 };
 

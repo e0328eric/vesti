@@ -137,9 +137,10 @@ fn buildVesti(
         .optimize = optimize,
         .lang = .lua55,
     });
-    const unicoz = b.dependency("unicoz", .{
+    const uucode = b.dependency("uucode", .{
         .target = target,
         .optimize = optimize,
+        .build_config_path = b.path("src/uucode/uucode_config.zig"),
     });
 
     //const tectonic_lib_name = try getLibName(&target);
@@ -158,7 +159,7 @@ fn buildVesti(
                 .optimize = optimize,
                 .link_libc = true,
                 .imports = &.{
-                    .{ .name = "unicoz", .module = unicoz.module("unicoz") },
+                    .{ .name = "uucode", .module = uucode.module("uucode") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
@@ -178,7 +179,7 @@ fn buildVesti(
                 .strip = strip,
                 .imports = &.{
                     .{ .name = "zlap", .module = zlap.module("zlap") },
-                    .{ .name = "unicoz", .module = unicoz.module("unicoz") },
+                    .{ .name = "uucode", .module = uucode.module("uucode") },
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
