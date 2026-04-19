@@ -1156,8 +1156,9 @@ fn parseEnvironment(self: *Self, comptime is_real: bool) ParseError!Stmt {
             return ParseError.ParseFailed;
         }
         self.nextToken();
-        self.eatWhitespaces(true);
     }
+    // eat whitespaces
+    self.eatWhitespaces(true);
 
     try self.expectWithError(.Lbrace, .remain);
     var inner = try self.parseBrace(false);
