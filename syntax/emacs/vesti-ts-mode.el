@@ -118,9 +118,36 @@
      ((parent-is "block") parent-bol vesti-ts-mode-indent-offset)
      ((parent-is "environment_block") parent-bol vesti-ts-mode-indent-offset)
      ((parent-is "luacode_block") parent-bol vesti-ts-mode-indent-offset)
-     (no-node parent-bol 0)))
+     (no-node prev-line 0)
+     (catch-all prev-line 0)))
   "Indentation rules for `vesti-ts-mode'.
 Adjust these after inspecting your AST with `treesit-explore-mode'.")
+
+(defun vesti-ts-mode-newline-and-preserve ()
+  "Insert a newline and strictly preserve the previous line's indentation.
+This bypasses `treesit-indent` to prevent the cursor from jumping to column 0
+when the AST is temporarily incomplete."
+  (interactive)
+  (let ((col (current-indentation)))
+    (newline)
+    (indent-to col)))
+
+(defun vesti-ts-mode-tab-command ()
+  "Navigate snippets if active, otherwise strictly insert 4 spaces."
+  (interactive)
+  (cond
+   ;; 1. If Yasnippet is running and we are inside an active snippet field
+   ((and (bound-and-true-p yas-minor-mode)
+         (yas-active-snippets))
+    (call-interactively #'yas-next-field-or-maybe-expand))
+   
+   ;; 2. (Safeguard) If you happen to use Tempel instead of Yasnippet for aas
+   ((bound-and-true-p tempel--active)
+    (call-interactively #'tempel-next))
+
+   ;; 3. If no snippet is active, just do the manual 4-space indent
+   (t
+    (insert (make-string vesti-ts-mode-indent-offset ?\s)))))
 
 ;;; Navigation
 
@@ -145,6 +172,10 @@ install it with `treesit-install-language-grammar'"))
 
   (treesit-parser-create 'vesti)
 
+  ;; TAB behavior
+  (setq-local indent-tabs-mode nil)
+  (setq-local tab-width 4)
+
   ;; Comments
   (setq-local comment-start "// ")
   (setq-local comment-end "")
@@ -160,7 +191,12 @@ install it with `treesit-install-language-grammar'"))
 
   ;; Indentation
   (setq-local treesit-simple-indent-rules vesti-ts-mode--indent-rules)
-
+  (setq-local indent-line-function #'treesit-indent)
+  (electric-indent-local-mode -1)
+  (define-key vesti-ts-mode-map (kbd "RET") #'vesti-ts-mode-newline-and-preserve)
+  (define-key vesti-ts-mode-map (kbd "<tab>") #'vesti-ts-mode-tab-command)
+  (define-key vesti-ts-mode-map (kbd "TAB") #'vesti-ts-mode-tab-command)
+  
   ;; Navigation
   (setq-local treesit-defun-type-regexp vesti-ts-mode--defun-type-regexp)
 
