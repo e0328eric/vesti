@@ -32,16 +32,10 @@ pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const tectonic_static = b.option(
-        bool,
-        "static",
-        "link tectonic statically",
-    ) orelse false;
-
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                       Build Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    const exe = try buildVesti(b, target, optimize, .exe, tectonic_static);
+    const exe = try buildVesti(b, target, optimize, .exe);
     const install_dll = InstallDll.create(b, target, null);
     b.getInstallStep().dependOn(&install_dll.step);
     b.installArtifact(exe);
@@ -63,13 +57,7 @@ pub fn build(b: *Build) !void {
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                        Test Step                        │
     //          ╰─────────────────────────────────────────────────────────╯
-    const exe_unit_tests = try buildVesti(
-        b,
-        target,
-        optimize,
-        .@"test",
-        tectonic_static,
-    );
+    const exe_unit_tests = try buildVesti(b, target, optimize, .@"test");
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     const test_step = b.step("test", "Run unit tests");
@@ -96,7 +84,6 @@ pub fn build(b: *Build) !void {
             cross_target,
             optimize,
             .exe,
-            tectonic_static,
         );
 
         const target_output = b.addInstallArtifact(release_exe, .{
@@ -124,7 +111,6 @@ fn buildVesti(
     target: Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     comptime build_mode: enum(u1) { exe, @"test" },
-    tectonic_static: bool,
 ) !*Build.Step.Compile {
     const strip = switch (optimize) {
         .Debug, .ReleaseSafe => false,
@@ -143,13 +129,11 @@ fn buildVesti(
         .build_config_path = b.path("src/uucode/uucode_config.zig"),
     });
 
-    //const tectonic_lib_name = try getLibName(&target);
     const tectonic_dll_name = try getDllName(&target);
     const vesti_opt = b.addOptions();
     vesti_opt.addOption(@TypeOf(VESTI_VERSION), "VESTI_VERSION", VESTI_VERSION);
     vesti_opt.addOption([]const u8, "VESTI_DUMMY_DIR", VESTI_DUMMY_DIR);
     vesti_opt.addOption([]const u8, "TECTONIC_DLL", tectonic_dll_name[1]);
-    vesti_opt.addOption(bool, "TECTONIC_STATIC", tectonic_static);
 
     switch (build_mode) {
         .@"test" => {
@@ -183,13 +167,6 @@ fn buildVesti(
                     .{ .name = "zlua", .module = zlua.module("zlua") },
                 },
             });
-            if (tectonic_static) {
-                exe_mod.addLibraryPath(b.path("vesti-tectonic/lib"));
-                exe_mod.linkSystemLibrary("vesti_tectonic_x86_64", .{
-                    .use_pkg_config = .no,
-                    .preferred_link_mode = .static,
-                });
-            }
             exe_mod.addOptions("vesti-info", vesti_opt);
 
             if (target.result.os.tag == .windows) {
@@ -339,8 +316,7 @@ fn makeBuildRust(
         cargo.stderr,
     });
 
-    try getTectonic(b, alloc, io, build_rust, &envmap, .lib);
-    try getTectonic(b, alloc, io, build_rust, &envmap, .dll);
+    try getTectonic(b, alloc, io, build_rust, &envmap, target_string);
 }
 
 fn getTectonic(
@@ -349,23 +325,19 @@ fn getTectonic(
     io: Io,
     build_rust: *BuildRust,
     envmap: *std.process.Environ.Map,
-    comptime ty: enum(u1) { lib, dll },
+    target_string: []const u8,
 ) !void {
-    const name = switch (ty) {
-        .lib => try getLibName(&build_rust.target),
-        .dll => try getDllName(&build_rust.target),
-    };
+    const name = try getDllName(&build_rust.target);
     const source_path = try path.join(alloc, &.{
-        "vesti-tectonic/target/release/",
+        "vesti-tectonic/target/",
+        target_string,
+        "release",
         name[0],
     });
     defer alloc.free(source_path);
 
     const dest_path = try path.join(alloc, &.{
-        switch (ty) {
-            .lib => "vesti-tectonic/lib/",
-            .dll => "vesti-tectonic/bin/",
-        },
+        "vesti-tectonic/bin/",
         name[1],
     });
     errdefer alloc.free(dest_path);
@@ -385,32 +357,30 @@ fn getTectonic(
         .{},
     );
 
-    if (ty == .dll) {
-        const dll_path = try path.join(alloc, &.{
-            "bin/",
-            name[1],
-        });
-        errdefer alloc.free(dll_path);
+    const dll_path = try path.join(alloc, &.{
+        "bin/",
+        name[1],
+    });
+    errdefer alloc.free(dll_path);
 
-        // compress binary using upx (only for dll)
-        switch (build_rust.target.result.os.tag) {
-            .windows, .linux => {
-                const upx = try std.process.run(alloc, io, .{
-                    .argv = &.{ "upx", "-9", dll_path },
-                    .environ_map = envmap,
-                });
-                defer {
-                    alloc.free(upx.stdout);
-                    alloc.free(upx.stderr);
-                }
+    // compress binary using upx (only for dll)
+    switch (build_rust.target.result.os.tag) {
+        .windows, .linux => {
+            const upx = try std.process.run(alloc, io, .{
+                .argv = &.{ "upx", "-9", dll_path },
+                .environ_map = envmap,
+            });
+            defer {
+                alloc.free(upx.stdout);
+                alloc.free(upx.stderr);
+            }
 
-                std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-                    upx.stdout,
-                    upx.stderr,
-                });
-            },
-            else => {},
-        }
+            std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+                upx.stdout,
+                upx.stderr,
+            });
+        },
+        else => {},
     }
 }
 
@@ -554,86 +524,6 @@ fn getDllName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []c
                 std.debug.print("Only arm MacOS is supported", .{});
                 break :blk error.NotSupport;
             },
-        },
-        else => @panic("Not supported"),
-    };
-}
-
-fn getLibName(target: *const Build.ResolvedTarget) error{NotSupport}![]const []const u8 {
-    const os_tag = target.result.os.tag;
-    const cpu_arch_tag = target.result.cpu.arch;
-    const abi_tag = target.result.abi;
-
-    return switch (os_tag) {
-        .windows => switch (cpu_arch_tag) {
-            .x86_64 => &.{
-                "vesti_tectonic.lib",
-                "vesti_tectonic_x86_64.lib",
-            },
-            .aarch64 => &.{
-                "vesti_tectonic.lib",
-                "vesti_tectonic_aarch64.lib",
-            }, // TODO: compile prebuilt lib
-            else => blk: {
-                std.debug.print(
-                    "Not supported for cpu architecture {} on Windows",
-                    .{cpu_arch_tag},
-                );
-                break :blk error.NotSupport;
-            },
-        },
-        .linux => switch (cpu_arch_tag) {
-            .x86_64 => switch (abi_tag) {
-                .gnu => &.{
-                    "libvesti_tectonic.a",
-                    "libvesti_tectonic_x86_64_gnu.a",
-                },
-                .musl => &.{
-                    "libvesti_tectonic.a",
-                    "libvesti_tectonic_x86_64_musl.a",
-                },
-                else => blk: {
-                    std.debug.print(
-                        "Not supported for abi {} on Linux x86_64",
-                        .{abi_tag},
-                    );
-                    break :blk error.NotSupport;
-                },
-            },
-            .x86 => &.{
-                "libvesti_tectonic.a",
-                "libvesti_tectonic_x86.a",
-            }, // TODO: compile prebuilt lib
-            .aarch64 => &.{
-                "libvesti_tectonic.a",
-                "libvesti_tectonic_aarch64.a",
-            }, // TODO: compile prebuilt lib
-            .arm => &.{
-                "libvesti_tectonic.a",
-                "libvesti_tectonic_arm.a",
-            }, // TODO: compile prebuilt lib
-            else => blk: {
-                std.debug.print(
-                    "Not supported for cpu architecture {} on Linux",
-                    .{cpu_arch_tag},
-                );
-                break :blk error.NotSupport;
-            },
-        },
-        .macos => { // switch (cpu_arch_tag) {
-            std.debug.print(
-                "Not supported for MacOS",
-                .{},
-            );
-            return error.NotSupport;
-            //.aarch64 => &.{
-            //    "libvesti_tectonic.dylib",
-            //    "libvesti_tectonic.dylib",
-            //},
-            //else => blk: {
-            //    std.debug.print("Only arm MacOS is supported", .{});
-            //    break :blk error.NotSupport;
-            //},
         },
         else => @panic("Not supported"),
     };

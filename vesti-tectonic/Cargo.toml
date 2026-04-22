@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib"]
 
 [profile.dev]
 codegen-units = 1
@@ -22,7 +22,7 @@ strip = true
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
-rev = "3bdaa9b42070c241c1bdb02b4cf01f90de579738"
+rev = "e778080f0d8019247d332ef3a3df1202578ca202"
 overlay-triplets-path = "dist/vcpkg-triplets"
 
 [package.metadata.vcpkg.target]
@@ -46,6 +46,6 @@ x86_64-pc-windows-msvc = { triplet = "x64-windows-static-release", install = [
 ] }
 
 [dependencies]
-tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "d7f3275adf6b501fc21122a1873912e970bf52ba", features = [
+tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "5e6babe320fe8f041a513b050e34f633006abad0", features = [
   "external-harfbuzz",
 ] }
