@@ -18,8 +18,6 @@ pub fn experimentalStep(
     diagnostic: *Diagnostic,
     experimental_subcmd: *const zlap.Subcmd,
 ) !void {
-    _ = env_map;
-
     const filename = experimental_subcmd.args.get("FILENAME").?.value.string;
 
     var vesti_file = Io.Dir.cwd().openFile(io, filename, .{}) catch |err| {
@@ -49,7 +47,16 @@ pub fn experimentalStep(
     };
     defer allocator.free(source);
 
-    var preprocessor = try Preprocessor.init(allocator, diagnostic, source);
+    const cwd = Io.Dir.cwd();
+
+    var preprocessor = try Preprocessor.init(
+        allocator,
+        io,
+        env_map,
+        &cwd,
+        diagnostic,
+        source,
+    );
     defer preprocessor.deinit();
     var tokens = preprocessor.preprocess() catch |err| {
         try diagnostic.initMetadataAlloc(filename, source);

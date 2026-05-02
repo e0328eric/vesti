@@ -442,7 +442,7 @@ fn parseVesti(
         },
         .{self.engine},
     ) catch |err| switch (err) {
-        Preprocessor.PreprocessError.ParseFailed => {
+        Preprocessor.PreprocessError.PreprocessFailed => {
             try self.diagnostic.initMetadataAlloc(filename, source);
             return err;
         },

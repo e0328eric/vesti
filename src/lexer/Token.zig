@@ -306,11 +306,12 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
 
 pub const VESTI_PREPROCESS_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
-    .{ "at_off" },
     .{ "at_on" },
+    .{ "at_off" },
     .{ "def" },
-    .{ "ltx3_off" },
+    .{ "include" },
     .{ "ltx3_on" },
+    .{ "ltx3_off" },
     .{ "noltx3" },
     .{ "undef" },
     // zig fmt: on

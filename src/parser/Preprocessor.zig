@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 const diag = @import("../diagnostic.zig");
 const mem = std.mem;
@@ -5,6 +6,8 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
 const CowStr = @import("../CowStr.zig").CowStr;
+const EnvMap = std.process.Environ.Map;
+const Io = std.Io;
 const Lexer = @import("../lexer/Lexer.zig");
 const MultiArrayList = std.MultiArrayList;
 const Span = @import("../location.zig").Span;
@@ -12,18 +15,25 @@ const StringHashMap = std.StringHashMap;
 const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
 
+const getConfigPath = @import("../Config.zig").getConfigPath;
+
 allocator: Allocator,
+io: Io,
+env_map: *const EnvMap,
 diagnostic: *diag.Diagnostic,
+file_dir: *const Io.Dir,
 lexer: Lexer,
 curr_tok: Token,
 peek_tok: Token,
 comptime_fnt: StringHashMap(ComptimeFunction),
 state: PreprocessorState,
+include_stack: ArrayList([:0]const u8),
+include_sources: ArrayList([]const u8),
 
 const Self = @This();
-pub const PreprocessError = Allocator.Error || error{
-    ParseFailed,
-};
+pub const PreprocessError = Allocator.Error ||
+    error{ PreprocessFailed, GetFilePathFailed };
+
 pub const TokenList = struct {
     inner: ArrayList(Token) = .empty,
 
@@ -55,16 +65,28 @@ const PreprocessorState = packed struct {
     lex_sleep: bool = false, // "sleep" lexer for one "clock"
 };
 
-pub fn init(allocator: Allocator, diagnostic: *diag.Diagnostic, source: []const u8) !Self {
+pub fn init(
+    allocator: Allocator,
+    io: Io,
+    env_map: *const EnvMap,
+    file_dir: *const Io.Dir,
+    diagnostic: *diag.Diagnostic,
+    source: []const u8,
+) !Self {
     var self: Self = undefined;
 
     self.allocator = allocator;
+    self.io = io;
+    self.env_map = env_map;
     self.diagnostic = diagnostic;
+    self.file_dir = file_dir;
     self.lexer = try .init(source);
     self.comptime_fnt = .init(allocator);
     self.curr_tok = .INVALID;
     self.peek_tok = .INVALID;
     self.state = .{};
+    self.include_stack = .empty;
+    self.include_sources = .empty;
 
     // fill curr_tok and peek_tok
     self.nextToken();
@@ -74,6 +96,16 @@ pub fn init(allocator: Allocator, diagnostic: *diag.Diagnostic, source: []const 
 }
 
 pub fn deinit(self: *Self) void {
+    for (self.include_stack.items) |path| {
+        self.allocator.free(path);
+    }
+    self.include_stack.deinit(self.allocator);
+
+    for (self.include_sources.items) |source| {
+        self.allocator.free(source);
+    }
+    self.include_sources.deinit(self.allocator);
+
     var val_iter = self.comptime_fnt.valueIterator();
     while (val_iter.next()) |val| {
         val.deinit(self.allocator);
@@ -81,18 +113,22 @@ pub fn deinit(self: *Self) void {
     self.comptime_fnt.deinit();
 }
 
-pub fn preprocess(self: *Self) !TokenList {
-    var output: TokenList = .{};
-    errdefer output.deinit(self.allocator);
-
+fn preprocessLoop(self: *Self, tok_list: *TokenList) PreprocessError!void {
     // Stage 1: Preprocess builtin functions
     // lexer.lex_finished triggered when self.peek_tok == .Eof.
     // Thus we need to preprocess token once more.
     while (!self.lexer.lex_finished) : (self.nextToken()) {
-        try self.preprocessToken(&output);
+        try self.preprocessToken(tok_list);
     } else {
-        try self.preprocessToken(&output);
+        try self.preprocessToken(tok_list);
     }
+}
+
+pub fn preprocess(self: *Self) PreprocessError!TokenList {
+    var output: TokenList = .{};
+    errdefer output.deinit(self.allocator);
+
+    try self.preprocessLoop(&output);
     try output.append(self.allocator, Token.eof(self.curr_tok.span));
 
     return output;
@@ -140,7 +176,7 @@ inline fn expectWithError(
             } },
             .span = self.curr_tok.span,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
     if (is_eat == .eat) {
         const curr_tok = self.curr_tok;
@@ -219,7 +255,7 @@ fn preprocessExpandDef(
             } },
             .span = fnt_loc,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     };
 
     var params: ArrayList(TokenList) = try .initCapacity(self.allocator, contents.params);
@@ -265,7 +301,7 @@ fn expandTokens(
                         } },
                         .span = tok.span,
                     } });
-                    return PreprocessError.ParseFailed;
+                    return PreprocessError.PreprocessFailed;
                 }
 
                 if (isBuiltin(builtin_fnt, .normal)) {
@@ -280,7 +316,7 @@ fn expandTokens(
                             .err_info = .{ .InvalidDefunParam = fnt_param },
                             .span = tok.span,
                         } });
-                        return PreprocessError.ParseFailed;
+                        return PreprocessError.PreprocessFailed;
                     }
                     if (fnt_param > args.len) {
                         // Parameter index out of bounds, maybe error or ignore?
@@ -289,7 +325,7 @@ fn expandTokens(
                             .err_info = .{ .InvalidDefunParam = fnt_param },
                             .span = tok.span,
                         } });
-                        return PreprocessError.ParseFailed;
+                        return PreprocessError.PreprocessFailed;
                     }
                     const param_toks = args[fnt_param - 1];
                     try self.expandTokens(param_toks, &.{}, output);
@@ -367,7 +403,7 @@ fn parseArgs(
                 } },
                 .span = loc,
             } });
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         }
 
         idx += 1; // Consume '('
@@ -396,7 +432,7 @@ fn parseArgs(
                 } },
                 .span = loc,
             } });
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         }
 
         try args.append(self.allocator, content);
@@ -428,7 +464,7 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) Preproc
                 .span = loc,
             } });
 
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         },
         else => true,
     }) : (self.nextToken()) {
@@ -442,7 +478,7 @@ fn parseParameter(self: *Self, loc: Span, params: *ArrayList(TokenList)) Preproc
                         } },
                         .span = self.curr_tok.span,
                     } });
-                    return PreprocessError.ParseFailed;
+                    return PreprocessError.PreprocessFailed;
                 }
 
                 if (isBuiltin(builtin_fnt, .normal)) {
@@ -566,7 +602,7 @@ fn preprocessBuiltin_ltx3_on(self: *Self, tok_list: *TokenList) !void {
             },
             .span = self.curr_tok.span,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 }
 
@@ -609,7 +645,7 @@ fn preprocessBuiltin_ltx3_off(self: *Self, tok_list: *TokenList) !void {
             },
             .span = self.curr_tok.span,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 }
 
@@ -622,7 +658,7 @@ fn preprocessBuiltin_noltx3(self: *Self, _: *TokenList) !void {
             .err_info = .PreambleErr,
             .span = self.curr_tok.span,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 }
 
@@ -644,7 +680,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
                 } },
                 .span = self.curr_tok.span,
             } });
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         },
     };
     self.eatWhitespaces(false);
@@ -658,7 +694,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
             } },
             .span = def_fnt_loc,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 
     var contents: TokenList = .{};
@@ -684,7 +720,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
                 .span = def_fnt_loc,
             } });
 
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         },
         else => true,
     }) : (self.nextToken()) {
@@ -698,7 +734,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
                         } },
                         .span = self.curr_tok.span,
                     } });
-                    return PreprocessError.ParseFailed;
+                    return PreprocessError.PreprocessFailed;
                 }
 
                 if (isBuiltin(builtin_fnt, .normal)) {
@@ -714,7 +750,7 @@ fn preprocessBuiltin_def(self: *Self, _: *TokenList) !void {
 
                             .span = def_fnt_loc,
                         } });
-                        return PreprocessError.ParseFailed;
+                        return PreprocessError.PreprocessFailed;
                     }
                     params = @max(params, fnt_param);
                 }
@@ -753,7 +789,7 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
                 } },
                 .span = self.curr_tok.span,
             } });
-            return PreprocessError.ParseFailed;
+            return PreprocessError.PreprocessFailed;
         },
     };
     self.eatWhitespaces(false);
@@ -768,7 +804,7 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
 
             .span = undef_fnt_loc,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 
     if (!self.comptime_fnt.contains(undef_name)) {
@@ -780,10 +816,204 @@ fn preprocessBuiltin_undef(self: *Self, _: *TokenList) !void {
 
             .span = undef_fnt_loc,
         } });
-        return PreprocessError.ParseFailed;
+        return PreprocessError.PreprocessFailed;
     }
 
     // deallocate contents
     self.comptime_fnt.getPtr(undef_name).?.deinit(self.allocator);
     _ = self.comptime_fnt.remove(undef_name);
+}
+
+fn preprocessBuiltin_include(self: *Self, tok_list: *TokenList) !void {
+    const include_loc = self.curr_tok.span;
+
+    // eat #include
+    _ = try self.expectWithError(.{ .BuiltinFunction = "include" }, .eat);
+    self.eatWhitespaces(false);
+
+    var filepath = try self.getFilePath(include_loc);
+    defer filepath.deinit(self.allocator);
+
+    // Canonicalize for cycle detection. realpath also validates the file exists.
+    const canon_path = self.file_dir.realPathFileAlloc(
+        self.io,
+        filepath.items,
+        self.allocator,
+    ) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"include"}),
+                .note = "cannot resolve included file path",
+            } },
+            .span = include_loc,
+        } });
+        return PreprocessError.PreprocessFailed;
+    };
+    errdefer self.allocator.free(canon_path);
+
+    // Cycle check
+    for (self.include_stack.items) |existing| {
+        if (mem.eql(u8, existing, canon_path)) {
+            self.diagnostic.initDiagInner(.{ .ParseError = .{
+                .err_info = .{ .WrongBuiltin = .{
+                    .name = CowStr.init(.Borrowed, .{"include"}),
+                    .note = "circular #include detected",
+                } },
+                .span = include_loc,
+            } });
+            return PreprocessError.PreprocessFailed;
+        }
+    }
+
+    const source = self.file_dir.readFileAlloc(
+        self.io,
+        filepath.items,
+        self.allocator,
+        .unlimited,
+    ) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"include"}),
+                .note = "failed to read included file",
+            } },
+            .span = include_loc,
+        } });
+        return PreprocessError.PreprocessFailed;
+    };
+    errdefer self.allocator.free(source);
+    try self.include_sources.append(self.allocator, source);
+    try self.include_stack.append(self.allocator, canon_path);
+
+    // Save lexer-tied state. We deliberately do NOT save self.state in full —
+    // changes like is_premiere=false and new comptime_fnt entries should
+    // propagate back to the parent. Only lex_sleep is lexer-local.
+    const saved_lexer = self.lexer;
+    const saved_curr = self.curr_tok;
+    const saved_peek = self.peek_tok;
+    const saved_lex_sleep = self.state.lex_sleep;
+
+    self.lexer = try Lexer.init(source);
+    self.curr_tok = .INVALID;
+    self.peek_tok = .INVALID;
+    self.state.lex_sleep = false;
+    self.nextToken();
+    self.nextToken();
+
+    // preprocess included file
+    try self.preprocessLoop(tok_list);
+
+    // Restore parent's lexer position
+    self.lexer = saved_lexer;
+    self.curr_tok = saved_curr;
+    self.peek_tok = saved_peek;
+    self.state.lex_sleep = saved_lex_sleep;
+}
+
+// TODO: This function and Parser.parseFilepathHelper are same.
+// make a single implementation for both
+// <return>[1] points <return>[0]
+fn getFilePath(
+    self: *Self,
+    left_parn_loc: Span,
+) !ArrayList(u8) {
+    std.debug.assert(self.curr_tok.toktype == .Lparen);
+
+    var file_path_str = try ArrayList(u8).initCapacity(self.allocator, 30);
+    errdefer file_path_str.deinit(self.allocator);
+
+    var inside_config_dir = false;
+    var parse_very_first_chr = false;
+    var nested: usize = 1;
+
+    while (true) {
+        const chr_ty = self.peek_tok.toktype;
+        const chr_str = self.peek_tok.lit.in_text;
+
+        switch (chr_ty) {
+            .Lparen => nested += 1,
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break;
+            },
+            .Tilde => if (!parse_very_first_chr) {
+                const home_dir = getHomePath(self.env_map) orelse {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .VestiInternal = "Cannot find home. Check `HOME` env is defined on linux and macos, or `USERPROFILE` on windows",
+                        },
+                        .span = self.curr_tok.span,
+                    } });
+                    return PreprocessError.GetFilePathFailed;
+                };
+                try file_path_str.appendSlice(self.allocator, home_dir);
+            } else {
+                try file_path_str.appendSlice(self.allocator, chr_str);
+            },
+            .At => if (!parse_very_first_chr) {
+                inside_config_dir = true;
+                self.nextToken();
+
+                if (self.peek_tok.toktype != .Slash) {
+                    self.diagnostic.initDiagInner(.{ .ParseError = .{
+                        .err_info = .{
+                            .IllegalUseErr = "The next token for `@` should be `/`",
+                        },
+                        .span = left_parn_loc,
+                    } });
+                    return PreprocessError.GetFilePathFailed;
+                }
+                continue;
+            },
+            .Eof => {
+                self.diagnostic.initDiagInner(.{ .ParseError = .{
+                    .err_info = .{ .IsNotClosed = .{
+                        .open = &.{.Lparen},
+                        .close = .Rparen,
+                    } },
+                    .span = left_parn_loc,
+                } });
+                return PreprocessError.GetFilePathFailed;
+            },
+            else => {
+                try file_path_str.appendSlice(self.allocator, chr_str);
+            },
+        }
+        parse_very_first_chr = true;
+        self.nextToken();
+    }
+    self.nextToken();
+
+    const file_path_str_raw = try file_path_str.toOwnedSlice(self.allocator);
+    defer self.allocator.free(file_path_str_raw);
+    if (inside_config_dir) {
+        const config_path = try getConfigPath(self.allocator, self.env_map);
+        defer self.allocator.free(config_path);
+        try file_path_str.print(
+            self.allocator,
+            "{s}/{s}",
+            .{ config_path, mem.trim(u8, file_path_str_raw, " \t") },
+        );
+    } else if (Io.Dir.path.isAbsolute(file_path_str_raw)) {
+        try file_path_str.print(
+            self.allocator,
+            "{s}",
+            .{mem.trim(u8, file_path_str_raw, " \t")},
+        );
+    } else {
+        try file_path_str.print(
+            self.allocator,
+            "./{s}",
+            .{mem.trim(u8, file_path_str_raw, " \t")},
+        );
+    }
+
+    return file_path_str;
+}
+
+inline fn getHomePath(env_map: *const EnvMap) ?[]const u8 {
+    return switch (builtin.os.tag) {
+        .windows => env_map.get("USERPROFILE"),
+        .linux, .macos => env_map.get("HOME"),
+        else => @compileError("only linux, macos and windows are supported"),
+    };
 }

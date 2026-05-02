@@ -39,9 +39,10 @@ io: Io,
 env_map: *const EnvMap,
 diagnostic: *diag.Diagnostic,
 tok_list: TokenList,
+included_sources: ArrayList([]const u8), // moved from preprocessor
 tok_idx: usize,
 parse_finished: bool,
-file_dir: *Io.Dir,
+file_dir: *const Io.Dir,
 current_engine: LatexEngine,
 engine_ptr: ?*LatexEngine,
 // NOTE: I left this because later, it might support using Stmt.Placeholder.
@@ -115,12 +116,19 @@ pub fn init(
     io: Io,
     env_map: *const EnvMap,
     source: []const u8,
-    file_dir: *Io.Dir,
+    file_dir: *const Io.Dir,
     diagnostic: *diag.Diagnostic,
     allows: ParserAllows,
     engine: anytype,
 ) !Self {
-    var preprop: PreProcessor = try .init(allocator, diagnostic, source);
+    var preprop: PreProcessor = try .init(
+        allocator,
+        io,
+        env_map,
+        file_dir,
+        diagnostic,
+        source,
+    );
     defer preprop.deinit();
 
     var self: Self = undefined;
@@ -128,7 +136,6 @@ pub fn init(
     self.allocator = allocator;
     self.io = io;
     self.env_map = env_map;
-    self.tok_list = try preprop.preprocess();
     self.tok_idx = 0;
     self.parse_finished = false;
     self.doc_state = ParserState{};
@@ -139,6 +146,10 @@ pub fn init(
     self.endenv_stack = @splat("");
     self.endenv_sp = 0;
     self.allows = allows;
+
+    // Run Preprocessor and get the included_contents
+    self.tok_list = try preprop.preprocess();
+    self.included_sources = .fromOwnedSlice(try preprop.include_sources.toOwnedSlice(self.allocator));
 
     const typeinfo = @typeInfo(@TypeOf(engine));
     comptime assert(typeinfo == .@"struct");
