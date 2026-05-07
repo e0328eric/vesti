@@ -18,6 +18,16 @@
     -step_script,   := step.lua   | custom lua code to execute for each end of vesti steps;
 }
 
+#latex | Compile latex file using tectonic {
+    *FILENAME       := @null      | filename to compile;
+    -no_color,N     := @false     | no color output on a terminal;
+    -watch,W        := @false     | watch latex files when modified;
+    -lim,           := 3          | set the number of the compile cycle;
+    -first_script,  := first.lua  | run lua code once;
+    -before_script, := before.lua | run lua code once for each vesti runs;
+    -step_script,   := step.lua   | custom lua code to execute for each end of vesti steps;
+}
+
 #clear | Remove .vesti-dummy directory {}
 
 #init | Initialize vesti project {

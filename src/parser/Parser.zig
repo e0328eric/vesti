@@ -864,7 +864,6 @@ fn parseCopyFile(self: *Self) ParseError!Stmt {
     try self.expectWithError(.Lparen, .remain);
 
     const left_parn_loc = self.getTok(.current).span;
-    preventBug(&left_parn_loc);
     var file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
     defer file_name.deinit(self.allocator);
 
@@ -1840,14 +1839,6 @@ fn parseFilepathHelper(
     return .{ file_path_str, path.basename(file_path_str.items) };
 }
 
-// NOTE: This special function is needed because of following zig compiler bug:
-// - https://github.com/ziglang/zig/issues/5973
-// - https://github.com/ziglang/zig/issues/24324 [closed]
-// After these are resolved, remove this function
-inline fn preventBug(s: *const volatile Span) void {
-    _ = s;
-}
-
 inline fn getHomePath(env_map: *const EnvMap) ?[]const u8 {
     return switch (builtin.os.tag) {
         .windows => env_map.get("USERPROFILE"),
@@ -2366,7 +2357,6 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
     try self.expectWithError(.Lparen, .remain);
 
     const left_parn_loc = self.getTok(.current).span;
-    preventBug(&left_parn_loc);
     var file_name_str, _ = try self.parseFilepathHelper(left_parn_loc);
     defer file_name_str.deinit(self.allocator);
 
@@ -2429,7 +2419,6 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     _ = try self.expectWithError(.Lparen, .eat); // eat (
 
     const width_tok_loc = self.getTok(.current).span;
-    preventBug(&width_tok_loc);
     const width_token = try self.expectWithError(.Integer, .eat);
     const width = fmt.parseInt(usize, width_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -2446,7 +2435,6 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
     self.eatWhitespaces(false);
 
     const height_tok_loc = self.getTok(.current).span;
-    preventBug(&height_tok_loc);
     const height_token = try self.expectWithError(.Integer, .eat);
     const height = fmt.parseInt(usize, height_token.lit.in_text, 10) catch {
         self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -2467,7 +2455,6 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         _ = try self.expectWithError(.Lparen, .eat); // eat (
 
         const xoffset_tok_loc = self.getTok(.current).span;
-        preventBug(&xoffset_tok_loc);
         const xoffset_token = try self.expectWithError(.Integer, .eat);
         xoffset = fmt.parseInt(usize, xoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
@@ -2484,7 +2471,6 @@ fn parseBuiltin_picture(self: *Self) ParseError!Stmt {
         self.eatWhitespaces(false);
 
         const yoffset_tok_loc = self.getTok(.current).span;
-        preventBug(&yoffset_tok_loc);
         const yoffset_token = try self.expectWithError(.Integer, .eat);
         yoffset = fmt.parseInt(usize, yoffset_token.lit.in_text, 10) catch {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
