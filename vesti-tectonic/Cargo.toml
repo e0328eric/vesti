@@ -22,7 +22,7 @@ strip = true
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
-rev = "e778080f0d8019247d332ef3a3df1202578ca202"
+rev = "bc71aa640f89933294f16e004b212c7fd3183eed"
 overlay-triplets-path = "dist/vcpkg-triplets"
 
 [package.metadata.vcpkg.target]
@@ -46,6 +46,6 @@ x86_64-pc-windows-msvc = { triplet = "x64-windows-static-release", install = [
 ] }
 
 [dependencies]
-tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "5e6babe320fe8f041a513b050e34f633006abad0", features = [
+tectonic = { git = "https://github.com/tectonic-typesetting/tectonic.git", rev = "ecd00745e5b1d220ccc27ec1c6f1bed0c29c1adf", features = [
   "external-harfbuzz",
 ] }
