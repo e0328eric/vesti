@@ -31,6 +31,11 @@ const Build = blk: {
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const macos_sdk_path = b.option(
+        []const u8,
+        "macos-sdk",
+        "Path to MacOSX.sdk for macOS Rust/vcpkg cross builds",
+    );
 
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                       Build Step                        │
@@ -50,7 +55,7 @@ pub fn build(b: *Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const build_rust = BuildRust.create(b, target);
+    const build_rust = BuildRust.create(b, target, macos_sdk_path);
     const build_rust_cmd = b.step("rust", "Build vesti-tectonic rust code");
     build_rust_cmd.dependOn(&build_rust.step);
 
@@ -187,8 +192,13 @@ fn buildVesti(
 const BuildRust = struct {
     step: Build.Step,
     target: Build.ResolvedTarget,
+    macos_sdk_path: ?[]const u8,
 
-    fn create(owner: *Build, target: Build.ResolvedTarget) *BuildRust {
+    fn create(
+        owner: *Build,
+        target: Build.ResolvedTarget,
+        macos_sdk_path: ?[]const u8,
+    ) *BuildRust {
         const build_rust = owner.allocator.create(BuildRust) catch @panic("OOM");
 
         build_rust.* = .{
@@ -199,6 +209,7 @@ const BuildRust = struct {
                 .makeFn = makeBuildRust,
             }),
             .target = target,
+            .macos_sdk_path = macos_sdk_path,
         };
 
         return build_rust;
@@ -218,36 +229,28 @@ fn makeBuildRust(
     var envmap = try b.graph.environ_map.clone(alloc);
     defer envmap.deinit();
 
-    if (build_rust.target.result.os.tag == .windows) {
-        const vcpkg_root = try path.join(alloc, &.{
-            b.build_root.path.?,
-            "vesti-tectonic/target/vcpkg",
-        });
-        defer alloc.free(vcpkg_root);
-        try envmap.put("TECTONIC_DEP_BACKEND", "vcpkg");
-        try envmap.put("VCPKGRS_TRIPLET", "x64-windows-static-release");
-        try envmap.put("RUSTFLAGS", "-Ctarget-feature=+crt-static");
-        try envmap.put("VCPKG_ROOT", vcpkg_root);
+    switch (build_rust.target.result.os.tag) {
+        .windows => {
+            const vcpkg_root = try path.join(alloc, &.{
+                b.build_root.path.?,
+                "vesti-tectonic/target/vcpkg",
+            });
+            defer alloc.free(vcpkg_root);
+            try envmap.put("TECTONIC_DEP_BACKEND", "vcpkg");
+            try envmap.put("VCPKGRS_TRIPLET", "x64-windows-static-release");
+            try envmap.put("RUSTFLAGS", "-Ctarget-feature=+crt-static");
+            try envmap.put("VCPKG_ROOT", vcpkg_root);
+        },
+        .macos => {
+            try configureMacosRustEnv(b, alloc, &envmap, build_rust);
+        },
+        else => {},
     }
 
     var tectonic_dir = try b.build_root.handle.openDir(io, "./vesti-tectonic", .{});
     defer tectonic_dir.close(io);
     try std.process.setCurrentDir(io, tectonic_dir);
     defer std.process.setCurrentDir(io, b.build_root.handle) catch unreachable;
-
-    const vcpkg = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "vcpkg", "build" },
-        .environ_map = &envmap,
-    });
-    defer {
-        b.allocator.free(vcpkg.stdout);
-        b.allocator.free(vcpkg.stderr);
-    }
-
-    std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
-        vcpkg.stdout,
-        vcpkg.stderr,
-    });
 
     const target_string = blk: {
         const target = build_rust.target;
@@ -302,8 +305,27 @@ fn makeBuildRust(
         };
     };
 
+    const vcpkg = try std.process.run(b.allocator, io, .{
+        .argv = &.{ "cargo", "vcpkg", "build", "--target", target_string },
+        .environ_map = &envmap,
+    });
+    defer {
+        b.allocator.free(vcpkg.stdout);
+        b.allocator.free(vcpkg.stderr);
+    }
+
+    std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+        vcpkg.stdout,
+        vcpkg.stderr,
+    });
+    try checkRunResult("cargo vcpkg build", vcpkg);
+
+    const cargo_argv: []const []const u8 = switch (build_rust.target.result.os.tag) {
+        .macos => &.{ "cargo", "zigbuild", "--release", "--target", target_string },
+        else => &.{ "cargo", "build", "--release", "--target", target_string },
+    };
     const cargo = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "build", "--release", "--target", target_string },
+        .argv = cargo_argv,
         .environ_map = &envmap,
     });
     defer {
@@ -315,8 +337,119 @@ fn makeBuildRust(
         cargo.stdout,
         cargo.stderr,
     });
+    try checkRunResult("cargo build", cargo);
 
     try getTectonic(b, alloc, io, build_rust, &envmap, target_string);
+}
+
+fn checkRunResult(name: []const u8, result: std.process.RunResult) !void {
+    switch (result.term) {
+        .exited => |code| {
+            if (code == 0) return;
+            std.debug.print("{s} exited with code {}\n", .{ name, code });
+        },
+        .signal => |signal| {
+            std.debug.print("{s} terminated by signal {}\n", .{ name, signal });
+        },
+        .stopped => |signal| {
+            std.debug.print("{s} stopped by signal {}\n", .{ name, signal });
+        },
+        .unknown => |code| {
+            std.debug.print("{s} ended with unknown status {}\n", .{ name, code });
+        },
+    }
+    return error.CommandFailed;
+}
+
+fn configureMacosRustEnv(
+    b: *Build,
+    alloc: Allocator,
+    envmap: *std.process.Environ.Map,
+    build_rust: *BuildRust,
+) !void {
+    const vcpkg_root = try path.join(alloc, &.{
+        b.build_root.path.?,
+        "vesti-tectonic/target/vcpkg",
+    });
+    defer alloc.free(vcpkg_root);
+
+    const triplet = switch (build_rust.target.result.cpu.arch) {
+        .aarch64 => "arm64-osx-zig",
+        .x86_64 => "x64-osx-zig",
+        else => return error.NotSupport,
+    };
+
+    try envmap.put("TECTONIC_DEP_BACKEND", "vcpkg");
+    try envmap.put("VCPKG_ROOT", vcpkg_root);
+    try envmap.put("VCPKGRS_TRIPLET", triplet);
+    try envmap.put("MACOSX_DEPLOYMENT_TARGET", "11.0");
+
+    if (envmap.get("ZIG") == null) {
+        try envmap.put("ZIG", b.graph.zig_exe);
+    }
+
+    if (envmap.get("ZIG_GLOBAL_CACHE_DIR") == null) {
+        const zig_global_cache_dir = try path.join(alloc, &.{
+            b.build_root.path.?,
+            ".zig-global-cache",
+        });
+        defer alloc.free(zig_global_cache_dir);
+        try envmap.put("ZIG_GLOBAL_CACHE_DIR", zig_global_cache_dir);
+    }
+
+    if (build_rust.macos_sdk_path) |sdk_path| {
+        try putMacosSdkEnv(alloc, envmap, sdk_path);
+        return;
+    }
+
+    if (envmap.get("SDKROOT")) |sdk_path| {
+        try putMacosSdkEnv(alloc, envmap, sdk_path);
+        return;
+    }
+
+    if (envmap.get("MACOSX_SDK")) |sdk_path| {
+        try putMacosSdkEnv(alloc, envmap, sdk_path);
+        return;
+    }
+
+    std.debug.print(
+        \\Missing MacOSX.sdk for macOS Rust/vcpkg build.
+        \\Pass -Dmacos-sdk=PATH, or set SDKROOT/MACOSX_SDK in the environment.
+        \\
+    , .{});
+    return error.MissingMacosSdk;
+}
+
+fn putMacosSdkEnv(
+    alloc: Allocator,
+    envmap: *std.process.Environ.Map,
+    sdk_path: []const u8,
+) !void {
+    const normalized_sdk_path = try normalizeCmakePath(alloc, sdk_path);
+    defer alloc.free(normalized_sdk_path);
+    try envmap.put("SDKROOT", normalized_sdk_path);
+    try envmap.put("MACOSX_SDK", normalized_sdk_path);
+}
+
+fn normalizeCmakePath(alloc: Allocator, input: []const u8) ![]u8 {
+    const trimmed = trimTrailingPathSeparators(input);
+    const output = try alloc.dupe(u8, trimmed);
+    for (output) |*byte| {
+        if (byte.* == '\\') byte.* = '/';
+    }
+    return output;
+}
+
+fn trimTrailingPathSeparators(input: []const u8) []const u8 {
+    var end = input.len;
+    while (end > 0) {
+        const last = input[end - 1];
+        if (last != '/' and last != '\\') break;
+        if (end == 1) break;
+        if (end == 3 and input[1] == ':') break;
+        end -= 1;
+    }
+    return input[0..end];
 }
 
 fn getTectonic(

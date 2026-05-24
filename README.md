@@ -61,6 +61,7 @@ This project uses the master zig version. For linux, I recommend to install
 zenity.
 
 ## Compilation
+### For normal users
 If you want to compile with Tectonic backend, just run the following command:
 
 ```console
@@ -72,6 +73,10 @@ If you do not want tectonic backend, then run the following.
 ```console
 $ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
 ```
+
+### For developers
+One should have zig and rust compiler. Especially, for rust, one also first
+install `cargo-zigbuild` and `cargo-vcpkg`.
 
 ## Configuration
 Vesti has a configuration file. The location of the config file is follows:

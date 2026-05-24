@@ -26,23 +26,29 @@ rev = "bc71aa640f89933294f16e004b212c7fd3183eed"
 overlay-triplets-path = "dist/vcpkg-triplets"
 
 [package.metadata.vcpkg.target]
-x86_64-apple-darwin = { install = ["freetype", "harfbuzz[graphite2]", "icu"] }
-aarch64-apple-darwin = { triplet = "arm64-osx", install = [
+aarch64-apple-darwin = { triplet = "arm64-osx-zig", install = [
+  "fontconfig",
   "freetype",
   "harfbuzz[graphite2]",
   "icu",
+  "libpng",
+  "graphite2",
 ] }
 x86_64-unknown-linux-gnu = { install = [
   "fontconfig",
   "freetype",
   "harfbuzz[graphite2]",
   "icu",
+  "libpng",
+  "graphite2",
 ] }
 x86_64-pc-windows-msvc = { triplet = "x64-windows-static-release", install = [
   "fontconfig",
   "freetype",
   "harfbuzz[graphite2]",
   "icu",
+  "libpng",
+  "graphite2",
 ] }
 
 [dependencies]

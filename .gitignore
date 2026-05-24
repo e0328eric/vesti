@@ -1,4 +1,6 @@
 /**/.zig-cache
+/**/.zig-global-cache
+/**/.zig-macos-vcpkg-tools
 /**/zig-out
 /**/zig-pkg
 /**/.vesti-dummy
