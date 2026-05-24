@@ -17,6 +17,12 @@ if(PORT STREQUAL "icu")
   set(VCPKG_MAKE_CONFIGURE_OPTIONS "--disable-extras")
 endif()
 
+if(PORT STREQUAL "libpng")
+  set(VCPKG_CMAKE_CONFIGURE_OPTIONS
+    "-DZLIB_INCLUDE_DIR=$ENV{ZIG_LIBC_INCLUDE}/any-darwin-any"
+  )
+endif()
+
 if(DEFINED ENV{SDKROOT})
   set(VCPKG_OSX_SYSROOT "$ENV{SDKROOT}")
 endif()

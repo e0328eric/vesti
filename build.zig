@@ -306,7 +306,7 @@ fn makeBuildRust(
     };
 
     const vcpkg = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "vcpkg", "build", "--target", target_string },
+        .argv = &.{ "cargo", "vcpkg", "-v", "build", "--target", target_string },
         .environ_map = &envmap,
     });
     defer {
@@ -314,7 +314,7 @@ fn makeBuildRust(
         b.allocator.free(vcpkg.stderr);
     }
 
-    std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+    std.debug.print("<vcpkg>\nstdout: {s}\n\nstderr: {s}\n", .{
         vcpkg.stdout,
         vcpkg.stderr,
     });
@@ -333,7 +333,7 @@ fn makeBuildRust(
         b.allocator.free(cargo.stderr);
     }
 
-    std.debug.print("stdout: {s}\n\nstderr: {s}\n", .{
+    std.debug.print("<cargo>\nstdout: {s}\n\nstderr: {s}\n", .{
         cargo.stdout,
         cargo.stderr,
     });
@@ -375,17 +375,26 @@ fn configureMacosRustEnv(
 
     const triplet = switch (build_rust.target.result.cpu.arch) {
         .aarch64 => "arm64-osx-zig",
-        .x86_64 => "x64-osx-zig",
         else => return error.NotSupport,
     };
 
     try envmap.put("TECTONIC_DEP_BACKEND", "vcpkg");
     try envmap.put("VCPKG_ROOT", vcpkg_root);
     try envmap.put("VCPKGRS_TRIPLET", triplet);
-    try envmap.put("MACOSX_DEPLOYMENT_TARGET", "11.0");
+    try envmap.put("MACOSX_DEPLOYMENT_TARGET", "13.0");
 
     if (envmap.get("ZIG") == null) {
         try envmap.put("ZIG", b.graph.zig_exe);
+    }
+
+    if (envmap.get("ZIG_LIBC_INCLUDE") == null) {
+        const zig_libc_include = try path.join(alloc, &.{
+            b.graph.zig_lib_directory.path.?,
+            "libc",
+            "include",
+        });
+        defer alloc.free(zig_libc_include);
+        try envmap.put("ZIG_LIBC_INCLUDE", zig_libc_include);
     }
 
     if (envmap.get("ZIG_GLOBAL_CACHE_DIR") == null) {

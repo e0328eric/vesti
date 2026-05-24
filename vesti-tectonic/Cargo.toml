@@ -27,6 +27,7 @@ overlay-triplets-path = "dist/vcpkg-triplets"
 
 [package.metadata.vcpkg.target]
 aarch64-apple-darwin = { triplet = "arm64-osx-zig", install = [
+  "zlib",
   "fontconfig",
   "freetype",
   "harfbuzz[graphite2]",
