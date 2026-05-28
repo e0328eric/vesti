@@ -149,7 +149,7 @@ pub fn init(
 
     // Run Preprocessor and get the included_contents
     self.tok_list = try preprop.preprocess();
-    self.included_sources = .fromOwnedSlice(try preprop.include_sources.toOwnedSlice(self.allocator));
+    self.included_sources = .fromOwnedSlice(try preprop.included_sources.toOwnedSlice(self.allocator));
 
     const typeinfo = @typeInfo(@TypeOf(engine));
     comptime assert(typeinfo == .@"struct");
@@ -169,6 +169,10 @@ pub fn deinit(self: *Self) void {
     self.tok_list.deinit(self.allocator);
     for (self.global_defkinds.items) |*stmt| stmt.deinit(self.allocator);
     self.global_defkinds.deinit(self.allocator);
+    for (self.included_sources.items) |source| {
+        self.allocator.free(source);
+    }
+    self.included_sources.deinit(self.allocator);
 }
 
 pub fn parse(self: *Self) ParseError!ArrayList(Stmt) {
@@ -341,9 +345,7 @@ fn parseStatement(self: *Self) ParseError!Stmt {
         else
             self.parseLiteral(),
         .ImportVesti => try self.parseImportVesti(),
-        .CopyFile => try self.parseCopyFile(),
         .ImportModule => try self.parseImportModule(),
-        .CompileType => try self.parseCompileType(),
         .LuaCodeStart => if (self.allows.luacode)
             try self.parseLuaCode()
         else {
@@ -854,49 +856,6 @@ fn parseBuiltins(self: *Self, builtin_fnt: []const u8) !Stmt {
         .span = builtin_location,
     } });
     return ParseError.ParseFailed;
-}
-
-fn parseCopyFile(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.getTok(.current).span;
-    _ = try self.expectWithError(.CopyFile, .eat);
-    self.eatWhitespaces(false);
-
-    try self.expectWithError(.Lparen, .remain);
-
-    const left_parn_loc = self.getTok(.current).span;
-    var file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
-    defer file_name.deinit(self.allocator);
-
-    var into_copy_filename = try ArrayList(u8).initCapacity(
-        self.allocator,
-        raw_filename.len + VESTI_DUMMY_DIR.len,
-    );
-    defer into_copy_filename.deinit(self.allocator);
-    try into_copy_filename.print(self.allocator, "{s}/{s}", .{
-        VESTI_DUMMY_DIR, raw_filename,
-    });
-
-    Io.Dir.cwd().copyFile(
-        file_name.items,
-        Io.Dir.cwd(),
-        into_copy_filename.items,
-        self.io,
-        .{},
-    ) catch {
-        const io_diag = try diag.IODiagnostic.init(
-            self.allocator,
-            import_file_loc,
-            "cannot copy from {s} into {s}",
-            .{
-                file_name.items,
-                into_copy_filename.items,
-            },
-        );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
-        return ParseError.ParseFailed;
-    };
-
-    return Stmt.NopStmt;
 }
 
 fn parseImportModule(self: *Self) ParseError!Stmt {
@@ -1518,64 +1477,6 @@ fn parseLuaCode(self: *Self) ParseError!Stmt {
             .code = luacode,
         },
     };
-}
-
-fn parseCompileType(self: *Self) ParseError!Stmt {
-    const comp_ty_loc = self.getTok(.current).span;
-    if (comp_ty_loc.start.row != 1) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .NotLocatedInVeryFirst = .CompileType },
-            .span = comp_ty_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-    if (!self.allows.change_engine) {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .ChangeEngineTwice,
-            .span = comp_ty_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    try self.expectWithError(.CompileType, .remain);
-    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
-
-    while (!self.expect(.peek, &.{ .Lparen, .Eof })) {
-        self.nextToken();
-    } else {
-        self.nextToken();
-    }
-
-    _ = try self.expectWithError(.Lparen, .eat);
-    self.eatWhitespaces(true);
-
-    try self.expectWithError(.Text, .remain);
-    const engine = COMPILE_TYPE.get(self.getTok(.current).lit.in_text) orelse {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .InvalidLatexEngine = self.getTok(.current).lit.in_text },
-            .span = self.getTok(.current).span,
-        } });
-        return ParseError.ParseFailed;
-    };
-
-    self.nextToken();
-    self.eatWhitespaces(true);
-    try self.expectWithError(.Rparen, .remain);
-
-    if (self.engine_ptr) |e| {
-        e.* = engine;
-        self.current_engine = engine;
-    } else {
-        self.diagnostic.initDiagInner(.{ .ParseError = .{
-            .err_info = .{ .DoubleUsed = .CompileType },
-            .span = comp_ty_loc,
-        } });
-        return ParseError.ParseFailed;
-    }
-
-    // tells to parser that `compty` keyword is already used
-    self.engine_ptr = null;
-    return Stmt.NopStmt;
 }
 
 // parse (<stmts>)
@@ -2518,6 +2419,113 @@ fn parseBuiltin_raw_tex(self: *Self) ParseError!Stmt {
     }
 
     self.doc_state.xparse_defun = false;
+
+    return Stmt.NopStmt;
+}
+
+fn parseBuiltin_engine_type(self: *Self) ParseError!Stmt {
+    const comp_ty_loc = self.getTok(.current).span;
+    if (comp_ty_loc.start.row != 1) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"engine_type"}),
+                .note = "`#engine_type` must be located in the very first line of the vesti code",
+            } },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+    if (!self.allows.change_engine) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .ChangeEngineTwice,
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    self.nextToken(); // eat #engine_type
+    if (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+
+    while (!self.expect(.peek, &.{ .Lparen, .Eof })) {
+        self.nextToken();
+    } else {
+        self.nextToken();
+    }
+
+    _ = try self.expectWithError(.Lparen, .eat);
+    self.eatWhitespaces(true);
+
+    try self.expectWithError(.Text, .remain);
+    const engine = COMPILE_TYPE.get(self.getTok(.current).lit.in_text) orelse {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .InvalidLatexEngine = self.getTok(.current).lit.in_text },
+            .span = self.getTok(.current).span,
+        } });
+        return ParseError.ParseFailed;
+    };
+
+    self.nextToken();
+    self.eatWhitespaces(true);
+    try self.expectWithError(.Rparen, .remain);
+
+    if (self.engine_ptr) |e| {
+        e.* = engine;
+        self.current_engine = engine;
+    } else {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"engine_type"}),
+                .note = "`#engine_type` is used twice",
+            } },
+            .span = comp_ty_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
+    // tells to parser that `compty` keyword is already used
+    self.engine_ptr = null;
+    return Stmt.NopStmt;
+}
+
+fn parseBuiltin_copy_file(self: *Self) ParseError!Stmt {
+    const import_file_loc = self.getTok(.current).span;
+    self.nextToken(); // eat #copy_file
+    self.eatWhitespaces(false);
+
+    try self.expectWithError(.Lparen, .remain);
+
+    const left_parn_loc = self.getTok(.current).span;
+    var file_name, const raw_filename = try self.parseFilepathHelper(left_parn_loc);
+    defer file_name.deinit(self.allocator);
+
+    var into_copy_filename = try ArrayList(u8).initCapacity(
+        self.allocator,
+        raw_filename.len + VESTI_DUMMY_DIR.len,
+    );
+    defer into_copy_filename.deinit(self.allocator);
+    try into_copy_filename.print(self.allocator, "{s}/{s}", .{
+        VESTI_DUMMY_DIR, raw_filename,
+    });
+
+    Io.Dir.cwd().copyFile(
+        file_name.items,
+        Io.Dir.cwd(),
+        into_copy_filename.items,
+        self.io,
+        .{},
+    ) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            self.allocator,
+            import_file_loc,
+            "cannot copy from {s} into {s}",
+            .{
+                file_name.items,
+                into_copy_filename.items,
+            },
+        );
+        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return ParseError.ParseFailed;
+    };
 
     return Stmt.NopStmt;
 }

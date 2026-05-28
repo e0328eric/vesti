@@ -244,7 +244,6 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow,
         Deprecated,
         DisallowLuacode,
-        DoubleUsed,
         DuplicatedLuaLabel,
         EnvInsideDefun,
         EofErr,
@@ -262,7 +261,6 @@ pub const ParseDiagnostic = struct {
         MathmodeInMath,
         ModuleNotFound,
         NameMissErr,
-        NotLocatedInVeryFirst,
         PreambleErr,
         TextmodeInText,
         TokenExpected,
@@ -278,7 +276,6 @@ pub const ParseDiagnostic = struct {
         DefunParamOverflow: usize,
         Deprecated: []const u8,
         DisallowLuacode,
-        DoubleUsed: TokenType,
         DuplicatedLuaLabel: []const u8,
         EnvInsideDefun,
         EofErr,
@@ -305,7 +302,6 @@ pub const ParseDiagnostic = struct {
         MathmodeInMath,
         ModuleNotFound: CowStr,
         NameMissErr: TokenType,
-        NotLocatedInVeryFirst: TokenType,
         PreambleErr,
         TextmodeInText,
         TokenExpected: struct {
@@ -511,17 +507,9 @@ pub const ParseDiagnostic = struct {
                 "lua exception occured: {s}",
                 .{inner.err_msg.items},
             ),
-            .NotLocatedInVeryFirst => |tok| try aw.writer.print(
-                "{f} must be located in the very first line of the vesti code",
-                .{tok},
-            ),
             .ChangeEngineTwice => try aw.writer.print(
                 "engine type is tried to changed in twice, which is not allowed",
                 .{},
-            ),
-            .DoubleUsed => |tok| try aw.writer.print(
-                "{f} must be used only once",
-                .{tok},
             ),
             .InvalidLatexEngine => |engine| try aw.writer.print(
                 "invalid latex engine name {s} was found",

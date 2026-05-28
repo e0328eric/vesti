@@ -56,7 +56,6 @@ pub const TokenType = union(enum(u8)) {
     Docclass,
     ImportPkg,
     ImportVesti,
-    CopyFile,
     ImportModule,
     StartDoc,
     Useenv,
@@ -64,7 +63,6 @@ pub const TokenType = union(enum(u8)) {
     Endenv,
     DefineFunction,
     DefineEnv,
-    CompileType,
     __end_keywords, // NOTE: this is only used internally
 
     // Symbols
@@ -179,13 +177,11 @@ pub const TokenType = union(enum(u8)) {
             .Docclass =>                 try writer.writeAll("`docclass`"),
             .ImportPkg =>                try writer.writeAll("`importpkg`"),
             .ImportVesti =>              try writer.writeAll("`importves`"),
-            .CopyFile =>                 try writer.writeAll("`cpfile`"),
             .ImportModule =>             try writer.writeAll("`importmod`"),
             .StartDoc =>                 try writer.writeAll("`startdoc`"),
             .Useenv =>                   try writer.writeAll("`useenv`"),
             .Begenv =>                   try writer.writeAll("`begenv`"),
             .Endenv =>                   try writer.writeAll("`endenv`"),
-            .CompileType =>              try writer.writeAll("`compty`"),
             .DefineFunction =>           try writer.writeAll("`defun`"),
             .DefineEnv =>                try writer.writeAll("`defenv`"),
             .Plus =>                     try writer.writeAll("`+`"),
@@ -270,14 +266,14 @@ pub const VESTI_KEYWORDS = std.StaticStringMap(TokenType).initComptime(.{
     .{ "importpkg",    TokenType.ImportPkg },
     .{ "importves",    TokenType.ImportVesti },
     .{ "importmod",    TokenType.ImportModule },
-    .{ "cpfile",       TokenType.CopyFile },
     .{ "startdoc",     TokenType.StartDoc },
     .{ "useenv",       TokenType.Useenv },
     .{ "begenv",       TokenType.Begenv },
     .{ "endenv",       TokenType.Endenv },
-    .{ "compty",       TokenType.CompileType },
     .{ "defun",        TokenType.DefineFunction },
     .{ "defenv",       TokenType.DefineEnv },
+    .{ "compty",       TokenType.deprecated(false, "#engine_type") },
+    .{ "cpfile",       TokenType.deprecated(false, "#copy_file") },
     // zig fmt: on
 });
 
@@ -290,6 +286,8 @@ pub fn isFunctionParam(val: []const u8) ?usize {
 pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     // zig fmt: off
     .{ "chardef" },
+    .{ "copy_file" },
+    .{ "engine_type" },
     .{ "enum" },
     .{ "enum_counter" },
     .{ "eq" },

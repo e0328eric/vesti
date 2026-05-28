@@ -27,8 +27,8 @@ curr_tok: Token,
 peek_tok: Token,
 comptime_fnt: StringHashMap(ComptimeFunction),
 state: PreprocessorState,
-include_stack: ArrayList([:0]const u8),
-include_sources: ArrayList([]const u8),
+included_stack: ArrayList([:0]const u8),
+included_sources: ArrayList([]const u8),
 
 const Self = @This();
 pub const PreprocessError = Allocator.Error ||
@@ -85,8 +85,8 @@ pub fn init(
     self.curr_tok = .INVALID;
     self.peek_tok = .INVALID;
     self.state = .{};
-    self.include_stack = .empty;
-    self.include_sources = .empty;
+    self.included_stack = .empty;
+    self.included_sources = .empty;
 
     // fill curr_tok and peek_tok
     self.nextToken();
@@ -96,15 +96,15 @@ pub fn init(
 }
 
 pub fn deinit(self: *Self) void {
-    for (self.include_stack.items) |path| {
+    for (self.included_stack.items) |path| {
         self.allocator.free(path);
     }
-    self.include_stack.deinit(self.allocator);
+    self.included_stack.deinit(self.allocator);
 
-    for (self.include_sources.items) |source| {
+    for (self.included_sources.items) |source| {
         self.allocator.free(source);
     }
-    self.include_sources.deinit(self.allocator);
+    self.included_sources.deinit(self.allocator);
 
     var val_iter = self.comptime_fnt.valueIterator();
     while (val_iter.next()) |val| {
@@ -852,7 +852,7 @@ fn preprocessBuiltin_include(self: *Self, tok_list: *TokenList) !void {
     errdefer self.allocator.free(canon_path);
 
     // Cycle check
-    for (self.include_stack.items) |existing| {
+    for (self.included_stack.items) |existing| {
         if (mem.eql(u8, existing, canon_path)) {
             self.diagnostic.initDiagInner(.{ .ParseError = .{
                 .err_info = .{ .WrongBuiltin = .{
@@ -881,8 +881,8 @@ fn preprocessBuiltin_include(self: *Self, tok_list: *TokenList) !void {
         return PreprocessError.PreprocessFailed;
     };
     errdefer self.allocator.free(source);
-    try self.include_sources.append(self.allocator, source);
-    try self.include_stack.append(self.allocator, canon_path);
+    try self.included_sources.append(self.allocator, source);
+    try self.included_stack.append(self.allocator, canon_path);
 
     // Save lexer-tied state. We deliberately do NOT save self.state in full —
     // changes like is_premiere=false and new comptime_fnt entries should
