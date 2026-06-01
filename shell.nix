@@ -33,6 +33,7 @@ in
       ninja
       gnumake
       gcc
+      zig
 
       # autotools / meson stack — needed to build the vcpkg ports
       autoconf

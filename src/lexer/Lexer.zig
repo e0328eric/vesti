@@ -54,29 +54,30 @@ fn nextChar(self: *Self, comptime amount: usize) void {
     comptime var i = 0;
     inline while (i < amount) : (i += 1) {
         const chr = self.getChar(.current);
-        if (self.chr0_idx >= self.source.len) {
-            self.lex_finished = true;
-            return;
-        } else if (self.chr1_idx >= self.source.len) {
-            const chr0_len = unicode.utf8ByteSequenceLength(self.source[self.chr0_idx]) catch
-                @panic("given vesti file is not encoded into UTF-8");
-            self.chr0_idx += chr0_len;
-        } else if (self.chr2_idx >= self.source.len) {
-            const chr1_len = unicode.utf8ByteSequenceLength(self.source[self.chr1_idx]) catch
-                @panic("given vesti file is not encoded into UTF-8");
-            self.chr0_idx = self.chr1_idx;
-            self.chr1_idx += chr1_len;
-        } else {
+        const len = self.source.len;
+
+        if (self.chr2_idx < len) {
             @branchHint(.likely);
-            const chr2_len = unicode.utf8ByteSequenceLength(self.source[self.chr2_idx]) catch
-                @panic("given vesti file is not encoded into UTF-8");
             self.chr0_idx = self.chr1_idx;
             self.chr1_idx = self.chr2_idx;
-            self.chr2_idx += chr2_len;
+            self.chr2_idx += byteLen(self.source[self.chr2_idx]);
+        } else if (self.chr1_idx < len) {
+            self.chr0_idx = self.chr1_idx;
+            self.chr1_idx += byteLen(self.source[self.chr1_idx]);
+        } else if (self.chr0_idx < len) {
+            self.chr0_idx += byteLen(self.source[self.chr0_idx]);
+        } else {
+            self.lex_finished = true;
+            return;
         }
 
         self.location.move(chr);
     }
+}
+
+inline fn byteLen(lead: u8) usize {
+    return unicode.utf8ByteSequenceLength(lead) catch
+        @panic("given vesti file is not encoded into UTF-8");
 }
 
 const GetCharType = enum(u2) {
