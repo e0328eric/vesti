@@ -4574,10 +4574,20 @@ dependencies = [
  "tectonic",
  "unicode-segmentation",
  "unicode-width 0.2.2",
+ "vesti-macros",
  "walkdir",
  "windows",
  "yaml-rust",
  "zip 8.6.0",
+]
+
+[[package]]
+name = "vesti-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

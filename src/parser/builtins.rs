@@ -8,7 +8,8 @@ use crate::lexer::token::{TokenType, is_function_param};
 use crate::location::Span;
 
 use super::ast::{MathState, Stmt};
-use super::{ParseError, Parser, VESTI_DUMMY_DIR, Which, compile_type, tok_in_text};
+use super::expectable::{Expectable, Which};
+use super::{ParseError, Parser, VESTI_DUMMY_DIR, compile_type, tok_in_text};
 
 #[derive(Clone, Copy)]
 enum MathClass {

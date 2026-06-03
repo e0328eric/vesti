@@ -45,6 +45,7 @@ pub enum LuaError {
 pub struct Lua {
     lua: MLua,
     shared: Rc<RefCell<SharedState>>,
+    http: reqwest::blocking::Client,
 }
 
 impl Lua {
@@ -65,7 +66,12 @@ impl Lua {
             compile_attr,
         }));
 
-        let this = Lua { lua, shared };
+        // Build the HTTP client exactly once. Reused by every `download`/`ping`.
+        let http = reqwest::blocking::Client::builder()
+            .build()
+            .map_err(|_| LuaError::Init)?;
+
+        let this = Lua { lua, shared, http };
         this.register_vesti_table().map_err(|_| LuaError::Init)?;
         Ok(this)
     }
@@ -213,14 +219,16 @@ impl Lua {
 
         // vesti.ping(<url>) -> bool
         {
-            let f = lua.create_function(move |_, url: String| Ok(lua_ping(&url)))?;
+            let http = self.http.clone();
+            let f = lua.create_function(move |_, url: String| Ok(lua_ping(&http, &url)))?;
             table.set("ping", f)?;
         }
 
         // vesti.download(<url>, <filename>)
         {
+            let http = self.http.clone();
             let f = lua.create_function(move |_, (url, filename): (String, String)| {
-                lua_download(&url, &filename)
+                lua_download(&http, &url, &filename)
             })?;
             table.set("download", f)?;
         }
@@ -410,15 +418,18 @@ fn lua_unzip(filename: &str, dirpath: &str) -> mlua::Result<bool> {
     Ok(true)
 }
 
-fn lua_ping(url: &str) -> bool {
-    reqwest::blocking::Client::new().get(url).send().is_ok()
+fn lua_ping(http: &reqwest::blocking::Client, url: &str) -> bool {
+    http.get(url).send().is_ok()
 }
 
-fn lua_download(url: &str, filename: &str) -> mlua::Result<()> {
-    let mut resp = reqwest::blocking::Client::new()
+fn lua_download(http: &reqwest::blocking::Client, url: &str, filename: &str) -> mlua::Result<()> {
+    let mut resp = http
         .get(url)
         .send()
-        .map_err(|_| mlua::Error::runtime(format!("failed to obtain a response from {url}")))?;
+        .map_err(|_| mlua::Error::runtime(format!("failed to obtain a response from {url}")))?
+        // Don't silently write a 404/500 error page into the file
+        .error_for_status()
+        .map_err(|e| mlua::Error::runtime(format!("request to {url} failed: {e}")))?;
 
     let mut file = fs::File::create(filename)
         .map_err(|_| mlua::Error::runtime(format!("cannot create a file `{filename}`")))?;

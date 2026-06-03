@@ -153,19 +153,30 @@ the form like \keyword{this}.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/lexer/Token.zig")
+    local content = read_all("../src/lexer/token.rs")
 
-    -- Lua’s built-in patterns don’t support lookahead.
-    -- We capture both the keyword and the TokenType, then filter out 'deprecated'.
+    -- Keywords live in `lookup_keyword` as arms of the form
+    --     "name" => TokenType::Variant
+    -- Deprecated keywords map to `TokenType::Deprecated`, which we skip
+    -- (the Rust port replaced the old `deprecated` TokenType tag with this).
     -- Pattern breakdown:
-    --   %.%{         => matches ".{"
-    --   %s*"([^"]+)" => a quoted string -> capture 1
-    --   %s*,%s*TokenType%.([%w_]+) => TokenType.<Name> -> capture 2
-    local pat = "%.%{%s*\"([^\"]+)\"%s*,%s*TokenType%.([%w_]+)"
+    --   "([^"]+)"            => a quoted keyword -> capture 1
+    --   %s*=>%s*TokenType::   => the `=> TokenType::` arrow
+    --   ([%w_]+)             => the variant name -> capture 2
+    local function slice(str, start_pat, stop_pat)
+      local i = str:find(start_pat)
+      if not i then return "" end
+      local j = str:find(stop_pat, i)
+      return str:sub(i, j and (j - 1) or #!str)
+    end
+
+    -- restrict the search to the body of `lookup_keyword`
+    local body = slice(content, "fn lookup_keyword", "\n}")
+    local pat = '"([^"]+)"%s*=>%s*TokenType::([%w_]+)'
 
     local keywords = {}
-    for name, tok in content:gmatch(pat) do
-      if tok ~= "deprecated" then
+    for name, tok in body:gmatch(pat) do
+      if tok ~= "Deprecated" then
         keywords[#!keywords + 1] = name
       end
     end
@@ -376,14 +387,25 @@ Followings are reserved as builtin functions.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/lexer/Token.zig")
+    local content = read_all("../src/lexer/token.rs")
 
-    -- match .{ "here" }
-    local pat = "%.%{%s*\"([^\"]+)\"%s*%}"
+    -- Builtins live in two `matches!` lists: `is_builtin` (runtime builtins)
+    -- and `is_preprocess_builtin` (preprocessor builtins such as at_on/ltx3_on).
+    -- In each, the builtin names are the only quoted strings, separated by `|`.
+    local function slice(str, start_pat, stop_pat)
+      local i = str:find(start_pat)
+      if not i then return "" end
+      local j = str:find(stop_pat, i)
+      return str:sub(i, j and (j - 1) or #!str)
+    end
 
     local builtins = {}
-    for name, tok in content:gmatch(pat) do
-        builtins[#!builtins + 1] = name
+    for _, fname in ipairs({ "fn is_builtin", "fn is_preprocess_builtin" }) do
+        -- each function body ends at the first line-initial `}`
+        local body = slice(content, fname, "\n}")
+        for name in body:gmatch('"([%w_]+)"') do
+            builtins[#!builtins + 1] = name
+        end
     end
     table.sort(builtins)
 
@@ -621,12 +643,14 @@ Below are functions which are baked in Vesti compiler.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/Lua.zig")
+    local content = read_all("../src/lua.rs")
 
-    local pat = '%.name%s*=%s*"([^"]+)"'
+    -- The `vesti.*` builtins are registered with calls of the form
+    --     table.set("name", f)?;
+    local pat = 'table%.set%(%s*"([^"]+)"'
 
     local lua = {}
-    for name, tok in content:gmatch(pat) do
+    for name in content:gmatch(pat) do
         lua[#!lua + 1] = name
     end
     table.sort(lua)

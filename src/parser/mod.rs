@@ -1,6 +1,7 @@
 pub mod ast;
 mod builtins;
 pub mod defkind;
+mod expectable;
 mod parser_impl;
 pub mod preprocessor;
 
@@ -12,6 +13,7 @@ use std::borrow::Cow;
 use crate::diagnostic::{Diagnostic, ParseErrorInfo};
 use crate::lexer::token::{Token, TokenType};
 use ast::Stmt;
+use expectable::{Expectable, Which};
 use preprocessor::{PreprocessError, Preprocessor, TokenList};
 
 pub const MAX_BEGENV_NUM: usize = 64;
@@ -114,12 +116,6 @@ impl Default for ParserAllows {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Which {
-    Current,
-    Peek,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DefKind {
     Fnt,
     Env,
@@ -198,67 +194,6 @@ impl<'s, 'd> Parser<'s, 'd> {
             self.tok_idx += 1;
         } else {
             self.parse_finished = true;
-        }
-    }
-
-    #[inline]
-    pub(crate) fn get_tok(&self, which: Which) -> &Token<'s> {
-        let idx = match which {
-            Which::Current => self.tok_idx,
-            Which::Peek => (self.tok_idx + 1).min(self.tok_list.len() - 1),
-        };
-        &self.tok_list[idx]
-    }
-
-    #[inline]
-    pub(crate) fn curr_toktype(&self) -> TokenType<'s> {
-        self.get_tok(Which::Current).toktype()
-    }
-
-    #[inline]
-    pub(crate) fn peek_toktype(&self) -> TokenType<'s> {
-        self.get_tok(Which::Peek).toktype()
-    }
-
-    pub(crate) fn expect(&self, which: Which, toktypes: &[TokenType<'_>]) -> bool {
-        let tt = match which {
-            Which::Current => self.curr_toktype(),
-            Which::Peek => self.peek_toktype(),
-        };
-        toktypes.iter().any(|t| toktype_eq(&tt, t))
-    }
-
-    pub(crate) fn expect_remain(&mut self, token: TokenType<'static>) -> Result<(), ParseError> {
-        if !self.expect(Which::Current, &[token]) {
-            let span = self.get_tok(Which::Current).span();
-            let obtained = self.curr_toktype();
-            self.diagnostic.set_parse_error(
-                ParseErrorInfo::TokenExpected {
-                    expected: token_expected_slice(token),
-                    obtained: Some(obtained),
-                },
-                Some(span),
-            );
-            return Err(ParseError::ParseFailed);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn expect_eat(
-        &mut self,
-        token: TokenType<'static>,
-    ) -> Result<Token<'s>, ParseError> {
-        self.expect_remain(token)?;
-        let curr = self.get_tok(Which::Current).clone();
-        self.next_token();
-        Ok(curr)
-    }
-
-    pub(crate) fn eat_whitespaces(&mut self, handle_newline: bool) {
-        while self.expect(Which::Current, &[TokenType::Space, TokenType::Tab])
-            || (handle_newline && self.expect(Which::Current, &[TokenType::Newline]))
-        {
-            self.next_token();
         }
     }
 

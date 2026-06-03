@@ -8,9 +8,10 @@ use crate::location::Span;
 
 use super::ast::{Arg, ArgNeed, DelimiterKind, MathState, Stmt, UsePackage};
 use super::defkind::{DefenvKind, DefunKind};
+use super::expectable::{Expectable, Which};
 use super::{
-    DefKind, MAX_BEGENV_NUM, ParseError, Parser, Which, env_math_ident, is_name_token,
-    static_toktype, tok_in_math, tok_in_text, vesti_name_mangle,
+    DefKind, MAX_BEGENV_NUM, ParseError, Parser, env_math_ident, is_name_token, static_toktype,
+    tok_in_math, tok_in_text, vesti_name_mangle,
 };
 
 const COMMA_RBRACE: &[TokenType<'static>] = &[TokenType::Comma, TokenType::Rbrace];

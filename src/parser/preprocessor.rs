@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use super::expectable::{Expectable, Which};
 use crate::diagnostic::{Diagnostic, ParseErrorInfo};
 use crate::lexer::Lexer;
 use crate::lexer::token::{self, Token, TokenType};
@@ -14,12 +15,12 @@ pub enum PreprocessError {
     GetFilePathFailed,
 }
 
-struct PreprocessorState {
+pub(super) struct PreprocessorState {
     // After 2020-10-01 the LaTeX kernel allows expl3 without importing it, so
     // `#ltx3_on`/`#ltx3_off` are allowed by default.
     allow_latex3: bool,
     is_premiere: bool,
-    lex_sleep: bool, // "sleep" the lexer for one step
+    pub(super) lex_sleep: bool, // "sleep" the lexer for one step
 }
 
 impl Default for PreprocessorState {
@@ -38,18 +39,12 @@ struct ComptimeFunction<'s> {
 }
 
 pub struct Preprocessor<'s, 'd> {
-    diagnostic: &'d mut Diagnostic<'s>,
-    lexer: Lexer<'s>,
-    curr_tok: Token<'s>,
-    peek_tok: Token<'s>,
+    pub(super) diagnostic: &'d mut Diagnostic<'s>,
+    pub(super) lexer: Lexer<'s>,
+    pub(super) curr_tok: Token<'s>,
+    pub(super) peek_tok: Token<'s>,
     comptime_fnt: HashMap<&'s str, ComptimeFunction<'s>>,
-    state: PreprocessorState,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Which {
-    Current,
-    Peek,
+    pub(super) state: PreprocessorState,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -64,7 +59,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         let lexer = Lexer::new(source);
         // Prime curr/peek
         let invalid = invalid_token();
-        let mut p = Preprocessor {
+        let mut pp = Preprocessor {
             diagnostic,
             lexer,
             curr_tok: invalid.clone(),
@@ -72,9 +67,9 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             comptime_fnt: HashMap::new(),
             state: PreprocessorState::default(),
         };
-        p.next_token();
-        p.next_token();
-        p
+        pp.next_token();
+        pp.next_token();
+        pp
     }
 
     pub fn preprocess(mut self) -> Result<TokenList<'s>, PreprocessError> {
@@ -96,57 +91,6 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             self.next_token();
         }
         Ok(())
-    }
-
-    fn next_token(&mut self) {
-        if !self.state.lex_sleep {
-            self.curr_tok = std::mem::replace(&mut self.peek_tok, self.lexer.next());
-        } else {
-            self.state.lex_sleep = false;
-        }
-    }
-
-    fn expect(&self, which: Which, toktypes: &[TokenType<'_>]) -> bool {
-        let tok = match which {
-            Which::Current => &self.curr_tok,
-            Which::Peek => &self.peek_tok,
-        };
-        toktypes.iter().any(|t| toktype_eq(&tok.toktype(), t))
-    }
-
-    fn expect_with_error_remain(
-        &mut self,
-        token: TokenType<'static>,
-    ) -> Result<(), PreprocessError> {
-        if !self.expect(Which::Current, &[token]) {
-            self.diagnostic.set_parse_error(
-                ParseErrorInfo::TokenExpected {
-                    expected: token_expected_slice(token),
-                    obtained: Some(self.curr_tok.toktype()),
-                },
-                Some(self.curr_tok.span()),
-            );
-            return Err(PreprocessError::PreprocessFailed);
-        }
-        Ok(())
-    }
-
-    fn expect_with_error_eat(
-        &mut self,
-        token: TokenType<'static>,
-    ) -> Result<Token<'s>, PreprocessError> {
-        self.expect_with_error_remain(token)?;
-        let curr = self.curr_tok.clone();
-        self.next_token();
-        Ok(curr)
-    }
-
-    fn eat_whitespaces(&mut self, handle_newline: bool) {
-        while self.expect(Which::Current, &[TokenType::Space, TokenType::Tab])
-            || (handle_newline && self.expect(Which::Current, &[TokenType::Newline]))
-        {
-            self.next_token();
-        }
     }
 
     fn is_builtin(name: &str, kind: BuiltinKind) -> bool {
@@ -221,7 +165,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         let mut params: Vec<TokenList<'s>> = Vec::with_capacity(params_count);
 
         if params_count > 0 {
-            self.expect_with_error_remain(TokenType::Lparen)?;
+            self.expect_remain(TokenType::Lparen)?;
         }
         for _ in 0..params_count {
             self.parse_parameter(fnt_loc, &mut params)?;
@@ -230,7 +174,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             }
         }
         if params_count > 0 {
-            self.expect_with_error_remain(TokenType::Rparen)?;
+            self.expect_remain(TokenType::Rparen)?;
         }
 
         self.expand_tokens(&contents, &params, tok_list)?;
@@ -387,7 +331,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         params: &mut Vec<TokenList<'s>>,
     ) -> Result<(), PreprocessError> {
         let mut contents: TokenList<'s> = Vec::new();
-        self.expect_with_error_eat(TokenType::Lparen)?;
+        self.expect_eat(TokenType::Lparen)?;
         let mut nested = 1usize;
         loop {
             let cont = match self.curr_tok.toktype() {
@@ -439,7 +383,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             self.next_token();
         }
 
-        self.expect_with_error_remain(TokenType::Rparen)?;
+        self.expect_remain(TokenType::Rparen)?;
         params.push(contents);
         Ok(())
     }
@@ -524,7 +468,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
 
     fn preprocess_def(&mut self) -> Result<(), PreprocessError> {
         let def_fnt_loc = self.curr_tok.span();
-        self.expect_with_error_eat(TokenType::BuiltinFunction("def"))?;
+        self.expect_eat(TokenType::BuiltinFunction("def"))?;
         self.eat_whitespaces(false);
         let def_name = match self.curr_tok.toktype() {
             TokenType::BuiltinFunction(name) => {
@@ -556,7 +500,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         }
 
         let mut contents: TokenList<'s> = Vec::new();
-        self.expect_with_error_eat(TokenType::Lbrace)?;
+        self.expect_eat(TokenType::Lbrace)?;
         let mut params = 0usize;
         let mut nested = 1usize;
         loop {
@@ -613,7 +557,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             self.next_token();
         }
 
-        self.expect_with_error_remain(TokenType::Rbrace)?;
+        self.expect_remain(TokenType::Rbrace)?;
         if self.expect(
             Which::Peek,
             &[TokenType::Space, TokenType::Tab, TokenType::Newline],
@@ -631,7 +575,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
 
     fn preprocess_undef(&mut self) -> Result<(), PreprocessError> {
         let undef_fnt_loc = self.curr_tok.span();
-        self.expect_with_error_eat(TokenType::BuiltinFunction("undef"))?;
+        self.expect_eat(TokenType::BuiltinFunction("undef"))?;
         self.eat_whitespaces(false);
         let undef_name = match self.curr_tok.toktype() {
             TokenType::BuiltinFunction(name) => {
@@ -650,7 +594,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
             }
         };
         self.eat_whitespaces(false);
-        self.expect_with_error_remain(TokenType::Newline)?;
+        self.expect_remain(TokenType::Newline)?;
 
         if Self::is_builtin(undef_name, BuiltinKind::All) {
             self.diagnostic.set_parse_error(
