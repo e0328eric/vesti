@@ -1,13 +1,1 @@
-/**/.zig-cache
-/**/.zig-global-cache
-/**/.zig-macos-vcpkg-tools
-/**/zig-out
-/**/zig-pkg
-/**/.vesti-dummy
-/**/foo.ves
-/**/foo.pdf
-/vesti-tectonic/target/*
-/first.lua
-/before.lua
-/step.lua
-/.cache
+/target

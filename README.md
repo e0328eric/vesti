@@ -57,21 +57,44 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
-This project uses the master zig version. For linux, I recommend to install
-zenity.
+It uses `tectonic` when `tectonic-backend` feature enabled. Install following third-party dependencies.
+- `fontconfig`
+- `freetype2`
+- `graphite2`
+- `harfbuzz`
+- `ICU4C`
+- `libpng`
+
+### Windows
+On windows, run the following command first. Here, one should install `vcpkg`
+manually (not using Visual Studio one).
+```console
+vcpkg install fontconfig libpng freetype "harfbuzz[graphite2] icu --triplet x64-windows-static-release
+```
+
+In addition, on windows, add the following inside of
+`%USERPROFILE%\.cargo\config.toml`.
+```toml
+[env]
+TECTONIC_DEP_BACKEND = "vcpkg"
+VCPKG_ROOT = "C:/opt/vcpkg"
+VCPKGRS_TRIPLET = "x64-windows-static-release"
+```
+
+# Linux and Macos
+On linux and macos, install upper dependencies using their own package manager.
+Especially on linux, install `zenity` also.
 
 ## Compilation
 ### For normal users
-If you want to compile with Tectonic backend, just run the following command:
-
+If you do not want tectonic backend, then run the following.
 ```console
-$ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
+$ cargo install --path .
 ```
 
-If you do not want tectonic backend, then run the following.
-
+If you want to compile with Tectonic backend, just run the following command:
 ```console
-$ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
+$ cargo install -F tectonic-backend --path .
 ```
 
 ### For developers
