@@ -267,34 +267,41 @@ pub fn lookup_keyword(ident: &str) -> Option<TokenType<'static>> {
     })
 }
 
-/// `#<builtin>` names recognized by vesti
-pub fn is_builtin(name: &str) -> bool {
-    matches!(
-        name,
-        "chardef"
-            | "copy_file"
-            | "engine_type"
-            | "enum"
-            | "enum_counter"
-            | "eq"
-            | "get_filepath"
-            | "label"
-            | "mathchardef"
-            | "mathmode"
-            | "picture"
-            | "raw_tex"
-            | "showfont"
-            | "textmode"
-    )
-}
+// `#<builtin>` names recognized by vesti
+vesti_macros::builtin_set!(
+    pub is_builtin, BUILTIN_NAMES, dispatch_builtin, parse_builtin,
+    [
+        "chardef",
+        "copy_file",
+        "engine_type",
+        "enum",
+        "enum_counter",
+        "eq",
+        "get_filepath",
+        "label",
+        "mathchardef",
+        "mathmode",
+        "picture",
+        "raw_tex",
+        "showfont",
+        "textmode",
+    ]
+);
 
-/// `#<builtin>` names handled during preprocessing
-pub fn is_preprocess_builtin(name: &str) -> bool {
-    matches!(
-        name,
-        "at_on" | "at_off" | "def" | "include" | "ltx3_on" | "ltx3_off" | "noltx3" | "undef"
-    )
-}
+// `#<builtin>` names handled during preprocessing
+vesti_macros::builtin_set!(
+    pub is_preprocess_builtin, PREPROCESS_BUILTIN_NAMES, dispatch_preprocess_builtin, preprocess,
+    [
+        "at_on",
+        "at_off",
+        "def",
+        "include",
+        "ltx3_on",
+        "ltx3_off",
+        "noltx3",
+        "undef",
+    ]
+);
 
 /// `#<digits>` are preserved as function parameters. `val` must not contain `#`.
 #[inline]

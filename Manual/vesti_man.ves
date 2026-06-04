@@ -155,27 +155,17 @@ useenv table [ht] {
     #::
     local content = read_all("../src/lexer/token.rs")
 
-    -- Keywords live in `lookup_keyword` as arms of the form
-    --     "name" => TokenType::Variant
-    -- Deprecated keywords map to `TokenType::Deprecated`, which we skip
-    -- (the Rust port replaced the old `deprecated` TokenType tag with this).
+    -- Keywords live in `lookup_keyword` as `"name" => TokenType::Variant`.
+    -- We capture both the keyword and the variant, then filter out the
+    -- deprecated ones (which map to `TokenType::Deprecated`).
     -- Pattern breakdown:
-    --   "([^"]+)"            => a quoted keyword -> capture 1
-    --   %s*=>%s*TokenType::   => the `=> TokenType::` arrow
-    --   ([%w_]+)             => the variant name -> capture 2
-    local function slice(str, start_pat, stop_pat)
-      local i = str:find(start_pat)
-      if not i then return "" end
-      local j = str:find(stop_pat, i)
-      return str:sub(i, j and (j - 1) or #!str)
-    end
-
-    -- restrict the search to the body of `lookup_keyword`
-    local body = slice(content, "fn lookup_keyword", "\n}")
+    --   "([^"]+)"           => a quoted keyword -> capture 1
+    --   %s*=>%s*TokenType:: => the match arm to a TokenType variant
+    --   ([%w_]+)            => the variant name -> capture 2
     local pat = '"([^"]+)"%s*=>%s*TokenType::([%w_]+)'
 
     local keywords = {}
-    for name, tok in body:gmatch(pat) do
+    for name, tok in content:gmatch(pat) do
       if tok ~= "Deprecated" then
         keywords[#!keywords + 1] = name
       end
@@ -389,21 +379,14 @@ useenv table [ht] {
     #::
     local content = read_all("../src/lexer/token.rs")
 
-    -- Builtins live in two `matches!` lists: `is_builtin` (runtime builtins)
-    -- and `is_preprocess_builtin` (preprocessor builtins such as at_on/ltx3_on).
-    -- In each, the builtin names are the only quoted strings, separated by `|`.
-    local function slice(str, start_pat, stop_pat)
-      local i = str:find(start_pat)
-      if not i then return "" end
-      local j = str:find(stop_pat, i)
-      return str:sub(i, j and (j - 1) or #!str)
-    end
-
+    -- Builtins are the bare string literals inside the `builtin_set!` lists,
+    -- i.e. lines of the form `    "name",`. Keyword arms like
+    -- `"docclass" => TokenType::Docclass` have more text after the string, so
+    -- the end-of-line anchor below excludes them.
     local builtins = {}
-    for _, fname in ipairs({ "fn is_builtin", "fn is_preprocess_builtin" }) do
-        -- each function body ends at the first line-initial `}`
-        local body = slice(content, fname, "\n}")
-        for name in body:gmatch('"([%w_]+)"') do
+    for line in content:gmatch("[^\r\n]+") do
+        local name = line:match('^%s*"([%w_]+)",?%s*$')
+        if name then
             builtins[#!builtins + 1] = name
         end
     end
@@ -645,9 +628,8 @@ useenv table [ht] {
     #::
     local content = read_all("../src/lua.rs")
 
-    -- The `vesti.*` builtins are registered with calls of the form
-    --     table.set("name", f)?;
-    local pat = 'table%.set%(%s*"([^"]+)"'
+    -- Each `vesti.*` function is registered with `table.set("<name>", ...)`.
+    local pat = 'table%.set%("([^"]+)"'
 
     local lua = {}
     for name in content:gmatch(pat) do

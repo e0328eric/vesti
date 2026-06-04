@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use crate::diagnostic::{DiagnosticInner, IoDiagnostic, ParseErrorInfo};
-use crate::lexer::token::{TokenType, is_function_param};
+use crate::lexer::token::{self, TokenType, is_function_param};
 use crate::location::Span;
 
 use super::ast::{MathState, Stmt};
@@ -58,29 +58,13 @@ impl<'s, 'd> Parser<'s, 'd> {
             });
         }
 
-        match builtin_fnt {
-            "chardef" => self.parse_builtin_chardef(),
-            "copy_file" => self.parse_builtin_copy_file(),
-            "engine_type" => self.parse_builtin_engine_type(),
-            "enum" => self.parse_builtin_enum(),
-            "enum_counter" => self.parse_builtin_enum_counter(),
-            "eq" => self.parse_builtin_eq(),
-            "get_filepath" => self.parse_builtin_get_filepath(),
-            "label" => self.parse_builtin_label(),
-            "mathchardef" => self.parse_builtin_mathchardef(),
-            "mathmode" => self.parse_builtin_mathmode(),
-            "picture" => self.parse_builtin_picture(),
-            "raw_tex" => self.parse_builtin_raw_tex(),
-            "showfont" => self.parse_builtin_showfont(),
-            "textmode" => self.parse_builtin_textmode(),
-            _ => {
-                self.diagnostic.set_parse_error(
-                    ParseErrorInfo::InvalidBuiltin(builtin_fnt.to_owned()),
-                    Some(builtin_location),
-                );
-                Err(ParseError::ParseFailed)
-            }
-        }
+        token::dispatch_builtin!(self, builtin_fnt, (), {
+            self.diagnostic.set_parse_error(
+                ParseErrorInfo::InvalidBuiltin(builtin_fnt.to_owned()),
+                Some(builtin_location),
+            );
+            Err(ParseError::ParseFailed)
+        })
     }
 
     fn parse_builtins_arguments(

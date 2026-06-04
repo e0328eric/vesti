@@ -105,16 +105,13 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         match self.curr_tok.toktype() {
             TokenType::BuiltinFunction(name) => {
                 // preprocess-only builtins
-                match name {
-                    "at_on" => return self.preprocess_at_on(tok_list),
-                    "at_off" => return self.preprocess_at_off(tok_list),
-                    "ltx3_on" => return self.preprocess_ltx3_on(tok_list),
-                    "ltx3_off" => return self.preprocess_ltx3_off(tok_list),
-                    "noltx3" => return self.preprocess_noltx3(),
-                    "def" => return self.preprocess_def(),
-                    "undef" => return self.preprocess_undef(),
-                    "include" => return self.preprocess_include(tok_list),
-                    _ => {}
+                if token::is_preprocess_builtin(name) {
+                    return token::dispatch_preprocess_builtin!(
+                        self,
+                        name,
+                        (tok_list),
+                        unreachable!("is_preprocess_builtin gated this dispatch")
+                    );
                 }
 
                 if Self::is_builtin(name, BuiltinKind::Normal)
@@ -452,7 +449,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         }
     }
 
-    fn preprocess_noltx3(&mut self) -> Result<(), PreprocessError> {
+    fn preprocess_noltx3(&mut self, _tok_list: &mut TokenList<'s>) -> Result<(), PreprocessError> {
         if self.state.is_premiere {
             self.state.allow_latex3 = false;
             if self.expect(Which::Peek, &[TokenType::Space, TokenType::Tab]) {
@@ -466,7 +463,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         }
     }
 
-    fn preprocess_def(&mut self) -> Result<(), PreprocessError> {
+    fn preprocess_def(&mut self, _tok_list: &mut TokenList<'s>) -> Result<(), PreprocessError> {
         let def_fnt_loc = self.curr_tok.span();
         self.expect_eat(TokenType::BuiltinFunction("def"))?;
         self.eat_whitespaces(false);
@@ -573,7 +570,7 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
         Ok(())
     }
 
-    fn preprocess_undef(&mut self) -> Result<(), PreprocessError> {
+    fn preprocess_undef(&mut self, _tok_list: &mut TokenList<'s>) -> Result<(), PreprocessError> {
         let undef_fnt_loc = self.curr_tok.span();
         self.expect_eat(TokenType::BuiltinFunction("undef"))?;
         self.eat_whitespaces(false);
@@ -637,6 +634,8 @@ impl<'s, 'd> Preprocessor<'s, 'd> {
     }
 }
 
+// -- Helper functions ---------------------------------------------------------
+
 fn invalid_token<'s>() -> Token<'s> {
     Token::new(
         TokenType::Illegal,
@@ -657,8 +656,8 @@ fn toktype_eq(a: &TokenType<'_>, b: &TokenType<'_>) -> bool {
     }
 }
 
-/// The diagnostic API wants a `'static` slice of expected token types. We only
-/// ever expect single fixed tokens here, so map each to a static singleton.
+// The diagnostic API wants a `'static` slice of expected token types. We only
+// ever expect single fixed tokens here, so map each to a static singleton.
 fn token_expected_slice(t: TokenType<'static>) -> &'static [TokenType<'static>] {
     macro_rules! s {
         ($v:expr) => {{

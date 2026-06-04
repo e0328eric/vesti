@@ -3,7 +3,7 @@ name = "vesti"
 version = "0.16.0"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
-repository = "https://github.com/e0328eric/vesti.git"
+repository = "https://codeberg.org/e0328eric/vesti.git"
 license = "MIT"
 edition = "2024"
 
