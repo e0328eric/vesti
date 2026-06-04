@@ -29,7 +29,7 @@ default = []
 tectonic-backend = ["dep:tectonic"]
 
 [dependencies]
-vesti-macros = { path = "vesti-macros" }
+vesti-macros = "0.1.0"
 base64ct = { version = "1.6.0", features = ["alloc"] }
 clap = { version = "4", features = ["derive"] }
 crossterm = "0.29"

@@ -4574,7 +4574,7 @@ dependencies = [
  "tectonic",
  "unicode-segmentation",
  "unicode-width 0.2.2",
- "vesti-macros",
+ "vesti-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir",
  "windows",
  "yaml-rust",
@@ -4584,6 +4584,17 @@ dependencies = [
 [[package]]
 name = "vesti-macros"
 version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "vesti-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5250c0ce86f119d4431e03b9f93c4fa5425955a63b6d7c54bffe789e31e7e9b3"
 dependencies = [
  "proc-macro2",
  "quote",
