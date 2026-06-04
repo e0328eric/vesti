@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::SystemTime;
 
 use walkdir::WalkDir;
 
@@ -13,6 +15,8 @@ use crate::lua::{CompileAttribute, Lua};
 use crate::luascript::{self, LuaScriptError};
 use crate::parser::{LatexEngine, Parser, ParserAllows, ast::Stmt};
 use crate::vesti_info::{VESTI_DUMMY_DIR, VESTI_VERSION};
+
+pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug)]
 pub enum CompileError {
@@ -101,10 +105,16 @@ impl Compiler {
                 })?;
         }
 
-        loop {
+        'watch: loop {
+            let snapshot = self.attr.watch.then_some(self.watch_snapshot());
+
             match self.compile_inner(lua) {
                 Ok(()) => {}
                 Err(err) => {
+                    if SHUTDOWN.load(Ordering::SeqCst) {
+                        return Ok(());
+                    }
+
                     raise_messagebox(
                         "vesti compile failed",
                         "vesti compilation error occurs. See the console for more information",
@@ -115,26 +125,65 @@ impl Compiler {
                         _ => {}
                     }
 
-                    if !self.attr.watch {
-                        return Err(err);
-                    }
-                    if self.attr.no_exit_err {
-                        eprintln!("Ctrl+C to quit...");
-                        std::thread::sleep(std::time::Duration::from_millis(200));
-                        continue;
-                    } else {
+                    if !self.attr.watch || !self.attr.no_exit_err {
                         return Err(err);
                     }
                 }
             }
 
-            if !self.attr.watch {
+            let Some(snapshot) = snapshot else {
                 break;
+            };
+
+            eprintln!("Ctrl+C to quit...");
+            loop {
+                if SHUTDOWN.load(Ordering::SeqCst) {
+                    break 'watch;
+                }
+                if self.watch_snapshot() != snapshot {
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(200));
             }
-            std::thread::sleep(std::time::Duration::from_millis(200));
         }
 
         Ok(())
+    }
+
+    fn collect_watch_files(&self) -> Vec<PathBuf> {
+        let mut files: Vec<PathBuf> = vec![PathBuf::from(&self.main_filename)];
+
+        if self.attr.compile_all {
+            let dummy_name = Path::new(VESTI_DUMMY_DIR).file_name();
+            for entry in WalkDir::new(".").into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                let path = entry.path();
+                if dummy_name.is_some()
+                    && path.components().any(|c| Some(c.as_os_str()) == dummy_name)
+                {
+                    continue;
+                }
+                if path.extension().and_then(|e| e.to_str()) == Some("ves") {
+                    files.push(path.to_path_buf());
+                }
+            }
+        }
+
+        files
+    }
+
+    fn watch_snapshot(&self) -> BTreeMap<PathBuf, Option<SystemTime>> {
+        self.collect_watch_files()
+            .into_iter()
+            .map(|path| {
+                let mtime = fs::metadata(&path).and_then(|m| m.modified()).ok();
+                (path, mtime)
+            })
+            .collect()
     }
 
     fn compile_inner(&mut self, lua: &mut Lua) -> Result<(), CompileError> {

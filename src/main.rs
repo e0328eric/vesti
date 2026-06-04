@@ -15,6 +15,7 @@ mod vesti_info;
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
+use std::sync::atomic::Ordering;
 
 use clap::{Parser as ClapParser, Subcommand};
 
@@ -105,6 +106,13 @@ struct CompileArgs {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+
+    if let Err(e) = ctrlc::set_handler(|| {
+        crate::compiler::SHUTDOWN.store(true, Ordering::SeqCst);
+    }) {
+        eprintln!("CRITICAL ERROR: failed to set the Ctrl+C handler: {e}");
+        return ExitCode::FAILURE;
+    }
 
     let result = match cli.command {
         Command::Init { project } => init_step(&project),

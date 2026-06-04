@@ -1,6 +1,6 @@
 [package]
 name = "vesti"
-version = "0.16.0"
+version = "0.16.1"
 authors = ["Sungbae Jeong <almagest0328@gmail.com>"]
 description = "A preprocessor that compiles into LaTeX"
 repository = "https://codeberg.org/e0328eric/vesti.git"
@@ -46,6 +46,7 @@ unicode-segmentation = "1.13.2"
 mlua = { version = "0.11.6", features = ["lua55", "vendored"] }
 reqwest = { version = "0.13", features = ["blocking"] }
 zip = "8"
+ctrlc = { version = "3.5.2", features = ["termination"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = ["Win32_UI_WindowsAndMessaging"] }
