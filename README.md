@@ -75,8 +75,68 @@ $ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=Relea
 ```
 
 ### For developers
-One should have zig and rust compiler. Especially, for rust, one also first
-install `cargo-zigbuild` and `cargo-vcpkg`.
+One should have zig and rust compiler.
+
+#### Prerequisites for building dynamic library
+It uses `tectonic` when `tectonic-backend` feature enabled. Install following third-party dependencies.
+- `fontconfig`
+- `freetype2`
+- `graphite2`
+- `harfbuzz`
+- `ICU4C`
+- `libpng`
+- `upx` (a binary)
+
+#### Windows
+There are two options to build dll. One is first install `vcpkg` manually (not
+using Visual Studio one) and install all libraries.
+
+```console
+vcpkg install fontconfig libpng freetype "harfbuzz[graphite2] icu --triplet x64-windows-static-release
+```
+
+Upx can be installed via winget.
+
+In addition, on windows, add the following inside of
+`%USERPROFILE%\.cargo\config.toml`.
+```toml
+[env]
+TECTONIC_DEP_BACKEND = "vcpkg"
+VCPKG_ROOT = "C:/opt/vcpkg"
+VCPKGRS_TRIPLET = "x64-windows-static-release"
+```
+
+Then run
+```console
+zig build rust -Dno-cargo-vcpkg=true
+```
+
+If you do not want to install `vcpkg` manually, install `cargo-vcpkg`.
+Then run
+```console
+zig build rust
+```
+
+To build macos dylib, install `cargo-zigbuild` and follow the above steps.
+
+#### Linux
+On linux, install upper dependencies using their own package manager.
+Especially on linux, install `zenity` also.
+
+```console
+zig build rust
+zig build
+```
+
+To build macos dylib, install `cargo-zigbuild` and follow the above steps.
+
+#### Macos
+Macos, install upper dependencies using their own package manager.
+Then just run
+```console
+zig build rust
+zig build
+```
 
 ## Configuration
 Vesti has a configuration file. The location of the config file is follows:

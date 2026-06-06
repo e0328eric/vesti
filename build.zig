@@ -36,6 +36,11 @@ pub fn build(b: *Build) !void {
         "macos-sdk",
         "Path to MacOSX.sdk for macOS Rust/vcpkg cross builds",
     );
+    const no_cargo_vcpkg = b.option(
+        bool,
+        "no-cargo-vcpkg",
+        "compile vesti_tectonic dll without using cargo-vcpkg",
+    );
 
     //          ╭─────────────────────────────────────────────────────────╮
     //          │                       Build Step                        │
@@ -55,7 +60,7 @@ pub fn build(b: *Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const build_rust = BuildRust.create(b, target, macos_sdk_path);
+    const build_rust = BuildRust.create(b, target, macos_sdk_path, no_cargo_vcpkg);
     const build_rust_cmd = b.step("rust", "Build vesti-tectonic rust code");
     build_rust_cmd.dependOn(&build_rust.step);
 
@@ -193,11 +198,13 @@ const BuildRust = struct {
     step: Build.Step,
     target: Build.ResolvedTarget,
     macos_sdk_path: ?[]const u8,
+    no_cargo_vcpkg: bool,
 
     fn create(
         owner: *Build,
         target: Build.ResolvedTarget,
         macos_sdk_path: ?[]const u8,
+        no_cargo_vcpkg: ?bool,
     ) *BuildRust {
         const build_rust = owner.allocator.create(BuildRust) catch @panic("OOM");
 
@@ -210,6 +217,7 @@ const BuildRust = struct {
             }),
             .target = target,
             .macos_sdk_path = macos_sdk_path,
+            .no_cargo_vcpkg = no_cargo_vcpkg orelse false, // use cargo-vcpkg in default
         };
 
         return build_rust;
@@ -231,15 +239,17 @@ fn makeBuildRust(
 
     switch (build_rust.target.result.os.tag) {
         .windows => {
-            const vcpkg_root = try path.join(alloc, &.{
-                b.build_root.path.?,
-                "vesti-tectonic/target/vcpkg",
-            });
-            defer alloc.free(vcpkg_root);
+            if (!build_rust.no_cargo_vcpkg) {
+                const vcpkg_root = try path.join(alloc, &.{
+                    b.build_root.path.?,
+                    "vesti-tectonic/target/vcpkg",
+                });
+                defer alloc.free(vcpkg_root);
+                try envmap.put("VCPKG_ROOT", vcpkg_root);
+            }
             try envmap.put("TECTONIC_DEP_BACKEND", "vcpkg");
             try envmap.put("VCPKGRS_TRIPLET", "x64-windows-static-release");
             try envmap.put("RUSTFLAGS", "-Ctarget-feature=+crt-static");
-            try envmap.put("VCPKG_ROOT", vcpkg_root);
         },
         .macos => {
             // such setting is need when one compile macos dylib on either linux
@@ -311,23 +321,28 @@ fn makeBuildRust(
         };
     };
 
-    const vcpkg = try std.process.run(b.allocator, io, .{
-        .argv = &.{ "cargo", "vcpkg", "-v", "build", "--target", target_string },
-        .environ_map = &envmap,
-    });
-    defer {
-        b.allocator.free(vcpkg.stdout);
-        b.allocator.free(vcpkg.stderr);
+    if (!build_rust.no_cargo_vcpkg) {
+        const vcpkg = try std.process.run(b.allocator, io, .{
+            .argv = &.{ "cargo", "vcpkg", "-v", "build", "--target", target_string },
+            .environ_map = &envmap,
+        });
+        defer {
+            b.allocator.free(vcpkg.stdout);
+            b.allocator.free(vcpkg.stderr);
+        }
+
+        std.debug.print("<vcpkg>\nstdout: {s}\n\nstderr: {s}\n", .{
+            vcpkg.stdout,
+            vcpkg.stderr,
+        });
+        try checkRunResult("cargo vcpkg build", vcpkg);
     }
 
-    std.debug.print("<vcpkg>\nstdout: {s}\n\nstderr: {s}\n", .{
-        vcpkg.stdout,
-        vcpkg.stderr,
-    });
-    try checkRunResult("cargo vcpkg build", vcpkg);
-
     const cargo_argv: []const []const u8 = switch (build_rust.target.result.os.tag) {
-        .macos => &.{ "cargo", "zigbuild", "--release", "--target", target_string },
+        .macos => if (builtin.os.tag == .macos)
+            &.{ "cargo", "build", "--release", "--target", target_string }
+        else
+            &.{ "cargo", "zigbuild", "--release", "--target", target_string },
         else => &.{ "cargo", "build", "--release", "--target", target_string },
     };
     const cargo = try std.process.run(b.allocator, io, .{
