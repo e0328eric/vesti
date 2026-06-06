@@ -153,19 +153,20 @@ the form like \keyword{this}.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/lexer/Token.zig")
+    local content = read_all("../src/lexer/token.rs")
 
-    -- Lua’s built-in patterns don’t support lookahead.
-    -- We capture both the keyword and the TokenType, then filter out 'deprecated'.
+    -- Keywords live in `lookup_keyword` as `"name" => TokenType::Variant`.
+    -- We capture both the keyword and the variant, then filter out the
+    -- deprecated ones (which map to `TokenType::Deprecated`).
     -- Pattern breakdown:
-    --   %.%{         => matches ".{"
-    --   %s*"([^"]+)" => a quoted string -> capture 1
-    --   %s*,%s*TokenType%.([%w_]+) => TokenType.<Name> -> capture 2
-    local pat = "%.%{%s*\"([^\"]+)\"%s*,%s*TokenType%.([%w_]+)"
+    --   "([^"]+)"           => a quoted keyword -> capture 1
+    --   %s*=>%s*TokenType:: => the match arm to a TokenType variant
+    --   ([%w_]+)            => the variant name -> capture 2
+    local pat = '"([^"]+)"%s*=>%s*TokenType::([%w_]+)'
 
     local keywords = {}
     for name, tok in content:gmatch(pat) do
-      if tok ~= "deprecated" then
+      if tok ~= "Deprecated" then
         keywords[#!keywords + 1] = name
       end
     end
@@ -376,14 +377,18 @@ Followings are reserved as builtin functions.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/lexer/Token.zig")
+    local content = read_all("../src/lexer/token.rs")
 
-    -- match .{ "here" }
-    local pat = "%.%{%s*\"([^\"]+)\"%s*%}"
-
+    -- Builtins are the bare string literals inside the `builtin_set!` lists,
+    -- i.e. lines of the form `    "name",`. Keyword arms like
+    -- `"docclass" => TokenType::Docclass` have more text after the string, so
+    -- the end-of-line anchor below excludes them.
     local builtins = {}
-    for name, tok in content:gmatch(pat) do
-        builtins[#!builtins + 1] = name
+    for line in content:gmatch("[^\r\n]+") do
+        local name = line:match('^%s*"([%w_]+)",?%s*$')
+        if name then
+            builtins[#!builtins + 1] = name
+        end
     end
     table.sort(builtins)
 
@@ -621,12 +626,13 @@ Below are functions which are baked in Vesti compiler.
 useenv table [ht] {
     \centering
     #::
-    local content = read_all("../src/Lua.zig")
+    local content = read_all("../src/lua.rs")
 
-    local pat = '%.name%s*=%s*"([^"]+)"'
+    -- Each `vesti.*` function is registered with `table.set("<name>", ...)`.
+    local pat = 'table%.set%("([^"]+)"'
 
     local lua = {}
-    for name, tok in content:gmatch(pat) do
+    for name in content:gmatch(pat) do
         lua[#!lua + 1] = name
     end
     table.sort(lua)
