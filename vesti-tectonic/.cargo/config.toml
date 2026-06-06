@@ -1,0 +1,7 @@
+[env]
+CXXFLAGS_x86_64-pc-windows-msvc = "/std:c++17"
+
+[target.x86_64-pc-windows-msvc]
+linker = "link.exe"
+rustflags = ["-C", "link-arg=/FORCE:MULTIPLE", "-Ctarget-feature=+crt-static"]
+
