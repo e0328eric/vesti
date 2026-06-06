@@ -242,7 +242,13 @@ fn makeBuildRust(
             try envmap.put("VCPKG_ROOT", vcpkg_root);
         },
         .macos => {
-            try configureMacosRustEnv(b, alloc, &envmap, build_rust);
+            // such setting is need when one compile macos dylib on either linux
+            // or windows
+            if (builtin.os.tag != .macos) {
+                try configureMacosRustEnv(b, alloc, &envmap, build_rust);
+            }
+
+            // on macos, additional configuration is not needed
         },
         else => {},
     }
