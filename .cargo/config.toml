@@ -1,5 +1,0 @@
-[env]
-CXXFLAGS_x86_64-pc-windows-msvc = "/std:c++17"
-
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-Ctarget-feature=+crt-static"]
