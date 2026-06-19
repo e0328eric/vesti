@@ -1,661 +1,1274 @@
 docclass article (10pt)
 importpkg {
-    geometry (a4paper, margin = 2.2cm),
+    fontenc (T1),
+    inputenc (utf8),
+    geometry (a4paper, margin = 2.3cm),
+    microtype (expansion=false),
+    amsmath,
+    amssymb,
     xcolor,
     tikz,
     fancyvrb,
-    amsmath,
+    listings,
+    tcolorbox,
+    booktabs,
+    longtable,
+    array,
+    enumitem,
+    titlesec,
+    fancyhdr,
+    hyperref,
 }
 
-\title{Vesti Transpiler User Manual}
-\author{Sungbae Jeong}
-#::
-local function read_all(path)
-  local f, err = io.open(path, "rb")
-  assert(f, ("cannot open %s: %s"):format(path, err))
-  local data = f:read("*a")
-  f:close()
-  return data
-end
-::#<readAll>
+%-
+\tcbuselibrary{skins,breakable}
+% ---------------------------------------------------------------------------
+%  Palette
+% ---------------------------------------------------------------------------
+\definecolor{vkw}{HTML}{8E44AD}      % keywords (purple)
+\definecolor{vbi}{HTML}{1F6FB2}      % builtins (blue)
+\definecolor{vstr}{HTML}{1E8449}     % strings / literals (green)
+\definecolor{vcom}{HTML}{8A8A8A}     % comments (grey)
+\definecolor{vlua}{HTML}{B9770E}     % lua (amber)
+\definecolor{vbg}{HTML}{FAF8FC}      % code background
+\definecolor{vrule}{HTML}{E3DAEC}    % code frame
+\definecolor{vlink}{HTML}{6C3483}
+\definecolor{vurl}{HTML}{1F6FB2}
+\definecolor{vink}{HTML}{2C2230}     % main text ink
+\definecolor{vhead}{HTML}{4A235A}    % heading ink
+\definecolor{vnote}{HTML}{F4ECF7}    % note box
+\definecolor{vwarn}{HTML}{FDEDEC}    % warning box
+\definecolor{vwarnru}{HTML}{E6B0AA}
 
--- definition of \keyword command
-defun [!] keyword (m) {{\tt\color{purple}#1}}
-defun [!] builtin (v) {{\tt\color{blue!65!yellow}\##1}}
-#::
-local commands = { "useenv", "defun", "defenv" }
-for _, command in ipairs(commands) do
-    local s = string.format(
-        "defun %s (s) {\\IfBooleanTF{#!1}{\\keyword{%%!-%s-%%}}{\\keyword{%%!-%s-%%} }}",
-        command, command, command
-    )
-    vesti.print(vesti.parse(s))
-end
-::#
+\color{vink}
 
+% ---------------------------------------------------------------------------
+%  Headings
+% ---------------------------------------------------------------------------
+\titleformat{\section}{\Large\bfseries\color{vhead}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{vhead}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{vhead}}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{2.0ex plus 1ex minus .2ex}{1.0ex plus .2ex}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+\tolerance=1800
+\emergencystretch=2.5em
+
+% ---------------------------------------------------------------------------
+%  Header / footer
+% ---------------------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[L]{\small\color{vhead}\textbf{vesti} \;\textperiodcentered\; full reference manual}
+\fancyhead[R]{\small\color{vhead}\leftmark}
+\fancyfoot[C]{\small\color{vink}\thepage}
+
+% ---------------------------------------------------------------------------
+%  Inline tokens
+% ---------------------------------------------------------------------------
+\newcommand{\kw}[1]{{\ttfamily\color{vkw}\bfseries #1}}        % keyword
+\newcommand{\bi}[1]{{\ttfamily\color{vbi}\bfseries\##1}}        % builtin
+\newcommand{\code}[1]{{\ttfamily #1}}                           % inline code
+\newcommand{\meta}[1]{{\normalfont\itshape$\langle$#1$\rangle$}}% metavariable
+
+% ---------------------------------------------------------------------------
+%  Listings: a "vesti" language definition
+% ---------------------------------------------------------------------------
+\lstdefinelanguage{vesti}{
+  morekeywords={docclass,importpkg,importves,importmod,startdoc,useenv,%
+    begenv,endenv,defun,defenv},
+  sensitive=true,
+  morecomment=[l]{--},
+  morestring=[b]",
+}
+
+\lstdefinelanguage{foo}{
+  morekeywords={docclass,importpkg,importves,importmod,startdoc,useenv,%
+    begenv,endenv,defun,defenv},
+  sensitive=true,
+  morestring=[b]",
+}
+\lstdefinestyle{vesti}{
+  language=vesti,
+  basicstyle=\ttfamily\small\color{vink},
+  keywordstyle=\color{vkw}\bfseries,
+  commentstyle=\color{vcom}\itshape,
+  stringstyle=\color{vstr},
+  showstringspaces=false,
+  backgroundcolor=\color{vbg},
+  frame=single,
+  rulecolor=\color{vrule},
+  framesep=6pt,
+  xleftmargin=10pt,
+  xrightmargin=4pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  numbers=left,
+  numberstyle=\ttfamily\scriptsize\color{vcom},
+  numbersep=10pt,
+  aboveskip=1.0em,
+  belowskip=0.6em,
+  literate=
+    {\#}{{{\color{vbi}\#}}}1
+}
+
+\lstdefinestyle{plainved}{
+  language=foo,
+  basicstyle=\ttfamily\small\color{vink},
+  keywordstyle=\color{vkw}\bfseries,
+  commentstyle=\color{vcom}\itshape,
+  stringstyle=\color{vstr},
+  showstringspaces=false,
+  backgroundcolor=\color{vbg},
+  frame=single,
+  rulecolor=\color{vrule},
+  framesep=6pt,
+  xleftmargin=8pt,
+  xrightmargin=4pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  aboveskip=1.0em,
+  belowskip=0.6em,
+  literate={\#}{{{\color{vbi}\#}}}1
+}
+
+\lstdefinestyle{luaved}{
+  language=[5.1]Lua,
+  basicstyle=\ttfamily\small\color{vink},
+  keywordstyle=\color{vlua}\bfseries,
+  commentstyle=\color{vcom}\itshape,
+  stringstyle=\color{vstr},
+  showstringspaces=false,
+  backgroundcolor=\color{vbg},
+  frame=single,
+  rulecolor=\color{vrule},
+  framesep=6pt,
+  xleftmargin=10pt,
+  xrightmargin=4pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  numbers=left,
+  numberstyle=\ttfamily\scriptsize\color{vcom},
+  numbersep=10pt,
+  aboveskip=1.0em,
+  belowskip=0.6em,
+}
+
+\lstdefinestyle{tex}{
+  language=[LaTeX]TeX,
+  basicstyle=\ttfamily\small\color{vink},
+  keywordstyle=\color{vbi}\bfseries,
+  commentstyle=\color{vcom}\itshape,
+  backgroundcolor=\color{vbg},
+  frame=single,
+  rulecolor=\color{vrule},
+  framesep=6pt,
+  xleftmargin=8pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  aboveskip=1.0em,
+  belowskip=0.6em,
+}
+
+% Generic shell style
+\lstdefinestyle{sh}{
+  basicstyle=\ttfamily\small\color{vink},
+  backgroundcolor=\color{vbg},
+  frame=single,
+  rulecolor=\color{vrule},
+  framesep=6pt,
+  xleftmargin=8pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  aboveskip=1.0em,
+  belowskip=0.6em,
+}
+
+% ---------------------------------------------------------------------------
+%  Callout boxes
+% ---------------------------------------------------------------------------
+\newtcolorbox{notebox}[1][Note]{
+  breakable, enhanced, colback=vnote, colframe=vkw,
+  boxrule=0.4pt, arc=2pt, left=8pt, right=8pt, top=5pt, bottom=5pt,
+  fonttitle=\bfseries\color{vhead}, title={#1}, coltitle=vhead,
+  attach title to upper=\ , before upper={\itshape}}
+
+\newtcolorbox{warnbox}[1][Caution]{
+  breakable, enhanced, colback=vwarn, colframe=vwarnru,
+  boxrule=0.4pt, arc=2pt, left=8pt, right=8pt, top=5pt, bottom=5pt,
+  fonttitle=\bfseries\color{vhead}, title={#1}, coltitle=vhead,
+  attach title to upper=\ }
+
+\newtcolorbox{synbox}{
+  breakable, enhanced, colback=white, colframe=vrule,
+  boxrule=0.6pt, arc=2pt, left=8pt, right=8pt, top=5pt, bottom=5pt,
+  before upper={\ttfamily}}
+
+% Grammar metavariable in synbox
+\newcommand{\g}[1]{{\normalfont\itshape$\langle$#1$\rangle$}}
+\newcommand{\opt}[1]{#1\textsuperscript{\normalfont\itshape?}}
+\newcommand{\rep}[1]{#1\textsuperscript{\normalfont\itshape*}}
+
+% nicer table column
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\hypersetup{colorlinks=true, linkcolor=vlink, urlcolor=vurl}
+-%
+
+-- ====================================================================
+--  Lua helpers that read the compiler source so that the keyword /
+--  builtin / Lua-API tables below regenerate automatically whenever the
+--  source changes.  Paths are relative to this file (drop it next to the
+--  original Manual/ directory so that ../src/... resolves).
+-- ====================================================================
 #::
-function begenv(add_bang, add_space)
-    local name = "begenv"
-    if add_bang then name = name .. "!" end
-    local begenv = "\\keyword{" .. name .. "}"
-    if add_space then begenv = begenv .. " " end
-    vesti.print(begenv, { nl = 0 })
+function read_all(path)
+    local f, err = io.open(path, "rb")
+    assert(f, ("cannot open %s: %s"):format(path, err))
+    local data = f:read("*a")
+    f:close()
+    return data
 end
 
-function endenv(add_bang, add_space)
-    local name = "endenv"
-    if add_bang then name = name .. "!" end
-    local endenv = "\\keyword{" .. name .. "}"
-    if add_space then endenv = endenv .. " " end
-    vesti.print(endenv, { nl = 0 })
+-- collect the first capture of every match of `pat` in `s`,
+-- dropping any whose second capture equals `reject`, then sort.
+function ves_collect(s, pat, reject)
+    local out = {}
+    for a, b in s:gmatch(pat) do
+        if not (reject and b == reject) then
+            out[#!out + 1] = a
+        end
+    end
+    table.sort(out)
+    return out
+end
+
+-- print a centered tabular of `names`, `cols` wide, each cell rendered
+-- through string.format(fmt, name).
+function ves_name_table(names, cols, fmt)
+    vesti.print("\\begin{tabular}{" .. string.rep("c", cols) .. "}")
+    for i, nm in ipairs(names) do
+        local cell = string.format(fmt, nm)
+        if (i % cols) == 0 then
+            vesti.print(cell .. [[\\]])
+        else
+            vesti.print(cell .. "&")
+        end
+    end
+    vesti.print([[\end{tabular}]])
 end
 ::#*
 
--- space character used in the texbook.
-#at_on
-#chardef 2423 \@b
-defun ob {\kern2pt{\tt\@b}\kern2pt}
-#at_off
+-- definition of helper commands used to colour vesti terms.
+defun [!] keyword (m) {{\tt\color{vkw}\bfseries #1}}
+defun [!] builtin (v) {{\tt\color{vbi}\bfseries\##1}}
+
+-- a faux "space" glyph used to indicate where a space is mandatory.
+defun ob {\kern2pt{\tt\textvisiblespace}\kern2pt}
 
 startdoc
-\maketitle
+%-
+\begin{titlepage}
+\centering
+\vspace*{2.2cm}
+{\fontsize{46}{50}\selectfont\bfseries\color{vhead} vesti}\\[6pt]
+{\Large\color{vink} A transpiler that compiles into \LaTeX}\\[26pt]
+{\LARGE\bfseries\color{vhead} The Full Reference Manual}\\[10pt]
+{\large\color{vink} Language grammar, keywords, builtins, the preprocessor,\\
+and the embedded Lua scripting API}\\[34pt]
+
+\begin{tcolorbox}[width=0.74\textwidth, colback=vbg, colframe=vrule, boxrule=0.6pt, arc=3pt]
+\centering\ttfamily\small\color{vink}
+docclass article (10pt)\\
+importpkg \{ amsmath, geometry (a4paper) \}\\[2pt]
+startdoc\\
+Hello, \textbf{Vesti}!
+\end{tcolorbox}
+
+\vfill
+{\small\color{vink}
+This manual is generated from a full reading of the vesti source tree\\
+(lexer, parser, preprocessor, code generator and the Lua bindings).\\
+It documents every keyword, builtin, preprocessor directive and Lua API\\
+function exposed by the compiler.}\\[10pt]
+{\small\color{vhead}\textbf{Status:} beta --- breaking changes may still occur.}
+\end{titlepage}
+
 \tableofcontents
+\thispagestyle{fancy}
+\clearpage
+-%
 
 \section{Introduction}
-I used to create several documents using \LaTeX\ (or plain \TeX\ but \TeX\ is
-quite cumbersome to write—especially when working with very complex tables or
-inserting images). Its markdown-like syntax is also not comfortable to use. For
-example, here is a simple \LaTeX\ document:
+Vesti is a transpiler: it reads a {\tt.ves} source file and emits \LaTeX, which
+a \TeX\ engine then turns into a PDF. The motivation is that raw \LaTeX\ is
+verbose --- especially the endless \verb|\begin{...}| / \verb|\end{...}| pairs
+--- while its markup is uncomfortable to write. Vesti keeps the full power of
+\LaTeX\ (you may drop into raw \LaTeX\ at any point) and adds a small, readable
+layer of keywords, math shorthands, a macro preprocessor and an embedded Lua
+scripting engine.
 
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-% coprime is my custom class. See https://github.com/e0328eric/coprime.
-\documentclass[tikz, geometry]{coprime}
+The \LaTeX\ on the left is produced by the vesti on the right:
 
-\settitle{My First Document}{Sungbae Jeong}{}
-\setgeometry{a4paper, margin = 2.5cm}
-
+\begin{minipage}[t]{0.49\textwidth}
+%-
+\begin{lstlisting}[style=tex]
+\documentclass[tikz,geometry]{coprime}
 \begin{document}
 \section{Foo}
 Hello, World!
 \begin{figure}[ht]
-    \centering
-    \begin{tikzpicture}
-        \draw (0,0) -- (1,1);
-    \end{tikzpicture}
+  \centering
+  \begin{tikzpicture}
+    \draw (0,0) -- (1,1);
+  \end{tikzpicture}
 \end{figure}
-
-The code above is a figure using TikZ.
-
 \end{document}
--%}
+\end{lstlisting}
+-%
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+%-
+\begin{lstlisting}[style=plainved]
+docclass coprime (tikz, geometry)
 
-What annoys me most when using it is the \lq\verb@\begin@\rq\ and
-\lq\verb@\end@\rq\ blocks. Is there a way to write something much simpler? This
-question led me to start this project. Currently, the following code is
-generated into the \LaTeX code above (except comments) using vesti:
-
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-% coprime is my custom class. See https://github.com/e0328eric/coprime.
-+keyword|docclass@ coprime (tikz, geometry)
-
-\settitle{My First Document}{Sungbae Jeong}{}
-\setgeometry{a4paper, margin = 2.5cm}
-
-+keyword|startdoc@
-
+startdoc
 \section{Foo}
 Hello, World!
-+keyword|useenv@ figure [ht] {
+useenv figure [ht] {
+  \centering
+  useenv tikzpicture {
+    \draw (0,0) -- (1,1);
+  }
+}
+\end{lstlisting}
+-%
+\end{minipage}
+
+\noindent Notice there is no closing \keyword{%-startdoc-%}: vesti ends the document
+automatically at end-of-file, since virtually no real document has material
+after \verb|\end{document}|.
+
+\paragraph{Conventions.} Throughout this manual, \keyword{%-keywords-%} are shown in
+purple, \builtin|builtins| in blue (always prefixed with \verb|#|), and the
+symbol \ob\ marks a position where a space is mandatory. Code samples are set in
+framed verbatim blocks.
+
+\section{Installation and configuration}
+\subsection{Building the compiler}
+Vesti is written in Zig (master branch) with an optional Rust-based Tectonic
+backend. For an ordinary install with Tectonic bundled in:
+
+%-
+\begin{lstlisting}[style=sh]
+$ zig build --prefix-exe-dir <install-path> -Doptimize=ReleaseSafe
+\end{lstlisting}
+-%
+
+\noindent To build without the Tectonic backend (you then drive an external
+\TeX\ engine yourself), add \verb|-Dtectonic=false|. Building the Tectonic
+dynamic library additionally needs a Rust toolchain and the native libraries
+{\tt fontconfig}, {\tt freetype2}, {\tt graphite2}, {\tt harfbuzz}, {\tt ICU4C}
+and {\tt libpng}, plus the {\tt upx} binary. On Linux the {\tt zenity} dialog
+tool is also recommended.
+
+\subsection{The configuration file}
+Vesti reads an optional configuration file written in {\it Zig Object Notation}
+({\tt.zon}). Its location is \verb|~/.config/vesti/config.zon| on Linux and
+macOS, or \verb|%APPDATA%\vesti\config.zon| on Windows. All fields are optional;
+the example below shows every field at its default value.
+
+%-
+\begin{lstlisting}[style=plainved]
+.{
+    .engine = .tectonic,        // default LaTeX engine
+    .lua = .{
+        .make_log = false,      // dump failing Lua to .vesti-dummy/luacode.lua
+        .line_limit = 45,       // above this many lines, log instead of print
+    },
+}
+\end{lstlisting}
+-%
+
+\subsection{\LaTeX\ engines}
+Vesti can target five engines. The engine may be chosen (in increasing order of
+precedence) by the config file, a command-line flag, the \builtin|engine_type|
+builtin, or the {\tt engine} field of {\tt vesti.compile} in {\tt first.lua}.
+
+useenv table [ht] {
     \centering
-    +keyword|useenv@ tikzpicture {
-        \draw (0,0) -- (1,1);
+    useenv tabular (lll) {
+        \toprule
+        \bf Engine & \bf CLI flag & \bf string id \\
+        \midrule
+        {\tt latex}    & \verb|--!latex / -L|    & {\tt "plain"} or {\tt "latex"} \\
+        {\tt pdflatex} & \verb|--!pdflatex / -p| & {\tt "pdf"} \\
+        {\tt xelatex}  & \verb|--!xelatex / -x|  & {\tt "xe"} \\
+        {\tt lualatex} & \verb|--!lualatex / -l| & {\tt "lua"} \\
+        {\tt tectonic} & \verb|--!tectonic / -T| & {\tt "tect"} \\
+        \bottomrule
     }
+    \caption{\LaTeX\ engines and how to select them}
 }
 
-The code above is a figure using TikZ.
--%}
+\noindent The {\it string id} column gives the values accepted by
+\builtin|engine_type| and by {\tt vesti.compile\{ engine = ... \}}. Note that
+\builtin|engine_type| additionally accepts {\tt "plain"} for the bare
+{\tt latex} engine, whereas {\tt vesti.compile} uses {\tt "latex"}.
 
-Everywhere in this paper, the symbol \ob\ denotes a \lq\lq space\rq\rq\ when
-one use Vesti.
+\section{The command-line interface}
+The {\tt vesti} executable exposes the sub-commands below.
 
-\section{Structure of Vesti File}
-Vesti is similar as \LaTeX. Its structure consists with two parts: {\tt preamble} and
-{\tt main}. Preamble is the place where \LaTeX\ documentclass, packages, and
-several settings are located. Main body is where actual documentation is located.
-Below figure is the simple Vesti documentation.
-
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-+keyword|docclass@ article (10pt)
-+keyword|importpkg@ {
-    geometry (a4paper, margin=2.2cm)
+\subsection{{\tt compile} --- transpile and build}
+useenv center {
+    {\tt vesti compile}\ob[\verb|<FILENAME>|]?\ob[\verb|<flags>|]?
 }
-+keyword|startdoc@
+If \verb|<FILENAME>| is omitted, vesti looks for a {\tt first.lua} build script.
+The accepted flags are:
+
+useenv table [ht] {
+    \centering
+    useenv tabular (ll) {
+        \toprule
+        \bf Flag & \bf Meaning \\
+        \midrule
+        \verb|--!emit_tex, -e|    & emit the {\tt.tex} only (reserved; currently a no-op) \\
+        \verb|--!exit_err, -E|    & in watch mode, exit immediately on the first error \\
+        \verb|--!no_color, -N|    & disable coloured terminal output \\
+        \verb|--!standalone, -S|  & compile without assuming a {\tt first.lua} exists \\
+        \verb|--!watch, -W|       & rebuild when source files change \\
+        \verb|--!latex, -L|       & use the {\tt latex} engine \\
+        \verb|--!pdflatex, -p|    & use {\tt pdflatex} \\
+        \verb|--!xelatex, -x|     & use {\tt xelatex} \\
+        \verb|--!lualatex, -l|    & use {\tt lualatex} \\
+        \verb|--!tectonic, -T|    & use {\tt tectonic} \\
+        \verb|--!lim N|           & number of compile cycles (default {\tt 3}) \\
+        \verb|--!first_script F|  & build-once Lua script (default {\tt first.lua}) \\
+        \verb|--!before_script F| & Lua run before each pass (default {\tt before.lua}) \\
+        \verb|--!step_script F|   & Lua run at each step end (default {\tt step.lua}) \\
+        \bottomrule
+    }
+    \caption{Flags of {\tt vesti compile}}
+}
+
+\subsection{{\tt latex} --- build an existing {\tt.tex} with Tectonic}
+\verb|vesti latex <FILENAME>| compiles a plain \LaTeX\ file through the bundled
+Tectonic engine. It accepts \verb|--!no_color|, \verb|--!watch|, \verb|--!lim| and
+the three script flags above.
+
+\subsection{{\tt init} --- scaffold a project}
+\verb|vesti init <PROJECT>| creates \verb|<PROJECT>.ves| (a tiny ``Hello, World!''
+document) together with a {\tt first.lua} build script wired to
+{\tt vesti.compile}.
+
+\subsection{{\tt clear} --- remove build artefacts}
+\verb|vesti clear| deletes the {\tt.vesti-dummy} working directory.
+
+\subsection{{\tt experimental}}
+\verb|vesti experimental <FILENAME>| is a sandbox for in-development features and
+is not intended for production use.
+
+\section{Project structure and the build pipeline}
+A vesti build is orchestrated by up to three Lua scripts and writes its
+intermediate files into a hidden working directory, {\tt.vesti-dummy}.
+
+useenv table [ht] {
+    \centering
+    useenv tabular (ll) {
+        \toprule
+        \bf File & \bf Role \\
+        \midrule
+        {\tt first.lua}    & Build entry point, run {\it once}. The only place {\tt vesti.compile} may be called. \\
+        {\tt before.lua}   & Run once {\it before each} compilation pass (e.g.\ to download fonts). \\
+        {\tt step.lua}     & Run at the {\it end of each} compile step (post-processing hooks). \\
+        {\tt.vesti-dummy}  & Working directory holding generated {\tt.tex}, copied assets and downloads. \\
+        \bottomrule
+    }
+    \caption{The files that drive a vesti build}
+}
+
+\noindent A freshly initialised {\tt first.lua} looks like:
+
+%-
+\begin{lstlisting}[style=luaved]
+-- below code imports a vesti module
+-- vesti.getModule("module_name")
+vesti.compile("myproject.ves", { engine = "tect", compile_all = true })
+\end{lstlisting}
+-%
+
+\noindent With the \verb|-S| / \verb|--!standalone| flag vesti skips the
+{\tt first.lua} search and compiles the named file directly. Because compilation
+happens relative to {\tt.vesti-dummy}, asset paths must be rewritten with
+\builtin|get_filepath| or \builtin|copy_file| rather than passed raw to
+\verb|\includegraphics| and friends.
+
+\section{Structure of a vesti file}
+Like \LaTeX, a vesti document has two regions: the {\bf preamble} and the {\bf
+main body}, separated by \keyword{%-startdoc-%}.
+
+%-
+\begin{lstlisting}[style=plainved]
+docclass article (10pt)        -- preamble: class
+importpkg {                    -- preamble: packages
+    geometry (a4paper, margin = 2.2cm),
+}
+startdoc                       -- everything after is the body
 Hello, Vesti!
--%}
+\end{lstlisting}
+-%
 
-We will see later, but the very difference with \LaTeX\ is that Vesti has its
-own keywords (keywords are colored with purple). It makes the code readable and
-it is easier and faster to write the document. The keyword startdoc splits
-the preamble and the main part of the documentation similar with
+\noindent In the preamble the keywords \keyword{%-docclass-%} and \keyword{%-importpkg-%}
+carry their special meaning; once \keyword{%-startdoc-%} is seen they become ordinary
+text, and a second \keyword{%-startdoc-%} in the body does nothing. There is no
+closing keyword --- end-of-file terminates the document.
 
--- Don't ask why I chose Q for catcode 0.
-%#{\tt\catcode`Q=0 Qcatcode`\\=12 \beginQ{documentQ}} in \LaTeX.
-However, Vesti does not have the analogous part of
-%#{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}},
-because almost every \LaTeX\ document (99.999\% I'm sure) does not have any code
-below %#{\tt\catcode`Q=0 Qcatcode`\\=12 \endQ{documentQ}}.
-For this reason, Vesti automatically ends document when EOF (End Of File) is
-found.
+\section{Lexical grammar}
+This section describes how raw characters become tokens.
+
+\subsection{Comments}
+Vesti comments are {\it Lua-style}, not \LaTeX-style. A line comment begins with
+two hyphens and runs to the end of the line; block comments use long-bracket
+syntax with an optional level of {\tt=} signs:
+
+%-
+\begin{lstlisting}[style=plainved]
+Hello   -- a vesti line comment, removed before output
+--[[ a block comment
+     spanning several lines ]]
+--[==[ contains ]] and ]=] safely ]==]
+\end{lstlisting}
+-%
+
+\noindent Because two hyphens start a comment, the dashes you may want in prose
+have dedicated spellings: write {\tt -}{\tt -}{\tt !}\ for an en-dash and {\tt
+-}{\tt -}{\tt -}\ for an em-dash. A percent sign {\tt\%}\ is {\it not} a vesti comment: it is
+passed through as a \LaTeX\ comment.
+
+\subsection{Escapes and literal characters}
+Some characters are meaningful to vesti and must be escaped to appear verbatim
+in the output:
+
+%-
+\begin{lstlisting}[style=plainved]
+  \#    ->  #     literal sharp (otherwise begins a builtin)
+  \$    ->  $     literal dollar (otherwise a math switch)
+  $#    ->  $     alternative literal dollar
+  \%    ->  %     literal percent sign
+  #!    ->  #     literal sharp before an identifier (e.g. Lua's #t)
+  \{ \} ->  { }   math braces
+  \[ \] ->        display-math delimiters
+  \,    ->        thin math space
+  \;    ->        wide math space
+\end{lstlisting}
+-%
+
+\subsection{Raw \LaTeX\ pass-through (verbatim)}
+Two constructs hand bytes straight to \LaTeX, untouched by vesti's lexer. A
+{\bf block} of raw \LaTeX\ is written between {\tt\%-} and {\tt-\%}; a single
+{\bf line} of raw \LaTeX\ follows {\tt\%\#}. For instance, the single-line form is
+used for a one-off definition such as
+
+%-
+\begin{lstlisting}[style=plainved]
+  \def\thefootnote{(\roman{footnote})}
+\end{lstlisting}
+-%
+
+\noindent and the block form for a longer fragment that vesti should not touch:
+
+%-
+\begin{lstlisting}[style=plainved]
+  \begin{tabular}{cc} a & b \\ c & d \end{tabular}
+\end{lstlisting}
+-%
+
+\subsection{Numbers, words and \LaTeX\ commands}
+Runs of digits form integers, with a decimal point producing a float. Runs of
+alphabetic characters form text; a text run equal to a reserved word becomes
+that keyword. A backslash followed by letters is a \LaTeX\ command. When
+\builtin|at_on| is active the {\tt @} character is also a command letter, and
+under \builtin|ltx3_on| so are {\tt\_}\ and {\tt:}\ (expl3 names).
+
+\subsection{Math symbol conversion}
+Inside math mode many ASCII sequences are rewritten into the corresponding
+\LaTeX\ commands; outside math mode they stay ordinary text. The complete table
+baked into the lexer:
+
+%-
+\begin{lstlisting}[style=plainved]
+  <=    ->  \leq                 ->    ->  \rightarrow
+  >=    ->  \geq                 <-    ->  \leftarrow
+  !=    ->  \neq                 <->   ->  \leftrightarrow
+  /=    ->  \neq                 =>    ->  \Rightarrow
+  -->   ->  \longrightarrow      <--   ->  \longleftarrow
+  ==>   ->  \Longrightarrow      <==   ->  \Longleftarrow
+  <-->  ->  \longleftrightarrow  <==>  ->  \Longleftrightarrow
+  <=>   ->  \Leftrightarrow      |->   ->  \mapsto
+  -!    ->  \setminus            {<    ->  \langle
+  >}    ->  \rangle              ||    ->  \|
+  ...   ->  \cdots               oo    ->  \infty
+  //    ->  \frac{..}{..}  (a fraction; see the Math mode section)
+\end{lstlisting}
+-%
+
+\noindent The {\tt oo} sequence only becomes \(\infty\) when it stands alone;
+{\tt food} keeps its letters, because the lexer checks that no alphabetic
+character follows.
 
 \section{Keywords}
-Followings are reserved as keywords. In this document, every Vesti keyword has
-the form like \keyword{this}.
+The following words are reserved; they act as keywords only where they are
+syntactically valid (for example \keyword{%-docclass-%} only in the preamble) and
+otherwise fall back to ordinary text. The table below is generated directly from
+{\tt ../src/lexer/Token.zig} at compile time, so it always reflects the current
+{\tt VESTI\_KEYWORDS} set.
+
 useenv table [ht] {
     \centering
     #::
     local content = read_all("../src/lexer/Token.zig")
-
-    -- Lua’s built-in patterns don’t support lookahead.
-    -- We capture both the keyword and the TokenType, then filter out 'deprecated'.
-    -- Pattern breakdown:
-    --   %.%{         => matches ".{"
-    --   %s*"([^"]+)" => a quoted string -> capture 1
-    --   %s*,%s*TokenType%.([%w_]+) => TokenType.<Name> -> capture 2
+    -- match `.{ "name", TokenType.X }`, dropping the deprecated entries.
     local pat = "%.%{%s*\"([^\"]+)\"%s*,%s*TokenType%.([%w_]+)"
-
-    local keywords = {}
-    for name, tok in content:gmatch(pat) do
-      if tok ~= "deprecated" then
-        keywords[#!keywords + 1] = name
-      end
-    end
-
-    table.sort(keywords)
-
-    vesti.print([[\begin{tabular}{cccc}]])
-
-    for i, kw in ipairs(keywords) do
-        local cell = string.format("\\keyword{%s}", kw)
-        if (i % 4) == 0 then
-            vesti.print(cell .. [[\\]])
-        else
-            vesti.print(cell .. "&")
-        end
-    end
-
-    vesti.print([[\end{tabular}]])
-    ::#[readAll]
-    \caption{Keywords in Vesti}
+    local keywords = ves_collect(content, pat, "deprecated")
+    ves_name_table(keywords, 4, "\\keyword{%s}")
+    ::#
+    \caption{Keywords in Vesti (auto-generated from the source)}
 }
 
-\subsection{\keyword{docclass} keyword}
-Keyword \keyword{docclass} is an analogous of \verb|\documentclass| in \LaTeX.
-If \keyword{docclass} is in the main paragraph, it acts just a normal word.
-In other words, \keyword{docclass} actives only in the preamble.
-The syntax of \keyword{docclass} is following:
-
+\subsection{\keyword{%-docclass-%} --- document class}
+The analogue of \verb|\documentclass|; active only in the preamble.
 useenv center {
-    \keyword{docclass}\ob<class name>\ob{\tt(}<arguments>{\tt)}
+    \keyword{%-docclass-%}\ob\verb|<class-name>|\ob{\tt(}\verb|<options>|{\tt)}
 }
-Here, arguments are separated by commas and embraced by {\tt ()}. Here are some
-examples.
+Options are comma-separated and parenthesised. Examples: \keyword{%-docclass-%}\ob{\tt
+article}, \keyword{%-docclass-%}\ob{\tt article\ob(10pt)}, and \keyword{%-docclass-%}\ob{\tt
+article\ob(10pt,\ob twocols)}.
 
-\goodbreak
-useenv itemize {
-    \item \keyword{docclass}\ob{\tt article}
-    \item \keyword{docclass}\ob{\tt article\ob(10pt)}
-    \item \keyword{docclass}\ob{\tt article\ob(10pt,\ob twocols)}
-    \item \keyword{docclass}\ob{\tt article\ob(10pt,twocols)}
-}
+\subsection{\keyword{%-importpkg-%} --- load packages}
+The analogue of \verb|\usepackage|, also preamble-only. It has two forms. The
+single-package form mirrors \keyword{%-docclass-%}; the braced form loads several
+packages, each with its own options:
 
-\subsection{\keyword{importpkg} keywords}
-Keyword \keyword{importpkg} is an analogous of \verb|\usepackage| in \LaTeX.
-If \keyword{importpkg} is in the main paragraph, it acts just a normal word.
-In other words, \keyword{importpkg} actives only in the preamble.
-
-importpkg has two different syntax. First one is same as docclass.
-useenv center {
-    \keyword{importpkg}\ob<pkg-name>\ob{\tt(}arguments{\tt)}
-}
-Here, arguments are separated by commas and embraced by {\tt ()}.
-In the practical case, one should include several packages with options.
-importpkg also supports such case. We will look at an example instead of
-giving rigorous grammar.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-+keyword|importpkg@ {
+%-
+\begin{lstlisting}[style=plainved]
+importpkg {
     amsmath, amssymb, amsthm,
-    geometry (a4paper, margin=2.2cm),
+    geometry (a4paper, margin = 2.2cm),
+    xcolor (dvipsnames),
 }
--%}
+\end{lstlisting}
+-%
 
-\noindent As one can see, inside of \verb|{}|, several packages can be used
-together with thier options.
+\subsection{\keyword{%-importves-%} --- include another vesti file}
+\keyword{%-importves-%}{\tt(}\verb|<path.ves>|{\tt)}\ resolves the path, name-mangles
+it, and emits \verb|\input{...}| of the corresponding compiled file. This lets a
+project be split across many {\tt.ves} sources.
 
-\subsection{\keyword{startdoc} keyword}
-Keyword \keyword{startdoc} tells to Vesti that the main document starts. In the
-main document, you can also write \keyword{startdoc} in the main document. In
-that case, \keyword{startdoc} does nothing.
+\subsection{\keyword{%-importmod-%} --- fetch and use a vesti module}
+\keyword{%-importmod-%}{\tt(}\verb|<module-name>|{\tt)}\ downloads (if necessary) and
+installs an external vesti module. The Lua equivalent is {\tt vesti.getModule}.
 
-\subsection{\useenv keyword}
-As the name implies, keyword \useenv is an analogous of \verb|\begin{...}| and
-\verb|\end{...}| pair in \LaTeX.
-The simplest \useenv is like this.
+\subsection{\keyword{%-startdoc-%} --- begin the body}
+Marks the end of the preamble and the start of the main body (it expands to
+\verb|\begin{document}|). A second \keyword{%-startdoc-%} inside the body is a no-op.
 
+\subsection{\keyword{%-useenv-%} --- an environment}
+\keyword{%-useenv-%} replaces a \verb|\begin{...}| / \verb|\end{...}| pair with a
+single brace-delimited block; vesti tracks the nesting and emits the matching
+end for you.
+useenv center {
+    \keyword{%-useenv-%}\ob\verb|<env-name>|\ob\verb|<arg>|*\ob{\tt\{}\ \verb|<body>|\ {\tt\}}
+}
+Each \verb|<arg>| is either {\tt(}{\it mandatory}{\tt)} or {\tt[}{\it
+optional}{\tt]}; there may be zero or more, and {\bf no spaces may separate
+consecutive arguments}.
+
+%-
+\begin{lstlisting}[style=plainved]
 useenv figure [ht] {
     \centering
     useenv tikzpicture {
-        useenv scope {
-            \path (0,0) node {\vbox{
-            %#\hbox{\tt\useenv center \{}
-            %#\hbox{\tt\obeyspaces    Hello, World!}
-            %#\hbox{\tt\obeyspaces\}}
-            }};
-        }
-        \path (2.3,0) node {or};
-        useenv scope [shift={(6,0)}]{
-            \path (0,0) node {\tt\useenv center \{ Hello, World! \}};
-        }
+        \draw (0,0) -- (1,1);
     }
 }
+\end{lstlisting}
+-%
 
-As you can see, {\tt\useenv center} is the part of \verb|\begin{center}|, and
-the single {\tt\}} is the part of \verb|\end{center}|. Since Vesti knows their
-pair, one can write a code with several environment, and each pair is properly
-matched. For instance, above example is written in Vesti like follows. Here,
-\verb|\useenv| just prints \useenv in that style.
+\subsection{\keyword{%-begenv-%} / \keyword{%-endenv-%} --- explicit pair}
+These are the explicit, unmatched analogues of \verb|\begin| and \verb|\end|.
+The block \keyword{%-begenv-%}\ob{\tt center} ... \keyword{%-endenv-%}\ is equivalent to
+\keyword{%-useenv-%}\ob{\tt center \{ ... \}}. Since \keyword{%-useenv-%} already
+auto-matches, why keep them? {\it Defining new environments}: the body of a
+\keyword{%-defenv-%} needs an unmatched begin in one half and an unmatched end in the
+other. Two modifiers may follow the keyword with no space: a {\tt!} gives the
+{\bf phantom} form (do not push/pop the matching stack), and {\tt*} emits a
+trailing newline after the begin.
 
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-|+color|purple@useenv@ figure [ht] {
-    \centering
-    |+color|purple@useenv@ tikzpicture {
-        |+color|purple@useenv@ scope {
-            \path (0,0) node {\vbox{
-            |+color|blue@%#@\hbox{\tt\useenv center \{}
-            |+color|blue@%#@\hbox{\tt\obeyspaces    Hello, World!}
-            |+color|blue@%#@\hbox{\tt\obeyspaces\}}
-            }};
-        }
-        \path (2.3,0) node {or};
-        |+color|purple@useenv@ scope [shift={(6,0)}] {
-            \path (0,0) node {\tt\useenv center \{ Hello, World! \}};
-        }
-    }
-}
--%}
-
-Full syntax about \useenv is the following.
+\subsection{\keyword{%-defun-%} --- define a command}
+\keyword{%-defun-%} defines a \LaTeX\ command. With a parameter specification it uses
+the modern {\tt xparse} interface; without one it falls back to the primitive
+\verb|\def| family.
 useenv center {
-    \useenv\ob<environment name>\ob<argument>*\ob{\tt\{} <body> {\tt\}}
+    \keyword{%-defun-%}\ob[\verb|<attr>|]?\ob\verb|<name>|\ob(\verb|<spec>|)?\ob{\tt\{}\verb|<body>|{\tt\}}
 }
-where `*' means that the number of <argument> is zero or at least one, and
-$$
-    "<argument>" = useenv cases {
-        "(<argument>)" & "mandatory arguments" \cr
-        "[<argument>]" & "optional arguments"  \cr
+Examples:
+
+%-
+\begin{lstlisting}[style=plainved]
+defun foo {Hello, World!}
+defun [!] keyword (m) {{\tt\color{vkw}\bfseries #1}}
+defun [r] Re {#mathmode{\mathop{"Re"}}}
+defun defeq {\coloneq}
+\end{lstlisting}
+-%
+
+The optional {\tt[}\verb|<attr>|{\tt]}\ bracket holds single-character flags that
+select how the command is defined and how the body's surrounding whitespace is
+trimmed:
+
+useenv table [ht] {
+    \centering
+    useenv tabular (cl) {
+        \toprule
+        \bf Flag & \bf Effect \\
+        \midrule
+        {\tt r} / {\tt R} & redefine: do not error if the name exists \\
+        {\tt !}           & declare: use the non-\verb|\protected| primitive / \verb|\DeclareDocumentCommand| \\
+        {\tt e} / {\tt E} & expand: use the \verb|\edef| family / expandable xparse \\
+        {\tt g} / {\tt G} & global: use the \verb|\gdef| / \verb|\xdef| family \\
+        {\tt p} / {\tt P} & provide (xparse only): \verb|\ProvideDocumentCommand| \\
+        {\tt \textless} / {\tt \textgreater} & do not trim whitespace on the left / right of the body \\
+        \bottomrule
     }
-$$
-For instance, below one is a valid Vesti code (environment {\tt foo} is
-undefined in general). As one can see, spaces cannot exist in between <argument>s.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-|+color|purple@useenv@ foo (asd)(fff)[\ames and \awdsa](askws)[\rrsaa] {
-    foobar
-}
--%}
-
-#def #begenv {#::begenv(false,true)::#*}
-#def #begenv_arg {#::begenv(#1,#2)::#*}
-#def #endenv {#::endenv(false,true)::#*}
-#def #endenv_arg {#::endenv(#1,#2)::#*}
-
-\subsection{#begenv and #endenv keywords}
-As the name implies, both keywords #begenv and #endenv are
-analogous of \verb|\begin{...}| and \verb|\end{...}| pair in \LaTeX,
-respectively. Thus below code
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-|+color|purple@begenv@ center
-    asdsad
-|+color|purple@endenv@
--%}
-is exactly same as
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-+keyword|useenv@ center {
-    asdsad
-}
--%}
-Then why we need #begenv and #endenv if we already have \useenv*?
-The only reason which both #begenv and #endenv exist is
-defining new environment. For instance, one defines a new environment like
-following.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#+keyword|defenv@ foo {|+color|purple@begenv@ minipage(\textwidth)}{|+color|purple@endenv@}
+    \caption{Attributes of \keyword{%-defun-%}}
 }
 
-\subsection{\defun keyword}
-\defun is the keyword which makes a \LaTeX\ function. Internally, it uses {\tt
-xparse} package which is automatically included from modern \LaTeX$2\epsilon$
-kernel. The grammar of \defun is the following.
+In the primitive form the body references arguments with the parameter tokens
+\builtin|1| through \builtin|9| (becoming {\tt\#1}..{\tt\#9}); doubled nesting is
+written by prefixing the index with the nesting level, so \builtin|11| becomes
+{\tt\#\#1}\ and \builtin|21| becomes {\tt\#\#\#\#1}. In xparse mode the
+\verb|<spec>| is an {\tt xparse} argument string such as {\tt m}, {\tt o} or
+{\tt v}. To define a command whose name contains {\tt @}, wrap the definition in
+\builtin|at_on| / \builtin|at_off|.
 
-begenv center
-    \defun\ob[<attr>]?\ob<command-name>\ob(<param-spec>)?\ob\{<implementation>\}
-endenv
-Here, {\tt`?`} means that this is an optional.
+\subsection{\keyword{%-defenv-%} --- define an environment}
+\keyword{%-defenv-%} defines a new environment; it always uses the xparse
+\verb|\NewDocumentEnvironment| family. The body is given as {\it two} braced
+blocks --- the begin code and the end code:
 
-First, let us see some examples for \defun*, and then explain the meaning of
-each fields.
+%-
+\begin{lstlisting}[style=plainved]
+defenv foo {begenv! minipage(\textwidth)}{endenv!}
+\end{lstlisting}
+-%
 
-#::
-local examples = {
-    "\\defun foo {Hello, World!}"
-}
+\noindent Attributes: {\tt r}/{\tt R} (redefine), {\tt p}/{\tt P} (provide),
+{\tt!}\ (declare), {\tt\textless}/{\tt\textgreater}\ keep the begin block's left/right whitespace,
+and {\tt(}/{\tt)}\ keep the end block's left/right whitespace.
 
-for _, example in ipairs(examples) do
-    vesti.print(vesti.parse(
-    "begenv! Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]"
-    ))
-    vesti.print(example)
-    vesti.print(vesti.parse("endenv! Verbatim"))
-end
-::#
+\section{Math mode}
+Vesti tracks whether it is in {\bf text mode} or {\bf math mode}. The symbol
+conversions above and the constructs below apply only in math mode.
+
+\subsection{Entering math mode}
+Inline math is delimited by {\tt\$}\ldots{\tt\$}; display math by
+{\tt\$\$}\ldots{\tt\$\$}\ or by \verb|\[|\ldots\verb|\]|. A math block must be
+properly closed; an unbalanced switch is a parse error.
+
+\subsection{Fractions with {\tt//}}
+Inside a brace group in math mode, the {\tt//}\ operator splits the group into a
+numerator and a denominator and emits \verb|\frac|:
+
+%-
+\begin{lstlisting}[style=plainved]
+$$ {1 // n^2} $$            -- becomes  \frac{1}{n^2}
+$$ {\pi^2 // 6} $$          -- becomes  \frac{\pi^2}{6}
+\end{lstlisting}
+-%
+
+\subsection{Auto-sized delimiters with {\tt?}}
+A {\tt?}\ immediately {\it before} an opening delimiter, or immediately {\it
+after} a closing delimiter, requests an auto-sized (\verb|\left|/\verb|\right|)
+delimiter. The recognised delimiters are:
+
+%-
+\begin{lstlisting}[style=plainved]
+( )    [ ]    {< >}    \{ \}    |    ||    .
+\end{lstlisting}
+-%
+
+\noindent (a lone dot yields an invisible delimiter).
+
+%-
+\begin{lstlisting}[style=sh]
+$ ?( \frac{a}{b} )? $       -- \left( \frac{a}{b} \right)
+\end{lstlisting}
+-%
+
+\subsection{Text inside math with {\tt"\ldots"}}
+Double quotes drop back into text mode for their contents (like \verb|\text{}|).
+Prefixing or suffixing the quotes with a raw sharp {\tt\#}\ adds a surrounding
+space:
+
+%-
+\begin{lstlisting}[style=sh]
+$ x = "if " n " is even" $  -- text spans, no auto spaces
+$ a #"and"# b $             -- a space before and after the word
+\end{lstlisting}
+-%
+
+\subsection{Mode-switching builtins}
+\builtin|mathmode| forces math interpretation of its braced body (and errors if
+already in math mode); \builtin|textmode| does the reverse. They are
+indispensable when a command body must be parsed in a particular mode regardless
+of where the command is later used.
 
 \section{Builtins}
-Vesti also has its own builtin functions, which are prefixed with \#.
-One might wonder what distinguishes builtins from keywords. In fact, from the
-compiler's internal perspective, there is no real difference. However, in actual
-language usage, constantly typing the prefix can be somewhat tedious, especially
-for functions that are commonly used.
-
-From the perspective of language design --particularly in Vesti-- it is
-sometimes desirable to use names that can not be reserved as keywords. For example,
-Vesti provides a built-in function \builtin|label|, which will be explained
-later. Since Vesti is a typewriting-oriented language, the word \lq\lq
-label\rq\rq\ is often used in its ordinary sense rather than in its special
-semantic meaning within the language.
-
-Followings are reserved as builtin functions.
+Builtins are compiler intrinsics, written with a leading {\tt\#}. The prefix
+exists so that common English words (like {\it label}) are not stolen from
+ordinary prose. The {\bf evaluated} builtins below are generated from {\tt
+VESTI\_BUILTINS} in {\tt ../src/lexer/Token.zig}:
 
 useenv table [ht] {
     \centering
     #::
     local content = read_all("../src/lexer/Token.zig")
-
-    -- match .{ "here" }
+    -- isolate the VESTI_BUILTINS map, then list its single-string entries.
+    local block = content:match("VESTI_BUILTINS.-initComptime(%b())")
     local pat = "%.%{%s*\"([^\"]+)\"%s*%}"
-
-    local builtins = {}
-    for name, tok in content:gmatch(pat) do
-        builtins[#!builtins + 1] = name
-    end
-    table.sort(builtins)
-
-    vesti.print([[\begin{tabular}{ccccc}]])
-
-    for i, kw in ipairs(builtins) do
-        local cell = string.format("\\builtin@%s@", kw)
-        if (i % 5) == 0 then
-            vesti.print(cell .. [[\\]])
-        else
-            vesti.print(cell .. "&")
-        end
-    end
-
-    vesti.print([[\end{tabular}]])
-    ::#[readAll]
-    \caption{Builtins in Vesti}
+    local builtins = ves_collect(block, pat, nil)
+    ves_name_table(builtins, 5, "\\builtin@%s@")
+    ::#
+    \caption{Evaluated builtins (auto-generated from the source)}
 }
-Since {\tt fancyvrb} does not allow verbatim-like commands inside of
-{\tt Verbatim} environment, builtins are not colored in example codes.
 
-\subsection{\builtin|label| builtin}
-For the compiling issue, if one label some environment, one should write like
-follows using \LaTeX\ function \verb|\label|.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
-&keyword|useenv@ theorem { \label{eq:1}
-    1 + 1 = 2.
-}
--%}
+\noindent The {\bf preprocessor} builtins (resolved in an earlier pass; see the
+next section) come from {\tt VESTI\_PREPROCESS\_BUILTINS} in the same file:
 
-However, such code is not natural. Thus \builtin|label| comes into the place.
-One can label environments using \builtin|label| builtin like this.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
-#label(eq:1) &keyword|useenv@ theorem {
-    1 + 1 = 2.
+useenv table [ht] {
+    \centering
+    #::
+    local content = read_all("../src/lexer/Token.zig")
+    local block = content:match("VESTI_PREPROCESS_BUILTINS.-initComptime(%b())")
+    local pat = "%.%{%s*\"([^\"]+)\"%s*%}"
+    local builtins = ves_collect(block, pat, nil)
+    ves_name_table(builtins, 4, "\\builtin@%s@")
+    ::#
+    \caption{Preprocessor builtins (auto-generated from the source)}
 }
--%}
-One can also write like the following, which I personally prefer.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=&|@]{%-
+
+Since {\tt fancyvrb} does not allow verbatim-like commands inside the {\tt
+Verbatim} environment, builtins are not coloured inside example code blocks.
+
+\subsection{\texttt{\#label}}
+\verb|\label| normally has to go {\it inside} an environment body, which reads
+awkwardly. \builtin|label| attaches the label to the \keyword{%-useenv-%} that
+follows it instead; it must immediately precede a \keyword{%-useenv-%}.
+
+%-
+\begin{lstlisting}[style=plainved]
 #label(eq:1)
-&keyword|useenv@ theorem {
+useenv theorem {
     1 + 1 = 2.
 }
--%}
+\end{lstlisting}
+-%
 
-\subsection{\builtin|eq| builtin}
-\builtin|eq| is a abbriviation of \lq\keyword{%-useenv-%} equation\rq.
-Actually, below codes are same.
+\subsection{\texttt{\#eq}}
+A shorthand for an {\tt equation} environment (optionally labelled). It must be
+used in text mode and switches to math mode for its body:
 
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-#label(eq:1)
-+keyword|useenv@ equation {
-    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
+%-
+\begin{lstlisting}[style=plainved]
+#eq(eq:euler) {
+    \sum_{n=1}^oo {1 // n^2} = {\pi^2 // 6}.
 }
--%}
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-#eq(eq:1) {
-    \sum_{n=1}^oo {1//n^2} = {\pi^2//6}.
-}
--%}
-Since Vesti is used in the mathematical documents mainly, small syntactic suger
-is needed, so Vesti introduce \builtin|eq| builtin.
+\end{lstlisting}
+-%
 
-\subsection{\builtin|chardef| builtin}
-\builtin|chardef| defines a text token using the unicode codepoint.
-Here is the grammar of \builtin|chardef| builtin.
-useenv center {
-    \builtin|chardef|\ob<unicode-codepoint>\ob<function>
-}
-Here, <unicode-codepoint> must be hexadecimal.
+\subsection{\texttt{\#chardef}}
+\builtin|chardef|\ob\verb|<hex-codepoint>|\ob\verb|<command>|\ defines a text
+character token by Unicode code point (hexadecimal), emitting a \verb|\chardef|.
+The directive must end at a newline.
 
-\subsection{\builtin|mathchardef| builtin}
-\builtin|mathchardef| defines a math token using the unicode codepoint.
-Here is the grammar of \builtin|mathchardef| builtin.
-useenv center {
-    \builtin|mathchardef|\ob<kind>\ob<font-num>\ob<unicode-codepoint>\ob<function>
-}
-Here, <unicode-codepoint> must be hexadecimal.
-Before explaining each parameter, introduce some examples.
-useenv itemize {
-    \item \builtin|mathchardef|\ob.opening\ob0\ob29d8\ob\verb|\lfooo|
-    \item \builtin|mathchardef|\ob.ordinary\ob0\ob2202\ob\verb|\diff|
-}
+\subsection{\texttt{\#mathchardef}}
+\builtin|mathchardef|\ob{\tt.}\verb|<class>|\ob\verb|<font-num>|\ob\verb|<hex>|\ob\verb|<command>|
+\ defines a math symbol by code point and {\it math class}, emitting a
+\verb|\Umathchardef|. The class is one of {\tt.ordinary}\,(0), {\tt.largeop}\,(1),
+{\tt.binary}\,(2), {\tt.relation}\,(3), {\tt.opening}\,(4), {\tt.closing}\,(5),
+{\tt.punct}\,(6) or {\tt.variable}\,(7).
 
-\subsection{\builtin|enum| and \builtin|enum_counter| builtins}
-\builtin|enum| builtin is just an enumerate environment with minimal support of
-{\tt enumitem} feature. For example,
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-#enum {
-    \item aaa
-    \item bbb
-    \item ccc
-}
--%}
-prints
-#enum {
-    \item aaa
-    \item bbb
-    \item ccc
-}
-\builtin|enum| also can be nested like follows.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-#enum {
-    \item aaa
-    \item #enum {
-        \item bbb
-        \item ccc
-    }
-    \item ddd
-}
--%}
-It prints
-#enum {
-    \item aaa
-    \item #enum {
-        \item bbb
-        \item ccc
-    }
-    \item ddd
-}
-To customize a format of \verb|\item| like {\tt enumitem}, one can
-write like the following:
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
+%-
+\begin{lstlisting}[style=plainved]
+#mathchardef .opening  0 29d8 \lfooo
+#mathchardef .ordinary 0 2202 \diff
+\end{lstlisting}
+-%
+
+\subsection{\texttt{\#enum} and \texttt{\#enum\_counter}}
+\builtin|enum| is a compact {\tt enumerate} with light {\tt enumitem}-style label
+control; it nests up to four deep without {\tt enumitem}. An optional
+parenthesised pattern customises the \verb|\item| label: a single {\tt*}\ expands
+to the current counter {\tt\{}\verb|<count>|{\tt\}}\ (braces included), while a
+doubled {\tt**}\ collapses to one literal {\tt*}.
+
+%-
+\begin{lstlisting}[style=plainved]
 #enum (\Roman*.) {
     \item aaa
     \item #enum ({\roman*}**) {
-        \item bbb
-        \item ccc
-    }
-    \item ddd
-}
--%}
-#enum (\Roman*.) {
-    \item aaa
-    \item #enum ({\roman*}**) {
-        \item bbb
-        \item ccc
-    }
-    \item ddd
-}
-As one can see, \builtin|enum| changes the format with inside of {\tt()}.
-In Vesti, single {\tt *} changes into {\tt \{<enum count>\}} (including braces),
-and consequtive {\tt **} changes into single {\tt *} character.
-Thus, \verb|\Roman*.| changes into \verb|\Roman{enumi}.| and \verb|{\roman*}**|
-changes into \verb|{\roman{enumii}}*| (because this part is inside of another
-\builtin|enum|).
-
-Beware that by the parting mechanism, \verb|\roman***| changes into
-\verb|\roman*{<enum count>}|, and \verb|\roman{*}**| into \verb|\roman{{<enum count>}}*|,
-which are invalid arguments for \verb|\roman| \LaTeX\ internal command.
-
-\builtin|enum_counter| builtin is a helper to get the name of the current enum
-counter. For example, if one wants to start a second enum from 3, one can write
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-#enum {
-    \item aaa
-    \item #enum {
         \setcounter{#enum_counter}{2}
         \item bbb
-        \item ccc
     }
-    \item ddd
 }
--%}
-and it prints
-#enum {
-    \item aaa
-    \item #enum {
-        \setcounter{#enum_counter}{2}
-        \item bbb
-        \item ccc
-    }
-    \item ddd
-}
+\end{lstlisting}
+-%
 
-\subsection{\builtin|get_filepath| builtin}
-Because of the Vesti internal, if one includes picture by using
-\verb|\includegraphics| for instance, providing the raw path cause an error from
-\LaTeX\ with \lq\lq file not found\rq\rq. \builtin|get_filepath| builtin adjust
-raw file path into the new relative one which \LaTeX\ knows. Here is the example
-code.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@] {
-%#\includegraphics{#get_filepath(./foo.png)}
-}
-Internally, \builtin|get_filepath| changes file path into the relative one with
-respect to {\tt.vesti-dummy}. For example, if {\tt foo.png}, {\tt foo.ves}
-and {\tt.vesti-dummy} are located in the root directory, then inside of {\tt
-foo.ves}, \builtin|get_filepath|{\tt(./foo.png)} will changed into
-{\tt../foo.png} because for {\tt.vesti-dummy}, {\tt foo.png} is located outside
-of it.
+\noindent Here \verb|\Roman*.| becomes \verb|\Roman{enumi}.| and
+\verb|{\roman*}**| becomes \verb|{\roman{enumii}}*|. The companion
+\builtin|enum_counter| expands to the {\it name} of the current enum counter,
+useful with \verb|\setcounter|.
 
-\subsection{\builtin|at_on| and \builtin|at_off| builtins}
-Both builtins are same as \LaTeX\ functions \verb|\makeatletter| and
-\verb|\makeatother| plus changes Vesti lexer such that \verb|@| character is
-also can be a \LaTeX\ function name. For instance, without using \builtin|at_on|
-command, below code does not compiles.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|&] {
-%#+keyword|defun& @foo (#1) {Hello, #1!}
-}
-This is because \keyword{%-defun-%} expects a valid \LaTeX\ function name but
-the character \verb|@| is not a valid one except after the \verb|\makeatletter|
-function. Since \keyword{%-defun-%} is a Vesti grammar, there is no way to tell
-Vesti that \verb|@| is a right one although one uses \verb|\makeatletter|.
-By using \builtin|at_on|, below code then compiles.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|&]{%-
+\subsection{\texttt{\#get\_filepath}}
+Because compilation runs inside {\tt.vesti-dummy}, raw relative paths break.
+\builtin|get_filepath|{\tt(}\verb|<path>|{\tt)}\ rewrites a path so it is correct
+relative to the dummy directory:
+
+%-
+\begin{lstlisting}[style=plainved]
+\includegraphics{#get_filepath(./foo.png)}
+\end{lstlisting}
+-%
+
+\noindent A leading {\tt~}\ expands to the home directory and a leading {\tt @/}\
+anchors the path at the vesti config directory.
+
+\subsection{\texttt{\#copy\_file}}
+\builtin|copy_file|{\tt(}\verb|<path>|{\tt)}\ copies the named file into {\tt
+.vesti-dummy} so the engine can find it. Like \builtin|get_filepath| it
+understands the {\tt~}\ and {\tt @/}\ prefixes. It replaces the deprecated
+\keyword{%-cpfile-%} keyword.
+
+\subsection{\texttt{\#picture}}
+\builtin|picture|\ob[\verb|<unit>|]?\ob({\it w}, {\it h})\ob({\it x}, {\it y})?\ob{\tt\{}\verb|<body>|{\tt\}}\
+generates a \LaTeX\ {\tt picture} environment, where {\it w}, {\it h} are integer
+width and height, the optional second pair is an offset, and the optional
+bracketed argument sets the unit length.
+
+\subsection{\texttt{\#showfont}}
+\builtin|showfont|{\tt(}{\it n}{\tt)}\ expands to a
+\verb|\ttfamily\meaning\textfont|{\it n} report for math font number {\it n}
+(0--!255). A diagnostic aid.
+
+\subsection{\texttt{\#raw\_tex}}
+Placed directly before a \keyword{%-defun-%}, \builtin|raw_tex| disables the
+automatic xparse machinery so the definition uses the bare \verb|\def| primitive
+even when a parameter list is present.
+
+\subsection{\texttt{\#engine\_type}}
+\builtin|engine_type|{\tt(}\verb|<id>|{\tt)}\ selects the \LaTeX\ engine from
+within the source. It must appear on the very first line and may be used only
+once; \verb|<id>| is one of {\tt plain}, {\tt pdf}, {\tt xe}, {\tt lua} or {\tt
+tect}. It replaces the deprecated \keyword{%-compty-%} keyword.
+
+\subsection{\texttt{\#textmode} and \texttt{\#mathmode}}
+Discussed under Math mode above. \builtin|mathmode|{\tt\{}\verb|<body>|{\tt\}}\
+forces math interpretation of its body; \builtin|textmode|{\tt\{}\verb|<body>|{\tt\}}\
+forces text interpretation (valid only inside math mode).
+
+\section{The preprocessor}
+Before parsing, vesti runs a token-level preprocessing pass that expands
+user-defined macros and resolves the eight directives listed in the preprocessor
+table above.
+
+\subsection{\texttt{\#def} and \texttt{\#undef} --- token macros}
+\builtin|def|\ob\verb|#!name|\ob{\tt\{}\verb|<body>|{\tt\}}\ defines a preprocessor
+macro {\tt\#name}. Wherever {\tt\#name} later appears it is replaced by the body,
+with expansion applied recursively. Macros may take parameters, referenced in the
+body as \builtin|1|, \builtin|2|, ...; arguments are supplied in parentheses at
+the call site.
+
+%-
+\begin{lstlisting}[style=plainved]
+#def #greet {Hello, World!}
+#def #twice {#1 #1}
+
+#greet                 -- expands to: Hello, World!
+#twice(ho)             -- expands to: ho ho
+#undef #twice
+\end{lstlisting}
+-%
+
+\noindent A parameter count is inferred from the highest parameter used in the
+body. You cannot \builtin|def| or \builtin|undef| a name that is already a
+builtin or keyword, and preprocessor directives may not appear inside a macro
+body.
+
+\subsection{\texttt{\#include} --- textual file inclusion}
+\builtin|include|{\tt(}\verb|<path>|{\tt)}\ splices the {\it token stream} of
+another file into the current one at that point (distinct from \keyword{%-importves-%},
+which emits an \verb|\input|). Macros defined in the included file therefore
+become visible to the includer. Circular includes are detected and rejected.
+
+\subsection{\texttt{\#at\_on} / \texttt{\#at\_off} --- {\tt @} as a letter}
+\builtin|at_on| emits \verb|\makeatletter| {\it and} tells the lexer to treat
+{\tt @} as a command-name letter; \builtin|at_off| emits \verb|\makeatother| and
+restores the lexer. This is required to \keyword{%-defun-%} commands whose names
+contain {\tt @}:
+
+%-
+\begin{lstlisting}[style=plainved]
 #at_on
-+keyword|defun& @foo (#1) {Hello, #1!}
+defun @foo (#1) {Hello, #1!}
 #at_off
--%}
-One can not using \builtin|at_off|, but I strongly recommand to match
-pairs.
+\end{lstlisting}
+-%
 
-\subsection{\builtin|ltx3_on| and \builtin|ltx3_off| builtins}
-Those builtins are similar with \builtin|at_on| and \builtin|at_off|
-pairs but for \LaTeX3.
+\subsection{\texttt{\#ltx3\_on} / \texttt{\#ltx3\_off} / \texttt{\#noltx3}}
+\builtin|ltx3_on| emits \verb|\ExplSyntaxOn| and makes {\tt\_}\ and {\tt:}\
+command letters (so you can write expl3 names); \builtin|ltx3_off| emits
+\verb|\ExplSyntaxOff|. Since the modern \LaTeX\ kernel permits expl3 without a
+separate package, these are enabled by default. The preamble-only \builtin|noltx3|
+opts out, forbidding the other two for that file.
 
-\subsection{\builtin|textmode| and \builtin|mathmode| builtins}
-Internally, vesti tracks so called {\tt text mode} and {\tt math mode}.
-In the math mode, for instance, the token \verb|->| is changed into $->$ inside
-of the math mode. The idea is that Vesti changes \verb|->| into \verb|\to|, and
-so on. But when defining some function using \defun*, for example, one might
-want to define
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-+keyword|useenv@ foo {-><-}
--%}
-so that \verb|$\foo$| makes $-><-$, one should change the mode. Here,
-\builtin|mathmode| comes into the place. One should write instead that
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
-+keyword|useenv@ foo {#mathmode{-><-}}
--%}
+\subsection{Defun parameter tokens}
+The sharp-number tokens \builtin|1| through \builtin|9| act as parameter
+placeholders in both \builtin|def| bodies and \keyword{%-defun-%} bodies. The
+two-digit forms encode nesting for definitions-within-definitions: the tens digit
+is the nesting level and the units digit the argument index, and the emitted
+number of {\tt\#}\ signs doubles with each level.
 
-\section{Lua API}
-Vesti uses Lua in both building script and inline inside of Vesti code.
-Below are functions which are baked in Vesti compiler.
+\section{Lua scripting}
+Vesti embeds a full Lua interpreter, used in the build scripts and in inline
+blocks. All of Lua's standard library is available, plus a global {\tt vesti}
+table of compiler bindings.
+
+\subsection{Inline Lua blocks}
+An inline block is delimited by {\tt\#::}\ and {\tt::\#}. The code runs at compile
+time; whatever it sends through {\tt vesti.print} (or {\tt vesti.parse}) is
+spliced into the document at that position.
+
+%-
+\begin{lstlisting}[style=plainved]
+#::
+for i = 1, 3 do
+    vesti.print("\\item entry " .. i)
+end
+::#
+\end{lstlisting}
+-%
+
+\noindent Note: {\tt vesti.print} inserts its argument as {\it raw} \LaTeX, while
+{\tt vesti.parse} first transpiles a string of {\it vesti} into \LaTeX.
+
+\subsection{Block modifiers: global, import, export}
+Three optional modifiers may follow the closing {\tt::\#}, in this order:
+
+useenv table [ht] {
+    \centering
+    useenv tabular (ll) {
+        \toprule
+        \bf Suffix & \bf Meaning \\
+        \midrule
+        {\tt ::\#*}        & {\bf global}: definitions persist in the shared Lua state \\
+        {\tt ::\#[a, b]}   & {\bf import}: pull the exported chunks {\tt a} and {\tt b} into scope \\
+        {\tt ::\#<name\textgreater}   & {\bf export}: register this block's source under {\tt name} \\
+        \bottomrule
+    }
+    \caption{Inline Lua block modifiers}
+}
+
+\noindent They compose, e.g.\ {\tt ::\#*[helpers]<more\textgreater}\ runs globally, imports
+{\tt helpers}, and exports itself as {\tt more}. A common pattern is to export a
+helper block once and import it wherever needed:
+
+%-
+\begin{lstlisting}[style=plainved]
+#::
+local function read_all(path)
+    local f = assert(io.open(path, "rb"))
+    local data = f:read("*a"); f:close(); return data
+end
+::#<readAll>
+
+#::
+local content = read_all("data.txt")
+vesti.print(content)
+::#[readAll]
+\end{lstlisting}
+-%
+
+\noindent Because the lexer still scans inline blocks, a bare {\tt\#}\ before an
+identifier (such as Lua's length operator {\tt\#t}) would be read as a builtin.
+Write {\tt\#!t}\ --- the {\tt\#!}\ escape yields a literal {\tt\#}\ --- when you
+need {\tt\#}\ immediately before a name.
+
+\subsection{Build scripts}
+{\tt first.lua} runs once at the very start and must call {\tt vesti.compile};
+{\tt before.lua} runs once before each compilation pass; {\tt step.lua} runs at
+the end of each step. A representative {\tt before.lua} that downloads a font:
+
+%-
+\begin{lstlisting}[style=luaved]
+local dummy = vesti.vestiDummyDir()
+local url = "https://example.com/STIXTwoMath-Regular.ttf"
+vesti.mkdir(dummy)
+vesti.download(url, vesti.joinpath(dummy, "STIXTwoMath-Regular.ttf"))
+\end{lstlisting}
+-%
+
+\subsection{{\tt vesti.compile} --- the build entry point}
+Callable {\it only} from {\tt first.lua}:
+\verb|vesti.compile(<main-ves>, { <options> })|. The options table accepts the
+string {\tt engine} ({\tt "latex"}, {\tt "pdf"}, {\tt "xe"}, {\tt "lua"} or {\tt
+"tect"}) and the booleans {\tt compile\_all}, {\tt watch}, {\tt no\_color} and
+{\tt no\_exit\_err}.
+
+%-
+\begin{lstlisting}[style=luaved]
+vesti.compile("paper.ves", { engine = "tect", compile_all = true })
+\end{lstlisting}
+-%
+
+\section{The Lua API reference}
+Every binding lives in the global {\tt vesti} table. The list below is generated
+from {\tt ../src/Lua.zig} so it always reflects the functions the compiler
+actually exposes:
+
 useenv table [ht] {
     \centering
     #::
     local content = read_all("../src/Lua.zig")
-
+    -- every binding appears as `.name = "function"` in the FnReg array.
     local pat = '%.name%s*=%s*"([^"]+)"'
+    local lua = ves_collect(content, pat, nil)
+    ves_name_table(lua, 4, "{\\tt %s}")
+    ::#
+    \caption{Lua API functions in Vesti (auto-generated from the source)}
+}
 
-    local lua = {}
-    for name, tok in content:gmatch(pat) do
-        lua[#!lua + 1] = name
+\noindent What each function does:
+
+useenv table [ht] {
+    \centering
+    useenv tabular (ll) {
+        \toprule
+        \bf Function & \bf Purpose \\
+        \midrule
+        {\tt print(..., \{sep, nl\})}    & append arguments to the output (raw \LaTeX); {\tt sep} default {\tt" "}, {\tt nl} default {\tt 1}, clamped 0--!2 \\
+        {\tt parse(s)}                  & transpile a vesti string to \LaTeX\ and return it \\
+        {\tt mkdir(d)}                  & create a directory (silent if it exists) \\
+        {\tt joinpath(...)}             & join path components, return the path \\
+        {\tt getCurrentDir()}           & return the current working directory \\
+        {\tt setCurrentDir(d)}          & change the current working directory \\
+        {\tt vestiDummyDir()}           & return the {\tt.vesti-dummy} directory name \\
+        {\tt unzip(file, dest)}         & extract a zip into an existing directory \\
+        {\tt download(url, file)}       & HTTP GET into a file \\
+        {\tt ping(url)}                 & return {\tt true} if the host is reachable \\
+        {\tt getModule(name)}           & download and install a vesti module \\
+        {\tt getEngineType()}           & return the active engine as a string \\
+        {\tt compile(ves, \{opts\})}     & build entry point ({\tt first.lua} only) \\
+        \bottomrule
+    }
+    \caption{Behaviour of the Lua API functions}
+}
+
+\section{Deprecated features}
+The following keywords have been retired in favour of builtins; using them is a
+compile error that names the replacement. This table is generated from the
+deprecated entries in {\tt VESTI\_KEYWORDS}:
+
+useenv table [ht] {
+    \centering
+    #::
+    local content = read_all("../src/lexer/Token.zig")
+    -- `.{ "name", TokenType.deprecated(bool, "instead") }`
+    local pat = "%.%{%s*\"([^\"]+)\"%s*,%s*TokenType%.deprecated%([%w]+,%s*\"([^\"]+)\"%)"
+    vesti.print([[\begin{tabular}{ll}]])
+    vesti.print([[\toprule]])
+    vesti.print([[\bf Deprecated & \bf Replacement \\]])
+    vesti.print([[\midrule]])
+    for name, instead in content:gmatch(pat) do
+        local repl = instead:gsub("^#", "")
+        vesti.print(string.format("\\keyword{%s} & \\builtin@%s@ \\\\", name, repl))
     end
-    table.sort(lua)
-
-    vesti.print([[\begin{tabular}{ccccc}]])
-
-    for i, kw in ipairs(lua) do
-        local cell = string.format("\\tt{%s}", kw)
-        if (i % 4) == 0 then
-            vesti.print(cell .. [[\\]])
-        else
-            vesti.print(cell .. "&")
-        end
-    end
-
+    vesti.print([[\bottomrule]])
     vesti.print([[\end{tabular}]])
-    ::#[readAll]
-    \caption{Lua builtin functions in Vesti}
+    ::#
+    \caption{Deprecated keywords (auto-generated from the source)}
 }
 
+\section{A worked example}
+A small but complete document exercising several features at once:
 
-\newpage
-\section{Source Code of This Document}
-Below code was generated by inline lua.
-useenv Verbatim [numbers=left, numbersep=5pt, frame=single] {
+%-
+\begin{lstlisting}[style=plainved]
+docclass article (11pt)
+importpkg {
+    amsmath, amssymb,
+    geometry (a4paper, margin = 2.5cm),
+    graphicx,
+}
+
+defun [!] R {\mathbb{R}}              -- a quick math macro
+#def #vec {\mathbf{#1}}               -- a parameterised preprocessor macro
+
+startdoc
+\section{A demonstration}
+
+The reals are written $#vec(x) in R^n$, and we recall
+#eq(eq:zeta) {
+    \sum_{n=1}^oo {1 // n^2} = {\pi^2 // 6}.
+}
+
+#enum (\Roman*.) {
+    \item first
+    \item second
+}
+
+\includegraphics[width=0.4\textwidth]{#get_filepath(./figure.png)}
+
 #::
-    local content = read_all("vesti_man.ves")
-    for line in content:gmatch("([^\r\n]*)\r?\n?") do
-        vesti.print(line)
-    end
-::#[readAll]
+for _, name in ipairs({ "alpha", "beta", "gamma" }) do
+    vesti.print(vesti.parse("\\textbf{" .. name .. "}\\\\"))
+end
+::#
+\end{lstlisting}
+-%
+
+\section{Appendix: quick reference}
+\paragraph{Auto-generated tables.} The keyword, evaluated-builtin,
+preprocessor-builtin, Lua-API and deprecated tables in this manual are produced
+by inline Lua that reads {\tt ../src/lexer/Token.zig} and {\tt ../src/Lua.zig}.
+Editing the corresponding maps in the compiler source and recompiling this
+document updates every list automatically --- no manual edits required.
+
+\paragraph{Syntax at a glance.}
+useenv center {
+useenv tabular (llll) {
+\toprule
+{\tt -}{\tt -} & line comment & {\tt -}{\tt -}{\tt [[ ]]} & block comment \\
+{\tt -}{\tt -}{\tt !} & en-dash & {\tt -}{\tt -}{\tt -} & em-dash \\
+{\tt\%\#} & line verbatim & {\tt\%-}\ldots{\tt-\%} & block verbatim \\
+{\tt\$ \ldots \$} & inline math & {\tt\$\$ \ldots \$\$} & display math \\
+{\tt \{a // b\}} & fraction (math) & {\tt ?( )?} & sized delimiter \\
+{\tt " \ldots "} & text in math & {\tt oo} & infinity (math) \\
+{\tt \#1 \ldots \#9} & %-defun-% parameter & {\tt \#!} & literal \# \\
+{\tt \#:: \ldots ::\#} & inline Lua & {\tt ::\#*} & global Lua block \\
+\bottomrule
 }
+}
+
+\vskip 1em
+\begin{center}\small\itshape
+End of the vesti full reference manual.\\
+Lists are generated from a live reading of the compiler source.
+\end{center}
