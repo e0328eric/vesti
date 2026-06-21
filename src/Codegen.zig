@@ -125,7 +125,9 @@ fn codegenStmt(
                 while (i + 1 < options.items.len) : (i += 1) {
                     try writer.print("{f},", .{options.items[i]});
                 } else {
-                    try writer.print("{f}]", .{options.items[i]});
+                    // guard empty `()` option lists (avoids OOB on items[i])
+                    if (options.items.len > 0) try writer.print("{f}", .{options.items[i]});
+                    try writer.writeByte(']');
                 }
             }
             try writer.print("{{{f}}}\n", .{docclass.name});
@@ -143,7 +145,9 @@ fn codegenStmt(
                 while (i + 1 < options.items.len) : (i += 1) {
                     try writer.print("{f},", .{options.items[i]});
                 } else {
-                    try writer.print("{f}]", .{options.items[i]});
+                    // guard empty `()` option lists (avoids OOB on items[i])
+                    if (options.items.len > 0) try writer.print("{f}", .{options.items[i]});
+                    try writer.writeByte(']');
                 }
             }
             try writer.print("{{{f}}}\n", .{usepkg.name});

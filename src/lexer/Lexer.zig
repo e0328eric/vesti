@@ -113,6 +113,7 @@ fn getChar(self: Self, comptime get_char_t: GetCharType) u21 {
 const TokenizeState = enum {
     start,
     comment,
+    comment_start,
     multiline_comment_start,
     multiline_comment,
     multiline_comment_end,
@@ -181,7 +182,8 @@ pub fn next(self: *Self) Token {
                     },
                     else => {
                         self.nextChar(2);
-                        continue :tokenize .comment;
+                        // only the first char after `--` may open a long comment
+                        continue :tokenize .comment_start;
                     },
                 },
                 '!' => {
@@ -705,7 +707,8 @@ pub fn next(self: *Self) Token {
             );
             break :tokenize;
         },
-        .comment => switch (self.getChar(.current)) {
+        // first char after `--`: a `[` here may open a long comment
+        .comment_start => switch (self.getChar(.current)) {
             '\n', 0 => {
                 self.nextChar(1);
                 start_location = self.location;
@@ -716,6 +719,18 @@ pub fn next(self: *Self) Token {
                 self.comment_open_eq_count = 0;
                 self.comment_closed_eq_count = 0;
                 continue :tokenize .multiline_comment_start;
+            },
+            else => {
+                self.nextChar(1);
+                continue :tokenize .comment;
+            },
+        },
+        // line comment body: `[` is ordinary text, not a long-bracket opener
+        .comment => switch (self.getChar(.current)) {
+            '\n', 0 => {
+                self.nextChar(1);
+                start_location = self.location;
+                continue :tokenize .start;
             },
             else => {
                 self.nextChar(1);
@@ -747,6 +762,8 @@ pub fn next(self: *Self) Token {
         .multiline_comment => switch (self.getChar(.current)) {
             ']' => {
                 self.nextChar(1);
+                // reset close level: each `]` starts a fresh close attempt
+                self.comment_closed_eq_count = 0;
                 continue :tokenize .multiline_comment_end;
             },
             0 => {
@@ -765,7 +782,9 @@ pub fn next(self: *Self) Token {
                 continue :tokenize .start;
             } else {
                 self.nextChar(1);
-                continue :tokenize .multiline_comment;
+                // this `]` may itself begin the real close: restart counting
+                self.comment_closed_eq_count = 0;
+                continue :tokenize .multiline_comment_end;
             },
             0 => {
                 self.nextChar(1);

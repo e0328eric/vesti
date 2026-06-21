@@ -830,6 +830,8 @@ fn preprocessBuiltin_include(self: *Self, tok_list: *TokenList) !void {
     // eat #include
     _ = try self.expectWithError(.{ .BuiltinFunction = "include" }, .eat);
     self.eatWhitespaces(false);
+    // ensure `(` is present so getFilePath's precondition holds (no assert crash)
+    try self.expectWithError(.Lparen, .remain);
 
     var filepath = try self.getFilePath(include_loc);
     defer filepath.deinit(self.allocator);

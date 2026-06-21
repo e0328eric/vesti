@@ -2235,6 +2235,18 @@ fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
         return ParseError.ParseFailed;
     }
 
+    // `#enum_counter` only makes sense inside an `#enum` (depth >= 1)
+    if (self.enum_depth == 0) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"enum_counter"}),
+                .note = "`#enum_counter` can only be used inside an `#enum` block",
+            } },
+            .span = enum_counter_loc,
+        } });
+        return ParseError.ParseFailed;
+    }
+
     var output = try ArrayList(u8).initCapacity(self.allocator, 50);
     errdefer output.deinit(self.allocator);
     try output.appendSlice(
