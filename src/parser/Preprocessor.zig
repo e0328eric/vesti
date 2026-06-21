@@ -14,6 +14,8 @@ const Span = @import("../location.zig").Span;
 const StringHashMap = std.StringHashMap;
 const Token = @import("../lexer/Token.zig");
 const TokenType = Token.TokenType;
+const zlua = @import("zlua");
+const ZigLua = zlua.Lua;
 
 const getConfigPath = @import("../Config.zig").getConfigPath;
 
@@ -29,10 +31,32 @@ comptime_fnt: StringHashMap(ComptimeFunction),
 state: PreprocessorState,
 included_stack: ArrayList([:0]const u8),
 included_sources: ArrayList([]const u8),
+// stack of open `#if`/`#ifdef`/... blocks; `lua` is a lazily-created state
+// used only to evaluate `#if`/`#elif` conditions as lua expressions.
+cond_stack: ArrayList(CondFrame),
+lua: ?*ZigLua,
 
 const Self = @This();
 pub const PreprocessError = Allocator.Error ||
     error{ PreprocessFailed, GetFilePathFailed };
+
+const CondKind = enum {
+    if_cond, ifdef, ifndef, elif_cond, elifdef, elifndef, else_cond, endif,
+};
+
+const CONDITIONAL_DIRECTIVES = std.StaticStringMap(CondKind).initComptime(.{
+    .{ "if", .if_cond },        .{ "ifdef", .ifdef },     .{ "ifndef", .ifndef },
+    .{ "elif", .elif_cond },    .{ "elifdef", .elifdef }, .{ "elifndef", .elifndef },
+    .{ "else", .else_cond },    .{ "endif", .endif },
+});
+
+const CondFrame = struct {
+    parent_emit: bool, // enclosing context was emitting when this `#if` opened
+    taken: bool, // a branch in this chain was already selected
+    emit: bool, // the current branch is being emitted
+    seen_else: bool, // an `#else` already appeared in this chain
+    open_loc: Span,
+};
 
 pub const TokenList = struct {
     inner: ArrayList(Token) = .empty,
@@ -87,6 +111,8 @@ pub fn init(
     self.state = .{};
     self.included_stack = .empty;
     self.included_sources = .empty;
+    self.cond_stack = .empty;
+    self.lua = null;
 
     // fill curr_tok and peek_tok
     self.nextToken();
@@ -111,6 +137,9 @@ pub fn deinit(self: *Self) void {
         val.deinit(self.allocator);
     }
     self.comptime_fnt.deinit();
+
+    self.cond_stack.deinit(self.allocator);
+    if (self.lua) |l| l.deinit();
 }
 
 fn preprocessLoop(self: *Self, tok_list: *TokenList) PreprocessError!void {
@@ -129,6 +158,13 @@ pub fn preprocess(self: *Self) PreprocessError!TokenList {
     errdefer output.deinit(self.allocator);
 
     try self.preprocessLoop(&output);
+    if (self.cond_stack.items.len > 0) {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .IllegalUseErr = "unterminated `#if` block (missing `#endif`)" },
+            .span = self.cond_stack.items[self.cond_stack.items.len - 1].open_loc,
+        } });
+        return PreprocessError.PreprocessFailed;
+    }
     try output.append(self.allocator, Token.eof(self.curr_tok.span));
 
     return output;
@@ -203,12 +239,22 @@ inline fn isBuiltin(name: []const u8, comptime kind: enum(u2) { preprocess, norm
 }
 
 fn preprocessToken(self: *Self, tok_list: *TokenList) !void {
+    // conditional directives are processed even inside an inactive branch
+    if (self.curr_tok.toktype == .BuiltinFunction) {
+        if (CONDITIONAL_DIRECTIVES.get(self.curr_tok.toktype.BuiltinFunction)) |kind|
+            return try self.preprocessConditional(kind);
+    }
+    // inside a non-selected `#if` branch: drop everything else
+    if (!self.emitting()) return;
+
     switch (self.curr_tok.toktype) {
         .BuiltinFunction => |name| {
             inline for (comptime Token.VESTI_PREPROCESS_BUILTINS.keys()) |key| {
-                const callback = @field(Self, "preprocessBuiltin_" ++ key);
-                if (mem.eql(u8, key, name)) {
-                    return try callback(self, tok_list);
+                if (comptime !CONDITIONAL_DIRECTIVES.has(key)) {
+                    const callback = @field(Self, "preprocessBuiltin_" ++ key);
+                    if (mem.eql(u8, key, name)) {
+                        return try callback(self, tok_list);
+                    }
                 }
             }
 
@@ -229,6 +275,168 @@ fn preprocessToken(self: *Self, tok_list: *TokenList) !void {
         },
         else => try tok_list.append(self.allocator, self.curr_tok),
     }
+}
+
+inline fn emitting(self: *const Self) bool {
+    const items = self.cond_stack.items;
+    return items.len == 0 or items[items.len - 1].emit;
+}
+
+fn getCondLua(self: *Self) !*ZigLua {
+    if (self.lua) |l| return l;
+    const l = try ZigLua.init(self.allocator);
+    l.openLibs();
+    self.lua = l;
+    return l;
+}
+
+fn condErr(self: *Self, loc: Span, msg: []const u8) PreprocessError {
+    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        .err_info = .{ .IllegalUseErr = msg },
+        .span = loc,
+    } });
+    return PreprocessError.PreprocessFailed;
+}
+
+// drop the remainder of the directive's line (trailing spaces + its newline)
+fn eatDirectiveLineEnd(self: *Self) void {
+    while (self.expect(.peek, &.{ .Space, .Tab })) self.nextToken();
+    if (self.expect(.peek, &.{.Newline})) self.nextToken();
+}
+
+// curr is the directive builtin; eat it and collect the text between the
+// following `( )` (nesting-aware) into `out`. Leaves curr at the closing `)`.
+fn collectCondParen(self: *Self, loc: Span, out: *ArrayList(u8)) !void {
+    self.nextToken(); // eat the directive builtin
+    self.eatWhitespaces(false);
+    try self.expectWithError(.Lparen, .remain);
+    var nested: usize = 1;
+    while (true) {
+        switch (self.peek_tok.toktype) {
+            .Lparen => nested += 1,
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break;
+            },
+            .Eof => return self.condErr(loc, "`)` expected to close the `#if`/`#elif` condition"),
+            else => {},
+        }
+        try out.appendSlice(self.allocator, self.peek_tok.lit.in_text);
+        self.nextToken();
+    }
+    self.nextToken(); // consume `)`
+}
+
+// evaluate `#if (<lua expr>)` / `#elif (...)` by running it as lua.
+fn evalIfCondition(self: *Self, loc: Span) !bool {
+    var expr: ArrayList(u8) = .empty;
+    defer expr.deinit(self.allocator);
+    try self.collectCondParen(loc, &expr);
+
+    const lua = try self.getCondLua();
+    var code: ArrayList(u8) = .empty;
+    errdefer code.deinit(self.allocator);
+    try code.appendSlice(self.allocator, "return (");
+    try code.appendSlice(self.allocator, expr.items);
+    try code.appendSlice(self.allocator, ")");
+    const code_z = try code.toOwnedSliceSentinel(self.allocator, 0);
+    defer self.allocator.free(code_z);
+
+    lua.doString(code_z) catch {
+        const msg = lua.toString(-1) catch "unknown error";
+        std.debug.print("[#if] lua error: {s}\n", .{msg});
+        lua.setTop(0);
+        return self.condErr(loc, "failed to evaluate `#if`/`#elif` condition as lua");
+    };
+    const result = if (lua.getTop() > 0) lua.toBoolean(-1) else false;
+    lua.setTop(0);
+    return result;
+}
+
+// `#ifdef #name` / `#ifndef #name`: curr is the directive; reads the `#name`
+// macro token and reports whether it is defined (xor `negate`).
+fn evalDefined(self: *Self, loc: Span, negate: bool) !bool {
+    self.nextToken(); // eat the directive builtin
+    self.eatWhitespaces(false);
+    const name = switch (self.curr_tok.toktype) {
+        .BuiltinFunction => |n| n,
+        else => return self.condErr(loc, "expected a macro name `#NAME` after `#ifdef`/`#ifndef`"),
+    };
+    return self.comptime_fnt.contains(name) != negate;
+}
+
+// consume a directive's argument without evaluating it (used while skipping).
+fn skipCondArg(self: *Self, kind: CondKind, loc: Span) !void {
+    switch (kind) {
+        .if_cond, .elif_cond => {
+            var dump: ArrayList(u8) = .empty;
+            defer dump.deinit(self.allocator);
+            try self.collectCondParen(loc, &dump);
+        },
+        .ifdef, .ifndef, .elifdef, .elifndef => {
+            self.nextToken(); // eat directive; leave curr at the `#name` token
+            self.eatWhitespaces(false);
+        },
+        .else_cond, .endif => {}, // no argument
+    }
+}
+
+fn preprocessConditional(self: *Self, kind: CondKind) PreprocessError!void {
+    const loc = self.curr_tok.span;
+    switch (kind) {
+        .if_cond, .ifdef, .ifndef => {
+            const parent_emit = self.emitting();
+            var cond = false;
+            if (parent_emit) {
+                cond = switch (kind) {
+                    .if_cond => try self.evalIfCondition(loc),
+                    .ifdef => try self.evalDefined(loc, false),
+                    .ifndef => try self.evalDefined(loc, true),
+                    else => unreachable,
+                };
+            } else {
+                // dormant: don't evaluate, just stay in sync with the tokens
+                try self.skipCondArg(kind, loc);
+            }
+            try self.cond_stack.append(self.allocator, .{
+                .parent_emit = parent_emit,
+                .taken = !parent_emit or cond,
+                .emit = parent_emit and cond,
+                .seen_else = false,
+                .open_loc = loc,
+            });
+        },
+        .elif_cond, .elifdef, .elifndef, .else_cond => {
+            if (self.cond_stack.items.len == 0)
+                return self.condErr(loc, "`#elif`/`#else` without a matching `#if`");
+            const idx = self.cond_stack.items.len - 1;
+            if (self.cond_stack.items[idx].seen_else)
+                return self.condErr(loc, "`#elif`/`#else` after `#else`");
+            if (kind == .else_cond) self.cond_stack.items[idx].seen_else = true;
+
+            // evaluate this branch only if the chain is live and undecided
+            if (self.cond_stack.items[idx].parent_emit and !self.cond_stack.items[idx].taken) {
+                const cond = switch (kind) {
+                    .elif_cond => try self.evalIfCondition(loc),
+                    .elifdef => try self.evalDefined(loc, false),
+                    .elifndef => try self.evalDefined(loc, true),
+                    .else_cond => true,
+                    else => unreachable,
+                };
+                self.cond_stack.items[idx].emit = cond;
+                if (cond) self.cond_stack.items[idx].taken = true;
+            } else {
+                self.cond_stack.items[idx].emit = false;
+                try self.skipCondArg(kind, loc);
+            }
+        },
+        .endif => {
+            if (self.cond_stack.items.len == 0)
+                return self.condErr(loc, "`#endif` without a matching `#if`");
+            _ = self.cond_stack.pop();
+        },
+    }
+    self.eatDirectiveLineEnd();
 }
 
 const ComptimeFunction = struct {

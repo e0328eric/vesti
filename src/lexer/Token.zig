@@ -312,6 +312,15 @@ pub const VESTI_PREPROCESS_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "ltx3_off" },
     .{ "noltx3" },
     .{ "undef" },
+    // conditional compilation (handled in Preprocessor.preprocessConditional)
+    .{ "if" },
+    .{ "ifdef" },
+    .{ "ifndef" },
+    .{ "elif" },
+    .{ "elifdef" },
+    .{ "elifndef" },
+    .{ "else" },
+    .{ "endif" },
     // zig fmt: on
 });
 
