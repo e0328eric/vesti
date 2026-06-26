@@ -41,13 +41,20 @@ pub const PreprocessError = Allocator.Error ||
     error{ PreprocessFailed, GetFilePathFailed };
 
 const CondKind = enum {
-    if_cond, ifdef, ifndef, elif_cond, elifdef, elifndef, else_cond, endif,
+    if_cond,
+    ifdef,
+    ifndef,
+    elif_cond,
+    elifdef,
+    elifndef,
+    else_cond,
+    endif,
 };
 
 const CONDITIONAL_DIRECTIVES = std.StaticStringMap(CondKind).initComptime(.{
-    .{ "if", .if_cond },        .{ "ifdef", .ifdef },     .{ "ifndef", .ifndef },
-    .{ "elif", .elif_cond },    .{ "elifdef", .elifdef }, .{ "elifndef", .elifndef },
-    .{ "else", .else_cond },    .{ "endif", .endif },
+    .{ "if", .if_cond },     .{ "ifdef", .ifdef },     .{ "ifndef", .ifndef },
+    .{ "elif", .elif_cond }, .{ "elifdef", .elifdef }, .{ "elifndef", .elifndef },
+    .{ "else", .else_cond }, .{ "endif", .endif },
 });
 
 const CondFrame = struct {
@@ -304,9 +311,59 @@ fn eatDirectiveLineEnd(self: *Self) void {
     if (self.expect(.peek, &.{.Newline})) self.nextToken();
 }
 
-// curr is the directive builtin; eat it and collect the text between the
-// following `( )` (nesting-aware) into `out`. Leaves curr at the closing `)`.
+// curr is the directive builtin; eat it and the following `(`, then collect
+// the parenthesized condition into `out` as lua source. User macros (e.g.
+// `#a` from `#def #a {1}`) are expanded in place so the result is valid lua.
+// Leaves curr at the closing `)`.
 fn collectCondParen(self: *Self, loc: Span, out: *ArrayList(u8)) !void {
+    self.nextToken(); // eat the directive builtin
+    self.eatWhitespaces(false);
+    try self.expectWithError(.Lparen, .remain);
+    self.nextToken(); // step past `(` onto the first condition token
+
+    var toks: TokenList = .{};
+    defer toks.deinit(self.allocator);
+
+    var nested: usize = 1;
+    while (true) {
+        switch (self.curr_tok.toktype) {
+            .Lparen => {
+                nested += 1;
+                try toks.append(self.allocator, self.curr_tok);
+                self.nextToken();
+            },
+            .Rparen => {
+                nested -= 1;
+                if (nested == 0) break; // leave curr at the closing `)`
+                try toks.append(self.allocator, self.curr_tok);
+                self.nextToken();
+            },
+            .Eof => return self.condErr(loc, "`)` expected to close the `#if`/`#elif` condition"),
+            .BuiltinFunction => |name| if (self.comptime_fnt.contains(name)) {
+                // expand the macro using the normal expansion machinery
+                const fnt_loc = self.curr_tok.span;
+                self.nextToken();
+                self.eatWhitespaces(false);
+                try self.preprocessExpandDef(fnt_loc, name, &toks);
+                self.nextToken(); // uniform advance (honors lex_sleep)
+            } else {
+                try toks.append(self.allocator, self.curr_tok);
+                self.nextToken();
+            },
+            else => {
+                try toks.append(self.allocator, self.curr_tok);
+                self.nextToken();
+            },
+        }
+    }
+
+    for (toks.inner.items) |tok| {
+        try out.appendSlice(self.allocator, tok.lit.in_text);
+    }
+}
+
+// consume a `(...)` without evaluating it (used when skipping a dead branch).
+fn skipCondParen(self: *Self, loc: Span) !void {
     self.nextToken(); // eat the directive builtin
     self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
@@ -321,7 +378,6 @@ fn collectCondParen(self: *Self, loc: Span, out: *ArrayList(u8)) !void {
             .Eof => return self.condErr(loc, "`)` expected to close the `#if`/`#elif` condition"),
             else => {},
         }
-        try out.appendSlice(self.allocator, self.peek_tok.lit.in_text);
         self.nextToken();
     }
     self.nextToken(); // consume `)`
@@ -368,11 +424,7 @@ fn evalDefined(self: *Self, loc: Span, negate: bool) !bool {
 // consume a directive's argument without evaluating it (used while skipping).
 fn skipCondArg(self: *Self, kind: CondKind, loc: Span) !void {
     switch (kind) {
-        .if_cond, .elif_cond => {
-            var dump: ArrayList(u8) = .empty;
-            defer dump.deinit(self.allocator);
-            try self.collectCondParen(loc, &dump);
-        },
+        .if_cond, .elif_cond => try self.skipCondParen(loc),
         .ifdef, .ifndef, .elifdef, .elifndef => {
             self.nextToken(); // eat directive; leave curr at the `#name` token
             self.eatWhitespaces(false);

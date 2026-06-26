@@ -2264,7 +2264,7 @@ fn parseBuiltin_enum_counter(self: *Self) ParseError!Stmt {
 }
 
 fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
-    const import_file_loc = self.getTok(.current).span;
+    const get_filename_loc = self.getTok(.current).span;
     self.nextToken(); // eat #get_filepath
     self.eatWhitespaces(false);
     try self.expectWithError(.Lparen, .remain);
@@ -2282,7 +2282,7 @@ fn parseBuiltin_get_filepath(self: *Self) ParseError!Stmt {
     ) catch {
         const io_diag = try diag.IODiagnostic.init(
             self.allocator,
-            import_file_loc,
+            get_filename_loc,
             "cannot get the relative path from {s} to {s}",
             .{
                 VESTI_DUMMY_DIR,
