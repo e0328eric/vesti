@@ -63,6 +63,7 @@ pub fn main(init: std.process.Init) !void {
         "init",
         "clear",
         "compile",
+        "latex",
         "experimental",
     };
     inline for (subcmds) |subcmd_str| {
@@ -148,6 +149,140 @@ fn clearStep(
 
     try Io.Dir.cwd().deleteTree(io, VESTI_DUMMY_DIR);
     std.debug.print("[successively remove {s}]\n", .{VESTI_DUMMY_DIR});
+}
+
+fn latexStep(
+    allocator: Allocator,
+    io: Io,
+    env_map: *const EnvMap,
+    diagnostic: *Diagnostic,
+    latex_subcmd: *const zlap.Subcmd,
+) !void {
+    _ = env_map;
+
+    const main_filename = latex_subcmd.args.get("FILENAME").?.value.string;
+    const compile_lim: usize = blk: {
+        const tmp = latex_subcmd.flags.get("lim").?.value.number;
+        if (tmp <= 0) return error.InvalidCompileLimit;
+        break :blk @intCast(tmp);
+    };
+    const watch = latex_subcmd.flags.get("watch").?.value.bool;
+    const no_color = latex_subcmd.flags.get("no_color").?.value.bool;
+
+    if (main_filename.len == 0) {
+        const io_diag = try diag.IODiagnostic.init(
+            diagnostic.allocator,
+            null,
+            "latex filename is required",
+            .{},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.MissingLatexFilename;
+    }
+
+    if (!std.mem.eql(u8, path.extension(main_filename), ".tex")) {
+        const io_diag = try diag.IODiagnostic.init(
+            diagnostic.allocator,
+            null,
+            "extension of `{s}` is not `tex`",
+            .{main_filename},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.ExtensionDifferent;
+    }
+
+    const real_filename = Io.Dir.cwd().realPathFileAlloc(
+        io,
+        main_filename,
+        allocator,
+    ) catch {
+        const io_diag = try diag.IODiagnostic.init(
+            diagnostic.allocator,
+            null,
+            "failed to open file `{s}`",
+            .{main_filename},
+        );
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
+        return error.FailedToOpenFile;
+    };
+    defer allocator.free(real_filename);
+
+    var prev_mtime: ?i96 = null;
+    while (true) {
+        const stat = Io.Dir.cwd().statFile(io, real_filename, .{}) catch |err| blk: {
+            if (err == error.FileNotFound) {
+                try Io.sleep(io, .fromMilliseconds(200), .real);
+                break :blk try Io.Dir.cwd().statFile(io, real_filename, .{});
+            } else {
+                return err;
+            }
+        };
+        const should_compile = if (prev_mtime) |pmtime|
+            stat.mtime.toNanoseconds() > pmtime
+        else
+            true;
+
+        if (should_compile) {
+            compileLatexFileWithTectonic(
+                allocator,
+                io,
+                diagnostic,
+                real_filename,
+                compile_lim,
+            ) catch |err| {
+                try diagnostic.prettyPrint(no_color);
+                diagnostic.lock_print_at_main = true;
+
+                switch (err) {
+                    error.OutOfMemory,
+                    error.OpenDllError,
+                    error.FindTectonicFunctionFailed,
+                    => return err,
+                    else => {},
+                }
+
+                if (!watch) return err;
+                std.debug.print("Ctrl+C to quit...\n", .{});
+                const timestamp = Io.Clock.now(.real, io);
+                prev_mtime = timestamp.toNanoseconds();
+                Io.sleep(io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
+                continue;
+            };
+            if (watch) std.debug.print("Ctrl+C to quit...\n", .{});
+        }
+
+        if (!watch) break;
+        const timestamp = Io.Clock.now(.real, io);
+        prev_mtime = timestamp.toNanoseconds();
+        Io.sleep(io, .fromMilliseconds(200), .real) catch @panic("sleep failed");
+    }
+}
+
+fn compileLatexFileWithTectonic(
+    allocator: Allocator,
+    io: Io,
+    diagnostic: *Diagnostic,
+    latex_filename: []const u8,
+    compile_lim: usize,
+) !void {
+    const dir_path = path.dirname(latex_filename) orelse ".";
+    const main_tex_file = path.basename(latex_filename);
+
+    var latex_dir = if (path.isAbsolute(dir_path))
+        try Io.Dir.openDirAbsolute(io, dir_path, .{})
+    else
+        try Io.Dir.cwd().openDir(io, dir_path, .{});
+    defer latex_dir.close(io);
+
+    try Compiler.runTectonic(
+        allocator,
+        io,
+        diagnostic,
+        main_tex_file,
+        ".",
+        &latex_dir,
+        compile_lim,
+    );
 }
 
 fn compileStep(

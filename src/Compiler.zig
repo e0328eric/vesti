@@ -719,6 +719,26 @@ fn compileLatexWithTectonic(
     main_tex_file: []const u8,
     vesti_dummy: *Io.Dir,
 ) !void {
+    try runTectonic(
+        self.allocator,
+        self.io,
+        self.diagnostic,
+        main_tex_file,
+        VESTI_DUMMY_DIR,
+        vesti_dummy,
+        self.compile_limit,
+    );
+}
+
+pub fn runTectonic(
+    allocator: Allocator,
+    io: Io,
+    diagnostic: *diag.Diagnostic,
+    main_tex_file: []const u8,
+    filesystem_root: []const u8,
+    working_dir: *Io.Dir,
+    compile_limit: usize,
+) !void {
     // message templates
     const DLL_NOT_FOUND =
         "cannot find {s}, critical error!!!";
@@ -736,10 +756,10 @@ fn compileLatexWithTectonic(
 
     // tectonic dll is assumed to locate at the same directory with the vesti
     // below function follows symlink, which is expected
-    const exe_dir = try std.process.executableDirPathAlloc(self.io, self.allocator);
-    defer self.allocator.free(exe_dir);
-    const tectonic_dll_path = try path.join(self.allocator, &.{ exe_dir, TECTONIC_DLL });
-    defer self.allocator.free(tectonic_dll_path);
+    const exe_dir = try std.process.executableDirPathAlloc(io, allocator);
+    defer allocator.free(exe_dir);
+    const tectonic_dll_path = try path.join(allocator, &.{ exe_dir, TECTONIC_DLL });
+    defer allocator.free(tectonic_dll_path);
 
     var tectonic_dll = DynLib.open(tectonic_dll_path) catch {
         // TODO: implement obtaining dlopen error string
@@ -748,14 +768,14 @@ fn compileLatexWithTectonic(
         else
             std.c.dlerror() orelse "(error not found)";
         const io_diag = try diag.IODiagnostic.initWithNote(
-            self.diagnostic.allocator,
+            diagnostic.allocator,
             null,
             DLL_NOT_FOUND,
             .{TECTONIC_DLL},
             DLL_NOT_FOUND_NOTE,
             .{ TECTONIC_DLL, err_msg },
         );
-        self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+        diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.OpenDllError;
     };
     defer tectonic_dll.close();
@@ -765,28 +785,28 @@ fn compileLatexWithTectonic(
         "compile_latex_with_tectonic",
     );
 
-    var curr_dir = try Io.Dir.cwd().openDir(self.io, ".", .{});
-    defer curr_dir.close(self.io);
-    try std.process.setCurrentDir(self.io, vesti_dummy.*);
-    defer std.process.setCurrentDir(self.io, curr_dir) catch @panic("failed to recover cwd");
+    var curr_dir = try Io.Dir.cwd().openDir(io, ".", .{});
+    defer curr_dir.close(io);
+    try std.process.setCurrentDir(io, working_dir.*);
+    defer std.process.setCurrentDir(io, curr_dir) catch @panic("failed to recover cwd");
 
     if (compile_latex_with_tectonic) |fnt| {
         if (!fnt(
             main_tex_file.ptr,
             main_tex_file.len,
-            @ptrCast(VESTI_DUMMY_DIR),
-            VESTI_DUMMY_DIR.len,
-            self.compile_limit,
+            filesystem_root.ptr,
+            filesystem_root.len,
+            compile_limit,
         )) {
             const io_diag = try diag.IODiagnostic.initWithNote(
-                self.diagnostic.allocator,
+                diagnostic.allocator,
                 null,
                 "tectonic gaves an error while processing",
                 .{},
                 "",
                 .{},
             );
-            self.diagnostic.initDiagInner(.{ .IOError = io_diag });
+            diagnostic.initDiagInner(.{ .IOError = io_diag });
             return error.CompileLatexFailed;
         }
     } else return error.FindTectonicFunctionFailed;
