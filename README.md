@@ -1,7 +1,6 @@
-# vesti-odin
+# vesti
 
-An Odin port of [Vesti](https://github.com/e0328eric/vesti), a transpiler from
-the Vesti document language to LaTeX. It keeps the Vesti 0.16.1 command-line
+A transpiler from the Vesti document language to LaTeX. It keeps the Vesti 0.16.1 command-line
 surface and includes the Lua project API and bundled Tectonic bridge.
 
 ## Build and test
