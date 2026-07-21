@@ -1,0 +1,81 @@
+importmod (coprime)
+docclass coprime (geometry,fancy,tikz)
+
+importves (font.ves)
+
+\settitle{Reference Note for PDE on a Half Space}{Sungbae Jeong}
+\setgeometry{a4paper, margin = 2.2cm}
+
+\let\remark=\relax
+\let\endremark=\relax
+\allocthmcnt{Remark}
+\maketheorem{remark}{Remark}{\bfseries Remark\ \theRemark}
+\crefname{Remark}{\lowercase{Remark}}{\lowercase{Remark}}
+\Crefname{Remark}{Remark}{Remark}
+
+\predisplaypenalty=0
+\postdisplaypenalty=0
+startdoc
+\fancyon
+
+\section{Weighted Sobolev Spaces with Weights}
+importves (chapter1/definition.ves)
+
+\section{Characterizations of $H_{p,\theta}^\gamma$}
+importves (chapter2/basic_facts.ves)
+importves (chapter2/the_operator_L.ves)
+importves (chapter2/special_theta.ves)
+
+\section{Embedding Theorems for $H_{p,\theta}^\gamma$}
+importves (chapter3/embedding.ves)
+
+\section{Elliptic Equations in $\R_+^d$} \label{sec:4}
+importves (chapter4/elliptic.ves)
+
+\section{Parabolic Equations in $\R_+^d$}
+importves (chapter5/parabolic.ves)
+
+\section{Proof of Lemma \ref{lemma:5.7}}
+importves (chapter6/proof.ves)
+
+\section{Some Additional Properties for Weighted Sobolev Space}
+\subsection{Duality of $H_{p,\theta}^\gamma$}
+importves (chapter7/duality.ves)
+
+\subsection{$H_{p,\theta}^\gamma$ as complex interpolation spaces}
+importves (chapter7/complex-interpolation.ves)
+
+\section{Appendix}
+\subsection{The space $l_p^\theta(\Z,H_p^\gamma)$}
+importves (appendix/banach.ves)
+
+\subsection{The proof of Remark \ref{remark:5.5}} \label{sec:pf-remark:5.5}
+importves (appendix/density-smooth.ves)
+
+\subsection{The Poisson Kernel}
+importves (appendix/poisson_kernel.ves)
+
+\subsection{Additional Informations about Lemma \ref{lemma:4.8}} \label{sec:lemma:4.8}
+importves (appendix/additional_proof_lemma48.ves)
+
+\subsection{The heat Kernel and Boundedness of a Solution} \label{sec:additional:lemma:5.7}
+importves (appendix/heat-kernel.ves)
+
+\subsection{The space $C_0^oo(\Omega)$ is separable topological space}
+importves (appendix/smooth-separable.ves)
+
+\subsection{The proof of Lemma \ref{lemma:1.9}}
+importves (appendix/pf-lemma19.ves)
+
+\subsection{The proof of \Cref{lemma:2.17}}
+importves (appendix/proof-217.ves)
+
+\subsection{The proof of \Cref{lemma:6.4}}
+importves (appendix/proof-64.ves)
+
+\subsection{Another proof of the regularity of $M^{-1}u$ in the proof of \Cref{lemma:5.7}}
+importves (appendix/another-method-pf57.ves)
+
+\bibliographystyle{amsalpha}
+\bibliography{#get_filepath(bib.bib)}
+

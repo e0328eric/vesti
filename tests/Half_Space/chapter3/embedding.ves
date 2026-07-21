@@ -1,0 +1,263 @@
+#def #TODO {useenv center { \bf{\color{red}[Fill Here!!]}} } 
+#def #TODOO {useenv center { \bf{\color{red}[#1]}} }
+
+The following theorem is based on Sobolev's theorem saying that
+$H_p^\gamma\subset\Cc^{\gamma-d/p}$ if $\gamma>d/p$.
+
+#label(thm:3.1)
+useenv thm {
+    Assume that $\gamma p>d$ and represent $\gamma-d/p$ as $k+\alpha$, where $k$
+    is an integer and $\alpha\in (0,1]$. Let $i,j$ be multiindices such that
+    $|i|<=k$ and $|j|=k$. Then for any $u\in H_{p,\theta}^\gamma$, we have
+    #eq (eq:3.1) {
+        M^{|i|+\theta/p}D^iu \in C(\R_+^d),\quad
+        M^{k+\alpha+\theta/p}D^ju\in\Cc_"loc"^\alpha(\R_+^d),
+    }
+    #eq (eq:3.2) {
+        ||M^{|i|+\theta/p}D^iu||_{C(\R_+^d)}<=N||u||_{\gamma,p,\theta},\quad
+        [M^{k+\alpha+\theta/p}D^ju]_{\Cc^\alpha(\R_+^d)} <=
+        N||u||_{\gamma,p,\theta},
+    }
+    where the constants $N$ depend only on $d,\gamma,p,\theta$.
+    \proof
+    First of all, we need to show that $M^{|i|+\theta/p}D^iu$ is continuous on
+    $\R_+^d$ in order to say whether it belongs to $C(\R_+^d)$.
+    By \Cref{thm:2.1} and \Cref{coro:1.6}, $u\in H_{p,\theta}^\gamma$ implies
+    $M^{|i|+\theta/p}D^iu\in H_{p,0}^{\gamma-|i|}$, so it suffices to observe
+    the space $H_{p,0}^\gamma$ where $\gamma p > d$. For fixed $f\in
+    H_{p,0}^\gamma$, we have
+    $$
+        ||f||_{\gamma,p,0}^p = \sum_{n=-oo}^oo ||f(e^n\cdot)\zeta||_{\gamma,p}^p.
+    $$
+    This implies for every $n\in\Z$, $f(e^n\cdot)\zeta\in H_p^\gamma$. By
+    changing of variables on spaces $H_p^\gamma$ (see \cite{Tri2}),
+    $f\zeta(e^{-n}\cdot)\in H_p^n \subset \Cs^{\gamma-d/p}(\R_+^d) \subset
+    C(\R_+^d)$ for every $n\in\Z$. Since $\sum \zeta^p(e^{-n}x) >= 1$, by
+    observing locally on each support of $\zeta(e^{-n}\cdot)$, we have $f\in
+    C(\R^d_+)$.
+
+    For the inequality, notice that
+    useenv align* {
+        \sup_{x\in\R_+^d}|(x^1)^{|i|+\theta/p}D^iu(x)|^p
+        &<= \sup_{x\in\R_+^d}\sum_{n=-oo}^oo
+        \zeta^p(e^{-n}x)|(x^1)^{|i|+\theta/p}D^iu(x)|^p \\
+        &<= \sum_{n=-oo}^oo e^{n\theta}\sup_{x\in\R_+^d}
+        |[(e^nx^1)^{|i|}D^iu(e^nx)][(x^1)^{\theta/p}\zeta(x)]|^p \eqcolon I.
+    }
+    Here we use the Sobolev's embedding theorem, which is
+    $H_p^\gamma\subset\Cc^{\gamma-d/p}(\R^d_+)\subset C(\R_+^d)$.
+    In addition, by \Cref{thm:2.1} and the induction (or see \Cref{coro:2.3}),
+    the operator $M^{|i|}D^i$ is a bounded operator from $H_{p,\theta}^\gamma$
+    into $H_{p,\theta}^{\gamma-|i|}$. Finally, as $|i|<=k$, $\gamma-|i|-d/p >=
+    \alpha > 0$ and thanks to \Cref{lemma:1.4}, we finally have
+    $$
+        I
+        <= \sum_{n=-oo}^oo
+        e^{n\theta}||M^{|i|}D^iu(e^n\cdot)M^{\theta/p}\zeta||_{\gamma-|i|,p}^p
+        <= N\sum_{n=-oo}^oo
+        e^{n\theta}||M^{|i|}D^iu(e^n\cdot)\zeta||_{\gamma-|i|,p}^p
+        = N||M^{|i|}D^iu||_{\gamma-|i|,p,\theta}^p
+        <= N||u||_{\gamma,p,\theta}^p.
+    $$
+
+    Next, assume that $\alpha < 1$. It is convenient to take $\zeta$ so that
+    $$
+        \sum_{n=-oo}^oo\zeta(e^{-n}x) \equiv 1\quad "on"\quad \R_+^d.
+    $$
+    Notice that for any function $v$
+    #eq (eq:3.3) {
+        [v]_{\Cc^\alpha(\R_+^d)}^p
+        = [v]_{C^\alpha(\R_+^d)}^p
+        = \sup_{x,y\in\R_+^d}{|u(x) - u(y)|^p//|x-y|^{p\alpha}}
+        = \sup_{x,y\in\R_+^d}?|\sum_{n=-oo}^oo
+        {[v(x)\zeta(e^{-n}x) - v(y)\zeta(e^{-n}y)] // |x-y|^\alpha}|?^p.
+    }
+    Here if both $\zeta(e^{-n}x)$ and $\zeta(e^{-n}y)$ are nonzero, then
+    $$
+        n\in\Gamma(x,y) \defeq \{m : ae^m <= x,y <= be^m\}.
+    $$
+    If we consider
+    $$
+        \Gamma(x) = \{m\in\Z : ae^m <= x <= be^m\},
+    $$
+    where $(a,b)\subset\R_+$ is an interval containing the support of $\zeta$.
+    Furthermore, if $n\notin\Gamma(x,y)$ and at least one of $\zeta(e^{-n}x)$
+    or $\zeta(e^{-n}y)$ is not zero, then $|x-y|>=\epsilon e^n$, where
+    $\epsilon$ is the distance from points $a$, $b$ to the support of $\zeta$.
+    Assume that $\zeta(e^{-n}x)!=0$. Since $n!=\Gamma(x,y)$, we have
+    $e^{-n}x\in"supp"\zeta$ and $e^{-n}y\notin(a,b)$, thus
+    $$
+        |e^{-n}x - e^{-n}y| >= \epsilon.
+    $$
+
+    Furthermore, notice that $\Gamma(x,y) = \Gamma(x)\cap \Gamma(y)$, where
+    $$
+        \Gamma(x) = \{m\in\Z : \log x - \log b <= m <= \log x - \log a\}.
+    $$
+    This gives $|\Gamma(x)| <= \log(b/a) + 2$, and we have $|\Gamma(x,y)| <=
+    |\Gamma(x)| <= \log(b/a) + 2$.
+    Finally we have the following inequality:
+    $$
+        \sum_{n=-oo}^oo e^{-n\alpha}\zeta(e^{-n}x)
+        = \sum_{n : x^1 \in [ae^n,be^n]} e^{-n\alpha}\zeta(e^{-n}x)
+        <= \sum_{n : x^1 \in [ae^n,be^n]} b^\alpha (x^1)^{-\alpha}\zeta(e^{-n}x)
+        <= b^\alpha (x^1)^{-\alpha}.
+    $$
+    Therefore, the expression under sup in \cref{eq:3.3} is less than
+    useenv align* {
+        &N?|\sum_{n\in\Gamma(x,y)}
+        {[v(x)\zeta(e^{-n}x) - v(y)\zeta(e^{-n}y)]//|x-y|^\alpha}|?^p
+        + N|v(x)|^p?|\sum_{n=-oo}^oo e^{-n\alpha}\zeta(e^{-n}x)|?^p
+        + N|v(y)|^p?|\sum_{n=-oo}^oo e^{-n\alpha}\zeta(e^{-n}y)|?^p \\
+        &\kern2cm <= N\sum_{n\in\Gamma(x,y)}
+        ?|{[v(x)\zeta(e^{-n}x) - v(y)\zeta(e^{-n}y)]//|x-y|^\alpha}|?^p
+        + N|(x^1)^{-\alpha}v(x)|^p + N|(y^1)^{-\alpha}v(y)|^p \\
+        &\kern2cm <= N\sum_{n=-oo}^oo
+        ?|{[v(x)\zeta(e^{-n}x) - v(y)\zeta(e^{-n}y)]//|x-y|^\alpha}|?^p
+        + N|(x^1)^{-\alpha}v(x)|^p + N|(y^1)^{-\alpha}v(y)|^p.
+    }
+    Thus
+    #eq (eq:3.4) {useenv aligned {
+        [v]_{\Cc^\alpha(\R_+^d)}^p
+        &<= \sup_{x\in\R_+^d} N|(x^1)^{-\alpha}v(x)|^p
+        + N\sup_{x,y\in\R_+^d}\sum_{n=-oo}^oo
+        ?|{[v(x)\zeta(e^{-n}x) - v(y)\zeta(e^{-n}y)]//|x-y|^\alpha}|?^p \\
+        &<= \sup_{x\in\R_+^d} N|(x^1)^{-\alpha}v(x)|^p
+        + N\sum_{n=-oo}^oo e^{-np\alpha}\sup_{x,y\in\R_+^d}
+        ?|{[v(e^nx)\zeta(x) - v(e^ny)\zeta(y)]//|x-y|^\alpha}|?^p \\
+    }}
+    Now we apply this inequality for $v=M^{k+\alpha+\theta/p}D^ju$.
+    Then first of all, $(x^1)^{-\alpha}v(x) = M^{k+\theta/p}D^ju$, so by the
+    previous result,
+    $||M^{k+\theta/p}D^ju||_{C(\R_+^d)}<=N||u||_{\gamma,p,\theta}$.
+    Next,
+    $$
+        v(e^nx) = (e^nx^1)^{(k+\alpha+\theta/p)n}(D^ju)(e^nx)
+        = e^{n\theta + np\alpha}e^{nk}(x^1)^{k+\alpha+\theta/p}(D^ju)(e^nx),
+    $$
+    useenv align* {
+        v(e^nx)\zeta(x) - v(e^ny)\zeta(y)
+        &= e^{n\theta+np\alpha}[
+        e^{nk}(x^1)^{k+\alpha+\theta/p}(D^ju)(e^nx)\zeta(x)
+        - e^{nk}(y^1)^{k+\alpha+\theta/p}(D^ju)(e^ny)\zeta(y)] \\
+        &= e^{n\theta+np\alpha}[
+        (M^kD^ju)(e^nx)(M^{\alpha+\theta/p}\zeta)(x)
+        -(M^kD^ju)(e^ny)(M^{\alpha+\theta/p}\zeta)(y)],
+    }
+    and thus we have
+    useenv align* {
+        &e^{-np\alpha}\sup_{x,y\in\R_+^d}
+        ?|{[v(e^nx)\zeta(x) - v(e^ny)\zeta(y)]//|x-y|^\alpha}|?^p \\
+        &\kern1cm= e^{n\theta}\sup_{x,y\in\R_+^d}
+        ?|{[(M^kD^ju)(e^nx)(M^{\alpha+\theta/p}\zeta)(x)
+        -(M^kD^ju)(e^ny)(M^{\alpha+\theta/p}\zeta)(y)]//|x-y|^\alpha}|?^p \\
+        &\kern1cm=
+        e^{n\theta}[(M^kD^ju)(e^n\cdot)(M^{\alpha+\theta/p}\zeta)]_{C^\alpha(\R_+^d)}^p.
+    }
+    Finally, by the Sobolev's embedding theorem gives and remembering that
+    $\gamma=\alpha+k+d/p$, therefore that
+    useenv align* {
+        [M^{k+\alpha+\theta/p}D^ju]_{\Cc^\alpha(\R_+^d)}^p
+        &<= N||u||_{\gamma,p,\theta}^p + N\sum_{n=-oo}^oo
+        e^{n\theta}[(M^kD^ju)(e^n\cdot)(M^{\alpha+\theta/p}\zeta)]_{C^\alpha(\R_+^d)}^p
+        \\
+        &<= N||u||_{\gamma,p,\theta}^p + N\sum_{n=-oo}^oo
+        e^{n\theta}||(M^kD^ju)(e^n\cdot)(M^{\alpha+\theta/p}\zeta)||_{\alpha+d/p,p}^p
+        \\
+        &<= N||u||_{\gamma,p,\theta}^p + N\sum_{n=-oo}^oo
+        e^{n\theta}||(M^kD^ju)(e^n\cdot)\zeta||_{\alpha+d/p,p}^p \\
+        &<= N||u||_{\gamma,p,\theta}^p + N||M^kD^ju||_{\alpha+d/p,p,\theta}^p \\
+        &<= N||u||_{\gamma,p,\theta}^p + N||u||_{k+\alpha+d/p,p,\theta}^p \\
+        &= N||u||_{\gamma,p,\theta}^p.
+    }
+
+    Now we prove the theorem for the remaining case $\alpha=1$. Notice that the
+    definition of a seminorm of $\Cc^1(\R_+^d)$ is the following.
+    useenv align* {
+        [v]_{\Cc^1(\R_+^d)}^p
+        &\defeq
+        \sup_{x,y\in\R_+^d} ?|{[v(x) - 2v((x+y)/2) + v(y)]//|x-y|}|?^p \\
+        &= \sup_{x,y\in\R_+^d} ?| \sum_{n=-oo}^oo
+        {|v(x)\zeta(e^{-n}x) - 2v((x+y)/2)\zeta(e^{-n}(x+y)/2) +
+        v(y)\zeta(e^{-n}y)|//|x-y|} |?^p
+    }
+
+    We should apply similar argument for this. Notice that open intervals are
+    convex. Hence the expression under sup is less than
+    useenv align* {
+        &?|\sum_{n\in\Gamma(x,y)}
+        {|v(x)\zeta(e^{-n}x) - 2v((x+y)/2)\zeta(e^{-n}(x+y)/2) +
+        v(y)\zeta(e^{-n}y)|//|x-y|} |?^p \\
+        &\kern1cm+ ?|\sum_{n\notin\Gamma(x,y)}
+        {|v(x)\zeta(e^{-n}x) - 2v((x+y)/2)\zeta(e^{-n}(x+y)/2) +
+        v(y)\zeta(e^{-n}y)|//|x-y|} |?^p \\
+        &\kern1cm<= N\sum_{n\in\Gamma(x,y)}?|
+        {|v(x)\zeta(e^{-n}x) - 2v((x+y)/2)\zeta(e^{-n}(x+y)/2) +
+        v(y)\zeta(e^{-n}y)|//|x-y|} |?^p \\
+        &\kern2cm+ N|v(x)|^p ?|\sum_{n=-oo}^oo e^{-n}\zeta(e^{-n}x)|?^p
+        + N|v(y)|^p ?|\sum_{n=-oo}^oo e^{-n}\zeta(e^{-n}y)|?^p \\
+        &\kern3cm+ N|v((x+y)/2)|^p ?|\sum_{n=-oo}^oo
+        e^{-n}\zeta(e^{-n}(x+y)/2)|?^p \\
+        &\kern1cm<= N\sum_{n=-oo}^oo?|
+        {|v(x)\zeta(e^{-n}x) - 2v((x+y)/2)\zeta(e^{-n}(x+y)/2) +
+        v(y)\zeta(e^{-n}y)|//|x-y|} |?^p \\
+        &\kern2cm+ N|(x^1)^{-1}v(x)|^p
+        + N|(y^1)^{-1}v(y)|^p
+        + N|((x+y)^1)^{-1}v((x+y)/2)|^p \\
+        &\kern1cm<=
+        N|(x^1)^{-1}v(x)|^p
+        + N|(y^1)^{-1}v(y)|^p
+        + N|((x+y)^1)^{-1}v((x+y)/2)|^p
+        + N\sum_{n=-oo}^oo e^{-np}[v(e^n\cdot)\zeta]_{\Cc^1(\R_+^d)}^p.
+    }
+    Therefore we find
+    $$
+        [v]_{\Cc^1(\R_+^d)}^p
+        <= N\sup_{x\in\R_+^d}|(x^1)^{-1}v(x)|^p
+        + N\sum_{n=-oo}^oo e^{-np}[v(e^n\cdot)\zeta]_{\Cc^1(\R_+^d)}^p.
+    $$
+
+    Now we apply this inequality to $v = M^{k+1+\theta/p}D^ju$.
+    Because of the first estimate in \cref{eq:3.2}, Sobolev's embedding theorem,
+    \Cref{thm:2.1}, we can estimate $[M^{\gamma+\theta/p}D^ju]_{\Cc^1(\R_+^d)}$
+    similarly as in above (also remember that $\gamma=k+1+d/p$ in this case) to
+    obtain the final result for $\alpha=1$. The theorem is proved.
+}
+
+#label(thm:3.2) useenv thm {
+    Assume $\gamma p>d$ and let $\mu<\gamma$ and $q\ (>\!p)$ be such that
+    $$
+        \gamma - {d//p} = \mu - {d//q}.
+    $$
+    Denote $\theta_1=\theta q/p$ (so that $\theta_1/q=\theta/p$).
+    Then for any $u\in H_{p,\theta}^\gamma$ we have
+    $$
+        u\in H_{q,\theta_1}^\mu,\quad ||u||_{\mu,q,\theta_1} <=
+        N(d,\gamma,\mu,p,\theta)||u||_{\gamma,p,\theta}.
+    $$
+    \proof
+    This is an easy consequence of Sobolev's embedding theorems. Indeed, by
+    remembering that $\ell_p(A)\subset\ell_q(A)$ for $0<p<q<=oo$ and
+    $||f||_q<=||f||_p$,
+    useenv align* {
+        ||u||_{\mu,q,\theta_1}^q
+        &= \sum_{n=-oo}^oo e^{n\theta_1}||u(e^n\cdot)\zeta||_{\mu,q}^q \\
+        &<= ?(\sum_{n=-oo}^oo e^{n\theta}||u(e^n\cdot)\zeta||_{\mu,q}^p)?^{q/p}
+        \\
+        &<= N?(\sum_{n=-oo}^oo e^{n\theta}||u(e^n\cdot)\zeta||_{\mu,p}^p)?^{q/p}
+        \\
+        &= N||u||_{\gamma,p,\theta}^q.
+    }
+}
+
+By taking $\mu=0$ we get the following corollary.
+
+useenv coro {
+    Let $0<\gamma p<d$ and $u\in H_{p,\theta}^\gamma$. Then $u\in
+    L_{p',\theta'}$, where $p'=pd/(d-\gamma p)$ and $\theta'=\theta d/(d-\gamma
+    p)$. Moreover,
+    $$
+        \int_{\R^d_+}(x^1)^{\theta'-d}|u(x)|^{p'}dx
+        <= N(p,d,\gamma,\theta)||u||_{\gamma,p,\theta}^{p'}.
+    $$
+}

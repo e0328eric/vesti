@@ -1,0 +1,119 @@
+#def #n {||#1||_{#2,p,\theta}}
+#def #TODO {
+    useenv center {
+        \bf{\color{red}[Fill Here!!]}
+    }
+}
+Recall that by $M$ we denote the operator of multiplying by $x^1$.
+
+#label(thm:2.1) useenv thm {
+    The following conditions are equivalent
+    #enum ((\roman*)) {
+        \item $u\in H_{p,\theta}^\gamma$,
+        \item $u\in H_{p,\theta}^{\gamma-1}$ and $Mu_x\in H_{p,\theta}^{\gamma-1}$,
+        \item $u\in H_{p,\theta}^{\gamma-1}$ and $(Mu)_x\in H_{p,\theta}^{\gamma-1}$.
+    }
+    In addition, under either of these three conditions for some constants
+    $N=N(\gamma,p,d)$ we have
+    #eq (eq:2.1) {
+        ||u||_{\gamma,p,\theta}
+        <= N#n(u)(\gamma-1) + N#n(Mu_x)(\gamma-1)
+        <= N||u||_{\gamma,p,\theta},
+    }
+    #eq (eq:2.2) {
+        #n(u)(\gamma)
+        <= N#n(u)(\gamma-1) + N#n((Mu)_x)(\gamma-1)
+        <= N#n(u)(\gamma).
+    }
+    \proof
+    Equivalence of (ii) and (iii) is trivial since $Mu_{x^i} =
+    (Mu)_{x^i}-u\delta^{1i}$. By the same reason \cref{eq:2.1} and \cref{eq:2.2}
+    are equivalent.
+
+    #undef #n
+    #def #n {||#1||_{#2,p}^p}
+    Under the assumption that (ii) holds, notice that
+    useenv align* {
+        #n(u(e^n\cdot)\zeta)(\gamma)
+        &<= N#n(u(e^n\cdot)\zeta)(\gamma-1) + N#n((u(e^n\cdot)\zeta)_x)(\gamma-1) \\
+        &<= N#n(u(e^n\cdot)\zeta)(\gamma-1)
+        + N#n(u(e^n\cdot)\zeta_x)(\gamma-1)
+        + N#n(e^nu_x(e^n\cdot)\zeta)(\gamma-1).
+    }
+    Upon observing that $e^nu_x(e^n\cdot)\zeta = (Mu_x)(e^n\cdot)M^{-1}\zeta$
+    and using \Cref{lemma:1.4}, we get that (i) holds and also get the left
+    estimate in \cref{eq:2.1}.
+
+    On the other hand, if $u\in H_{p,\theta}^\gamma$, we have, of course, $u\in
+    H_{p,\theta}^{\gamma-1}$. Also
+    $$
+        \zeta(x)e^nu_x(e^nx)
+        = (\zeta(x)u(e^nx))_x - \zeta_x(x)u(e^nx),
+    $$
+    $$
+        #n((Mu_x)(e^n\cdot)\zeta)(\gamma-1) =
+        #n(M(u(e^n\cdot)\zeta)_x-u(e^n\cdot)M\zeta_x)(\gamma-1)
+        <= N#n(f(u(e^n\cdot)\zeta)_x)(\gamma-1) +
+        #n(u(e^n\cdot)M\zeta_x)(\gamma),
+    $$
+    where $f$ is any function of class $C_0^oo(\R_+)$ such that $f(x^1)=1$ if
+    $\zeta(x^1)!=0$.\footnote{
+        To detour the operator $M$ into $C_0^oo$ function as $\zeta\in
+        C_0^oo(\R_+)$, and apply the well-known inequality for multiplier.
+    }
+    By using \Cref{lemma:1.4} and the fact that
+    $$
+        #n(f(u(e^n\cdot)\zeta)_x)(\gamma-1)
+        <= N#n((u(e^n\cdot)\zeta)_x)(\gamma-1)
+        <= N#n(u(e^n\cdot)\zeta)(\gamma),
+    $$
+    we conclude the proof.
+#undef #n
+}
+
+#label(remark:2.2) useenv remark {
+    \Cref{thm:2.1} implies, in particular, that the operators $MD_i$ and $D_iM$
+    are \it{bounded} operators from $H_{p,\theta}^\gamma$ to
+    $H_{p,\theta}^{\gamma-1}$.
+}
+
+\Cref{thm:2.1} and \Cref{remark:1.3} or \Cref{coro:1.6} allows us to get the following
+characterization of spaces $H_{p,\theta}^\gamma$ for integral $\gamma$.
+
+#label(coro:2.3) useenv coro {
+    If $\gamma$ is nonnegative integer, then the space $H_{p,\theta}^\gamma$ is
+    \[
+        \{f : f,x^1f_{x^1},...,(x^1)^{|\alpha|}D^\alpha f\in L_{p,\theta}\quad
+        \forall \alpha : |\alpha| \leq \gamma\}
+    \]
+    with natural norm.
+}
+
+useenv pf [\Cref{coro:1.18}] {
+    It suffices to apply \Cref{thm:1.14} along with \Cref{remark:1.15} and
+    \Cref{coro:2.3} to the operator
+    $$
+        \tilde Tf = \{Tf, x^1Tf_x,...,(x^1)^{|\alpha|}D^\alpha Tf : |\alpha|
+        <=\gamma\}
+    $$
+    taking $\Omega$ as a singleton, $X=\R$, and $Y=\R^m$ with sufficiently large
+    $m$.\footnote{
+        Regard $H_{p,\theta}^\gamma$ as $\Lb_{p,\theta}(\R^m)$ for sufficiently
+        large $m$ where $\Lb_{p,\theta}(X)$ is defined in \Cref{thm:1.14}.
+        Noticed that $L_{p,\theta}$ is a collection of real-valued functions,
+        thus $L_{p,\theta}=\Lb_{p,\theta}(\R)$.
+    }
+}
+
+From \Cref{coro:2.3} we also get the following.
+
+#label(coro:2.4) useenv coro {
+    Let $\gamma$ be a nonnegative integer and $a(x)$ be a real-valued function
+    on $\R^d$ satisfying
+    $$
+        |(x^1)^{|\alpha|}D^\alpha(x)|<=K\quad \forall |\alpha|<=\gamma,
+    $$
+    where $K$ is a constant. Then, for any $f\in H_{p,\theta}^\gamma$, we have
+    $||af||_{\gamma,p,\theta}<=N||f||_{\gamma,p,\theta}$, where $N$ is
+    independent of $f$ and $a$.
+}

@@ -1,0 +1,207 @@
+#def #TODO {useenv center { \bf{\color{red}[Fill Here!!]}} }
+
+If $u_0\in C_0^oo(\R_+^d)$, then there exists a unique function $u(t,x)$ which
+is bounded in $(0,oo)\times\R^d_+$ together with all its derivatives and which
+is unique bounded solution of the heat equation $u_t=\Delta u$, $t>0$ in
+$(0,oo)\times\R_+^d$ with $u(0,\cdot)=u_0$ and boundary condition $u(t,x)=0$ for
+$x^1=0$. Observe that if $p_t(x)=(4\pi t)^{-d/2}\exp(-|x|^2/(4t))\I_{t>0}$,
+$u(t,\cdot) = p_t*\bar u_0$ where $\bar u_0(x) = ("sgn"x^1)u_0(|x^1|,x')$, an
+odd extension with respect to $x^1$. Since $p_t$ is even and $\bar u_0$ is odd
+of $x^1$, so is $u$.
+
+By \Cref{lemma:2.17}, Fubini's theorem, and integration by parts, we get the
+following where $c\in(1-p,1)$ is a constant which will be specified later.
+useenv align* {
+    \int_{\R_+^d}(x^1)^c|u(T,x)|^pdx - \int_{\R_+^d}(x^1)^c|u_0(x)|^pdx
+    &= \int_{\R_+^d}(x^1)^c|u(T,x)|^pdx - \int_{\R_+^d}(x^1)^c|u(0,x)|^pdx \\
+    &= \int_0^T\int_{\R_+^d}(x^1)^c p|u|^{p-2}u\Delta udxdt \\
+    &= -\int_0^T\int_{\R_+^d}pc(x^1)^{c-1}|u|^{p-2}uu_{x^1}dxdt - p(p-1)I \\
+    &= -\int_0^T\int_{\R_+^d}c(x^1)^{c-1}(D_1|u|^p)dxdt - p(p-1)I \\
+    &= c(c-1)J - p(p-1)I,
+}
+where
+$$
+    I = \int_0^T\int_{\R_+^d}(x^1)^c|u|^{p-2}(u_x)^2dxdt,\quad
+    J = \int_0^T\int_{\R_+^d}(x^1)^{c-2}|u|^pdxdt.
+$$
+However in the above calculation, we should be careful to check the behavior at
+the boundary in order to integrate by parts.\footnote{
+    Especially, if $1<p<2$, some steps are nonsense in the first place because
+    $0^{-1}$ appears on the set where $u=0$. However thanks to
+    \Cref{lemma:2.17}, we can just calculate like in above.
+}
+Since $\bar u_0\in C_0^oo(\R^d)$, $D^\alpha u = p_t * (D^\alpha\bar u_0)$.
+Take $R>0$ such that $\bar u_0(x)=0$ if $|x|>R$. Then
+$$
+    |D^\alpha u(t,x)|
+    <= (4\pi t)^{-d/2}\int_{|x|<=R}e^{-|x-y|^2/(4t)}|D^\alpha\bar u_0|(y)dy
+    <= (4\pi t)^{-d/2} \exp?({R^2//4t})?\exp?(-{|x|^2//16t})? ||D^\alpha\bar u_0||_1.
+$$
+Hence $D^\alpha u(t,x)->0$ exponentially fast as $|x| ->oo$.
+Since $u(t,0,x')=0$ for every $t>0$ and $x'\in\R^{d-1}$, by the fundamental
+theorem of calculus,
+$$
+    |u(t,x)| = |u(t,x^1,x') - u(t,0,x')|
+    <= |x^1|\int_0^1 |D_1u(t,x^1a,x')|da.
+$$
+Since $D_1p_t(x) = -x^1/(2t)p_t(x)$, $|D_1p_t(x)| <= N(d)t^{-(d+1)/2}$,
+we have $|u(t,x)| <= N(d,t)|x^1|$.
+Using them, we can see that boundary values vanishes as $x^1->0$ and $|x| ->oo$.
+
+Now we further evaluate $J$. Denote $v=|u|^{p/2}$. By \Cref{lemma:2.17}, $v$ is
+then absolutely continuous on every closed interval of $x^1$, and
+$v_{x^1}=(p/2)|u|^{p/2-1}u_{x^1}$. Use the Minkowski's inequality additionally,
+useenv align* {
+    \int_{\R_+^d}(x^1)^{c-2}|u|^pdx
+    &= \int_{\R_+^d}(x^1)^{c-2}|v|^2dx \\
+    &= \int_{\R_+^d}(x^1)^{c-2} ?|x^1\int_0^1 v_{x^1}(tx^1,x')dt|?^2dx \\
+    &<= ?(\int_0^1?(\int_{\R_+^d}(x^1)^c|v_{x^1}(tx^1,x')|^2dx)?^{1/2}dt)?^2 \\
+    &= \int_{\R_+^d}(x^1)^c|v_{x^1}|^2dx?(\int_0^1 t^{-(c+1)/2}dt)?^2 \\
+    &= 4(1-c)^{-2}\int_{\R_+^d}(x^1)^c|v_{x^1}|^2dx \\
+    &= p^2(1-c)^{-2}\int_{\R_+^d}(x^1)^c|u|^{p-2}(u_{x^1})^2dx.
+}
+Thus integrating both side with respect to $t$ on $[0,T]$, we have $J <=
+p^2(1-c)^{-2}I$.
+What we have shown is that
+$$
+    useenv aligned {
+        \int_{\R_+^d}(x^1)^c[|u(T,x)|^p-|u_0(x)|^p]dx
+        &= c(c-1)J - p(p-1)I <= [c(c-1)-q^{-1}(1-c)^2]J; \\
+        [q^{-1}(1-c)^2-c(c-1)]J
+        &<=\int_{\R_+^d}(x^1)^c |u_0(x)|^pdx,
+    }
+$$
+where $q=p/(p-1)$. In order that the scalar is positive, we have $c\in(1-p,1)$.
+
+Put $c = \theta-d+2-p$. Since $d-1<\theta<p+d-1$, this $c$ satisfies
+$c\in(1-p,1)$. For that $c$, we have
+$$
+    \int_{\R_+^d}(x^1)^c |u_0(x)|^pdx = ||M^{2/p-1}u_0||_{0,p,\theta}^p,\quad
+    J = \int_0^T ||M^{-1}u(t,\cdot)||_{0,p,\theta}^pdt.
+$$
+Therefore, we obtain the following estimate
+$$
+    \int_0^T ||M^{-1}u(t,\cdot)||_{0,p,\theta}^pdt <=
+    N||M^{2/p-1}u_0||_{0,p,\theta}^p.
+$$
+We need another estimate related to this.
+Since $d-1<\theta<p+d-1$, by \Cref{coro:2.12} and as $MDu\in C_0^oo(\R_+^d)$,
+useenv align* {
+    \int_0^T||M^{-1}u(t,\cdot)||_{1,p,\theta}^p
+    &<= N\int_0^T||DMM^{-1}u(t,\cdot)||_{0,p,\theta}^p \\
+    &= N\int_0^T||M^{-1}MDu(t,\cdot)||_{0,p,\theta}^p \\
+    &<= N||M^{2/p-1}MDu_0||_{0,p,\theta}^p \\
+    &<= N\sum_{i=1}^d||M^{2/p-1}MD_iu_0||_{0,p,\theta}^p \\
+    &<= N||M^{2/p-1}u||_{0,p,\theta}^p + N||DM^{2/p}u_0||_{0,p,\theta}^p \\
+    &<= N||M^{2/p-1}u||_{1,p,\theta}^p.
+}
+
+Next, take a function $\zeta\in C_0^oo(\R_+)$ satisfying condition
+\cref{eq:1.1}. For $u_n(t,x) \defeq u(e^{2n}t,e^nx)$ we have
+#eq (eq:6.4.2) {
+    (\zeta u_n)_t = \Delta(\zeta u_n) - 2(\zeta'u_n)_{x^1} + \zeta''u_n.
+}
+Hence by inequalities (IV.3.1) and (IV.3.2) of \cite{LSU} (also see Section 2.11
+in \cite{Tri1}) for any $n$ we obtain
+#eq (eq:6.4.3) {
+    \int_0^T||(\zeta u_n)_{xx}(t,\cdot)||_{-1,p}^pdt
+    <= N||\zeta u_n(0,\cdot)||_{W_p^{1-2/p}}^p + \int_0^T ||((2\zeta'u_n)_{x^1} -
+    \zeta''u_n)(t,\cdot)||_{-1,p}^p dt.
+}
+
+As in the proof of \Cref{lemma:4.7} (and \Cref{remark:1.13}),
+$$
+    N(\zeta,p)||(\zeta u_n)_{xx}||_{-1,p}
+    >= ||\zeta u_{nx}||_{0,p} - ||\zeta'u_n||_{0,p}.
+$$
+Also we use
+$$
+    ||(2\zeta'u_n)_{x^1} - \zeta''u_n||_{-1,p}
+    <= ||(2\zeta'u_n)_{x^1}||_{-1,p} + N||\zeta''u_n||_{0,p}
+    <= N||\eta u_n||_{0,p},
+$$
+where $\eta$ is any $C_0^oo(\R_+)$ function whose support covers that of
+$\zeta$.
+
+Therefore, from \cref{eq:6.4.3} we get
+useenv align* {
+    &\int_0^T e^{np}||\zeta u_x(e^{2n}t,e^n\cdot)||_{0,p}^pdt \\
+    &\kern1cm <= N||\zeta u(0,e^n\cdot)||_{W_p^{1-2/p}}^p
+    + N\int_0^T e^{np}||(M^{-1}u)(e^{2n}t,e^n\cdot)M\zeta'||_{0,p}^pdt
+    + N\int_0^T e^{np}||(M^{-1}u)(e^{2n}t,e^n\cdot)M\eta||_{0,p}^pdt.
+}
+By changing variable in $t$, and multiply $e^{2n-np+n\theta}$, we find
+useenv align* {
+    &\int_0^T e^{n\theta}||\zeta u_x(t,e^n\cdot)||_{0,p}^pdt \\
+    &\kern1cm <= Ne^{2n-np+n\theta}||\zeta u(0,e^n\cdot)||_{W_p^{1-2/p}}^p
+    + N\int_0^T e^{n\theta}||(M^{-1}u)(t,e^n\cdot)M\zeta'||_{0,p}^pdt
+    + N\int_0^T e^{n\theta}||(M^{-1}u)(t,e^n\cdot)M\eta||_{0,p}^pdt \\
+    &\kern1cm <= Ne^{n\theta}||\zeta (M^{2/p-1}u)(0,e^n\cdot)||_{W_p^{1-2/p}}^p
+    + N\int_0^T e^{n\theta}||(M^{-1}u)(t,e^n\cdot)M\zeta'||_{0,p}^pdt
+    + N\int_0^T e^{n\theta}||(M^{-1}u)(t,e^n\cdot)M\eta||_{0,p}^pdt.
+}
+Now sum the up and apply \Cref{lemma:1.4}
+$$
+    \int_0^T ||u_x(t,\cdot)||_{0,p,\theta}^pdt
+    <= N||M^{2/p-1}u_0||_{W_{p,\theta}^{1-2/p}}^p
+    + N\int_0^T ||M^{-1}u(t,\cdot)||_{0,p,\theta}^pdt.
+$$
+
+Similarly from \cref{eq:6.4.2} and inequalities (IV.3.1) and (IV.3.2) of
+\cite{LSU} to write
+#eq (eq:6.4.4) {
+    \int_0^T||(\zeta u_n)_{xx}(t,\cdot)||_{0,p}^pdt
+    <= N||\zeta u_n(0,\cdot)||_{W_p^{2-2/p}}^p + \int_0^T ||((2\zeta'u_n)_{x^1} -
+    \zeta''u_n)(t,\cdot)||_{0,p}^p dt.
+}
+For the same reason as in above, if $\eta_1$ and $\eta_2$ are functions of class
+$C_0^oo(\R_+)$ with supports covering that of $\zeta$, we obtain
+$$
+    \int_0^T ||\zeta u_{nxx}(t,\cdot)||_{0,p}^pdt
+    <= N||\zeta u_n(0,\cdot)||_{W_p^{2-2/p}}^p
+    + \int_0^T ||\eta_1u_{nx}||_{0,p}^pdt
+    + \int_0^T ||\eta_2u_{n}||_{0,p}^pdt,
+$$
+and
+$$
+    \int_0^T ||Mu_{xx}(t,\cdot)||_{0,p,\theta}^pdt
+    <= N||M^{2/p-1}u_0||_{W_p^{2-2/p}}^p
+    + \int_0^T ||u_{x}(t,\cdot)||_{0,p,\theta}^pdt
+    + \int_0^T ||M^{-1}u(t,\cdot)||_{0,p,\theta}^pdt.
+$$
+Furthermore, we actually have
+$$
+    \int_0^T ||u_x(t,\cdot)||_{1,p,\theta}^pdt
+    <= N||M^{2/p-1}u_0||_{W_{p,\theta}^{2-2/p}}^p
+    + N\int_0^T ||M^{-1}u(t,\cdot)||_{1,p,\theta}^pdt.
+$$
+Therefore, combining all inequalities in above together with the equation
+$u_t=M^{-1}M\Delta u$ and $||\Delta u||_{0,p,\theta}<=N||u_{xx}||_{0,p,\theta}$,
+we have
+useenv align* {
+    ||u||_{\Hf_{p,\theta}^2(T)}^p
+    &<= N||u_x||_{\Hb_{p,\theta}^1(T)}^p + N||Mu_t||_{\Lb_{p,\theta}(T)}^p
+    + N||u(0,\cdot)||_{U_{p,\theta}^2} \\
+    &<= N||u_x||_{\Hb_{p,\theta}^1(T)}^p + N||Mu_{xx}||_{\Lb_{p,\theta}(T)}^p
+    + N||u(0,\cdot)||_{U_{p,\theta}^2} \\
+    &<= N||u(0,\cdot)||_{U_{p,\theta}^2}^p + N||u_x||_{\Lb_{p,\theta}(T)}^p
+    + N||M^{-1}u||_{\Lb_{p,\theta}(T)}^p
+    + N||M^{-1}u||_{\Hb_{p,\theta}^1(T)}^p \\
+    &<= N||u(0,\cdot)||_{U_{p,\theta}^2}^p
+    + N||M^{-1}u||_{\Lb_{p,\theta}(T)}^p
+    + N||M^{-1}u||_{\Hb_{p,\theta}^1(T)}^p \\
+    &<= N||u(0,\cdot)||_{U_{p,\theta}^2}^p.
+}
+This proves \Cref{lemma:6.4} for $u_0\in C_0^oo(\R_+^d)$. Actually, above we
+have constructed a mapping
+$$
+    \Pi:C_0^oo(\R_+^d)\ni u_0 |-> u\in\Hf_{p,\theta}^2(T),
+$$
+and
+#eq (eq:6.4.5) {
+    ||\Pi u_0||_{\Hf_{p,\theta}^2(T)} <= N(p,\theta,d)||u_0||_{U_{p,\theta}^2}.
+}
+Since $\Hf_{p,\theta}^2(T)$ is a Banach space and $C_0^oo(\R_+^d)$ is dense in
+$U_{p,\theta}^2$, we can extend $\Pi$ into whole space $U_{p,\theta}^2$ in a way that
+$(\Pi u_0)_t = \Delta\Pi u_0$, $\Pi u_0|_{t=0} = u_0$, and \cref{eq:6.4.5}
+holds. This proves the lemma.

@@ -1,0 +1,152 @@
+We already see the definition of compact sets and their properties by using
+nets. In this section, we study the same theorems but in filters.
+
+useenv thm {
+    Let $X$ be a topological space. Then $X$ is compact if and only if every
+    ultrafilter in $X$ converges.
+    \proof
+    Suppose that there is an ultrafilter $\Uc$ which converges nowhere in $X$.
+    For each $x\in X$, take an open set $U_x$ which is not contained in $\Uc$.
+    Note that clearly $\{U_x\}_{x\in X}$ is an open cover of $X$.
+    If $X$ were compact, there are finitely many points $x_1,\cdots ,x_n$ such that
+    useenv equation { \label{eq:thm:compact-filter:1}
+        U_{x_1}\cup U_{x_2} \cup ... \cup U_{x_n} \supset X.
+    }
+    However as $\Uc$ is an ultrafilter, $X\setminus U_x\in\Uc$ holds for each
+    $x\in X$ by \Cref{prop:equiv-ultrafilters}. This and
+    \cref{eq:thm:compact-filter:1} gives
+    \[
+        \emptyset = (X\setminus U_{x_1})\cap 
+        (X\setminus U_{x_2}) \cap ... \cap (X\setminus U_{x_n}) \in \Uc,
+    \]
+    which is a contradiction. Such contradiction occurs as we assumed that $X$ is
+    compact. Hence $X$ cannot be compact.
+
+    Conversely, suppose that $X$ is not compact. Then there is an open cover
+    $\Us$ which does not have a finite subset of $\Us$ that covers $X$.
+    Put
+    \[
+        \Vs \defeq \{X \setminus  E : E\in\Us\}.
+    \]
+    Observe that $\Vs$ satisfies FIP. Take an ultrafilter $\Uc$ which is a
+    superset of $\Vs$ by \Cref{prop:existence-ultrafilters} and
+    \Cref{prop:generate-filter-fip}.
+    Since $\Vs\subset\Uc$ and $\Us$ is an open cover of $X$, there is no $x\in
+    X$ such that $\Uc\rightarrow x$. Indeed, if $x\in X$ then there is $U\in\Us$ that
+    contains $x$. Since $X\setminus U\in\Uc$, $U$ does not belong to $\Uc$ and this
+    implies that $\Uc$ does not converges to $x$. \proved
+}
+
+useenv coro {
+    Let $X$ be a topological space. Then nonempty subset $K\subset X$ is compact
+    if and only if every ultrafilter $\Uc$ in $X$ containing $K$ converges to
+    some point in $K$. Notice that the convergent point can differ for each ultrafilter.
+    \proof
+    Suppose that $K\subset X$ is compact, and fix an ultrafilter $\Uc$ that
+    contains $K$. Then the set
+    \begin{equation}
+        \Uc' \defeq \{F\cap K : F\in\Uc\} \label{eq:coro:compact-filter:1}
+    \end{equation}
+    is an ultrafilter in $K$ by \Cref{exec:helper-ultrafilter}.
+    Being compact, $\Uc'\to x\in K$ by
+    \Cref{thm:compact-filter}. Now fix an open set $N$ which contains $x$.
+    Since $N\cap K$ is open in $K$ and $x\in N\cap K$, we have $N\cap K\in\Uc'$
+    because $\Uc'$ converges to $x$ in $K$.
+    
+    In order to prove that $N\in\Uc$, assume that $N$ is not contained in $\Uc$.
+    Then by \Cref{prop:equiv-ultrafilters}, $X-!N$ is contained in $\Uc$, thus
+    $(X-!N)\cap K\in\Uc'$. Since $N\cap K$ is also contained in $\Uc'$, and
+    $\Uc'$ is a filter (actually an ultrafilter), we must obtain
+    $$
+        \emptyset = (N\cap A) \cap [(X-!N)\cap A] \in \Uc',
+    $$
+    which is a contradiction. Therefore, $N\in\Uc$, and thus we prove that
+    $\Uc\to x$ since $N$ is arbitrary.
+
+    To prove the sufficency, claim that if $\Uc'$ is any ultrafilter in $K$,
+    then there exists an ultrafilter $\Uc$ in $X$ such that both $\Uc$ and
+    $\Uc'$ satisfies \cref{eq:coro:compact-filter:1}.
+    Since $\Uc'$ satisfies FIP, by \Cref{prop:generate-filter-fip} and
+    \Cref{prop:existence-ultrafilters}, there exists an
+    ultrafilter $\Uc$ which contains $\Uc'$. This proves that
+    $$
+        \Uc'\subset\{F\cap K : F\in\Uc\} \eqcolon \tilde\Uc.
+    $$
+    On the other hand, as $\Uc$ is an ultrafilter which contains $K$ because we
+    take $\Uc$ satisfies $\Uc\supset\Uc'$, by \Cref{exec:helper-ultrafilter},
+    $\tilde\Uc$ is an ultrafilter in $K$.
+    Since $\Uc'$ is also an ultrafilter in $K$ which is contained in another
+    filter $\tilde\Uc$, they must be identical by the definition of an ultrafilter.
+    Hence, we proved that $\Uc$ and $\Uc'$ satisfies \cref{eq:coro:compact-filter:1}.
+
+    From this fact, we are ready to prove that $K$ is compact provided that
+    every ultrafilter in $X$ containing $K$ converges to some point in $K$.
+    Fix any ultrafilter $\Uc'$ in $K$ and take an ultrafilter $\Uc$ in $X$
+    satisfies \cref{eq:coro:compact-filter:1}. By our assumption, $\Uc$
+    converges to some $x\in K$. By \cref{eq:coro:compact-filter:1} and the
+    definition of the subspace topology, it is easy to verify that $\Uc'->x$.
+    Therefore, $K$ is compact because of \Cref{thm:compact-filter}. \proved
+}
+
+#label(exec:helper-ultrafilter)
+useenv exec* {
+    Prove that \cref{eq:coro:compact-filter:1} is really an ultrafilter in $K$.
+}
+
+Below propositions can be proved without using any filter theory. In here,
+however, we will see how \Cref{thm:compact-filter} (and
+\Cref{coro:compact-filter}) can be used to prove several compactness properties.
+One may solve \Cref{exe:properties-compact}.
+
+#label(prop:properties-compact-filter)
+useenv prop {
+    Let $X$ be a topological space and $K\subset X$ be a nonempty set.
+    #enum((\alph*)) {
+        \item If $X$ is Hausdorff and $K$ is compact, then $K$ is closed.
+        \item If $X$ is compact and $K$ is closed, then $K$ is compact.
+        \item Let $Y$ be another topological space and $f:X\to Y$ a continuous
+            map, then $f[K]$ is compact in $Y$ whenever $K$ is compact in $X$.
+        \item Let $X$ be Hausdorff and $\Kc$ be a nonempty collection of compact sets which
+        satisfies FIP. Then $\bigcap\Kc$ is not empty.
+    }
+    \proof
+    #enum((\alph*)) {
+        \item Fix $x\in\cl{K}$ and take a filter $\Fc$ in $X$ such that $K\in\Fc$
+            and $\Fc\to x$ by \Cref{thm:prop-conv-filters}. Then take an ultrafilter
+            $\Uc\supset\Fc$ by \Cref{prop:existence-ultrafilters}.
+            Since $\Fc->x$ and $\Uc$ contains $\Fc$, we have $\Uc->x$.
+            On the other hand, since $K$ is compact, and $K \in \Fc \subset \Uc$,
+            by \Cref{coro:compact-filter}, there exists $y\in K$ such that $\Uc->y$.
+            Since $X$ is Hausdorff, $x$ and $y$ must be equal because of
+            \Cref{thm:hausdorff-and-filter}, proving that $x = y \in K$.
+            Since $x$ is arbitrary element of $\cl{K}$, we proved that $K$ is
+            closed.
+        \item Fix an ultrafilter $\Uc$ in $X$ which contains $K$.
+            Being compact, $\Uc$ converges to some point $x\in X$. By
+            \Cref{thm:prop-conv-filters}, $x\in\cl{K} = K$. Hence, $K$ is
+            compact because of \Cref{coro:compact-filter} as $\Uc$ is arbitrary.
+        \item Fix an ultrafilter $\Uc$ in $f[K]$. Then take an ultrafilter
+            $\Uc'$ in $K$ such that $f^*\Uc \subset \Uc'$. Being compact, we can
+            take a point $x\in K$ such that $\Uc'\to x$ by \Cref{thm:compact-filter}.
+            Since $f$ is continuous, $f_*\Uc'\to f(x)$ because of
+            \Cref{thm:prop-conv-filters}. Observe that $\Uc\subset f_*\Uc'$,
+            hence both should be same since $\Uc$ is an ultrafilter. Therefore,
+            $\Uc$ converges to $f(x)$, and we proved that $f[K]$ is compact by
+            \Cref{thm:compact-filter} as $\Uc$ is arbitrary.
+       \item Since $\Kc$ satisfies FIP, \Cref{prop:generate-filter-fip} and
+       \Cref{prop:existence-ultrafilters} gives an ultrafilter $\Uc$ in $X$
+       such that $\Uc\supset \Kc$. Notice that $\Kc$ is a collection of compact sets.
+       Thus by \Cref{coro:compact-filter} each compact set $K\in\Kc$ associates a point
+       $x_K \in K$ such that $\Uc->x_K$.
+       As $X$ is Hausdorff, the ultrafilter $\Uc$ converges at most one point by
+       \Cref{thm:hausdorff-and-filter}. Therefore, points $x_K$ are actually identical,
+       say $x$. Since $x = x_K \in K$ for every $K\in\Kc$, we find a point $x$
+       which belongs to $\bigcap\Kc$.
+    }
+    This proves the proposition. \proved
+}
+
+useenv exec {
+    Prove \Cref{prop:properties-compact-filter} \it{without using any filter theories}.
+}
+

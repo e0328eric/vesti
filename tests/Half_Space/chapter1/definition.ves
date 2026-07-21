@@ -1,0 +1,727 @@
+-- ==============  macros  ==================
+#def #distrib { \Dc(\R^d_+)}
+#def #Coo { C_0^oo(\R_+)} -- this preprocessor just copy-paste inner characters
+#def #defin {useenv defin}
+#def #thm {useenv thm}
+#def #lemma {useenv lemma}
+#def #coro {useenv coro}
+#def #remark {useenv remark}
+#def #sum {\sum_{#1}^{#2}}
+#def #norm { ?||#1||?_{#2} }
+#def #canon_norm {#norm(#1)(#canon_param)}
+#def #canon_param {\gamma,p,\theta}
+#def #TODO {useenv center { \bf{\color{red} [Fill here!!]} }}
+
+By $#distrib$ we denote the space of all distributions on $\R_+^d$.
+#label(defin:1.1)
+#defin {
+    Let us fix $\zeta\in#Coo$ such that for every $x\in\R$,
+    #eq (eq:1.1) {
+        \sum_{n=-oo}^oo \zeta^p(e^{x-n}) >= 1.
+    }
+    For $\gamma,\theta\in\R$ and $p\in(1,oo)$ we define a space
+    $H_{p,\theta}^\gamma$ by all distributions $u$ such that
+    #eq (eq:1.2) {
+        ||u||_{\gamma,p,\theta}^p \defeq
+        \sum_{n=-oo}^oo e^{n\theta}||u(e^n\cdot)\zeta||_{\gamma,p}^p < oo.
+    }
+}
+This new space is a Banach space, but the proof is slightly computational.
+#thm {
+    The space $H_{p,\theta}^\gamma$ is a Banach space.
+    \proof
+Define two maps $S_{p,\theta}:H_{p,\theta}^\gamma -> l_p^\theta(\Z,H_p^\gamma)$
+and $R_{p,\theta} : l_p^\theta(\Z,H_p^\gamma) -> H_{p,\theta}^\gamma$ by
+$$
+    S_{p,\theta}u = (u(e^n\cdot)\zeta)_n,\quad
+    R_{p,\theta}(u_n)_n = \xi^{-1}\sum_{n=-oo}^oo
+    u_n(e^{-n}\cdot)\zeta^{p-1}(e^{-n}\cdot),
+$$
+where $\xi = \sum_n \zeta^p(e^n\cdot)>=1$, and
+$l_p^\theta(\Z,H_p^\gamma)$ is the space of $H_p^\gamma$-valued sequences
+such that
+$$
+    ||f||_{\gamma,p,\theta}^p = \sum_{n=-oo}^oo e^{n\theta}||f_n||_{\gamma,p}^p
+    < oo.
+$$
+
+The map $S_{p,\theta}$ is well-defined but we should check that $R_{p,\theta}$
+is also well-defined. Fix $(u_n)_n\in l_p^\theta(\Z,H_p^\gamma)$.
+Since $\zeta\in C_0^oo(\R_+)$, there exists a positive integer $M$ (observe that
+this $M$ only depends on $\zeta$) such that for every $n\in\Z$,
+$$
+    \sum_{m=-oo}^oo u_m(e^{n-m}\cdot)\zeta^{p-1}(e^{n-m}\cdot)\zeta
+    = \sum_{m=n-M}^{n+M} u_m(e^{n-m}\cdot)\zeta^{p-1}(e^{n-m}\cdot)\zeta.
+$$
+This gives
+useenv align* {
+    ?||\xi^{-1}\sum_{n=-oo}^oo
+    u_n(e^{-n}\cdot)\zeta^{p-1}(e^{-n}\cdot)||?_{\gamma,p,\theta}^p
+    &= N\sum_{n=-oo}^oo e^{n\theta}?||\sum_{m=-oo}^oo
+    u_m(e^{n-m}\cdot)\zeta^{p-1}(e^{n-m}\cdot)\zeta||?_{\gamma,p}^p \\
+    &= N\sum_{n=-oo}^oo e^{n\theta}?||\sum_{m=n-M}^{n+M}
+    u_m(e^{n-m}\cdot)\zeta^{p-1}(e^{n-m}\cdot)\zeta||?_{\gamma,p}^p \\
+    &= N\sum_{n=-oo}^oo e^{n\theta}?||\sum_{m=-M}^{M}
+    u_{n+m}(e^{-m}\cdot)\zeta^{p-1}(e^{-m}\cdot)\zeta||?_{\gamma,p}^p \\
+    &<= N\sum_{m=-M}^M\sum_{n=-oo}^oo
+    e^{n\theta}||\zeta||_{B^{|\gamma|+\delta}}^{p^2}||u_{m+n}||_{\gamma,p}^p \\
+    &= N\sum_{m=-M}^M\sum_{n=-oo}^oo
+    e^{(n-m)\theta} ||u_{n}||_{\gamma,p}^p \\
+    &< oo,
+}
+where $\delta=\delta(\gamma)\in(0,1)$ is some appropriate constant.
+Observe that $R_{p,\theta}S_{p,\theta} = "id"_{H_{p,\theta}^\gamma}$, and thus
+$H_{p,\theta}^\gamma$ and $S_{p,\theta}[H_{p,\theta}^\gamma]$ are
+pseudo-isometric.\footnote{
+    Two Banach spaces $X$ and $Y$ are pseudo-isometric if there exists two
+    constants $c,C>0$ such that $c||\cdot||_X <= ||\cdot||_Y <= C||\cdot||_X$.
+}
+Since $l_p^\theta(\Z,H_p^\gamma)$ is a reflexive Banach space by
+\Cref{lemma:appx:0}, we need to show that the space
+$S_{p,\theta}[H_{p,\theta}^\gamma]$ is closed to finish the proof.
+
+Notice that if we define $P_{p,\theta} = S_{p,\theta}R_{p,\theta}$, then
+$$
+    P_{p,\theta}^2 
+    = (S_{p,\theta}R_{p,\theta})(S_{p,\theta}R_{p,\theta})
+    = S_{p,\theta}(R_{p,\theta}S_{p,\theta})R_{p,\theta}
+    = S_{p,\theta}R_{p,\theta} = P_{p,\theta}.
+$$
+Hence, by the well-known property of a projection map,
+$P_{p,\theta}[l_p^\theta(\Z,H_p^\gamma)] = \ker(I-P_{p,\theta})$, hence closed
+because $P_{p,\theta}$ is also bounded. Since $R_{p,\theta}$ is surjective,
+$$
+    S_{p,\theta}[H_{p,\theta}^\gamma]
+    = S_{p,\theta}[R_{p,\theta}[l_p^\theta(\Z,H_p^\gamma)]]
+    = P_{p,\theta}[l_p^\theta(\Z,H_p^\gamma)]
+$$
+holds, hence it is closed.
+}
+
+useenv remark {
+    The space $H_{p,\theta}^\gamma$ is separable. Indeed, the space
+    $l_p^\theta(\Z,H_p^\gamma)$ is separable.
+    Since $H_{p,\theta}^\gamma$ and $S_{p,\theta}[H_{p,\theta}^\gamma]$ are
+    isometric and the latter space is indeed separable because it is closed
+    subspace of a separable space, $H_{p,\theta}^\gamma$ is, therefore, separable.
+}
+
+#label(remark:1.3)
+useenv remark {
+    Observe that
+    $$
+        #sum(n=-oo)(oo) e^{n\theta}||u(e^n\cdot)\zeta||_p^p
+        = #sum(n=-oo)(oo) e^{n\theta}\int_{\R_+^d}\zeta^p(x)|u|^p(e^nx)dx
+        = \int_{\R_+^d}\eta(x)|u|^p(x)dx,
+    $$
+    where
+    $$
+        \eta(x) = #sum(n=-oo)(oo)e^{n(\theta-d)}\zeta^p(e^{-n}x).
+    $$
+    Next, the function
+    $$
+        \xi(t) = #sum(n=-oo)(oo)e^{(n-t)(\theta-d)}\zeta^p(e^{t-n})
+    $$
+    is periodic with period 1, bounded, and bounded away from zero.
+    Since $\eta(x) = \xi(\ln x^1)(x^1)^{\theta-d}$, we get that
+    $(x^1)^{\theta-d}<=N\eta(x)<=N(x^1)^{\theta-d}$.
+}
+
+In this section, the change of variables in spaces $H_p^\gamma$ is heavily used.
+One can see this theorem at section 4.3.2 of \cite{Tri2}.
+#label(thm:tribel)
+#thm {
+    Let $k\in\Z_+$, and we say that the 1-1 mapping $\psi$ of $\R^d$ onto itself
+    is a $k$-diffeomorphism if $\psi\in C^k(\R^d)$ and $|\det\psi_*(x)|>=c > 0$
+    for some $c$ and all $x\in\R^d$. Here $\psi_*$ stands for the Jacobian
+    matrix.
+
+    Let $s\in\R, 0 < p < oo$, and let $\psi$ be a $k$-diffeomorphism where $k$
+    is sufficiently large (in dependence of $\gamma,p$) then
+    $$
+        ||f\circ\psi||_{\gamma,p} <= N ||f||_{\gamma,p}\quad \forall 
+        f\in H_p^\gamma,
+    $$
+    where $N$ depends only on $d$, $\gamma$, $p$, and $\psi$.
+}
+
+Following lemma shows that norms of $H_{p,\theta}^\gamma$ are equivalent for
+different $\zeta$.
+#label(lemma:1.4) #lemma {
+    Take $\zeta$ from \Cref{defin:1.1} and let $\eta\in#Coo$. Then for any
+    $u\in#distrib$ and $\gamma,\theta,p$ we have
+    $$
+        #sum(n=-oo)(oo)e^{n\theta} #norm(u(e^n\cdot)\eta)(\gamma,p)^p
+        <= N#sum(n=-oo)(oo)e^{n\theta} #norm(u(e^n\cdot)\zeta)(\gamma,p)^p
+    $$
+    where $N$ depends only on $d$, $\gamma$, $\theta$, $p$, $\eta$, and $\zeta$.
+    \proof
+    As $\eta$ has a compact support, there is a finite integer $m$ such that the
+    function
+    $$
+        \xi(x) \defeq \eta(x) ?[#sum(|n|<=m)()\zeta(e^nx)]?^{-1}
+    $$
+    belongs to $C_0^oo(\R_+)$.
+    Also remember that the $C_0^oo(\R_+)$-functions are pointwise multipliers in
+    any $H_p^\gamma$ (see, for instance, Corollary 4.2.2 of \cite{Tri2}, or
+    Lemma 5.2 of \cite{Kry2}) and that by \Cref{thm:tribel}, we have
+    useenv align* {
+        ||u(e^n\cdot)\eta||_{\gamma,p}^p
+        &= ?||u(e^n\cdot)\xi\sum_{|k|<=m}\zeta(e^n\cdot)||?_{\gamma,p}^p \\
+        &<= N?||u(e^n\cdot)\sum_{|k|<=m}\zeta(e^n\cdot)||?_{\gamma,p}^p \\
+        &<= N#sum(|k|<=m)()?||u(e^n\cdot)\zeta(e^n\cdot)||?_{\gamma,p}^p \\
+        &<= N#sum(|k|<=m)()?||u(e^{n-k}\cdot)\zeta||?_{\gamma,p}^p.
+    }
+    Hence,
+    useenv align* {
+        #sum(n=-oo)(oo)e^{n\theta}||u(e^n\cdot)\eta||_{\gamma,p}^p
+        &<= N#sum(n=-oo)(oo)#sum(|k|<=m)()e^{n\theta}||u(e^{n-k}\cdot)\zeta||_{\gamma,p}^p\\
+        &= N#sum(|k|<=m)()e^{k\theta}#sum(n=-oo)(oo)e^{n\theta}||u(e^{n}\cdot)\zeta||_{\gamma,p}^p\\
+        &= N#sum(n=-oo)(oo)e^{n\theta}||u(e^{n}\cdot)\zeta||_{\gamma,p}^p.
+    }
+    This proves the lemma.
+}
+
+useenv remark {
+    The norm in $H_{p,\theta}^\gamma$ depends on $\zeta$, so that, constants
+    entering various estimates of $H_{p,\theta}^\gamma$-norms also depends on
+    $\zeta$. However, we will not mention the dependence on $\zeta$ for the sake
+    of brevity and because $\zeta$ has been fixed.
+}
+
+#label(coro:1.6) #coro {
+    Let $\alpha\in\R$. We have $u\in H_{p,\theta}^\gamma$ if and only if $u =
+    M^\alpha v$ with $v\in H_{p,\theta+\alpha p}^\gamma$. Hence,
+    $$
+        M^\alpha H_{p,\theta+\alpha p}^\gamma = H_{p,\theta}^\gamma.
+    $$
+    In addition,
+    $$
+        #canon_norm(u) <= N#norm(M^{-\alpha}u)(\gamma,p,\theta+\alpha p)
+        <= N#canon_norm(u),
+    $$
+    where $N$ are independent of $u$.
+    \proof
+    Notice that $M^\alpha\zeta\in#Coo$. Thus by \Cref{lemma:1.4},
+    useenv align* {
+        #canon_norm(u)
+        &= #sum(n=-oo)(oo)e^{n\theta}#norm(u(e^n\cdot)\zeta)(\gamma,p)^p \\
+        &= #sum(n=-oo)(oo)e^{n\theta}#norm((M^\alpha
+        v)(e^n\cdot)\zeta)(\gamma,p)^p \\
+        &= #sum(n=-oo)(oo)e^{n(\theta+\alpha
+        p)}#norm(v(e^n\cdot)M^\alpha\zeta)(\gamma,p)^p \\
+        &<= N#sum(n=-oo)(oo)e^{n(\theta+\alpha
+        p)}#norm(v(e^n\cdot)\zeta)(\gamma,p)^p \\
+        &= N#norm(v)(\gamma,p,\theta + \alpha p).
+    }
+
+    Similarly one can prove the other side. This time, remember that
+    $M^{-\alpha}\zeta\in#Coo$.
+}
+
+#label(coro:1.7) #coro {
+    For any $a\in[1,e]$,
+    $$
+        #canon_norm(u(a\cdot))
+        <= N(\gamma,p,d)#canon_norm(u)
+        <= N(\gamma,p,d)#canon_norm(u(a\cdot)).
+    $$
+    \proof
+    By \Cref{thm:tribel}, for any $a\in[1,e]$,
+    $$
+        #norm(u(e^na\cdot)\zeta)(\gamma,p)
+        <= N#norm(u(e^n\cdot)\zeta(a^{-1}\cdot))(\gamma,p)
+        <= N#norm(u(e^n\cdot)\zeta)(\gamma,p),
+    $$
+    where $N$ depends only on $d$, $\gamma$, and $p$.
+    Now applying \Cref{lemma:1.4}, we obtain the main result of this corollay.
+}
+
+#label(coro:1.8) #coro {
+    For any $a>0$,
+    #eq (eq:1.4) {
+        #canon_norm(u(a\cdot))^p
+        <= a^{-\theta}N_1(\gamma,p,d)#canon_norm(u)^p
+        <= N_2(\gamma,p,d)#canon_norm(u)^p.
+    }
+    \proof
+    Obviously,
+    $$
+        #canon_norm(u(e^k\cdot))
+        = #sum(n=-oo)(oo)e^{n\theta}#norm(u(e^{n+k}\cdot)\zeta)(\gamma,p)^p
+        = #sum(n=-oo)(oo)e^{(n-k)\theta}#norm(u(e^{n}\cdot)\zeta)(\gamma,p)^p
+        = e^{-k\theta}#canon_norm(u).
+    $$
+    Using this and \Cref{coro:1.7} and representing $a = e^kb$, where
+    $b\in[1,e]$, we easily get the first inequality.
+    The second one is obtained by substituting $u(x) = v(a^{-1}x)$ into the
+    first one.
+}
+
+The core inequality of \Cref{lemma:1.9} is the following.
+For any $\gamma\in\R$ and $p\in(1,oo)$, there exist $\kappa>0$ such that, for
+any invertible constant $d\times d$ matrix $\sigma$ and $u\in H_p^\gamma$,
+#eq (eq:1.5) {
+    ||u(\sigma\cdot)||_{\gamma,p}
+    <= N(d,\gamma,p)(\lambda^{-\kappa}(\sigma) +
+    \Lambda^\kappa(\sigma))||u||_{\gamma,p},
+}
+where $\lambda(\sigma)$ and $\Lambda(\sigma)$ are the smallest and the largest
+eigenvalues of $\sigma\sigma^*$.
+
+However, the inequality does not follows from subsection 4.3.2 of \cite{Tri2} where
+\cite{Kry1} said. The proof of \cref{eq:1.5} is in the appendix.
+
+#label(lemma:1.9) #lemma {
+    Let $\sigma$ be a nondegenerate $d\times d$-matrix such that
+    $\sigma:\R_+^d->\R_+^d$. Denote by $\lambda(\sigma)$ and $\Lambda(\sigma)$
+    the smallest and largest eigenvalues of $\sigma\sigma^*$. Then for any
+    $\gamma,p,\theta$ there exists $\kappa>0$ such that for any $u\in
+    H_{p,\theta}^\gamma$ we have
+    #eq (eq:1.7) {
+        #canon_norm(u(\sigma\cdot))
+        <= N(\lambda^{-\kappa}(\sigma)+\Lambda^\kappa(\sigma))#canon_norm(u),
+    }
+    where the constant $N$ is independent of $\sigma$ and $u$.
+    \proof
+    We use \cref{eq:1.5} which is proved in the appendix.
+    In  particular,
+    #eq (eq:1.6) {
+        ||u(e^n\sigma\cdot)\zeta||_{\gamma,p}
+        <= N(\lambda^{-\kappa}(\sigma) + \Lambda^\kappa(\sigma))
+        ||u(e^n\cdot)\zeta(\sigma^{-1}\cdot)||_{\gamma,p}.
+    }
+    Also notice that if $\sigma:\R_+^d->\R_+^d$, then $(\sigma x)^1 = ax^1$,
+    where $a\defeq\sigma^{11} > 0$, so that $\zeta(\sigma^{-1}x) =
+    \zeta(a^{-1}x^1)$. Applying \cref{eq:1.5} to $u(e^nax)\zeta(x)$ with
+    $\sigma$ defined as multiplying $a^{-1}$, we get
+    $$
+        ||u(e^n\cdot)\zeta(\sigma^{-1}\cdot)||_{\gamma,p}
+        <= N(a^\kappa + a^{-\kappa})||u(e^na\cdot)\zeta||_{\gamma,p}.
+    $$
+    Bearing in mind the possibility of multiplying $e^{n\theta}$ and summation
+    on $n$ and also using \Cref{coro:1.8}, the proof is finished.
+}
+
+To prove one more unusal property of spaces $H_{p,\theta}^\gamma$ define an
+operator
+$$
+    A : x |-> Ax = (1/x^1, x'/(x^1)^2),\quad
+    A : u |-> Au(x) = u(Ax).
+$$
+
+#label(thm:1.10) #thm {
+    We have $u\in H_{p,\theta}^\gamma$ if and only if $Au \in
+    H_{p,-\theta}^\gamma$. Moreover, the operator
+    $A:H_{p,\theta}^\gamma->H_{p,-\theta}^\gamma$ and its inverse are bounded.
+    \proof
+    As easy to see $A = A^{-1}$ and $A(cx) = c^{-1}Ax$ for any $c>0$.
+    Furthermore, as
+    $$
+        {\diff Ax // \diff x} = \Matrix{
+            -{1//(x^1)^2},0,0,...,0;
+            -2{x^2//(x^1)^3},{1//(x^1)^2},0,...,0;
+            -2{x^3//(x^1)^3},0,{1//(x^1)^2},...,0;
+            \vdots,\vdots,\vdots,\ddots,\vdots;
+            -2{x^d//(x^d)^3},0,0,...,{1//(x^1)^2};
+        },
+    $$
+    $\det(DAx) = -(x^1)^{-2d}$, which is bounded and bounded away from zero on
+    the support of $\zeta$. Therefore, again by the above mentioned results from
+    \cite{Tri2}, (and remember $A=A^{-1}$),
+    $$
+        ||(Au)(e^n\cdot)\zeta||_{\gamma,p}
+        = ||u(e^{-n}A\cdot)\zeta||_{\gamma,p}
+        <= N ||u(e^{-n}\cdot)\zeta(A\cdot)||_{\gamma,p}.
+    $$
+    Upon multiplying this by $e^{n\theta}$, summing up, and using
+    \Cref{lemma:1.4}, we get that $A$ is bounded operator from
+    $H_{p,\theta}^\gamma$ to $H_{p,-\theta}^\gamma$. The same conclusion is true
+    for $A^{-1}$($=A$). The theorem is proved.
+}
+
+#label(thm:1.11) #thm {
+    If $\gamma<=\alpha<=\beta$ and $\gamma!=\beta$, then
+    $$
+        ||u||_{\alpha,p,\theta}
+        <= N(\alpha,\beta,\gamma)
+        ||u||_{\beta,p,\theta}^{(\alpha-\gamma)/(\beta-\gamma)}
+        ||u||_{\gamma,p,\theta}^{(\beta-\alpha)/(\beta-\gamma)}.
+    $$
+    \proof
+    The spaces $H_{p,\theta}^\gamma$ enjoy the same interpolation properties as
+    $H_p^\gamma$. By Theorem 14.2 of \cite{Kra} for $\gamma<=\alpha<=\beta$
+    $\gamma!=\beta$, we have
+    $$
+        ||u||_{\alpha,p} <= N(\alpha,\beta,\gamma)
+        ||u||_{\beta,p}^{(\alpha-\gamma)/(\beta-\gamma)}
+        ||u||_{\gamma,p}^{(\beta-\alpha)/(\beta-\gamma)}.
+    $$
+    Put $\phi = (\alpha-\gamma)/(\beta-\gamma)$ and $\psi =
+    (\beta-\alpha)/(\beta-\gamma)$. By the H\"older's inequality,
+    useenv align* {
+        ||u||_{\alpha,p,\theta}
+        &= ?(#sum(n=-oo)(oo)e^{n\theta}||u(e^n\cdot)\zeta||_{\alpha,p}^p)?^{1/p} \\
+        &<= N(\alpha,\beta,\gamma)
+        ?(#sum(n=-oo)(oo)
+        e^{n\theta}||u(e^n\cdot)\zeta||_{\beta,p}^{p\phi}
+        ||u(e^n\cdot)\zeta||_{\gamma,p}^{p\psi})?^{1/p} \\
+        &= N(\alpha,\beta,\gamma)
+        ?(#sum(n=-oo)(oo)
+        (e^{n\theta}||u(e^n\cdot)\zeta||_{\beta,p}^{p})^\phi
+        (e^{n\theta}||u(e^n\cdot)\zeta||_{\gamma,p}^{p})^\psi )?^{1/p} \\
+        &<= N(\alpha,\beta,\gamma)
+        ?(#sum(n=-oo)(oo)
+        e^{n\theta}||u(e^n\cdot)\zeta||_{\beta,p}^{p})?^{\phi/p}
+        ?(#sum(n=-oo)(oo)
+        e^{n\theta}||u(e^n\cdot)\zeta||_{\gamma,p}^{p})?^{\psi/p} \\
+        &= N(\alpha,\beta,\gamma) ||u||_{\beta,p,\theta}^\phi
+        ||u||_{\gamma,p,\theta}^\psi.
+    }
+}
+
+#label(remark:1.12) #remark {
+    We will also use to a great extent other properties of spaces $H_p^\gamma$.
+    In this connection notice that if a distribution $u$ is supported in the
+    strip $a<x^1<b$ for some $0<a<b$, then $u\in H_{p,\theta}^\gamma$ if and
+    only if $u\in H_p^\gamma$.
+    Also in this casee $||u||_{\gamma,p}\leq N||u||_{\gamma,p,\theta}\leq
+    N||u||_{\gamma,p}$, where the constant $N$ depends only on
+    $p,d,\gamma,\theta,a$, and $b$.
+
+    Indeed, for distributions supported in the strip $a<x^1<b$, the number of
+    nonzero terms on the right-hand side of \cref{eq:1.2} is finite and can be
+    estimated by a constant $N$ depending only on $a$, $b$, and $\zeta$.
+    Therefore, our assertion follows from Section 4.3.2 in \cite{Tri2} dealing
+    with the change of variables, Corollary 4.2.2 in \cite{Tri2} on pointwise
+    multipliers, and from \cite{Kry4}.
+}
+
+#label(remark:1.13) #remark {
+    Speaking about elements of $H_p^\gamma$ supported in the strip $a<x^1<b$
+    let us also mention a well-known fact which will be later.
+    It turns out that for such functions $u$ we have
+    $\|u\|_{\gamma,p}\leq N\|u_x\|_{\gamma-1,p}$, where $N$ depends only on
+    $d,\gamma,p,a$, and $b$.
+
+    Indeed, it suffices to assume that $u\in C_0^\infty(\R_+^d)$ because of
+    the density argument. If $\eta\in C_0^\infty(\R)$ is such that $\eta=1$
+    on $(a,b)$ and $\eta$ vanishes outside an interval $(s,r)$, then
+    \[
+        u(x) = -\eta(x)\int_0^{r-s}u_{x^1}(x^1+t,x')dt.
+    \]
+    Hence,
+    \[
+        \|u\|_{\gamma-1,p}
+        \leq N\left\|\int_0^{r-s}u_{x^1}(\cdot+t,\cdot)dt\right\|_{\gamma-1,p}
+        \leq N\int_0^{r-s}\|u_{x^1}(\cdot+t,\cdot)\|_{\gamma-1,p}dt
+        \leq N\|u_{x^1}\|_{\gamma-1,p}.
+    \]
+    It only remains to notice that $\|u\|_{\gamma,p}\leq N\|u_x\|_{\gamma-1,p} +
+    N\|u\|_{\gamma-1,p}$.
+}
+
+The following theorem deals with the interpolation with respect to $\theta$.
+It turns out to be very important in applications to SPDEs.
+
+#def #l {\Lb_{p,#1}({#2})}
+#def #n {#norm(#1)(#l(#2)(#3))}
+
+#label(thm:1.14) #thm {
+    Let $(\Omega,\Fc,\Pb)$ be a measure space, $\theta_1<\theta_2$,
+    and $X,Y$ be separable Banach spaces. Define $#l(\theta)(X)$ as the
+    space of all $X$-valued functions $f(\omega,x)$ on $\Omega\times\R_+^d$
+    measurable with respect to $\Fc\otimes\Bf(\R_+^d)$, and such that
+    $$
+        #n(f)(\theta)(X)^p \defeq
+        \int_{\Omega\times\R_+^d}
+        (x^1)^{\theta-d}|f(\omega,x)|_X^p\Pb(d\omega)dx
+        = \Eb\int_{\R_+^d}(x^1)^{\theta-d}|f(x)|_X^pdx < oo.
+    $$
+    Let $T$ be a linear operator with values on
+    $#l(\theta_1)(Y)\cap#l(\theta_2)(Y)$ defined on all finite linear
+    combinations of the set
+    $$
+        \Af \defeq \{ \zeta(e^nx)f(\omega,x) : n\in\Z,\ f\in#l(d)(X) \}.
+    $$
+    Moreover, assume that, for any $\zeta(e^n\cdot)f\in\Af$ and $i=1,2$, we have
+    #eq (eq:1.8) {
+        #n(T(\zeta(e^n\cdot)f))(\theta_i)(Y)^p
+        <= N_i^p e^{-n(\theta_i-d)} #n(f)(d)(Y)^p,
+    }
+    where $N_i$ are some constants independent of $f$ and $n$.
+    Then for any $\theta\in(\theta_1,\theta_2)$ the operator $T$ is extendible
+    to a bounded linear operator acting from $#l(\theta)(X)$ to $#l(\theta)(Y)$
+    and if we keep the same notation $T$ for the extension, then for any
+    $f\in#l(\theta)(X)$
+    #eq (eq:1.9) {
+        #n(Tf)(\theta)(Y) <= N N_1^\alpha N_2^\beta #n(f)(\theta)(X),
+    }
+    where $\alpha \defeq (\theta_2-\theta)/(\theta_2-\theta_1)$,
+    $\beta=1-\alpha$, and $N$ is independent of $f$ and $N_i$.
+    \proof
+    First, for any $f\in\Lb_{p,\theta}({X})$ and $n$, $\zeta(e^n\cdot)f\in\Af$.
+    Indeed, take $\eta\in C_0^\infty (\R_+)$ such that $\eta=1$ on the support of
+    $\zeta(e^n\cdot)$. Then we can easily checked that $f\eta\in\Lb_{p,d}({X})$
+    because
+    \[
+        \Eb\int_{\R^d_+}|\eta f(x)|_X^pdx
+        = \Eb\int_{\R^d_+}(x^1)^{\theta-d}|f(x)|_X^p(M^{d-\theta}\eta^p)(x)dx
+        \leq  N\Eb\int_{\R^d_+}(x^1)^{\theta-d}|f(x)|_X^pdx.
+    \]
+    Thus we obtain $\zeta(e^n\cdot)f = \zeta(e^n\cdot)f\eta\in\Af$, and that
+    $T(\zeta(e^n\cdot)f)$ belongs to $\Lb_{p,\theta_1}({Y})\cap\Lb_{p,\theta_2}({Y})$.
+    The inequality $(x^1)^{\theta-d}\leq (x^1)^{\theta_1-d}+(x^1)^{\theta_2-d}$
+    implies $T(\zeta(e^n\cdot)f)\in\Lb_{p,\theta}({Y})$.\footnote{
+    $  \left\|f\right\|_{\Lb_{p,\theta}({Y})} ^p \leq
+        \left\|f\right\|_{\Lb_{p,\theta_1}({Y})} ^p +
+        \left\|f\right\|_{\Lb_{p,\theta_2}({Y})} ^p. $
+    }
+    Furthermore, if we define $\xi=\sum_n\zeta(e^n\cdot)$, for any
+    $g\in\Lb_{p,\theta}({X})$ can be represented as $\xi f$ with comparable
+    $\Lb_{p,\theta}({X})$-norms of $g$ and $f$.
+    Indeed, first of all, $1 \leq  \sum_n\zeta^p(e^n\cdot) \leq 
+     \left\|\zeta\right\|_{L_\infty } ^{p-1}\sum_n\zeta(e^n\cdot)$ implies $f \defeq
+    \xi^{-1}g$ is well-defined and $ \left\|f\right\|_{\Lb_{p,\theta}({X})} \leq
+    N \left\|g\right\|_{\Lb_{p,\theta}({X})} $.
+    Now consider an interval $(a,b)\subset\R_+$ which contains the support of
+    $\zeta$. Then one can easily obtain that for every $x\in\R_+^d$,
+    \[
+        \#\{n : x^1\in (e^{-n}a,e^{-n}b)\} \leq  \log b - \log a + 3.
+    \]
+    This implies $\xi(x) \leq  (\log b - \log a + 3)
+    \left\|\zeta\right\|_{L_\infty } $ for every $x\in\R_+$, hence, $
+    \left\|g\right\|_{\Lb_{p,\theta}({X})} \leq  N
+    \left\|f\right\|_{\Lb_{p,\theta}({X})} $ because $\xi$ is bounded.
+
+    Above observations gives that, to prove the theorem, it suffices to prove
+    that for any integer $r>1$ and $f\in\Lb_{p,\theta}({X})$, we have
+    \begin{equation}\label{eq:1.10}
+         \left\|T\left(\sum_{n=-r}^{r}\zeta(e^n\cdot)f\right)\right\|_{\Lb_{p,\theta}({Y})}
+         ^p \leq  NN_1^{\alpha p}N_2^{\beta p}
+         \left\|f\right\|_{\Lb_{p,\theta}({X})} ,
+    \end{equation}
+    where $N$ is independent of $f$, $r$, and $N_i$.
+
+    Denote $u_n=T(\zeta(e^n\cdot)f)$ and observe that by definition the
+    left-hand side of \cref{eq:1.10} equals
+    \begin{align*}
+        \int_{\R_+^d}(x^1)^{\theta-d}
+        \left|\sum_{|n|\leq r}u_n(x)\right|_{L_p(\Omega,Y)}^pdx
+        &\leq 2^p \int_{\R^d_+}(x^1)^{\theta-d}
+        \left|\sum_{|n|\leq r}\I_{x^1e^n\leq s}u_n(x)\right|_{L_p(\Omega,Y)}^pdx
+        \\
+        &+ 2^p \int_{\R^d_+}(x^1)^{\theta-d}
+        \left|\sum_{|n|\leq r}\I_{x^1e^n\geq s}u_n(x)\right|_{L_p(\Omega,Y)}^pdx
+        \eqcolon 2^pI_1 + 2^pI_2,
+    \end{align*}
+    where $s$ is a constant to be specified later.
+
+    To estimate $I_1$, define $\delta=(\theta-\theta_1)/p$, $q=p/(p-1)$ and use
+    H\"older's inequality to find
+    \begin{align*}
+        \left|\sum_{n=-r}^r \I_{x^1e^n\leq s}u_n\right|_Y^p
+        &\leq \left(\sum_{n=-r}^r |\I_{x^1e^n\leq s}u_n|_Y\right)^p \\
+        &= \left(\sum_{n=-r}^r |e^{n\delta}e^{-n\delta}\I_{x^1e^n\leq
+        s}u_n|_Y\right)^p \\
+        &\leq \left(\sum_{n=-r}^r |e^{n\delta}\I_{x^1e^n\leq
+        s}|_Y^q\right)^{p-1}
+        \left(\sum_{n=-r}^r |e^{-n\delta}\I_{x^1e^n\leq s}u_n|_Y^p\right) \\
+        &= \left(\sum_{n=-r}^r e^{nq\delta}\I_{x^1e^n\leq s}\right)^{p-1}
+        \sum_{n=-r}^r e^{-np\delta}\I_{x^1e^n\leq s}|u_n|_Y^p.
+    \end{align*}
+    As easy to see, the first factor on the right is less than
+    $N(x^1/s)^{-\delta q(p-1)} = Ns^{\theta-\theta_1}(x^1)^{\theta_1-\theta}$.
+    This and assumption \cref{eq:1.8} imply that
+    \begin{equation}\label{eq:1.11}
+        I_1
+        \leq Ns^{\theta-\theta_1}\sum_n e^{-np\delta}\|\I_{e^n\cdot\leq
+        s}T(\zeta(e^n\cdot)f)\|_{\Lb_{p,\theta_1}(Y)}^p
+        \leq N N_1^p s^{\theta-\theta_1}\sum_n
+        e^{-np\delta-n(\theta_1-d)}\|\eta(e^n\cdot)f\|_{\Lb_{p,d}(X)}^p,
+    \end{equation}
+    where $\eta$ is any function from $C_0^\infty(\R_+)$ such that $\eta=1$ on
+    the support of $\zeta$.
+    Upon noticing that $\delta p + \theta_1 - d = \theta - d$ and (cf.
+    \Cref{remark:1.3})
+    \begin{equation}\label{eq:1.12}
+        \sum_n e^{-n(\theta-d)}\eta(e^nx) \leq N(x^1)^{\theta-d},
+    \end{equation}
+    we obtain
+    \[
+        I_1 \leq N N_1^p s^{\theta-\theta_1}\|f\|_{\Lb_{p,\theta}(X)}^p.
+    \]
+    
+    Similarly, for $\epsilon=(\theta_2-\theta)/p$ we get
+    \[
+        \left|\sum_{n=-r}^r \I_{x^1e^n\geq s}u_n\right|_Y^p
+        \leq \left(\sum_{n=-r}^r e^{-nq\epsilon}\I_{x^1e^n\geq s}\right)^{p-1}
+        \sum_{n=-r}^r e^{np\epsilon}\I_{x^1e^n\geq s}|u_n|_Y^p,
+    \]
+    where the first factor on the right is less than $N(x^1/s)^{\epsilon
+    q(p-1)}$, which equals $Ns^{\theta-\theta_2}(x^1)^{\theta_2-\theta}$. This
+    implies
+    \begin{equation}\label{eq:1.13}
+        I_2
+        \leq Ns^{\theta-\theta_2}\sum_n e^{np\epsilon}\|\I_{e^n\cdot\geq
+        s}T(\zeta(e^n\cdot)f)\|_{\Lb_{p,\theta_2}(Y)}^p
+        \leq N N_2^p s^{\theta-\theta_2}\sum_n
+        e^{-np\epsilon-n(\theta_2-d)}\|\eta(e^n\cdot)f\|_{\Lb_{p,d}(X)}^p.
+    \end{equation}
+    Since $np\epsilon - n(\theta_2-d) = -n(\theta-d)$ and we have
+    \cref{eq:1.12},
+    \[
+        I_2 \leq N N_2^p s^{\theta-\theta_2} \|f\|_{\Lb_{p,\theta}(X)}^p.
+    \]
+    
+    By combining the above estimates we see that the left-hand side of
+    \cref{eq:1.10} is less than
+    \[
+        N(N_1^ps^{\theta-\theta_1}+N_2^ps^{\theta-\theta_2})\|f\|_{\Lb_{p,\theta}(X)}^p.
+    \]
+    It only remains to take $s=(N_2N_1^{-1})^{p/(\theta_2-\theta_1)}$. The
+    theorem is proved.
+}
+
+#undef #l
+#undef #n
+
+#label(remark:1.15) #remark {
+    Condition \cref{eq:1.8} is satisfied if, for instance, $T$ is a bounded
+    operator from $\Lb_{p,\theta_i}(X)$ to $\Lb_{p,\theta_i}(Y)$ for $i=1,2$.
+
+    Indeed, $\zeta(e^nx)\leq N(e^nx^1)^{(d-\theta_i)/p}$ and
+    \[
+        \|\zeta(e^n\cdot)f\|_{\Lb_{p,\theta_i}(X)}^p
+        \leq Ne^{n(d-\theta_i)}\|f\|_{\Lb_{p,d}(X)}^p.
+    \]
+}
+
+#label(remark:1.16) #remark {
+    It follows from \cref{eq:1.11} and \cref{eq:1.13} with $s=1$, that if
+    instead of \cref{eq:1.8} we have, for all $n$ and $\zeta(e^n\cdot)f\in\Af$,
+
+    \begin{equation}\label{eq:1.14}
+        \begin{aligned}
+            \|\I_{e^n\cdot\leq 1}T(\zeta(e^n\cdot)f)\|_{\Lb_{p,\theta_1}(Y)}^p
+            &\leq N_0^p e^{-n(\theta_1-d)}\|f\|_{\Lb_{p,d}(X)}^p, \\
+            \|\I_{e^n\cdot\geq 1}T(\zeta(e^n\cdot)f)\|_{\Lb_{p,\theta_2}(Y)}^p
+            &\leq N_0^p e^{-n(\theta_2-d)}\|f\|_{\Lb_{p,d}(X)}^p,
+        \end{aligned}
+    \end{equation}
+    where $N_0$ is independent of $n$ and $f$, then instead if \cref{eq:1.9} we
+    get
+    \begin{equation}\label{eq:1.15}
+        \|Tf\|_{\Lb_{p,\theta}(Y)} \leq N N_0 \|f\|_{\Lb_{p,\theta}(X)},
+    \end{equation}
+    where $N$ is independent of $f$ and $N_0$.
+}
+
+#label(remark:1.17) #remark {
+    It turns out that \cref{eq:1.15} holds under slightly less restrictive
+    assumption than \cref{eq:1.14}. We mean
+    \begin{equation}\label{eq:1.16}
+        \begin{aligned}
+            \|\zeta(e^m\cdot)T(\zeta(e^n\cdot)f)\|_{\Lb_{p,d}(Y)}^p
+            &\leq N_0^p e^{(m-n)(\theta_1-d)}\|f\|_{\Lb_{p,d}(X)}^p
+            \quad \text{if}\ m\geq n, \\
+            \|\zeta(e^m\cdot)T(\zeta(e^n\cdot)f)\|_{\Lb_{p,d}(Y)}^p
+            &\leq N_0^p e^{(m-n)(\theta_2-d)}\|f\|_{\Lb_{p,d}(X)}^p,
+            \quad \text{if}\ m\leq n.
+        \end{aligned}
+    \end{equation}
+    Indeed, first assume that \cref{eq:1.16} holds.
+    #TODO
+}
+
+#label(coro:1.18) #coro {
+    Let $\gamma$ be a nonnegative integer, $\theta_1<\theta_2$, and let $T$ be a
+    bounded operator from $L_{p,\theta_i}$ to $H_{p,\theta_i}^\gamma$ for
+    $i=1,2$. Then $T$ is a bounded operator from $L_{p,\theta}$ to
+    $H_{p,\theta}^\gamma$ for any $\theta\in[\theta_1,\theta_2]$.
+}
+
+#label(thm:1.19) #thm {
+    The space $C_0^oo(\R_+^d)$ is dense in $H_{p,\theta}^\gamma$.
+    \proof
+    The idea of the proof of this theorem is the following:
+    First, approximate $u\in H_{p,\theta}^\gamma$ by an element $v\in
+    V_{p,\theta}^\gamma$, a collection of all $H_{p,\theta}^\gamma$ which
+    vanishing for $x^1$ outside of a closed bounded subset of $\R_+$. By
+    \Cref{remark:1.12}, $H_{p,\theta}^\gamma$-norm of $v$ and $H_p^\gamma$-norm
+    of which are comparable, so approximate $v$ with elements of $C_0^\infty
+    (\R_+^d)$ on $H_p^\gamma$.
+
+    Fix $\epsilon>0$ and $v\in V_{p,\theta}^\gamma$.
+    By \Cref{remark:1.12}, $v\in H_p^\gamma$. First of all, take $\xi\in
+    C_0^oo(\R^d)$ such that $||\xi v - v||_{\gamma,p} < \epsilon$.
+    As $C_0^oo(\R^d)$ is dense in $H_p^\gamma$, take $\phi\in C_0^oo(\R^d)$ such
+    that $||v-\phi||_{\gamma,p}<\epsilon$. 
+    Take any $\xi\in C_0^oo(\R^d)$ such that, $0<=\xi<=1$, $\xi=1$ if $|x|<=1$,
+    and define $\xi_R(x) = \xi(x/R)$ for $R>=1$. Then one can take $R$ large
+    enough so that $\xi_R=1$ on the support of $\phi$. Then
+    useenv align* {
+        ||\xi_R v - v||_{\gamma,p}
+        &= ||\xi_R v - v - \phi + \phi||_{\gamma,p} \\
+        &= ||\xi_R v - v - \xi_R\phi + \phi||_{\gamma,p} \\
+        &<= ||\xi_R(v-\phi)||_{\gamma,p} + ||v-\phi||_{\gamma,p} \\
+        &<= ||\xi_R||_{B^{|\gamma|+\alpha}} ||v-\phi||_{\gamma,p} \\
+        &<= ||\xi_R||_{B^{|\gamma|+\alpha}} \epsilon \\
+        &<= N||\xi||_{B^{|\gamma|+\alpha}} \epsilon,
+    }
+    where $\alpha\in[0,1)$ such that $\alpha=0$ if $\gamma$ is an integer;
+    otherwise $\alpha>0$ and such that $|\gamma|+\alpha$ is not an integer.
+    The space $B^{|\gamma|+\alpha}$ is defined in \cite{Kry2}.
+    In addition, the constant $N$ is independent of $R$. This is because we
+    chose $R>=1$ and by the definition of the space $B^{|\gamma|+\alpha}$.
+
+    Observe that the support of $\xi_Rv$ lie in $\R_+^d$. Therefore, by the
+    mollifying argument gives a smooth function with compact support on $\R_+^d$
+    which is closed enough to $\xi_Rv$ as we want in $H_p^\gamma$-norm sense.
+    This proves the first claim.
+
+    Now take a function $\eta\in C_0^\infty(\R)$ such that $\eta(r)=1$ for
+    $r\notin(-2,2)$ and $\eta(r)=0$ for $|r|\leq 1$. Then for any $k\geq 1$ the
+    function $\eta_k(x)\defeq\eta(k^{-1}\log x^1)$ satisfies $\eta_k(x^1)=0$ for
+    $x^1\in(e^{-k},e^k)$ and $\eta_k(x^1)=1$ if $x^1\in(0,e^{-2k})$ or $x^1\geq
+    e^{2k}$.
+    Furthermore, take a function $u\in H_{p,\theta}^\gamma$ and write
+    \[
+        \|\eta_k u\|_{\gamma,p,\theta}^p
+        = \sum_{n=-\infty}^\infty e^{n\theta}
+        \|\eta_k(e^n\cdot)u(e^n\cdot)\zeta\|_{\gamma,p}^p.
+    \]
+    For any given $n$ the function $\eta_k(e^nx)$ vanishes on the support of
+    $\zeta$ if $k$ is large enough. Therefore, each term in the above sum tends
+    to zero a $k->oo$. In addition, since every derivative of
+    $\eta_k(e^nx)=\eta(nk^{-1}+k^{-1}\log x^1)$ is bounded on the support of
+    $\zeta$ uniformly with respect to $k>=1$ and $n$, we have
+    $$
+        ||\eta_k(e^n\cdot)u(e^n\cdot)\zeta||_{\gamma,p}^p
+        <= N||u(e^n\cdot)\zeta||_{\gamma,p}^p,
+    $$
+    where $N$ is independent of $k,n$ (and $u$). Hence by DCT on summation, $||
+    \eta_ku||_{\gamma,p,\theta}->0$ as $k->oo$, so that
+    $||(1-\eta_k)u-u||_{\gamma,p,\theta}->0$.
+    Here, $(1-\eta_k)u\in V_{p,\theta}^\gamma$, thus the theorem is proved.
+}
+
+#label(coro:1.20) #coro {
+    Define $\zeta_k=1-\eta_k$, then $\zeta_k(x^1)$ vanishes near zero and
+    infinity and for any $u\in H_{p,\theta}^\gamma$
+    $$
+        ||\zeta_ku||_{\gamma,p,\theta} <= ||u||_{\gamma,p,\theta},\quad
+        ||\zeta_ku - u||_{\gamma,p,\theta} -> 0
+    $$
+    as $k->oo$, where $N$ is independent of $k$ and $u$.
+}
+
+#label(remark:1.21) #remark {
+    Define $\zeta_k=1-\eta_k$, then $\zeta_k(x^1)$ vanishes near zero and
+    infinity and for any $u\in H_{p,\theta}^\gamma$
+    $$
+        ||\zeta_k u||_{\gamma,p,\theta} <= N||u||_{\gamma,p,\theta},\quad
+        ||\zeta_ku - u||_{\gamma,p,\theta} -> 0
+    $$
+    as $k->oo$, where $N$ is independent of $k$ and $u$.
+}

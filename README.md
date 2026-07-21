@@ -1,161 +1,145 @@
-# vesti
+# vesti-odin
 
-A transpiler that compiles into LaTeX.
+An Odin port of [Vesti](https://github.com/e0328eric/vesti), a transpiler from
+the Vesti document language to LaTeX. It keeps the Vesti 0.16.1 command-line
+surface and includes the Lua project API and bundled Tectonic bridge.
 
-## Why do we need a LaTeX transpiler?
+## Build and test
 
-I used to create several documents using LaTeX (or plain TeX but TeX is quite
-cumbersome to write—especially when working with very complex tables or
-inserting images). Its markdown-like syntax is also not comfortable to use. For
-example, here is a simple LaTeX document:
+Odin is discovered through `ODIN`, `PATH`, or (on Windows)
+`%USERPROFILE%\.local\Odin\odin.exe`.
 
-```tex
-% coprime is my custom class. See https://github.com/e0328eric/coprime.
-\documentclass[tikz, geometry]{coprime}
-
-\settitle{My First Document}{Sungbae Jeong}{}
-\setgeometry{a4paper, margin = 2.5cm}
-
-\begin{document}
-\section{Foo}
-Hello, World!
-\begin{figure}[ht]
-    \centering
-    \begin{tikzpicture}
-        \draw (0,0) -- (1,1);
-    \end{tikzpicture}
-\end{figure}
-
-The code above is a figure using TikZ.
-
-\end{document}
+```console
+odin run build.odin -file -- build
+odin run build.odin -file -- test
 ```
 
-What annoys me most when using it is the `\begin` and `\end` blocks. Is there a way to write something much simpler? This question led me to start this project. Currently, the following code is generated into the LaTeX code above (except comments) using vesti:
+The build first regenerates `src/uucode/generated_tables.odin` when any Unicode
+17 input changes. On Windows it also stages Odin's `lua54.dll` and the bundled
+Tectonic DLL beside `build/vesti.exe`.
 
+Install Vesti into a directory with the executable and Tectonic bridge beside
+it, plus the Lua runtime on Windows. Quote paths that contain spaces.
+
+```console
+# Windows
+odin run build.odin -file -- install "%USERPROFILE%\bin"
+odin run build.odin -file -- install "%APPDATA%\Vesti\bin"
+
+# Linux and macOS
+odin run build.odin -file -- install "~/bin"
 ```
-% coprime is my custom class. See https://github.com/e0328eric/coprime.
-docclass coprime (tikz, geometry)
 
-\settitle{My First Document}{Sungbae Jeong}{}
-\setgeometry{a4paper, margin = 2.5cm}
+On Windows, a leading `%USERPROFILE%` or `%APPDATA%` is expanded by the build
+driver. On POSIX systems, `~` and `~/...` are expanded from `HOME`. Relative and
+absolute paths are also accepted directly.
 
-startdoc
+The bundled Tectonic bridge currently supports Windows x86-64, Linux x86-64
+with a GNU-compatible userspace, and macOS arm64. The installer rejects other
+OS/CPU combinations and verifies that the bridge can be loaded before copying
+it.
 
-\section{Foo}
-Hello, World!
-useenv figure [ht] {
-    \centering
-    useenv tikzpicture {
-        \draw (0,0) -- (1,1);
-    }
+Other build-driver commands are `run`, `unicode`, `unicode/regen`, and `clean`.
+
+## Use
+
+```console
+build/vesti init my-document
+build/vesti compile
+build/vesti compile -S -e my-document.ves
+build/vesti latex .vesti-dummy/my-document.tex
+```
+
+`-S` selects standalone mode. `-e` emits TeX without invoking a LaTeX backend.
+Run `build/vesti --help` for all engine, script, watch, and pass-count options.
+
+## Configuration formats
+
+This port uses portable data formats rather than Zig Object Notation. The user
+configuration is named `config` with exactly one of these extensions:
+
+- `.json`
+- `.yaml` or `.yml`
+- `.toml`
+- `.msgpack`
+
+It lives below `%APPDATA%\vesti` on Windows or `~/.config/vesti` on Linux and
+macOS. Having more than one supported `config.*` file is an error, which avoids
+silently loading a stale configuration.
+
+```json
+{
+  "engine": "tectonic",
+  "lua": {
+    "make_log": false,
+    "line_limit": 45
+  }
 }
-
-The code above is a figure using TikZ.
 ```
 
-# Installation
+All fields are optional and use those defaults when absent.
 
-## Prerequisites
-This project uses the master zig version. For linux, I recommend to install
-zenity.
+The equivalent YAML and TOML forms are:
 
-## Compilation
-### For normal users
-If you want to compile with Tectonic backend, just run the following command:
-
-```console
-$ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
+```yaml
+engine: tectonic
+lua:
+  make_log: false
+  line_limit: 45
 ```
 
-If you do not want tectonic backend, then run the following.
-
-```console
-$ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
-```
-
-### For developers
-One should have zig and rust compiler.
-
-#### Prerequisites for building dynamic library
-It uses `tectonic` when `tectonic-backend` feature enabled. Install following third-party dependencies.
-- `fontconfig`
-- `freetype2`
-- `graphite2`
-- `harfbuzz`
-- `ICU4C`
-- `libpng`
-- `upx` (a binary)
-
-#### Windows
-There are two options to build dll. One is first install `vcpkg` manually (not
-using Visual Studio one) and install all libraries.
-
-```console
-vcpkg install fontconfig libpng freetype "harfbuzz[graphite2] icu --triplet x64-windows-static-release
-```
-
-Upx can be installed via winget.
-
-In addition, on windows, add the following inside of
-`%USERPROFILE%\.cargo\config.toml`.
 ```toml
-[env]
-TECTONIC_DEP_BACKEND = "vcpkg"
-VCPKG_ROOT = "C:/opt/vcpkg"
-VCPKGRS_TRIPLET = "x64-windows-static-release"
+engine = "tectonic"
+
+[lua]
+make_log = false
+line_limit = 45
 ```
 
-Then run
-```console
-zig build rust -Dno-cargo-vcpkg=true
-```
+MessagePack uses the same map structure and value types as the JSON example.
+Its maps must have string keys; binary and extension values are rejected because
+they are not part of the Vesti configuration schema.
 
-If you do not want to install `vcpkg` manually, install `cargo-vcpkg`.
-Then run
-```console
-zig build rust
-```
+Installed Vesti modules live below the same configuration directory. A module
+named `template` uses exactly one `template/vesti.{json,yaml,yml,toml,msgpack}`
+manifest. For example, `template/vesti.json` can contain:
 
-To build macos dylib, install `cargo-zigbuild` and follow the above steps.
-
-#### Linux
-On linux, install upper dependencies using their own package manager.
-Especially on linux, install `zenity` also.
-
-```console
-zig build rust
-zig build
-```
-
-To build macos dylib, install `cargo-zigbuild` and follow the above steps.
-
-#### Macos
-Macos, install upper dependencies using their own package manager.
-Then just run
-```console
-zig build rust
-zig build
-```
-
-## Configuration
-Vesti has a configuration file. The location of the config file is follows:
-- Linux, MacOS: `~/.config/vesti/config.zon`
-- Windows: `%APPDATA%\vesti\config.zon`
-
-zon file stands for _Zig Object Notation_. Here is the example of `config.zon`.
-```zig
-.{
-    .engine = .tectonic,
-    .lua = .{
-        .make_log = false,
-        .line_limit = 45,
-    },
+```json
+{
+  "name": "template",
+  "version": "1.0.0",
+  "exports": [
+    {"name": "font.ves"},
+    {"name": "settings.tex", "location": "Settings"}
+  ]
 }
 ```
-If some fields are missing, then vesti takes the default values (above example
-is the default one).
 
-## Warning
-This language is in beta, so breaking changes may occur in the future. Be cautious when using it for large projects.
+An omitted export `location` defaults to `.vesti-dummy`.
 
+The YAML reader intentionally targets configuration documents: mappings,
+sequences, flow collections, comments, quoted/plain scalars, and document
+markers are supported, while anchors, aliases, tags, and block scalars are
+rejected. TOML has no null value, so omit optional `version` and `location`
+fields instead.
+
+A typical TOML manifest writes the export list as arrays of tables:
+
+```toml
+name = "template"
+version = "1.0.0"
+
+[[exports]]
+name = "font.ves"
+
+[[exports]]
+name = "settings.tex"
+location = "Settings"
+```
+
+## Unicode tables
+
+`tools/unicode_gen` parses the committed Unicode Character Database inputs in
+`data/` and generates compact ranges for alphabetic, alphanumeric, numeric,
+ASCII, grapheme-width, and standalone-width queries. The generated functions
+match the Zig `uucode` tables for every Unicode scalar/code-point value.

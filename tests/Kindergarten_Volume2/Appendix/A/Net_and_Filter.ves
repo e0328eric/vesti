@@ -1,0 +1,102 @@
+We now learned both filters and nets. As it is mentioned in earlier, both
+concepts are made to generalize sequences. Then one might question about the
+correspondence between filters and nets. Indeed, one can canonically construct a
+filter from a net, and vice versa, preserving their convergence properties
+seamlessly.
+
+#label(defin:eventuality-filter)
+useenv defin [Eventuality filters and canonical nets] {
+    Let $X$ be a nonempty set.
+    #enum ((\roman*)) {
+        \item If $(x_\alpha)_{\alpha\in A}$ is a net in $X$, the collection of
+        all sets $E\subset X$ such that $(x_\alpha)_{\alpha\in A}$ is eventually
+        in $E$ forms a filter. We call this the {\itshape eventuality
+        filter}\index{net!eventuality filter} of the net
+        $(x_\alpha)_{\alpha\in A}$, and denote it by $\Fc(x_\alpha)$.
+        \item If $\Fc$ is a filter in $X$, define a set
+        $D_{\Fc} = \{(x, F) : F\in\Fc, x\in F\}$. Equip $D_{\Fc}$ with a
+        preorder $<=$ defined by $(x, F) <= (y, G)$ if $G\subset F$. Then
+        $D_{\Fc}$ is a directed set. The net $N_{\Fc}$ defined by
+        $N_{\Fc}(x, F) = x$ from $D_{\Fc}$ to $X$ is called the {\itshape
+        canonical net}\index{filter!canonical net} of the filter $\Fc$.
+    }
+}
+
+#label(exec:eventuality-filter)
+useenv exec {
+    Prove that $\Fc(x_\alpha)$ is indeed a filter in $X$, and that $D_{\Fc}$ is
+    a directed set.
+}
+
+#label(thm:net-filter-convergence)
+useenv thm {
+    Let $X$ be a topological space and $x\in X$.
+    #enum ((\alph*)) {
+        \item A net $(x_\alpha)_{\alpha\in A}$ converges to $x$ if and only if
+        its eventuality filter $\Fc(x_\alpha)$ converges to $x$.
+        \item A filter $\Fc$ converges to $x$ if and only if its canonical net
+        $N_{\Fc}$ converges to $x$.
+        \item A point $x$ is a cluster point of $(x_\alpha)_{\alpha\in A}$ if
+        and only if $x\in\bigcap_{E\in\Fc(x_\alpha)} \overline{E}$.
+    }
+    \proof
+    (a) By definition, a net $(x_\alpha)_{\alpha\in A}$ converges to $x$ if and
+    only if it is eventually in every open neighborhood $U$ of $x$. This is
+    exactly equivalent to saying that every open neighborhood $U$ of $x$ belongs
+    to $\Fc(x_\alpha)$, which means $\Fc(x_\alpha) -> x$.
+
+    (b) Suppose $\Fc -> x$. For any open neighborhood $U$ of $x$, $U\in\Fc$.
+    Take any $y\in U$. Then $(y, U)\in D_{\Fc}$. For any $(z, G) >= (y, U)$, we
+    have $G\subset U$, hence $z\in G\subset U$. This implies the net $N_{\Fc}$
+    is eventually in $U$, so $N_{\Fc} -> x$.
+
+    Conversely, if $N_{\Fc} -> x$, then for any open neighborhood $U$ of $x$,
+    there exists $(y, F)\in D_{\Fc}$ such that for all $(z, G) >= (y, F)$,
+    $z\in U$. In particular, for any $z\in F$, we have $(z, F) >= (y, F)$,
+    meaning $z\in U$. Thus $F\subset U$. Since $F\in\Fc$ and $\Fc$ is a filter,
+    $U\in\Fc$. Therefore, $\Fc -> x$.
+
+    (c) Suppose $x$ is a cluster point of $(x_\alpha)_{\alpha\in A}$. This means
+    for any $U\in\Nc_x$ and any $\alpha\in A$, there is $\gamma >= \alpha$ such
+    that $x_\gamma\in U$. By the definition of $\Fc(x_\alpha)$, every
+    $E\in\Fc(x_\alpha)$ contains a tail set
+    $T_\alpha = \{x_\gamma : \gamma >= \alpha\}$ for some $\alpha$. Thus
+    $U\cap E\supset U\cap T_\alpha\neq\emptyset$. Since $U$ is arbitrary,
+    $x\in\overline{E}$, hence $x\in\bigcap_{E\in\Fc(x_\alpha)} \overline{E}$.
+
+    Conversely, if $x\in\bigcap_{E\in\Fc(x_\alpha)} \overline{E}$, then for any
+    $U\in\Nc_x$ and $\alpha\in A$, since the tail $T_\alpha\in\Fc(x_\alpha)$, we
+    have $x\in\overline{T_\alpha}$, which implies $U\cap T_\alpha\neq\emptyset$.
+    This means there is $\gamma >= \alpha$ with $x_\gamma\in U$. Thus $x$ is a
+    cluster point. \proved
+}
+
+Not only the convergence, but the maximality concepts (universal nets and
+ultrafilters) also perfectly correspond to each other.
+
+#label(thm:ultra-universal)
+useenv thm {
+    Let $X$ be a set.
+    #enum ((\alph*)) {
+        \item If $(x_\alpha)_{\alpha\in A}$ is a universal net in $X$, then
+        $\Fc(x_\alpha)$ is an ultrafilter in $X$.
+        \item If $\Uc$ is an ultrafilter in $X$, then $N_{\Uc}$ is a universal
+        net in $X$.
+    }
+    \proof
+    (a) Suppose $(x_\alpha)_{\alpha\in A}$ is a universal net. To show
+    $\Fc(x_\alpha)$ is an ultrafilter, by \Cref{prop:equiv-ultrafilters}, it
+    suffices to show that for any $E\subset X$, either $E$ or $X-!E$ belongs to
+    $\Fc(x_\alpha)$. Since the net is universal, it is eventually in $E$ or
+    eventually in $X-!E$ (\Cref{prop:equiv-universal-net}). By definition, this
+    means either $E\in\Fc(x_\alpha)$ or $X-!E\in\Fc(x_\alpha)$, proving the
+    claim.
+
+    (b) Suppose $\Uc$ is an ultrafilter. To show $N_{\Uc}$ is a universal net,
+    we use \Cref{prop:equiv-universal-net}. Let $E\subset X$. Since $\Uc$ is an
+    ultrafilter, either $E\in\Uc$ or $X-!E\in\Uc$. Assume $E\in\Uc$. Fix any
+    $y\in E$. For any $(z, G) >= (y, E)$, we have $G\subset E$, so
+    $z\in G\subset E$. This shows that $N_{\Uc}$ is eventually in $E$. By the
+    same argument, if $X-!E\in\Uc$, $N_{\Uc}$ is eventually in $X-!E$. Thus
+    $N_{\Uc}$ is a universal net. \proved
+}

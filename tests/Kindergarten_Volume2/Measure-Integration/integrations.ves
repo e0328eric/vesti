@@ -1,0 +1,289 @@
+Now we are ready to define a Lebesgue integration. 
+Everywhere in this section, $(X,\mu)$ denotes a measure space.
+
+Supoose that a function $f:X->[0,oo)$ is given and we want to measure the area
+of the region $\Gamma = \{(x,y) : 0<y<=f(x)\}$. Fix a positive integer $n$ and
+\lq\lq slice\rq\rq\ $\Gamma$ by sets of type
+$$
+    \Gamma_{n,k} = \{x : f(x) > k2^{-n}\} \times (k2^{-n},(k+1)2^{-n}],\quad
+    k = 0,1,...,n2^n - 1 .
+$$
+
+useenv figure [ht] {
+    \centering
+    useenv tikzpicture [xscale=4,yscale=14] {
+        \draw[thick] (-0.2,0) --! (1.2,0) node[right] {$X$};
+        \draw[thick] (0,0) --! (0,0.2) node[above] {$[0,oo)$};
+        \draw[densely dashed, name path=line1] (0,0.09) node[above left=-1mm]
+            {$(k+1)2^{-n}$} --! ++(1.2,0);
+        \draw[densely dashed, name path=line2] (0,0.08) node[below left=-1mm]
+            {$k2^{-n}$} --! ++(1.2,0);
+        \path[domain=0:1,variable=\x,smooth,name path=foo] plot (\x, {-pow(\x,3)+pow(\x,2)});
+        \path[name intersections={of=line1 and foo, name=i}]
+            ($0.5*(i-1) + 0.5*(i-2) + (0,0.08)$) node {$y=f(x)$};
+        \path[thick,fill=black!10,name intersections={of=line1 and foo, name=i}];
+        \path[thick,fill=black!10,name intersections={of=line2 and foo, name=j}];
+        \draw[fill=black!20] ($(i-1)!(j-1)!(i-2)$) rectangle (j-2);
+        \draw[domain=0:1,variable=\x,smooth] plot (\x, {-pow(\x,3)+pow(\x,2)});
+    }
+    \caption{Definition of the Lebesgue integration}
+}
+
+Since the shape of $\Gamma_{n,k}$ is a rectangle, intuitively we can \lq\lq
+define\rq\rq\ the area of $\Gamma_{n,k}$ by $2^{-n}\mu\{x : f(x) > k2^{-n}\}$.
+Thus it is reasonable to \lq\lq define\rq\rq\ the area of $\Gamma$ by
+$$
+    \lim_{n->oo}\sum_{k=1}^{n2^n}{1//2^n}\mu\{x : f(x) > k2^{-n}\}
+$$
+if the limit exists. For this reason, we can define an integration by following.
+
+useenv defin [Lebesgue Integration] { \label{defin:lebesgue-int}
+    Let $f:X->\R$. Suppose that at least one of the expressions
+    #eq (eq:def-lebesgue-integral) {    
+        \int_0^oo \mu\{f_+ > t\} dt,\quad
+        \int_0^oo \mu\{f_- > t\} dt
+    }
+    is finite (see \Cref{defin:positive-negative-fnt} for their definitions). Then we define
+    $$
+        \int_X f(x)\mu(dx) \defeq \int_0^oo \mu\{f_+ > t\}dt - \int_0^oo \mu\{f_- > t\}dt.
+    $$
+
+    If $f$ is complex valued and both integrals
+    $$
+        \int_X \Re f(x)\mu(dx),\quad \int_X\Im f(x)\mu(dx)
+    $$
+    are meaningful, then we define
+    $$
+        \int_X f(x)\mu(dx) = \int_X\Re f(x)\mu(dx) + i\int_X\Im f(x)\mu(dx)
+    $$
+
+    If $E\subset X$ is a set, then we define the Lebesgue integral on $E$ by
+    $$
+        \int_E f(x)\mu(dx) \defeq \int_X \I_E(x)f(x)\mu(dx).
+    $$
+
+    Sometimes we also write $\int_X f(x)\mu(dx)$ by $\int_X f(x)d\mu(x)$, or
+    $\int_X fd\mu$. In addition,
+    we say that a function $f$ is \it{$\mu$-integrable}\index{Lebesgue integrable}
+    if $\int_X |f|d\mu < oo$.
+}
+
+useenv remark {
+    In the definition of the Lebesgue integral, we need to justify that
+    \cref{eq:def-lebesgue-integral} is meaningful. If $f$ is nonnegative, we must
+    justify that the function $t |-> \mu\{f>t\}$ is Riemann integrable.
+    If $\mu\{f>t\} = oo$ for some $t\in(0,oo)$, then just define $$\int_0^oo\mu\{f>t\}dt = oo.$$
+    
+    Now let us assume thjat $\mu\{f>t\} < oo$ for every $t\in(0,oo)$.
+    By remembering \Cref{prop:measurable-and-semicontinuity}, the function $t |-> \mu\{f > t\}$
+    is decreasing. This implies that it is bounded on every
+    closed interval $[\epsilon,T]\subset(0,oo)$, hence it is Riemann integrable.
+    Hence, we understood the integral on $(0,oo)$ as an improper Riemann integral:
+    $$
+        \int_0^oo\mu\{f > t\} dt = \lim_{T\uparrow oo\atop\epsilon\downarrow 0}
+        \int_\epsilon^T \mu\{f > t\}dt.
+    $$
+    This shows that \cref{eq:def-lebesgue-integral} is well-defined.
+}
+
+We first study the basic properties of the Lebesgue integral.
+Below theorem holds for \it{every} functions, that is, a function is not need to be
+$\mu$-measurable.
+
+#label(thm:integral-basic-props)
+useenv thm {
+    Let $f$ and $g$ are functions from $X$ into $\R$. Then
+    #enum ((\roman*)) {
+        \item If $f >= 0$ (a.e.), then
+        $$ \int_X fd\mu = \int_0^oo \mu\{f > t\}dt. $$
+        \item If $f <= g$ (a.e.), and $f_-$ is $\mu$-integrable,
+        then $$\int_X fd\mu <= \int_X gd\mu.$$ Moreover, if $g_+$ is $\mu$-integrable,
+        then both $f$ and $g$ are $\mu$-integrable.
+        \item If $\int_X fd\mu$ is meaningful, then $$?|\int_X fd\mu|? <= \int_X |f|d\mu.$$
+        \item For every $\alpha > 0$, $$\mu\{|f| > \alpha\} <= {1//\alpha}\int_X |f|d\mu.$$
+    }
+    \proof
+    #enum ((\roman*)) {
+        \item Since $f>=0$ almost everywhere, we have $\mu\{f < 0\} = 0$.
+        Notice that on $\{f < 0\}$, $f_- > 0$. This implies that $\{f_- > t\} \subset \{f < 0\}$
+        for every $t\in (0,oo)$, and thus
+        $$
+            0 <= \int_0^oo \mu\{f_- > t\} dt = \lim_{T\uparrow oo\atop\epsilon\downarrow 0}
+            \int_\epsilon^T \mu\{f_- > t\} dt
+            <= \lim_{T\uparrow oo\atop\epsilon\downarrow 0}
+            \int_\epsilon^T \mu\{f < 0\} dt = 0.
+        $$
+        On the other hand, by the definition of $f_+$, we have $\{f_+ > t\} = \{f > t\}$
+        for every $t\in(0,oo)$. Therefore,
+        $$
+            \int_X fd\mu = \int_0^oo \mu\{f_+ > t\}dt - \int_0^oo \{f_- > t\}dt
+            = \int_0^oo \mu\{f > t\}dt.
+        $$
+
+        \item First of all, assume that both $f$ and $g$ are nonnegative.
+        Observe that for every $t>=0$ that
+        useenv align* {
+            \{f > t\} &= (\{f > g\} \cap \{f > t\}) \cup (\{f <= g\} \cap \{f > t\}) \\
+            &\subset \{f > g\} \cup (\{f <= g\} \cap \{g > t\}) \\
+            &\subset \{f > g\} \cup \{g > t\}.
+        }
+        Since $f<=g$ (a.e.), $\mu\{f > g\} = 0$. Hence, we have
+        $$
+            \mu\{f > t\} <= \mu\{f > g\} + \mu\{g > t\} = \mu\{g > t\}.
+        $$
+        By integrating both side over $t$ therefore proves that (also use the result of
+        the previous one)
+        $$
+            \int_X fd\mu = \int_0^oo \mu\{f > t\}dt <= \int_0^oo \mu\{g > t\}dt
+            = \int_X gd\mu.
+        $$
+        
+        In general, define $N = \{f <= g\}$. Then notice that $\mu(X-!N) = 0$.
+        Observe that the function $x |-> x \vee 0$ is an increasing function.
+        Thus on $N$, $f<=g$ implies $f_+ <= g_+$.
+        Similarly, since $-f >= -g$ on $N$, this implies that $f_- >= g_-$.
+        Since $f_+$, $f_-$, $g_+$, and $g_-$ are all nonnegative functions, by the above
+        result, we have
+        #eq (eq:thm:integral-basic-props:1) {
+            \int_X f_+ d\mu <= \int_X g_+d\mu,\quad
+            \int_X g_- d\mu <= \int_X f_-d\mu.        
+        }
+        Adding both inequalities, therefore, gives
+        $$
+            \int_X f_+d\mu + \int_X g_-d\mu <= \int_X f_-d\mu + \int_X g_+d\mu.
+        $$
+        Since $f_-$ is $\mu$-integrable, $g_-$ is also $\mu$-integrable by
+        \cref{eq:thm:integral-basic-props:1}.
+        Then by obvious subtraction in both side gives $\int_X fd\mu <= \int_X gd\mu$.
+        Furthermore, if $g_+$ is $\mu$-integrable, then $f_+$ is also $\mu$-integrable
+        by \cref{eq:thm:integral-basic-props:1}. This proves that both $f$ and $g$ are
+        $\mu$-integrable.
+        
+        \item Since $f_+ <= |f|$ and $f_- <= |f|$, the previous result gives
+        $$
+            \int_X f_+d\mu <= \int_X |f|d\mu,\quad
+            \int_X f_-d\mu <= \int_X |f|d\mu.
+        $$
+        Recall the obvious inequality: if $a,b>=0$, then $|a-b| <= a\vee b$.
+        This gives that
+        $$
+            ?|\int_X fd\mu|? = ?|\int_X f_+d\mu - \int_X f_-d\mu|?
+            <= ?(\int_X f_+d\mu)? \vee ?(\int_X f_-d\mu)? <= \int_X |f|d\mu.
+        $$
+        \item It suffices to asssume that $f$ is nonnegative everywhere.
+        Then since $t |-> \mu\{f > t\}$ is nonnegative decreasing function, we have
+        together with (i),
+        $$
+            \int_X fd\mu = \int_0^oo \mu\{f > t\} dt
+            >= \int_0^\alpha \mu\{f > t\}dt >= \alpha\mu\{f > \alpha\}.
+        $$
+    }
+    The theorem is now proved. \proved
+}
+
+useenv remark {
+If $f$ is complex-valued, then \Cref{thm:integral-basic-props} (iii) is false in general.
+Consider $X = \{a,b\}$, and define a measure $\mu$ by
+$$
+    \mu(\emptyset) = 0,\quad \mu\{a\} = \mu\{b\} = \mu(X) = 1.
+$$
+Now consider $f:X->\C$ by $f(a) = 1$, and $f(b) = i$.
+Then first of all, we have
+$$
+    \int_X \Re fd\mu = \int_0^oo \mu\{\Re f > t\} dt
+    = \int_0^1 \mu\{a\}dt = 1,
+$$
+$$
+    \int_X \Im fd\mu = \int_0^oo \mu\{\Im f > t\} dt
+    = \int_0^1 \mu\{b\}dt = 1.
+$$
+Thus we have $\int_X fd\mu = 1 + i$. On the other hand, since $|f| = 1$,
+$$
+    \int_X |f|d\mu = \int_0^oo \mu\{ 1 > t \} dt = \int_0^1 \mu(X)dt = 1.
+$$
+Since $|1+i| = \sqrt{2}$, we find
+$$
+    ?|\int_X fd\mu|? = \sqrt{2} > 1 = \int_X |f|d\mu,
+$$
+thus \Cref{thm:integral-basic-props} (iii) does not holds for complex-valued functions,
+in general.
+Notice that actually, $f$ in the above example is not $\mu$-measurable.
+}
+
+Now we are going to see three important theorems in real analysis.
+They gives the condition when an integral and a limit can be interchanged.
+First of all, we will study the monotone convergence theorem. To prove this theorem,
+we need one lemma whose proof is in the appendix.
+
+#label(lemma:approx-conti)
+useenv lemma {
+    Let $f$ be a nonnegative decreasing function on an interval $[a,b]$,
+    where $-oo<a<b<oo$. Prove that for every $\epsilon>0$, there exists a \it{continuous}
+    function $g$ on $[a,b]$ such that $0 <= g <= f$, and
+    $$
+        \int_a^b f(x)dx < \epsilon + \int_a^b g(x)dx,
+    $$
+    where the integral is understood as the \it{Riemann integral} sense.
+}
+
+#label(thm:MCT)
+useenv thm [The Monotone Convergence Theorem] {
+    Let $f_n$ be a sequence of nonnegative $\mu$-measurable functions such that
+    $f_n\uparrow f$ as $n->oo$. That is, $0 <= f_1 <= f_2 <= ... <= f$, and $f_n$ converges
+    to $f$ as $n->oo$. Then
+    $$
+        \lim_{n->oo}\int_X f_nd\mu = \int_X fd\mu.
+    $$
+    \proof
+    By \Cref{thm:integral-basic-props} (ii), as $f_n <= f_{n+1} <= f$ on $X$ for every $n$, we have
+    $$
+        \int_X f_nd\mu <= \int_X f_{n+1}d\mu <= \int_X fd\mu.
+    $$
+    Hence the sequence $\int_X f_nd\mu$ increases, and we obtain
+    $$
+        \lim_{n->oo}\int_X f_nd\mu <= \int_X fd\mu.
+    $$
+    
+    To prove the converse, it suffices to assume that (recall that the sequence is increasing)
+    $$
+        \sup_n\int_X f_nd\mu = \lim_{n->oo}\int_X f_nd\mu < oo.
+    $$
+    By \Cref{thm:integral-basic-props} (iv), upper asssumption implies that for every $t\in(0,oo)$,
+    #eq (eq:thm:MCT-1) {
+        \sup_n\mu\{f_n > t\} < oo.
+    }
+    On the other hand, notice that $\{f_n > t\} \subset \{f_{n+1} > t\}$ and
+    $\{f > t\} = \bigcup_{n=1}^oo \{f_n > t\}$ for every $n$ and $t\in(0,oo)$
+    because $f_n\uparrow f$ as $n->oo$.
+    In addition, since $f_n$ is $\mu$-measurable, $f$ is also $\mu$-measurable by
+    \Cref{prop:limit-measurability}.
+    Thus using \Cref{thm:measure-continuity} (ii), $\mu\{f_n > t\} -> \mu\{f > t\}$ as $n->oo$
+    for every $t\in(0,oo)$. Because of \cref{eq:thm:MCT-1}, $\mu\{f > t\} < oo$
+    for every $t\in(0,oo)$.
+    Since $t |-> \mu\{f > t\}$ is decreasing, the function is Riemann integrable on every
+    compact subinterval of $(0,oo)$.
+    
+    Fix $\epsilon,\eta>0$ and $T\in(0,oo)$, and take a nonnegative continuous function
+    $g$ on $[\epsilon,T]$ such that $g(t) <= \mu\{f > t\}$ for every $t\in[\epsilon,T]$, and
+    $$
+        \int_\epsilon^T \mu\{f > t\} dt < \eta + \int_\epsilon^T g(t)dt
+    $$
+    by \Cref{lemma:approx-conti}.
+    
+    Now consider $g_n(t) = g(t) \land \mu\{f_n > t\}$.
+    Then $g_n$ is LSC for each $n$ because of \Cref{prop:measurable-and-semicontinuity}
+    and \Cref{prop:props-usc-and-lsc}.
+    In addition $g_n\uparrow g$ as $n->oo$ on $[\epsilon,T]$.
+    Since $g$ is continuous and $[\epsilon,T]$ is compact, by \Cref{thm:dini-theorem},
+    $g_n->g$ uniformly on $[\epsilon,T]$. This together with \Cref{thm:integral-basic-props} implies
+    useenv align* {
+        \int_\epsilon^T \mu\{f > t\} dt
+        &< \eta + \int_\epsilon^T g(t)dt \\
+        &= \eta + \lim_{n->oo}\int_\epsilon^T g_n(t)dt \\
+        &<= \eta + \lim_{n->oo}\int_\epsilon^T \mu\{f_n > t\}dt \\
+        &<= \eta + \lim_{n->oo}\int_0^oo \mu\{f_n > t\}dt \\
+        &= \eta + \lim_{n->oo}\int_X f_nd\mu.
+    }
+    Letting $T\uparrow oo$,  $\epsilon\downarrow 0$, and $\eta\downarrow 0$ in order,
+    we proved the converse inequality. Therefore the proof is finished. \proved
+}

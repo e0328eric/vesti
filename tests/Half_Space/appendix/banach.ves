@@ -1,0 +1,20 @@
+#def #lemma {useenv lemma}
+
+#label(lemma:appx:0)
+#lemma {
+    Let $l_p^\theta(\Z,H_p^\gamma)$ be the space of all $H_p^\gamma$-valued
+    sequences such that
+    $$
+        ||f||_{\gamma,p,\theta}^p = \sum_{n=-oo}^oo e^{n\theta}||f_n||_{\gamma,p}^p
+        < oo.
+    $$
+    This space is a reflexive Banach space.
+    \proof
+    Consider a measure $\mu_\theta$ on $\Z$ by
+    $$
+        \int_\Z f(n)\mu_\theta(dn) \defeq \sum_{n=-oo}^oo e^{n\theta}f(n).
+    $$
+    Then $l_p^\theta(\Z,H_p^\gamma) = L_p(\Z,\mu_\theta,H_p^\gamma)$, and the
+    latter space is a Banach space by the Bochner integeral theory.
+}
+

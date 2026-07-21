@@ -1,0 +1,33 @@
+On the set theory (see \cite{set-theory} for instance), one defines natural
+numbers by following:
+$$
+    0 \defeq \emptyset,\quad 1 \defeq \{0\},\quad 
+    2 \defeq \{0,1\},\quad 3 \defeq \{0,1,2\}, ... .
+$$
+For their definitions, if $n$ is a natural number, we can observe the following
+facts, their rigorous proofs is written in \cite{set-theory}.
+#enum ((\alph*)) {
+    \item For any natural number $n$, every element of $n$ is a subset
+    of $n$. For example, notice that $2\in 3$ by the definition of $3$.
+    Since $2 = \{0,1\}$ and $3 = \{0,1,2\}$, we have $2\subset 3$.
+    \item The set $n$ together with a strict order $\in$ is well-ordered.
+    Recall that then we define an order $<=$ in the sense of
+    \Cref{remark:ordering-and-strict-order}.
+}
+Thus one can generalize natural numbers by the following way.
+
+useenv defin [Ordinal Numbers] {
+    A set $\alpha$ is an \it{ordinal number}\index{ordinal number} if
+    #enum ((\alph*)) {
+        \item Every element of $\alpha$ is a subset of $\alpha$.
+        \item $\in$ is a strict order of $\alpha$ which is well-ordered.
+    }
+
+    We define a \it{successor ordinal}\label{successor ordinal} of $\alpha$ by
+    $\alpha + 1 \defeq \alpha\cup \{\alpha\}$.
+}
+
+useenv remark {
+    By the definition of natural numbers and ordinal numbers,
+    every natural number is an ordinal number.
+}

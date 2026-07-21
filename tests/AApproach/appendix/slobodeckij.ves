@@ -1,0 +1,45 @@
+In this subsection we fix $p\in(1,oo)$, $m$ a nonnegative integer, and $r$ a
+nonnegative real number, and put $r=r_\Z + r_\R$ where $r_\Z$ an integer, and
+$r_\R\in [0,1)$.
+
+Recall that the space $W_p^m(\Omega)$ consists of the elements of $u\in
+L_p(\Omega)$ such that $D^\alpha u\in L_p(\Omega)$, and norm on $W_p^m(\Omega)$
+is
+$$
+    ||u||_{W_p^m(\Omega)} \defeq \sum_{j=1}^m
+    {<{<u>}>}_{W_p^m(\Omega)}^{(j)},\quad
+    {<{<u>}>}_{W_p^m(\Omega)}^{(j)} \defeq
+    \sum_{|\alpha|=j}||D^\alpha u||_{L_p(\Omega)}.
+$$
+The Sobolev-Slobodeckij space $W_p^r(\Omega)$ where $r_\R!=0$ consists of all
+$u\in W_p^{r_\Z}$ such that $||u||_{W_p^r(\Omega)}$ is finite, where
+$$
+    ||u||_{W_p^r(\Omega)} \defeq ||u||_{W_p^{r_\Z}(\Omega)}
+    + {<{<u>}>}_{W_p^r(\Omega)},\quad
+    {<{<u>}>}_{W_p^r(\Omega)}^p\defeq \sum_{|\alpha|=r_\Z}
+    \int_\Omega\int_\Omega {|D^\alpha_xu(x) -
+    D^\alpha_yu(y)|^p//|x-y|^{d+pr_\R}}dxdy.
+$$
+Finally, $W_p^{1,2}((0,T)\times\Omega)$ consists of the elements of $u\in
+L_p((0,T)\times\Omega)$ such that $D_x^\alpha D_t^k u\in L_p((0,T)\times\Omega)$
+where $2|\alpha|+k<=2$.
+
+Denote $W_p^r(T)\defeq W_p^r((0,T)\times\R^d)$ and $W_p^{1,2}(T)\defeq
+W_p^{1,2}((0,T)\times\R^d)$. Below theorem is from Theorem IV.9.2 in \cite{LSU}.
+useenv thm {
+    For any $f\in L_p(T)$ and $u_0\in W_p^{2-2/p}$ there exists a unique
+    solution $u\in W_p^{1,2}(T)$ of the heat equation \cref{eq:heat-eq} with
+    initial data $u(0) = u_0$. In addition,
+    $$\
+        ||u||_{W_p^{1,2}(T)}
+        <= N(d,p,T)(||f||_{L_p(T)} + ||u_0||_{W_p^{2-2/p}}).
+    $$
+}
+It is clear that $W_p^{1,2}(T)=H_p^{1,2}(T)$. However the space of initial value
+is different.
+Using the notation in \cite{Tri1}, we have $W_p^r = \Lambda_{p,p}^r = B_{p,p}^r
+= F_{p,p}^r$. On the other hand, $H_p^r = F_{p,2}^r$ is true. Therefore,
+$W_p^r\supset H_p^r$ holds if $p>=2$. However, $W_p^r\subset H_p^r$ if
+$p\in[1,2]$.
+For this sense, \cref{thm:2.1} makes sense only when $p>=2$.
+
