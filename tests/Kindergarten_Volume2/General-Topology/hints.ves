@@ -1,6 +1,0 @@
-#def #cref { [\Cref{#1}] & }
-
-\hbox{}\hskip-5pt useenv tabular (l@{\hspace{1pc}}p{0.8\textwidth}) {
-  #cref(exe:T0-singleton-closed)
-  Find a topological space which is T$_0$ but not T$_1$. \\
-}

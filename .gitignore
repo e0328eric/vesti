@@ -1,6 +1,4 @@
-/build/
 /.vesti-dummy/
-*.exe
-*.pdb
-*.obj
-*.ilk
+/.zig-cache/
+/zig-out/
+/zig-pkg/

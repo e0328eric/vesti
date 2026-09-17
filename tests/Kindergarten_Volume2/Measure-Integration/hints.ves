@@ -1,6 +1,0 @@
-#def #cref { [\Cref{#1}] & }
-
-\hbox{}\hskip-5pt useenv tabular (l@{\hspace{1pc}}p{0.8\textwidth}) {
-  #cref(defin:positive-negative-fnt)
-  $f\land 0 = -((-f)\vee 0)$ and $f\vee 0 =(|f|+f)/2$ \\
-}
