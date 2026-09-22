@@ -1,4 +1,5 @@
 /.vesti-dummy/
+/vesti-tectonic/target
 /.zig-cache/
 /zig-out/
 /zig-pkg/
