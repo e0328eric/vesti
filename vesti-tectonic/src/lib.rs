@@ -1,4 +1,6 @@
+use std::fs;
 use std::io::{self, IsTerminal};
+use std::path::Path;
 use std::time::SystemTime;
 
 use tectonic::{
@@ -11,11 +13,17 @@ macro_rules! unwrap {
         match $val {
             Ok(val) => val,
             Err(err) => {
-                eprintln!("TECTONIC ERROR: {err}");
+                eprintln!("TECTONIC ERROR: {err:#}");
                 return false;
             }
         }
     };
+}
+
+fn prepare_format_cache(path: &Path) -> io::Result<()> {
+    // Tectonic's default cache path may not exist on a first run. Its format
+    // writer creates a temporary file there, so it needs the directory first.
+    fs::create_dir_all(path)
 }
 
 #[unsafe(no_mangle)]
@@ -52,6 +60,13 @@ extern "C" fn compile_latex_with_tectonic(
     let config = unwrap!(config::PersistentConfig::open(true));
     let bundle = unwrap!(config.default_bundle(false));
     let format_cache_path = unwrap!(config.format_cache_path());
+    if let Err(err) = prepare_format_cache(&format_cache_path) {
+        eprintln!(
+            "TECTONIC ERROR: cannot create format cache directory {}: {err}",
+            format_cache_path.display()
+        );
+        return false;
+    }
 
     let mut sb = driver::ProcessingSessionBuilder::default();
     sb.bundle(bundle)
@@ -75,7 +90,7 @@ extern "C" fn compile_latex_with_tectonic(
     match sess.run(&mut *status) {
         Ok(()) => {}
         Err(err) => {
-            eprintln!("TECTONIC ERROR: {err}\nSee logs in {vesti_local_dummy_dir}\n");
+            eprintln!("TECTONIC ERROR: {err:#}\nSee logs in {vesti_local_dummy_dir}\n");
             return false;
         }
     }
@@ -83,4 +98,71 @@ extern "C" fn compile_latex_with_tectonic(
     println!("[Compile {} Done]", latex_filename);
 
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tectonic::io::{DigestData, IoProvider, OpenResult, format_cache::FormatCache};
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+            let timestamp = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "vesti-format-cache-{}-{timestamp}-{}",
+                std::process::id(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn cold_format_cache_accepts_and_preserves_tectonic_formats() {
+        let directory = TestDirectory::new();
+        let path = directory.0.join("cache").join("formats");
+        let mut cache = FormatCache::new(DigestData::zeros(), path.clone());
+        let mut status = status::NoopStatusBackend::default();
+        let data = b"cached format data";
+
+        // Reproduce the first-run failure using Tectonic's real cache writer.
+        assert!(cache.write_format("latex", data, &mut status).is_err());
+        prepare_format_cache(&path).unwrap();
+        cache.write_format("latex", data, &mut status).unwrap();
+
+        // Preparing an existing cache must retain the format for subsequent runs.
+        prepare_format_cache(&path).unwrap();
+        let OpenResult::Ok(mut input) = cache.input_open_format("latex", &mut status) else {
+            panic!("the cached format should remain readable");
+        };
+        let mut actual = Vec::new();
+        input.read_to_end(&mut actual).unwrap();
+        assert_eq!(actual, data);
+    }
+
+    #[test]
+    fn format_cache_rejects_a_file_without_overwriting_it() {
+        let directory = TestDirectory::new();
+        let path = directory.0.join("formats");
+        fs::write(&path, b"existing file").unwrap();
+
+        assert!(prepare_format_cache(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"existing file");
+    }
 }
