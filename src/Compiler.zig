@@ -379,13 +379,16 @@ fn compileInner(self: *Self) !void {
 const VestiContent = struct {
     filename: []const u8, // pointer
     source: []const u8, // owned by this
+    included_sources: ArrayList([]const u8) = .empty,
     ast: ArrayList(Stmt) = .empty,
     is_main: bool = false,
 
     fn deinit(self: *@This(), allocator: Allocator) void {
-        allocator.free(self.source);
         for (self.ast.items) |*stmt| stmt.deinit(allocator);
         self.ast.deinit(allocator);
+        for (self.included_sources.items) |source| allocator.free(source);
+        self.included_sources.deinit(allocator);
+        allocator.free(self.source);
     }
 };
 
@@ -469,9 +472,15 @@ fn parseVesti(
     }
     try self.global_defkinds.appendSlice(self.allocator, global_defkinds);
 
+    // The AST borrows text from included files as well as the main source.
+    // Keep those buffers alive with the AST after the parser is destroyed.
+    const included_sources = parser.included_sources;
+    parser.included_sources = .empty;
+
     return .{
         .filename = filename,
         .source = source,
+        .included_sources = included_sources,
         .ast = ast,
         .is_main = is_main,
     };
@@ -790,4 +799,92 @@ fn compileLatexWithTectonic(
             return error.CompileLatexFailed;
         }
     } else return error.FindTectonicFunctionFailed;
+}
+
+test "included macro source survives parser teardown" {
+    try expectIncludedSourceSurvives(
+        "#def #TODO {useenv center { \\bf{\\color{red} [#1]}}}",
+        null,
+        "#TODO(Explain why we introduce an ordering in rigor)",
+        "\\begin{center} \\bf{\\color{red} [Explain why we introduce an ordering in rigor]}\\end{center}",
+    );
+}
+
+test "nested included macros and math survive parser teardown" {
+    try expectIncludedSourceSurvives(
+        "#include(nested.ves)\n#def #TODO {useenv center { #bold(#1)}}",
+        "#def #bold {\\bf{\\color{red} [#1]}}\n#def #closure {\\mathrm{cl}{#1}}",
+        "#TODO(Nested expansion)\n$#closure(X)$",
+        "\\begin{center} \\bf{\\color{red} [Nested expansion]}\\end{center}\n$\\mathrm{cl}{X}$",
+    );
+}
+
+fn expectIncludedSourceSurvives(
+    defs: []const u8,
+    nested_defs: ?[]const u8,
+    comptime body: []const u8,
+    expected: []const u8,
+) !void {
+    const allocator = std.testing.allocator;
+    const io = std.testing.io;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(io, .{
+        .sub_path = "defs.ves",
+        .data = defs,
+    });
+    if (nested_defs) |nested| try tmp.dir.writeFile(io, .{
+        .sub_path = "nested.ves",
+        .data = nested,
+    });
+    try tmp.dir.writeFile(io, .{
+        .sub_path = "main.ves",
+        .data = "#include(defs.ves)\n" ++ body,
+    });
+    const filename = try tmp.dir.realPathFileAlloc(io, "main.ves", allocator);
+    defer allocator.free(filename);
+
+    var env_map = try std.testing.environ.createMap(allocator);
+    defer env_map.deinit();
+    var diagnostic = diag.Diagnostic{ .allocator = allocator, .io = io };
+    defer diagnostic.deinit();
+    var engine: LatexEngine = .xelatex;
+    var prev_mtime: ?i96 = null;
+    var compiler: Self = .{
+        .allocator = allocator,
+        .io = io,
+        .env_map = &env_map,
+        .main_filename = filename,
+        .lua = undefined, // Parsing and non-Lua code generation do not use Lua.
+        .diagnostic = &diagnostic,
+        .engine = &engine,
+        .compile_limit = 1,
+        .prev_mtime = &prev_mtime,
+        .luacode_scripts = .{ .before = "", .step = "" },
+        .luacode_contents = .{},
+        .global_defkinds = .empty,
+        .attr = .{
+            .compile_all = false,
+            .watch = false,
+            .no_color = true,
+            .no_exit_err = false,
+        },
+    };
+    defer compiler.deinit();
+    defer compiler.global_defkinds.deinit(allocator);
+
+    // parseVesti destroys its parser before returning. The AST must still
+    // retain every source buffer it borrows from when code generation runs.
+    var content = try compiler.parseVesti(filename, false);
+    defer content.deinit(allocator);
+    var codegen = try Codegen.init(allocator, content.source, content.ast.items, false, &diagnostic);
+    defer codegen.deinit();
+    var output: Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
+    try codegen.codegen(null, null, &output.writer);
+    try std.testing.expectEqualStrings(
+        expected,
+        mem.trim(u8, output.written(), "\n"),
+    );
 }
