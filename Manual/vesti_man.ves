@@ -1028,55 +1028,6 @@ Documentation resumes on a fresh page after the table.
   }
 }
 
-\subsubsection{Supported contexts and diagnostics}
-Long tables start on a fresh single-column page and leave following prose for
-another fresh page. They preserve the host's output routine and page numbering.
-Use a standard plain \TeX\ or single-column \LaTeX\ host. Pending floats or
-insertions, reduced page frames, changed/custom output routines, and boxed or
-multicolumn contexts are unsupported. Flush pending \LaTeX\ floats with
-\verb|\clearpage| before starting a long table. The requested page height must
-be at least \verb|\topskip| and no larger than the host's usable page/column
-height, excluding running headers and footers.
-
-A short native table may be nested inside a cell only with an explicit finite
-width. Long tables cannot be nested. Neither builtin is allowed in math mode.
-Cell content must form one reusable local box: ordinary text, inline math,
-paragraphs in wrapped cells, local font changes, and prebuilt image boxes work.
-Recognized global assignments, footnotes, inserts, floats, labels/anchors,
-marks, writes, and page/output changes are rejected. Opaque user macros remain
-the author's responsibility; their expansion must obey the same restrictions.
-
-Geometry and black borders use the portable \TeX\ primitive core. Color needs
-PDF color-stack primitives in pdfTeX or LuaTeX, or balanced driver specials in
-XeTeX/Tectonic. Classic \TeX\ supports only the default black color. Image and
-Unicode/font preparation remain the responsibility of the surrounding document;
-these builtins do not introduce an image loader or font dependency.
-
-Syntax and grid errors are reported before \TeX\ runs. Errors that require
-actual font or page measurements are reported by the generated runtime.
-
-#tabular(width=\hsize, grid=rows, padx=5pt, pady=3pt, valign=top) {
-  columns { col(width=62pt, before={\tt}); col(width=flex(1)); }
-  body {
-    row { cell { T001 } cell { Invalid structure, key, or typed value. } }
-    row { cell { T002 } cell { An incomplete row or too many cells. } }
-    row { cell { T003 } cell { Intersecting cell spans. } }
-    row { cell { T004 } cell { A span extends beyond its section. } }
-    row { cell { T005 } cell { Impossible widths or unwrapped content overflow. } }
-    row { cell { T006 } cell { An explicit rule crosses a merged cell. } }
-    row { cell { T007 } cell { A break conflicts with a rowspan, keep, or nobreak. } }
-    row { cell { T008 } cell { No nonempty row group fits with its header/footer. } }
-    row { cell { T009 } cell { Unsupported engine capability or output context. } }
-    row { cell { T010 } cell { Unsupported cell effects. } }
-    row { cell { T011 } cell { Invalid or overflowing border pattern dimensions. } }
-    row { cell { T012 } cell { Incompatible explicit border styles overlap. } }
-  }
-}
-
-Runnable short tables are in \texttt{examples/native\_tables.ves}.\par
-The long-table example is \texttt{examples/native\_longtable.ves}.\par
-The standalone reference is \texttt{Manual/native-tables.md}.
-
 \section{Lua API}
 Vesti uses Lua in both building script and inline inside of Vesti code.
 Below are functions which are baked in Vesti compiler.
