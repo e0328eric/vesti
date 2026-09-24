@@ -1,0 +1,202 @@
+% Vesti native table runtime. Geometry uses TeX82 primitives exclusively.
+% The host's allocators supply bounded, nonconflicting register handles.
+% Color alone uses the selected engine's primitive/driver adapter.
+% This file is emitted once per document, before any native table.
+\newbox\vestiTBcellbox
+\newbox\vestiTBstack
+\newbox\vestiTBcanvas
+\newbox\vestiTBoverlaybox
+\newbox\vestiTBtransferbox
+\newdimen\vestiTBx
+\newdimen\vestiTBy
+\newdimen\vestiTBwidth
+\newdimen\vestiTBheight
+\newdimen\vestiTBoffset
+\newdimen\vestiTBlength
+\newdimen\vestiTBstroke
+\newdimen\vestiTBgap
+\newdimen\vestiTBdash
+\newdimen\vestiTBphase
+\newdimen\vestiTBposition
+\newdimen\vestiTBremaining
+\newdimen\vestiTBsegmentlength
+\newdimen\vestiTBpart
+\newcount\vestiTBsegmentindex
+\newcount\vestiTBsegmentcount
+\newcount\vestiTBcycle
+\newcount\vestiTBinteger
+\newcount\vestiTBquotient
+\newcount\vestiTBcolorstack
+\def\vestiTBversion{1}
+\def\vestiTBnointerline{\baselineskip=0pt\lineskip=0pt\lineskiplimit=16383pt\relax}
+
+% Root code scopes a table and initializes stack to an empty vbox. Save real
+% cell metrics first: zero-size records avoid overflow in arbitrarily long
+% stacks. Pop in reverse order and restore the saved metrics before placing.
+\def\vestiTBstore{%
+  \wd\vestiTBcellbox=0pt\ht\vestiTBcellbox=0pt\dp\vestiTBcellbox=0pt
+  \setbox\vestiTBstack=\vbox{\vestiTBnointerline
+    \unvbox\vestiTBstack\box\vestiTBcellbox}}
+\def\vestiTBpop{%
+  \setbox\vestiTBstack=\vbox{\vestiTBnointerline\unvbox\vestiTBstack
+    \global\setbox\vestiTBtransferbox=\lastbox}%
+  \setbox\vestiTBcellbox=\box\vestiTBtransferbox
+  \ifvoid\vestiTBcellbox\errmessage{Vesti T010: empty table content stack}\fi}
+
+% The current hbox's baseline is the canvas TOP. Coordinates grow right/down.
+% All paint/place operations have zero external width, height and depth.
+\def\vestiTBzerooverlay{%
+  \wd\vestiTBoverlaybox=0pt\ht\vestiTBoverlaybox=0pt\dp\vestiTBoverlaybox=0pt
+  \box\vestiTBoverlaybox}
+\def\vestiTBplace#1#2{\begingroup
+  \vestiTBoffset=#2\relax\advance\vestiTBoffset by\ht\vestiTBcellbox
+  \setbox\vestiTBoverlaybox=\hbox{\kern#1\relax
+    \lower\vestiTBoffset\box\vestiTBcellbox}%
+  \vestiTBzerooverlay\endgroup}
+\def\vestiTBrawrect{%
+  \setbox\vestiTBoverlaybox=\hbox{\kern\vestiTBx
+    \lower\vestiTBy\hbox{\vrule width\vestiTBwidth height0pt depth\vestiTBheight}}%
+  \vestiTBzerooverlay}
+\def\vestiTBrect#1#2#3#4#5#6{\begingroup
+  \vestiTBx=#1\relax\vestiTBy=#2\relax
+  \vestiTBwidth=#3\relax\vestiTBheight=#4\relax
+  \vestiTBcolorpush{#5}{#6}\vestiTBrawrect\vestiTBcolorpop\endgroup}
+
+% Balanced color operations restore the actual backend state, not merely
+% TeX assignments. Both fill and stroke colors are set for user content.
+\def\vestiTBpdfgray#1{#1 g #1 G}
+\def\vestiTBpdfrgb#1{#1 rg #1 RG}
+\def\vestiTBpdfcmyk#1{#1 k #1 K}
+\def\vestiTBgrayname{gray}
+\def\vestiTBcolorpush#1#2{\begingroup
+  \edef\vestiTBmodel{#1}%
+  \ifx\vestiTBmodel\vestiTBgrayname
+    \vestiTBoffset=#2pt\relax
+    \ifdim\vestiTBoffset=0pt\else
+      \errmessage{Vesti T009: this TeX engine has no native table color adapter}%
+    \fi
+  \else\errmessage{Vesti T009: this TeX engine has no native table color adapter}\fi
+  \endgroup}
+\let\vestiTBcolorpop\relax
+\ifx\pdfcolorstackinit\vestiTBundefined
+  \ifx\pdfextension\vestiTBundefined
+    \ifx\XeTeXversion\vestiTBundefined\else
+      \def\vestiTBcolorpush#1#2{\special{color push #1 #2}}%
+      \def\vestiTBcolorpop{\special{color pop}}%
+    \fi
+  \else
+    \ifnum\outputmode>0
+      \vestiTBcolorstack=\pdffeedback colorstackinit page direct{0 g 0 G}\relax
+      \def\vestiTBcolorpush#1#2{\pdfextension colorstack\vestiTBcolorstack
+        push{\csname vestiTBpdf#1\endcsname{#2}}}%
+      \def\vestiTBcolorpop{\pdfextension colorstack\vestiTBcolorstack pop}%
+    \fi
+  \fi
+\else
+  \ifnum\pdfoutput>0
+    \vestiTBcolorstack=\pdfcolorstackinit page direct{0 g 0 G}\relax
+    \def\vestiTBcolorpush#1#2{\pdfcolorstack\vestiTBcolorstack
+      push{\csname vestiTBpdf#1\endcsname{#2}}}%
+    \def\vestiTBcolorpop{\pdfcolorstack\vestiTBcolorstack pop}%
+  \fi
+\fi
+
+% Border call has eleven braced arguments (two are consumed by a continuation):
+% {H|V}{x}{y}{length}{style}{thickness}{gap}{dashlength}{phase}{model}{components}
+% Coordinates specify the envelope's top-left; the caller centers it in its
+% reserved lane. Phase is an inward distance into the repeating ink cycle.
+\def\vestiTBhorizontal{H}
+\def\vestiTBsolid{solid}
+\def\vestiTBdouble{double}
+\def\vestiTBdotted{dotted}
+\def\vestiTBdashed{dashed}
+\def\vestiTBdashdot{dashdot}
+\def\vestiTBborder#1#2#3#4#5#6#7#8#9{\begingroup
+  \edef\vestiTBorientation{#1}\edef\vestiTBstyle{#5}%
+  \vestiTBx=#2\relax\vestiTBy=#3\relax\vestiTBlength=#4\relax
+  \vestiTBstroke=#6\relax\vestiTBgap=#7\relax
+  \vestiTBdash=#8\relax\vestiTBphase=#9\relax
+  \vestiTBbordercolor}
+\def\vestiTBbordercolor#1#2{%
+  \vestiTBcolorpush{#1}{#2}%
+  \vestiTBposition=0pt\vestiTBpart=\vestiTBlength
+  \ifdim\vestiTBstroke>0pt\else
+    \errmessage{Vesti T011: table border thickness must be positive}\fi
+  \ifdim\vestiTBlength<0pt
+    \errmessage{Vesti T011: negative table border length}\fi
+  \ifx\vestiTBstyle\vestiTBsolid
+    \vestiTBink
+  \else\ifx\vestiTBstyle\vestiTBdouble
+    \vestiTBink
+    \ifx\vestiTBorientation\vestiTBhorizontal
+      \advance\vestiTBy by\vestiTBstroke\advance\vestiTBy by\vestiTBgap
+    \else\advance\vestiTBx by\vestiTBstroke\advance\vestiTBx by\vestiTBgap\fi
+    \vestiTBink
+  \else\vestiTBpattern\fi\fi
+  \vestiTBcolorpop\endgroup}
+
+% One clipped ink interval; advance along the axis without changing the run
+% origin. The saved origin is restored by this small local group.
+\def\vestiTBink{\begingroup
+  \ifx\vestiTBorientation\vestiTBhorizontal
+    \advance\vestiTBx by\vestiTBposition
+    \vestiTBwidth=\vestiTBpart\vestiTBheight=\vestiTBstroke
+  \else
+    \advance\vestiTBy by\vestiTBposition
+    \vestiTBwidth=\vestiTBstroke\vestiTBheight=\vestiTBpart
+  \fi
+  \ifdim\vestiTBpart>0pt\vestiTBrawrect\fi\endgroup}
+
+% Checked integer-sp accumulation prevents overflow before a cycle becomes
+% a dimension. Every accepted interval consumes a positive number of sp.
+\def\vestiTBcycleadd#1{%
+  \vestiTBinteger=#1\relax\vestiTBquotient=1073741823
+  \advance\vestiTBquotient by-\vestiTBinteger
+  \ifnum\vestiTBcycle>\vestiTBquotient
+    \errmessage{Vesti T011: table border pattern cycle exceeds TeX dimensions}%
+  \else\advance\vestiTBcycle by\vestiTBinteger\fi}
+\def\vestiTBpattern{%
+  \ifdim\vestiTBgap>0pt\else
+    \errmessage{Vesti T011: table border gap must be positive}\vestiTBgap=1sp\fi
+  \ifdim\vestiTBphase<0pt
+    \errmessage{Vesti T011: table border phase must be nonnegative}\vestiTBphase=0pt\fi
+  \ifx\vestiTBstyle\vestiTBdotted\vestiTBdash=\vestiTBstroke\fi
+  \ifdim\vestiTBdash>0pt\else
+    \errmessage{Vesti T011: table dash length must be positive}\vestiTBdash=1sp\fi
+  \vestiTBsegmentcount=2\relax
+  \ifx\vestiTBstyle\vestiTBdashdot\vestiTBsegmentcount=4\relax\else
+    \ifx\vestiTBstyle\vestiTBdotted\else
+      \ifx\vestiTBstyle\vestiTBdashed\else\vestiTBsegmentcount=6\relax\fi\fi\fi
+  \vestiTBcycle=0\relax\vestiTBcycleadd\vestiTBdash\vestiTBcycleadd\vestiTBgap
+  \ifnum\vestiTBsegmentcount>2
+    \vestiTBcycleadd\vestiTBstroke\vestiTBcycleadd\vestiTBgap\fi
+  \ifnum\vestiTBsegmentcount>4
+    \vestiTBcycleadd\vestiTBstroke\vestiTBcycleadd\vestiTBgap\fi
+  \vestiTBinteger=\vestiTBphase\vestiTBquotient=\vestiTBinteger
+  \divide\vestiTBquotient by\vestiTBcycle
+  \multiply\vestiTBquotient by\vestiTBcycle
+  \advance\vestiTBinteger by-\vestiTBquotient\vestiTBphase=\vestiTBinteger sp
+  \vestiTBsegmentindex=1\relax\vestiTBseekphase
+  \vestiTBremaining=\vestiTBlength\vestiTBpaintpattern}
+\def\vestiTBsetsegment{%
+  \ifodd\vestiTBsegmentindex
+    \ifnum\vestiTBsegmentindex=1\vestiTBsegmentlength=\vestiTBdash
+    \else\vestiTBsegmentlength=\vestiTBstroke\fi
+  \else\vestiTBsegmentlength=\vestiTBgap\fi}
+\def\vestiTBnextsegment{\advance\vestiTBsegmentindex by1\relax
+  \ifnum\vestiTBsegmentindex>\vestiTBsegmentcount\vestiTBsegmentindex=1\relax\fi}
+\def\vestiTBseekphase{%
+  \vestiTBsetsegment
+  \ifdim\vestiTBphase<\vestiTBsegmentlength\let\vestiTBnext\relax
+  \else\advance\vestiTBphase by-\vestiTBsegmentlength\vestiTBnextsegment
+    \let\vestiTBnext\vestiTBseekphase\fi\vestiTBnext}
+\def\vestiTBpaintpattern{%
+  \ifdim\vestiTBremaining>0pt
+    \vestiTBsetsegment\vestiTBpart=\vestiTBsegmentlength
+    \advance\vestiTBpart by-\vestiTBphase
+    \ifdim\vestiTBpart>\vestiTBremaining\vestiTBpart=\vestiTBremaining\fi
+    \ifodd\vestiTBsegmentindex\vestiTBink\fi
+    \advance\vestiTBposition by\vestiTBpart
+    \advance\vestiTBremaining by-\vestiTBpart
+    \vestiTBphase=0pt\vestiTBnextsegment\let\vestiTBnext\vestiTBpaintpattern
+  \else\let\vestiTBnext\relax\fi\vestiTBnext}

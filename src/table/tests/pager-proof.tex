@@ -1,0 +1,63 @@
+% Run from src/table/tests: pdftex -interaction=nonstopmode -halt-on-error pager-proof.tex
+% Standalone plain-format simulation of compiler hooks; imports no packages.
+\input ../pager_runtime.tex
+\hsize=220pt \vsize=180pt \parindent=0pt
+\newbox\vestiTBcanvas
+\newcount\vestiTBgroupcount
+\newcount\testfirst \newcount\testlast \newcount\testcount
+\newcount\testpages \newcount\testnext \newcount\testscan
+\newdimen\testheight
+\vestiTBgroupcount=10 \testnext=1
+\def\vestiTBget#1{\csname test#1\endcsname}
+\def\testpageheight{140pt}
+\expandafter\def\csname testforce1\endcsname{0}
+\expandafter\def\csname testforce2\endcsname{0}
+\expandafter\def\csname testforce3\endcsname{1}
+\expandafter\def\csname testforce4\endcsname{0}
+\expandafter\def\csname testforce5\endcsname{0}
+\expandafter\def\csname testforce6\endcsname{0}
+\expandafter\def\csname testforce7\endcsname{0}
+\expandafter\def\csname testforce8\endcsname{0}
+\expandafter\def\csname testforce9\endcsname{0}
+\def\testfirsthead{20pt} \def\testhead{15pt}
+\def\testfoot{15pt} \def\testlastfoot{30pt}
+\def\vestiTBmeasurepage#1#2#3#4{%
+  \testfirst=#2\relax \testlast=#3\relax
+  \testcount=\testlast \advance\testcount by-\testfirst \advance\testcount by1
+  \vestiTBpagecost=25pt \multiply\vestiTBpagecost by\testcount
+  \advance\vestiTBpagecost by\csname test#1\endcsname
+  \advance\vestiTBpagecost by\csname test#4\endcsname\relax}
+\def\testrows{%
+  \ifnum\testscan>\testlast\let\testrownext\relax\else
+    \vbox to25pt{\vfil\hbox{ROW \the\testscan}\vfil}%
+    \global\advance\testnext by1 \advance\testscan by1
+    \let\testrownext\testrows
+  \fi\testrownext}
+\def\vestiTBrenderpage#1#2#3#4{%
+  \vestiTBmeasurepage{#1}{#2}{#3}{#4}%
+  \ifnum\testfirst=\testnext\else\errmessage{Rows duplicated or skipped}\fi
+  \advance\testpages by1
+  \immediate\write16{PAGER FRAGMENT \the\testpages: #1 / #2--#3 / #4}%
+  \ifcase\testpages\or
+    \ifnum\testlast=3\else\errmessage{Forced boundary was skipped}\fi
+  \or
+    \ifnum\testlast=7\else\errmessage{Largest legal prefix was not selected}\fi
+  \or
+    \ifnum\testlast=10\else\errmessage{Final fragment wrong}\fi
+    \edef\testactualfoot{#4}\def\testexpectedfoot{lastfoot}%
+    \ifx\testactualfoot\testexpectedfoot\else\errmessage{Final footer missing}\fi
+  \else\errmessage{Too many fragments}\fi
+  \setbox\vestiTBcanvas=\vbox to\vestiTBpagecost{%
+    \baselineskip=0pt\lineskip=0pt\lineskiplimit=16383pt
+    \vbox to\csname test#1\endcsname{\vfil\hbox{#1}\vfil}%
+    \testscan=\testfirst \testrows
+    \vbox to\csname test#4\endcsname{\vfil\hbox{#4}\vfil}}%
+  \testheight=\ht\vestiTBcanvas
+  \setbox\vestiTBcanvas=\hbox{\lower\testheight\box\vestiTBcanvas}%
+  \ht\vestiTBcanvas=0pt \dp\vestiTBcanvas=\testheight}
+\vestiTBpaginate
+\ifnum\testpages=3\else\errmessage{Expected three fragments}\fi
+\ifnum\testnext=11\else\errmessage{Not all groups consumed}\fi
+\ifnum\pageno=4\else\errmessage{Unexpected blank entry/exit page}\fi
+\immediate\write16{PAGER PROOF PASSED: 3 pages; groups 1--10 once; forced cut 3; final footer.}
+\bye

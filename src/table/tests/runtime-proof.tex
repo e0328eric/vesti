@@ -1,0 +1,80 @@
+% Body fixture: run-runtime.py prepends the actual four production runtimes.
+% No input imports or packages. The runner supplies a supported test color.
+\let\K\vestiTBdef
+\vestiTBcols=2\relax
+\K{lane0x}{0pt}\K{lane0w}{1pt}\K{col0w}{50pt}
+\K{lane1x}{51pt}\K{lane1w}{3pt}\K{col1w}{50pt}
+\K{lane2x}{104pt}\K{lane2w}{1pt}\K{totalwidth}{105pt}
+\def\S#1#2#3#4#5{%
+  \K{e#1style}{#2}\K{e#1t}{1pt}\K{e#1g}{#3}\K{e#1d}{4pt}\K{e#1p}{#4}%
+  \K{e#1model}{\vestiTBtestmodel}\K{e#1color}{\vestiTBtestcolor}%
+  \K{e#1sign}{#2-1pt-#3-4pt-#4-testcolor}%
+  \vestiTBvalidatestyle{#1}%
+  \ifdim\vestiTBget{e#1e}=#5\relax\else\errmessage{Wrong border envelope}\fi}
+\S1{solid}{1pt}{0pt}{1pt}
+\S2{dashed}{2pt}{3pt}{1pt}
+\S3{double}{1pt}{0pt}{3pt}
+\S4{solid}{1pt}{0pt}{1pt}
+\K{headrowcount}{0}\K{headtop}{\vestiTBhitem01\vestiTBhitem11}
+\K{headbottom}{\vestiTBhitem01\vestiTBhitem11}
+\K{footrowcount}{0}\K{foottop}{\vestiTBhitem01\vestiTBhitem11}
+\K{footbottom}{\vestiTBhitem01\vestiTBhitem11}
+\K{G1rowcount}{1}\K{G1height}{20pt}
+\K{G1top}{\vestiTBhitem01\vestiTBhitem11}\K{G1bottom}{\vestiTBhitem01}
+\K{G1load}{\setbox\vestiTBcellbox=\hbox{}}\K{G1background}{}
+\K{G1rows}{\vestiTBpaintrow{20pt}{\vestiTBvitem02\vestiTBvitem13\vestiTBvitem22}}
+\K{G2rowcount}{1}\K{G2height}{20pt}
+\K{G2top}{\vestiTBhitem0{-4}\vestiTBhitem1{-4}}
+\K{G2bottom}{\vestiTBhitem01\vestiTBhitem11}
+\K{G2load}{\setbox\vestiTBcellbox=\hbox{}}\K{G2background}{}
+\K{G2rows}{\vestiTBpaintrow{20pt}{\vestiTBvitem02\vestiTBvitem13\vestiTBvitem22}}
+\K{pageheight}{100pt}
+\let\vestiTBtestdraw\vestiTBdrawedge
+\def\vestiTBdrawedge#1#2{%
+  \immediate\write16{EDGE #1 #2 \number\vestiTBpaintx,\number\vestiTBpainty,\number\vestiTBpaintlength}%
+  \vestiTBtestdraw{#1}{#2}}
+\vestiTBmeasurepage{head}{1}{2}{foot}
+\ifdim\vestiTBpagecost=43pt\else\errmessage{Empty section duplicated border bands}\fi
+\vestiTBrenderpage{head}{1}{2}{foot}
+\ifdim\dp\vestiTBcanvas=43pt\else\errmessage{Measured and painted heights differ}\fi
+\ifdim\wd\vestiTBcanvas=105pt\else\errmessage{Wrong canvas width}\fi
+\hbox{\raise43pt\box\vestiTBcanvas}\par
+This text follows the balanced color operations.\par
+\K{G1height}{16000pt}\K{G2height}{16000pt}
+\vestiTBmeasurepage{head}{1}{2}{foot}
+\ifdim\vestiTBpagecost=100.00002pt\else\errmessage{Page cost did not saturate at H+1sp}\fi
+\immediate\write16{ASSEMBLY-PASS}
+
+% A nested table's local stack must not overwrite the enclosing table's stack.
+\begingroup
+  \setbox\vestiTBstack=\vbox{}
+  \setbox\vestiTBcellbox=\hbox{outer}
+  \edef\vestiTBtestwidth{\the\wd\vestiTBcellbox}\vestiTBstore
+  \begingroup
+    \setbox\vestiTBstack=\vbox{}
+    \setbox\vestiTBcellbox=\hbox{inner}\vestiTBstore\vestiTBpop
+  \endgroup
+  \vestiTBpop\setbox\vestiTBcellbox=\hbox{\unhbox\vestiTBcellbox}
+  \ifdim\wd\vestiTBcellbox=\vestiTBtestwidth\relax\else
+    \errmessage{Nested table corrupted the enclosing stack}\fi
+\endgroup
+
+% Total content height exceeds TeX's dimension range, yet records stay zero
+% size and use a bounded number of registers. Every pop must find a box.
+\newcount\vestiTBtestcount
+\setbox\vestiTBstack=\vbox{}
+\vestiTBtestcount=2000\relax
+\def\vestiTBtestsave{\ifnum\vestiTBtestcount>0
+  \setbox\vestiTBcellbox=\hbox{content\vrule height100pt depth20pt width1pt}%
+  \vestiTBstore\advance\vestiTBtestcount by-1\relax
+  \expandafter\vestiTBtestsave\fi}
+\vestiTBtestsave
+\ifdim\ht\vestiTBstack=0pt\else\errmessage{Retained stack has nonzero height}\fi
+\ifdim\dp\vestiTBstack=0pt\else\errmessage{Retained stack has nonzero depth}\fi
+\vestiTBtestcount=2000\relax
+\def\vestiTBtestpop{\ifnum\vestiTBtestcount>0
+  \vestiTBpop\advance\vestiTBtestcount by-1\relax
+  \expandafter\vestiTBtestpop\fi}
+\vestiTBtestpop
+\immediate\write16{STACK-PASS 2000}
+\bye

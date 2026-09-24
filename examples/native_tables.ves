@@ -1,0 +1,57 @@
+docclass article (11pt)
+startdoc
+
+\section{Native stock table}
+The cells, fills, and borders below use native table primitives.
+
+#tabular(width=300pt, grid=all, padx=5pt, pady=4pt, minheight=24pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+  }
+  body {
+    row { cell(colspan=3) { AT\&T Common Stock } }
+    row {
+      cell { Year }
+      cell(background=cmyk(0,.6,.1,0)) { Price }
+      cell { Dividend }
+    }
+    row {
+      cell(background=cmyk(.6,.1,0,0)) { 1971 }
+      cell { 41--!54 } cell { \$2.60 }
+    }
+    row { cell { 1971 } cell { 41--!54 } cell { \$2.60 } }
+  }
+}
+
+\section{Six border patterns and merged cells}
+
+#tabular(width=360pt, grid=all, rulewidth=.6pt, rulecolor=gray(.45), padx=6pt, pady=5pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1.2), align=center);
+    col(width=flex(2.1));
+  }
+  body {
+    hline(style=solid, thickness=1pt, color=rgb(.1,.2,.4));
+    row(before={\bf}) { cell(colspan=3) { Native borders and merged cells } }
+    hline(style=double, thickness=.7pt, gap=1pt, color=rgb(.1,.3,.6));
+    row(before={\bf}) { cell { Group } cell { Pattern } cell { Notes } }
+    hline(style=dashed, dashlength=4pt, gap=2pt, color=rgb(.1,.45,.3));
+    row {
+      cell(rowspan=2, background=rgb(.9,.95,1)) { A merged group }
+      cell { Dotted }
+      cell { The partial dotted rule stops at the merged cell. }
+    }
+    hline(from=2, to=3, style=dotted, thickness=.7pt, gap=1.2pt,
+          color=rgb(.65,.15,.2));
+    row { cell { Wrapped text } cell { Paragraphs wrap to the resolved column width. } }
+    hline(style=dashdot, dashlength=4pt, gap=1.5pt, phase=.5pt,
+          color=rgb(.35,.2,.6));
+    row { cell { B } cell { Dash-dot-dot } cell { Square dots need no graphics package. } }
+    hline(style=dashdotdot, dashlength=4pt, gap=1.5pt, color=rgb(.6,.3,.1));
+    vline(after=0, style=solid, thickness=1pt, color=rgb(.1,.2,.4));
+    vline(after=3, style=solid, thickness=1pt, color=rgb(.1,.2,.4));
+  }
+}

@@ -359,4 +359,5 @@ fn getEngine(
 test "vesti tests" {
     _ = @import("./parser/Parser.zig");
     _ = @import("Compiler.zig");
+    _ = @import("tests/lua_print.zig");
 }

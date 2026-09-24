@@ -1,0 +1,197 @@
+% Table-local metrics and content queues. No register is allocated per row.
+\newbox\vestiTBunwrapped
+\newbox\vestiTBwrapped
+\newbox\vestiTBgroups
+\newbox\vestiTBfirsthead
+\newbox\vestiTBhead
+\newbox\vestiTBfoot
+\newbox\vestiTBlastfoot
+\newbox\vestiTBgroupcanvas
+\newdimen\vestiTBscratch
+\newdimen\vestiTBavailable
+\newdimen\vestiTBdeficit
+\newdimen\vestiTBshare
+\newdimen\vestiTBorigin
+\newdimen\vestiTBplaceX
+\newdimen\vestiTBplaceY
+\newcount\vestiTBcols
+\newcount\vestiTBgroupcount
+\newcount\vestiTBpartindex
+\newcount\vestiTBpartlast
+\newcount\vestiTBscaleN
+\newcount\vestiTBscaleD
+\newcount\vestiTBscaleR
+\newcount\vestiTBscaleQ
+\newcount\vestiTBscaleBits
+\newcount\vestiTBscaleBit
+\newcount\vestiTBscaleTemp
+\newcount\vestiTBcapmeasure
+\newcount\vestiTBmeasureover
+\newdimen\vestiTBmeasurelimit
+\newdimen\vestiTBmeasureremain
+\newdimen\vestiTBmeasureamount
+\def\vestiTBcellsource{unknown cell}
+\def\vestiTBtablesource{unknown table}
+\def\vestiTBget#1{\csname vestiTBv#1\endcsname}
+\long\def\vestiTBdef#1#2{\expandafter\def\csname vestiTBv#1\endcsname{#2}}
+\def\vestiTBset#1#2{\vestiTBscratch=#2\relax
+  \expandafter\edef\csname vestiTBv#1\endcsname{\the\vestiTBscratch}}
+\def\vestiTBadd#1#2{\vestiTBscratch=\vestiTBget{#1}\relax
+  \advance\vestiTBscratch by#2\relax
+  \expandafter\edef\csname vestiTBv#1\endcsname{\the\vestiTBscratch}}
+\def\vestiTBmax#1#2{\vestiTBscratch=#2\relax
+  \ifdim\vestiTBscratch>\vestiTBget{#1}\relax
+    \expandafter\edef\csname vestiTBv#1\endcsname{\the\vestiTBscratch}\fi}
+\def\vestiTBwidtherror#1{\errmessage{Vesti T005 at \vestiTBtablesource: #1}}
+\def\vestiTBfit#1#2{\vestiTBscratch=\vestiTBget{#1w}\relax
+  \advance\vestiTBscratch by-\vestiTBget{#1inner}\relax
+  \ifdim\vestiTBscratch>1sp
+    \errmessage{Vesti T005: cell #2 is \the\vestiTBscratch\space too wide;
+      available \vestiTBget{#1inner}, measured \vestiTBget{#1w}}\fi}
+\def\vestiTBguardcell{%
+  \let\insert\vestiTBbadnumbered\let\write\vestiTBbadnumbered
+  \let\vadjust\vestiTBbadeffect\let\mark\vestiTBbadeffect
+  \let\footnote\vestiTBbadeffect\let\marginpar\vestiTBbadeffect
+  \let\label\vestiTBbadeffect\let\index\vestiTBbadeffect
+  \let\footnotemark\vestiTBbadcommand\let\footnotetext\vestiTBbadeffect
+  \let\output\vestiTBbadcommand\let\shipout\vestiTBbadcommand
+  \let\eject\vestiTBbadcommand\let\supereject\vestiTBbadcommand
+  \let\newpage\vestiTBbadcommand\let\clearpage\vestiTBbadcommand
+  \let\pagebreak\vestiTBbadcommand\let\marks\vestiTBbadnumbered
+  \expandafter\let\csname @float\endcsname\vestiTBbadeffect
+  \expandafter\let\csname @dblfloat\endcsname\vestiTBbadeffect}
+\def\vestiTBbadcommand{\errmessage{Vesti T010 at \vestiTBcellsource:
+  table cells must be reusable boxes; insertions, marks, labels, footnotes,
+  writes, floats, shipout, output changes and page breaks are unsupported}}
+\long\def\vestiTBbadeffect#1{\vestiTBbadcommand}
+\def\vestiTBbadnumbered#1#{\vestiTBbadeffect}
+% Compute rounded available*n/d in integer sp, without a wide product.
+% n <= d <= 10^9. Each doubled remainder fits a signed TeX count.
+\def\vestiTBweighted#1#2{\vestiTBscaleN=#1\relax\vestiTBscaleD=#2\relax
+  \vestiTBscaleBits=\vestiTBavailable\vestiTBscaleBit=536870912\relax
+  \vestiTBscaleR=0\relax\vestiTBscaleQ=0\relax\vestiTBweightedloop
+  \multiply\vestiTBscaleR by2\relax
+  \ifnum\vestiTBscaleR<\vestiTBscaleD\else\advance\vestiTBscaleQ by1\relax\fi
+  \vestiTBshare=\vestiTBscaleQ sp\relax}
+\def\vestiTBweightedloop{\ifnum\vestiTBscaleBit>0
+  \multiply\vestiTBscaleQ by2\relax\multiply\vestiTBscaleR by2\relax
+  \ifnum\vestiTBscaleR<\vestiTBscaleD\else
+    \advance\vestiTBscaleR by-\vestiTBscaleD\advance\vestiTBscaleQ by1\relax\fi
+  \ifnum\vestiTBscaleBits<\vestiTBscaleBit\else
+    \advance\vestiTBscaleBits by-\vestiTBscaleBit
+    \vestiTBscaleTemp=\vestiTBscaleD\advance\vestiTBscaleTemp by-\vestiTBscaleN
+    \ifnum\vestiTBscaleR<\vestiTBscaleTemp
+      \advance\vestiTBscaleR by\vestiTBscaleN
+    \else\advance\vestiTBscaleR by-\vestiTBscaleTemp\advance\vestiTBscaleQ by1\relax\fi
+  \fi\divide\vestiTBscaleBit by2\relax\expandafter\vestiTBweightedloop\fi}
+% Validate rounded dimensions before any lane or pattern is constructed.
+% The checked accumulator never forms an out-of-range dimension first.
+\def\vestiTBstylepositive#1#2{%
+  \ifdim\vestiTBget{e#1#2}>0pt\else
+    \errmessage{Vesti T011: border #1 field #2 rounds to a nonpositive dimension}%
+    \vestiTBset{e#1#2}{1sp}%
+  \fi}
+\def\vestiTBautolength#1#2#3{%
+  \vestiTBstroke=\vestiTBget{e#1t}\relax
+  \vestiTBinteger=1073741823\relax\divide\vestiTBinteger by#3\relax
+  \vestiTBquotient=\vestiTBstroke
+  \ifnum\vestiTBquotient>\vestiTBinteger
+    \errmessage{Vesti T011: border #1 automatic #2 exceeds TeX dimensions}%
+    \vestiTBset{e#1#2}{1sp}%
+  \else\multiply\vestiTBquotient by#3\relax
+    \vestiTBset{e#1#2}{\vestiTBquotient sp}%
+  \fi}
+\def\vestiTBvalidatestyle#1{%
+  \edef\vestiTBstyle{\vestiTBget{e#1style}}%
+  \vestiTBstylepositive{#1}{t}%
+  \ifx\vestiTBstyle\vestiTBsolid\else\vestiTBstylepositive{#1}{g}\fi
+  \ifx\vestiTBstyle\vestiTBsolid\else\ifx\vestiTBstyle\vestiTBdouble\else
+    \vestiTBstylepositive{#1}{d}%
+    \ifdim\vestiTBget{e#1p}<0pt
+      \errmessage{Vesti T011: border #1 phase must be nonnegative}%
+      \vestiTBset{e#1p}{0pt}%
+    \fi
+  \fi\fi
+  \vestiTBcycle=0\relax
+  \vestiTBstroke=\vestiTBget{e#1t}\relax\vestiTBcycleadd\vestiTBstroke
+  \ifx\vestiTBstyle\vestiTBdouble
+    \vestiTBgap=\vestiTBget{e#1g}\relax
+    \vestiTBcycleadd\vestiTBstroke\vestiTBcycleadd\vestiTBgap
+  \fi
+  \vestiTBset{e#1e}{\vestiTBcycle sp}}
+% Resolve a style's phase modulo its full cycle before comparing signatures.
+\def\vestiTBnormalizephase#1#2{\vestiTBcycle=0\relax
+  \vestiTBstroke=\vestiTBget{e#1t}\relax\vestiTBgap=\vestiTBget{e#1g}\relax
+  \vestiTBdash=\vestiTBget{e#1d}\relax\vestiTBphase=\vestiTBget{e#1p}\relax
+  \vestiTBcycleadd\vestiTBdash\vestiTBcycleadd\vestiTBgap
+  \ifnum#2>2 \vestiTBcycleadd\vestiTBstroke\vestiTBcycleadd\vestiTBgap\fi
+  \ifnum#2>4 \vestiTBcycleadd\vestiTBstroke\vestiTBcycleadd\vestiTBgap\fi
+  \ifnum\vestiTBcycle>0
+    \vestiTBinteger=\vestiTBphase\vestiTBquotient=\vestiTBinteger
+    \divide\vestiTBquotient by\vestiTBcycle\multiply\vestiTBquotient by\vestiTBcycle
+    \advance\vestiTBinteger by-\vestiTBquotient\vestiTBset{e#1p}{\vestiTBinteger sp}%
+  \else\errmessage{Vesti T011: nonpositive table pattern cycle}\fi}
+\def\vestiTBcheckstyles#1#2{\edef\vestiTBsigna{\vestiTBget{e#1sign}}%
+  \edef\vestiTBsignb{\vestiTBget{e#2sign}}%
+  \ifx\vestiTBsigna\vestiTBsignb\else
+    \errmessage{Vesti T012: incompatible explicit table border styles}\fi}
+% Content is cached independently of borders, which are painted per fragment.
+\def\vestiTBloadgroup{\setbox\vestiTBstack=\box\vestiTBgroups
+  \vestiTBpop\setbox\vestiTBgroups=\box\vestiTBstack}
+% A rowless section contributes edges to ONE pending join. In particular,
+% an absent head/foot cannot duplicate an exposed body boundary band.
+\def\vestiTBemptypart#1{\let\vestiTBhitem\vestiTBmergehitem
+  \vestiTBget{#1top}\vestiTBget{#1bottom}}
+\def\vestiTBpaintpart#1{\ifnum\vestiTBget{#1rowcount}=0\relax
+  \vestiTBemptypart{#1}%
+  \else\vestiTBpaintjoin{\vestiTBget{#1top}}%
+  \vestiTBorigin=\vestiTBcursor
+  \vestiTBget{#1load}%
+  \wd\vestiTBcellbox=\vestiTBget{totalwidth}\relax
+  \ht\vestiTBcellbox=0pt\dp\vestiTBcellbox=\vestiTBget{#1height}\relax
+  \setbox\vestiTBcontentcanvas=\hbox{\unhbox\vestiTBcontentcanvas
+    \vestiTBplace{0pt}{\vestiTBorigin}}%
+  \setbox\vestiTBbgcanvas=\hbox{\unhbox\vestiTBbgcanvas\vestiTBget{#1background}}%
+  \vestiTBget{#1rows}\vestiTBpaintpending{\vestiTBget{#1bottom}}\fi}
+% A page probe stops at H+1sp. It need not form the full document height,
+% which may exceed TeX's maximum dimension even though every page fits.
+\def\vestiTBmeasureadvance#1{%
+  \ifnum\vestiTBcapmeasure=1
+    \ifnum\vestiTBmeasureover=0
+      \vestiTBmeasureamount=#1\relax
+      \vestiTBmeasureremain=\vestiTBmeasurelimit
+      \advance\vestiTBmeasureremain by-\vestiTBcursor
+      \ifdim\vestiTBmeasureamount>\vestiTBmeasureremain
+        \vestiTBcursor=\vestiTBmeasurelimit\advance\vestiTBcursor by1sp
+        \vestiTBmeasureover=1\relax
+      \else\advance\vestiTBcursor by\vestiTBmeasureamount\fi
+    \fi
+  \else\advance\vestiTBcursor by#1\relax\fi}
+\def\vestiTBmeasurepart#1{\ifnum\vestiTBmeasureover=0
+  \ifnum\vestiTBget{#1rowcount}=0\relax\vestiTBemptypart{#1}%
+  \else\vestiTBmeasurejoin{\vestiTBget{#1top}}%
+    \vestiTBmeasureadvance{\vestiTBget{#1height}}%
+    \vestiTBmeasurepending{\vestiTBget{#1bottom}}%
+  \fi\fi}
+\def\vestiTBmeasurepage#1#2#3#4{\vestiTBmeasurestart
+  \vestiTBcapmeasure=1\relax\vestiTBmeasureover=0\relax
+  \vestiTBmeasurelimit=\vestiTBget{pageheight}\relax
+  \ifdim\vestiTBmeasurelimit>1073741822sp
+    \errmessage{Vesti T009: pageheight must leave one scaled point of dimension headroom}%
+    \vestiTBmeasurelimit=1073741822sp\relax
+  \fi
+  \vestiTBmeasurepart{#1}\vestiTBpartindex=#2\relax\vestiTBpartlast=#3\relax
+  \vestiTBmeasuregroups\vestiTBmeasurepart{#4}%
+  \ifnum\vestiTBmeasureover=0\vestiTBmeasurefinish\fi
+  \vestiTBpagecost=\vestiTBcursor\vestiTBcapmeasure=0\relax\vestiTBmeasureover=0\relax}
+\def\vestiTBmeasuregroups{\let\vestiTBmeasurenext\relax
+  \ifnum\vestiTBmeasureover=0\ifnum\vestiTBpartindex>\vestiTBpartlast\else
+    \vestiTBmeasurepart{G\the\vestiTBpartindex}\advance\vestiTBpartindex by1\relax
+    \let\vestiTBmeasurenext\vestiTBmeasuregroups
+  \fi\fi\vestiTBmeasurenext}
+\def\vestiTBrenderpage#1#2#3#4{\vestiTBpaintstart
+  \vestiTBpaintpart{#1}\vestiTBpartindex=#2\relax\vestiTBpartlast=#3\relax
+  \vestiTBpaintgroups\vestiTBpaintpart{#4}\vestiTBpaintfinish}
+\def\vestiTBpaintgroups{\ifnum\vestiTBpartindex>\vestiTBpartlast\else
+  \vestiTBpaintpart{G\the\vestiTBpartindex}\advance\vestiTBpartindex by1\relax
+  \expandafter\vestiTBpaintgroups\fi}

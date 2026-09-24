@@ -296,6 +296,8 @@ pub const VESTI_BUILTINS = std.StaticStringMap(void).initComptime(.{
     .{ "mathchardef" },
     .{ "mathmode" },
     .{ "picture" },
+    .{ "tabular" },
+    .{ "longtabular" },
     .{ "raw_tex" },
     .{ "showfont" },
     .{ "textmode" },

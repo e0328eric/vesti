@@ -1,0 +1,73 @@
+docclass article (11pt)
+startdoc
+
+\newdimen\MetricPad
+\newdimen\MetricMinimum
+\MetricPad=1em
+\MetricMinimum=3ex
+\font\MetricLarge=cmr10 at 20pt
+\setbox0=\hbox{\vrule width35pt height32pt depth8pt}
+
+#tabular(grid=all, padx=3pt, pady=2pt) {
+  columns { col(width=natural); col(width=110pt); }
+  body {
+    row { cell { Natural-one } cell { Wrapped-one has several words to wrap. } }
+    row { cell { Natural-two } cell { Wrapped-two follows its natural neighbor. } }
+    row { cell(colspan=2, wrap=no) { Spanning natural-width constraint expands the first column. } }
+  }
+}
+
+#tabular(grid=all, padx=1em, minheight=3ex) {
+  columns { col(width=15em); col(width=15em); }
+  body {
+    row {
+      cell(before={\MetricLarge}) {
+        %-\ifdim\vestiTBget{padx}=\MetricPad\else\errmessage{METRIC: em was resolved after the cell font}\fi
+        \ifdim\vestiTBget{minheight}=\MetricMinimum\else\errmessage{METRIC: ex was resolved after the cell font}\fi-%
+        Font test
+      }
+      cell(before={\bf}){Frozen dimensions}
+    }
+    row {
+      cell(rowspan=2, align=center) { \copy0 }
+      cell { Image-top }
+    }
+    row { cell { Image-bottom } }
+  }
+}
+
+#tabular {
+  columns { col(width=160pt); }
+  body { row { cell {
+    #tabular(width=140pt, grid=all) {
+      columns { col(width=flex(1)); col(width=flex(1)); }
+      body { row { cell { Nested-left } cell { Nested-right } } }
+    }
+  } } }
+}
+
+#tabular {
+  columns { col(width=180pt); }
+  body {
+    hline(style=dotted, thickness=1pt, gap=1pt, phase=0pt);
+    hline(style=dotted, thickness=65536sp, gap=65536sp, phase=2pt);
+    row { cell { Equivalent border signatures } }
+  }
+}
+
+#longtabular(width=220pt, pageheight=110pt, grid=all, minheight=20pt) {
+  columns { col(width=flex(1)); }
+  head { row { cell { Metric continuation header } } }
+  firsthead {}
+  foot { row { cell { Metric continuation footer } } }
+  lastfoot {}
+  body {
+    row { cell { Metric-long-one } }
+    row { cell { Metric-long-two } }
+    row { cell { Metric-long-three } }
+    break;
+    row { cell { Metric-long-four } }
+    row { cell { Metric-long-five } }
+    row { cell { Metric-long-six } }
+  }
+}

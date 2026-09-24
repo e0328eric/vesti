@@ -1,0 +1,13 @@
+#tabular(grid=all, rulestyle=dashed, rulewidth=.5pt, padx=4pt, pady=3pt) {
+  columns { col(width=70pt, align=center); col(width=120pt); }
+  body {
+    hline(style=double, thickness=.8pt, gap=1pt);
+    row { cell(colspan=2) { Portable primitive table } }
+    row { cell(rowspan=2) { Group } cell { First detail } }
+    hline(from=2, to=2, style=dotted);
+    row { cell { Second detail } }
+    hline(style=dashdotdot, thickness=.6pt, dashlength=3pt, gap=1pt);
+    vline(after=0, style=dashdot);
+    vline(after=2, style=solid);
+  }
+}

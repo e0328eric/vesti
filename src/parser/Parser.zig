@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const ast = @import("ast.zig");
+const table_model = @import("../table/model.zig");
 const defkind = @import("defkind.zig");
 const diag = @import("../diagnostic.zig");
 const fmt = std.fmt;
@@ -2530,10 +2531,345 @@ fn parseBuiltin_copy_file(self: *Self) ParseError!Stmt {
     return Stmt.NopStmt;
 }
 
+// Native tables use contextual words, leaving the ordinary Vesti lexer unchanged.
+fn tableError(self: *Self, span: Span, message: []const u8) ParseError {
+    self.diagnostic.initDiagInner(.{ .ParseError = .{
+        .err_info = .{ .TableError = .{ .code = "T001", .message = message } },
+        .span = span,
+    } });
+    return error.ParseFailed;
+}
+
+fn tableWord(self: *Self, word: []const u8) bool {
+    return mem.eql(u8, self.getTok(.current).lit.in_text, word);
+}
+
+fn tableTakeWord(self: *Self, comptime word: []const u8) ParseError!void {
+    if (!self.tableWord(word)) return self.tableError(self.getTok(.current).span, "expected '" ++ word ++ "' in table structure");
+    self.nextToken();
+    self.eatWhitespaces(true);
+}
+
+fn tableTake(self: *Self, comptime token: TokenType) ParseError!void {
+    _ = try self.expectWithError(token, .eat);
+    self.eatWhitespaces(true);
+}
+
+fn parseBuiltin_tabular(self: *Self) ParseError!Stmt {
+    return self.parseNativeTable(.short);
+}
+fn parseBuiltin_longtabular(self: *Self) ParseError!Stmt {
+    return self.parseNativeTable(.long);
+}
+
+fn parseNativeTable(self: *Self, kind: table_model.Kind) ParseError!Stmt {
+    const table = try self.allocator.create(table_model.Table);
+    table.* = .{ .kind = kind, .span = self.getTok(.current).span };
+    errdefer {
+        table.deinit(self.allocator);
+        self.allocator.destroy(table);
+    }
+    if (self.doc_state.math_mode) return self.tableError(table.span, "native tables cannot appear in math mode");
+    self.nextToken();
+    self.eatWhitespaces(true);
+    try self.parseTableOptions(&table.options);
+    if (kind == .short and table.options.pageheight != null)
+        return self.tableError(table.span, "pageheight is only valid for longtabular");
+    if (kind == .long and (table.options.pageheight == null or table.options.width == .natural))
+        return self.tableError(table.span, "longtabular requires finite width and pageheight");
+    try self.tableTake(.Lbrace);
+    try self.tableTakeWord("columns");
+    try self.tableTake(.Lbrace);
+    while (self.currToktype() != .Rbrace) {
+        var col: table_model.Column = .{ .span = self.getTok(.current).span };
+        errdefer col.deinit(self.allocator);
+        try self.tableTakeWord("col");
+        try self.parseTableOptions(&col);
+        if (kind == .long and col.width == .natural)
+            return self.tableError(col.span, "longtabular columns must have fixed or flex widths");
+        if (col.width == .flex and table.options.width == .natural)
+            return self.tableError(col.span, "flex columns require a finite table width");
+        try self.tableTake(.Semicolon);
+        try table.columns.append(self.allocator, col);
+    }
+    if (table.columns.items.len == 0) return self.tableError(table.span, "tables require at least one column");
+    try self.tableTake(.Rbrace);
+    var seen = [_]bool{false} ** @typeInfo(table_model.SectionKind).@"enum".fields.len;
+    while (self.currToktype() != .Rbrace) {
+        const section_span = self.getTok(.current).span;
+        const section_kind = std.meta.stringToEnum(table_model.SectionKind, self.getTok(.current).lit.in_text) orelse return self.tableError(section_span, "expected body, firsthead, head, foot, or lastfoot section");
+        if (seen[@intFromEnum(section_kind)]) return self.tableError(section_span, "duplicate table section");
+        seen[@intFromEnum(section_kind)] = true;
+        if (kind == .short and section_kind != .body) return self.tableError(section_span, "tabular permits only the body section");
+        self.nextToken();
+        self.eatWhitespaces(true);
+        var section: table_model.Section = .{ .kind = section_kind, .span = section_span };
+        errdefer section.deinit(self.allocator);
+        try self.parseTableSection(&section, kind);
+        if (section_kind == .body and section.rows.items.len == 0)
+            return self.tableError(section_span, "the table body must contain at least one row");
+        for (section.boundaries.items) |boundary| {
+            if (boundary.after == 0 or boundary.after >= section.rows.items.len)
+                return self.tableError(boundary.span, "break and nobreak must be between body rows");
+        }
+        try table.sections.append(self.allocator, section);
+    }
+    if (!seen[@intFromEnum(table_model.SectionKind.body)]) return self.tableError(table.span, "exactly one body section is required");
+    table.span.end = self.getTok(.current).span.end;
+    return .{ .Table = table }; // Like other builtins, leave the closing brace for the caller.
+}
+
+fn parseTableSection(self: *Self, section: *table_model.Section, kind: table_model.Kind) ParseError!void {
+    try self.tableTake(.Lbrace);
+    while (self.currToktype() != .Rbrace) {
+        const span = self.getTok(.current).span;
+        if (self.tableWord("row")) {
+            var row = try self.parseTableRow();
+            errdefer row.deinit(self.allocator);
+            try section.rows.append(self.allocator, row);
+        } else if (self.tableWord("hline")) {
+            try self.parseTableHRule(section);
+        } else if (self.tableWord("vline")) {
+            var rule: table_model.VRule = .{ .span = span };
+            try self.tableTakeWord("vline");
+            try self.parseTableOptions(&rule);
+            try self.tableTake(.Semicolon);
+            try section.vlines.append(self.allocator, rule);
+        } else if (self.tableWord("keep")) {
+            if (section.kind != .body) return self.tableError(span, "keep is permitted only in the body section");
+            try self.tableTakeWord("keep");
+            try self.tableTake(.Lbrace);
+            const first = section.rows.items.len;
+            if (!self.tableWord("row")) return self.tableError(span, "keep must start with a row");
+            while (self.currToktype() != .Rbrace) {
+                if (self.tableWord("hline")) {
+                    try self.parseTableHRule(section);
+                    if (self.currToktype() == .Rbrace) return self.tableError(span, "keep must end with a row");
+                } else if (self.tableWord("row")) {
+                    var row = try self.parseTableRow();
+                    errdefer row.deinit(self.allocator);
+                    try section.rows.append(self.allocator, row);
+                } else return self.tableError(self.getTok(.current).span, "keep permits rows and intervening hline rules only");
+            }
+            try self.tableTake(.Rbrace);
+            try section.keeps.append(self.allocator, .{ .first = first, .end = section.rows.items.len, .span = span });
+        } else if (self.tableWord("break") or self.tableWord("nobreak")) {
+            if (kind != .long or section.kind != .body) return self.tableError(span, "break and nobreak are permitted only in a longtabular body");
+            const force = self.tableWord("break");
+            self.nextToken();
+            self.eatWhitespaces(true);
+            try self.tableTake(.Semicolon);
+            try section.boundaries.append(self.allocator, .{ .after = section.rows.items.len, .kind = if (force) .force else .forbid, .span = span });
+        } else return self.tableError(span, "expected row, hline, vline, keep, break, or nobreak");
+    }
+    section.span.end = self.getTok(.current).span.end;
+    try self.tableTake(.Rbrace);
+}
+
+fn parseTableHRule(self: *Self, section: *table_model.Section) ParseError!void {
+    var rule: table_model.HRule = .{ .boundary = section.rows.items.len, .span = self.getTok(.current).span };
+    try self.tableTakeWord("hline");
+    try self.parseTableOptions(&rule);
+    try self.tableTake(.Semicolon);
+    try section.hlines.append(self.allocator, rule);
+}
+
+fn parseTableRow(self: *Self) ParseError!table_model.Row {
+    var row: table_model.Row = .{ .span = self.getTok(.current).span };
+    errdefer row.deinit(self.allocator);
+    try self.tableTakeWord("row");
+    try self.parseTableOptions(&row.options);
+    try self.tableTake(.Lbrace);
+    while (self.currToktype() != .Rbrace) {
+        var cell: table_model.Cell = .{ .span = self.getTok(.current).span };
+        errdefer cell.deinit(self.allocator);
+        try self.tableTakeWord("cell");
+        try self.parseTableOptions(&cell.options);
+        cell.body = try self.parseTableContent();
+        cell.span.end = self.tok_list.get(self.tok_idx - 1).span.end;
+        try row.cells.append(self.allocator, cell);
+    }
+    row.span.end = self.getTok(.current).span.end;
+    try self.tableTake(.Rbrace);
+    return row;
+}
+
+fn parseTableContent(self: *Self) ParseError!ArrayList(Stmt) {
+    const braced = try self.parseBrace(false);
+    self.nextToken();
+    self.eatWhitespaces(true);
+    return braced.Braced.inner;
+}
+
+// Only structural scalar values are collected here. Content always uses parseBrace.
+fn tableScalar(self: *Self) ParseError!ArrayList(u8) {
+    var scalar: ArrayList(u8) = .empty;
+    errdefer scalar.deinit(self.allocator);
+    var depth: usize = 0;
+    while (true) {
+        const tok = self.getTok(.current);
+        switch (tok.toktype) {
+            .Comma, .Rparen => if (depth == 0) {
+                break;
+            },
+            .Lbrace, .Rbrace, .Semicolon, .Eof => return self.tableError(tok.span, "invalid or unterminated table option value"),
+            else => {},
+        }
+        if (tok.toktype == .Lparen) depth += 1;
+        if (tok.toktype == .Rparen) depth -= 1;
+        try scalar.appendSlice(self.allocator, tok.lit.in_text);
+        self.nextToken();
+    }
+    if (mem.trim(u8, scalar.items, " \t\r\n").len == 0)
+        return self.tableError(self.getTok(.current).span, "table option values must not be empty");
+    return scalar;
+}
+
+fn parseTableOptions(self: *Self, target: anytype) ParseError!void {
+    const T = @typeInfo(@TypeOf(target)).pointer.child;
+    const is_rule = T == table_model.HRule or T == table_model.VRule;
+    const required = T == table_model.Column or T == table_model.VRule;
+    if (self.currToktype() != .Lparen) {
+        if (required) return self.tableError(self.getTok(.current).span, if (T == table_model.Column) "col requires a width option" else "vline requires an after option");
+        return;
+    }
+    try self.tableTake(.Lparen);
+    if (self.currToktype() == .Rparen) return self.tableError(self.getTok(.current).span, "empty table option lists are not permitted");
+    var keys: [32][]const u8 = undefined;
+    var count: usize = 0;
+    var required_seen = false;
+    while (true) {
+        const span = self.getTok(.current).span;
+        const key = self.getTok(.current).lit.in_text;
+        if (key.len == 0 or !std.ascii.isAlphabetic(key[0])) return self.tableError(span, "expected a table option key");
+        for (keys[0..count]) |old| if (mem.eql(u8, old, key)) return self.tableError(span, "duplicate table option key");
+        if (count == keys.len) return self.tableError(span, "too many table options");
+        keys[count] = key;
+        count += 1;
+        self.nextToken();
+        self.eatWhitespaces(true);
+        try self.tableTake(.Equal);
+        if (mem.eql(u8, key, "before")) {
+            if (comptime T == table_model.Column or T == table_model.RowOptions or T == table_model.CellOptions) {
+                target.before = try self.parseTableContent();
+            } else return self.tableError(span, "before is only valid for columns, rows, and cells");
+        } else {
+            var scalar = try self.tableScalar();
+            defer scalar.deinit(self.allocator);
+            const raw = mem.trim(u8, scalar.items, " \t\r\n");
+            if (comptime T == table_model.TableOptions) {
+                if (mem.eql(u8, key, "width")) target.width = try self.tableWidth(raw, span, true, true, false) else if (mem.eql(u8, key, "pageheight")) target.pageheight = try self.tableWidth(raw, span, false, true, false) else if (mem.eql(u8, key, "align")) target.@"align" = try self.tableEnum(table_model.Align, raw, span) else if (mem.eql(u8, key, "valign")) target.valign = try self.tableEnum(table_model.VAlign, raw, span) else if (mem.eql(u8, key, "grid")) target.grid = try self.tableEnum(table_model.Grid, raw, span) else if (mem.eql(u8, key, "padx")) target.padx = try self.tableDim(raw, span, false) else if (mem.eql(u8, key, "pady")) target.pady = try self.tableDim(raw, span, false) else if (mem.eql(u8, key, "minheight")) target.minheight = try self.tableDim(raw, span, false) else if (mem.eql(u8, key, "rulestyle")) target.border.style = try self.tableEnum(table_model.Pattern, raw, span) else if (mem.eql(u8, key, "rulewidth")) target.border.thickness = try self.tableDim(raw, span, true) else if (mem.eql(u8, key, "rulecolor")) target.border.color = try self.tableColor(raw, span) else if (mem.eql(u8, key, "rulegap")) target.border.gap = try self.tableAutoDim(raw, span) else if (mem.eql(u8, key, "ruledashlength")) target.border.dashlength = try self.tableAutoDim(raw, span) else if (mem.eql(u8, key, "rulephase")) target.border.phase = try self.tableDim(raw, span, false) else return self.tableError(span, "unknown table option");
+            } else if (comptime T == table_model.Column) {
+                if (mem.eql(u8, key, "width")) {
+                    target.width = try self.tableWidth(raw, span, true, false, true);
+                    required_seen = true;
+                } else if (mem.eql(u8, key, "align")) target.@"align" = try self.tableEnum(table_model.Align, raw, span) else if (mem.eql(u8, key, "valign")) target.valign = try self.tableEnum(table_model.VAlign, raw, span) else if (mem.eql(u8, key, "wrap")) target.wrap = try self.tableBool(raw, span) else return self.tableError(span, "unknown column option");
+            } else if (comptime T == table_model.RowOptions) {
+                if (mem.eql(u8, key, "minheight")) target.minheight = try self.tableDim(raw, span, false) else if (mem.eql(u8, key, "background")) target.background = try self.tableColor(raw, span) else return self.tableError(span, "unknown row option");
+            } else if (comptime T == table_model.CellOptions) {
+                if (mem.eql(u8, key, "colspan")) target.colspan = try self.tableInteger(raw, span, true) else if (mem.eql(u8, key, "rowspan")) target.rowspan = try self.tableInteger(raw, span, true) else if (mem.eql(u8, key, "align")) target.@"align" = try self.tableEnum(table_model.Align, raw, span) else if (mem.eql(u8, key, "valign")) target.valign = try self.tableEnum(table_model.VAlign, raw, span) else if (mem.eql(u8, key, "wrap")) target.wrap = try self.tableBool(raw, span) else if (mem.eql(u8, key, "background")) target.background = try self.tableColor(raw, span) else return self.tableError(span, "unknown cell option");
+            } else if (comptime is_rule) {
+                if (mem.eql(u8, key, "from")) target.from = try self.tableInteger(raw, span, true) else if (mem.eql(u8, key, "to")) target.to = try self.tableInteger(raw, span, true) else if (mem.eql(u8, key, "style")) target.style.style = try self.tableEnum(table_model.Pattern, raw, span) else if (mem.eql(u8, key, "thickness")) target.style.thickness = try self.tableDim(raw, span, true) else if (mem.eql(u8, key, "color")) target.style.color = try self.tableColor(raw, span) else if (mem.eql(u8, key, "gap")) target.style.gap = try self.tableAutoDim(raw, span) else if (mem.eql(u8, key, "dashlength")) target.style.dashlength = try self.tableAutoDim(raw, span) else if (mem.eql(u8, key, "phase")) target.style.phase = try self.tableDim(raw, span, false) else if (comptime T == table_model.VRule) {
+                    if (mem.eql(u8, key, "after")) {
+                        target.after = try self.tableInteger(raw, span, false);
+                        required_seen = true;
+                    } else return self.tableError(span, "unknown vertical rule option");
+                } else return self.tableError(span, "unknown horizontal rule option");
+            } else @compileError("unknown table option target");
+        }
+        if (self.currToktype() == .Rparen) break;
+        try self.tableTake(.Comma);
+        if (self.currToktype() == .Rparen) break;
+    }
+    try self.tableTake(.Rparen);
+    if (required and !required_seen) return self.tableError(self.getTok(.current).span, if (T == table_model.Column) "col requires a width option" else "vline requires an after option");
+}
+
+fn tableEnum(self: *Self, comptime T: type, raw: []const u8, span: Span) ParseError!T {
+    return std.meta.stringToEnum(T, raw) orelse self.tableError(span, if (T == table_model.Align) "alignment must be left, center, or right" else if (T == table_model.VAlign) "vertical alignment must be top, middle, or bottom" else if (T == table_model.Grid) "grid must be none, frame, rows, columns, or all" else "border style must be solid, double, dotted, dashed, dashdot, or dashdotdot");
+}
+
+fn tableBool(self: *Self, raw: []const u8, span: Span) ParseError!bool {
+    if (mem.eql(u8, raw, "yes")) return true;
+    if (mem.eql(u8, raw, "no")) return false;
+    return self.tableError(span, "wrap must be yes or no");
+}
+
+fn tableNumber(self: *Self, raw: []const u8, span: Span) ParseError!f64 {
+    if (raw.len == 0) return self.tableError(span, "expected an unsigned decimal number");
+    var dots: usize = 0;
+    var digits: usize = 0;
+    for (raw) |c| {
+        if (std.ascii.isDigit(c)) digits += 1 else if (c == '.') dots += 1 else return self.tableError(span, "expected an unsigned decimal number; signs and exponents are not allowed");
+    }
+    if (dots > 1 or digits == 0 or raw[raw.len - 1] == '.') return self.tableError(span, "invalid decimal number");
+    const value = fmt.parseFloat(f64, raw) catch return self.tableError(span, "invalid decimal number");
+    if (!std.math.isFinite(value)) return self.tableError(span, "table number is too large");
+    return value;
+}
+
+fn tableInteger(self: *Self, raw: []const u8, span: Span, positive: bool) ParseError!usize {
+    for (raw) |c| if (!std.ascii.isDigit(c)) return self.tableError(span, "expected an unsigned integer");
+    const value = fmt.parseInt(usize, raw, 10) catch return self.tableError(span, "invalid or overflowing integer");
+    if (positive and value == 0) return self.tableError(span, "expected a positive integer");
+    return value;
+}
+
+fn tableDim(self: *Self, raw: []const u8, span: Span, positive: bool) ParseError!table_model.Dim {
+    var n: usize = 0;
+    while (n < raw.len and (std.ascii.isDigit(raw[n]) or raw[n] == '.')) : (n += 1) {}
+    const unit = std.meta.stringToEnum(table_model.Unit, raw[n..]) orelse return self.tableError(span, "expected a dimension with an immediately following TeX unit");
+    const value = try self.tableNumber(raw[0..n], span);
+    if (positive and value == 0) return self.tableError(span, "this dimension must be positive");
+    return .{ .value = value, .unit = unit };
+}
+
+fn tableAutoDim(self: *Self, raw: []const u8, span: Span) ParseError!table_model.AutoDim {
+    if (mem.eql(u8, raw, "auto")) return .auto;
+    return .{ .dimension = try self.tableDim(raw, span, true) };
+}
+
+fn tableCall(raw: []const u8, name: []const u8) ?[]const u8 {
+    if (!mem.startsWith(u8, raw, name)) return null;
+    const tail = mem.trim(u8, raw[name.len..], " \r\n\t");
+    if (tail.len < 2 or tail[0] != '(' or tail[tail.len - 1] != ')') return null;
+    return mem.trim(u8, tail[1 .. tail.len - 1], " \r\n\t");
+}
+
+fn tableWidth(self: *Self, raw: []const u8, span: Span, natural: bool, register: bool, flex: bool) ParseError!table_model.Width {
+    if (natural and mem.eql(u8, raw, "natural")) return .natural;
+    if (register and mem.eql(u8, raw, "\\hsize")) return .{ .register = .hsize };
+    if (register and mem.eql(u8, raw, "\\vsize")) return .{ .register = .vsize };
+    if (flex) if (tableCall(raw, "flex")) |inner| {
+        const weight = try self.tableNumber(inner, span);
+        if (weight == 0) return self.tableError(span, "flex weights must be positive");
+        return .{ .flex = weight };
+    };
+    return .{ .dimension = try self.tableDim(raw, span, true) };
+}
+
+fn tableColor(self: *Self, raw: []const u8, span: Span) ParseError!table_model.Color {
+    inline for (.{ "gray", "rgb", "cmyk" }, .{ 1, 3, 4 }) |name, n| {
+        if (tableCall(raw, name)) |inner| {
+            var components: [n]f64 = undefined;
+            var parts = mem.splitScalar(u8, inner, ',');
+            for (&components) |*part| {
+                const text = parts.next() orelse return self.tableError(span, "too few color components");
+                part.* = try self.tableNumber(mem.trim(u8, text, " \t\r\n"), span);
+                if (part.* > 1) return self.tableError(span, "color components must be between zero and one");
+            }
+            if (parts.next() != null) return self.tableError(span, "too many color components");
+            return @unionInit(table_model.Color, name, if (n == 1) components[0] else components);
+        }
+    }
+    return self.tableError(span, "expected gray(...), rgb(...), or cmyk(...) color");
+}
+
 test "test vesti parser" {
     _ = @import("tests/docclass.zig");
     _ = @import("tests/importpkg.zig");
     _ = @import("tests/math_stmts.zig");
     _ = @import("tests/environments.zig");
     _ = @import("tests/luacode.zig");
+    _ = @import("tests/tabular.zig");
 }

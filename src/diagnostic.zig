@@ -262,6 +262,7 @@ pub const ParseDiagnostic = struct {
         ModuleNotFound,
         NameMissErr,
         PreambleErr,
+        TableError,
         TextmodeInText,
         TokenExpected,
         TooManyBegenv,
@@ -303,6 +304,13 @@ pub const ParseDiagnostic = struct {
         ModuleNotFound: CowStr,
         NameMissErr: TokenType,
         PreambleErr,
+        TableError: struct {
+            code: []const u8,
+            message: []const u8,
+            related: ?Span = null,
+            row: ?usize = null,
+            column: ?usize = null,
+        },
         TextmodeInText,
         TokenExpected: struct {
             expected: []const TokenType,
@@ -490,6 +498,14 @@ pub const ParseDiagnostic = struct {
                 .{val},
             ),
             .EnvInsideDefun => try aw.writer.writeAll("`useenv` cannot be used inside `defun` body"),
+            .TableError => |info| {
+                try aw.writer.print("{s}: {s}", .{ info.code, info.message });
+                if (info.row) |row| {
+                    try aw.writer.print(" (table row {d}", .{row});
+                    if (info.column) |column| try aw.writer.print(", column {d}", .{column});
+                    try aw.writer.writeByte(')');
+                } else if (info.column) |column| try aw.writer.print(" (table column {d})", .{column});
+            },
             inline .IllegalUseErr,
             .VestiInternal,
             => |info| try aw.writer.writeAll(info),
@@ -525,6 +541,13 @@ pub const ParseDiagnostic = struct {
         allocator: Allocator,
     ) !?ArrayList(u8) {
         return switch (self.err_info) {
+            .TableError => |info| blk: {
+                const related = info.related orelse break :blk null;
+                var output = try ArrayList(u8).initCapacity(allocator, 50);
+                errdefer output.deinit(allocator);
+                try output.print(allocator, "related cell, rule, or boundary is at {f}", .{related});
+                break :blk output;
+            },
             .EofErr => blk: {
                 var output = try ArrayList(u8).initCapacity(allocator, 50);
                 errdefer output.deinit(allocator);
@@ -748,3 +771,29 @@ pub const ParseDiagnostic = struct {
         try stderr.interface.flush();
     }
 };
+
+test "table diagnostics retain error code grid coordinates and related span" {
+    const allocator = std.testing.allocator;
+    const diagnostic: ParseDiagnostic = .{ .err_info = .{ .TableError = .{
+        .code = "T003",
+        .message = "cell overlaps an earlier rowspan",
+        .row = 2,
+        .column = 3,
+        .related = .{ .start = .{ .row = 10, .col = 4 }, .end = .{ .row = 10, .col = 20 } },
+    } } };
+    var message = try diagnostic.errorMsg(allocator);
+    defer message.deinit(allocator);
+    try std.testing.expectEqualStrings("T003: cell overlaps an earlier rowspan (table row 2, column 3)", message.items);
+    var note = (try diagnostic.noteMsg(allocator)).?;
+    defer note.deinit(allocator);
+    try std.testing.expectEqualStrings("related cell, rule, or boundary is at 10:4 -- 10:20", note.items);
+    const single: ParseDiagnostic = .{ .err_info = .{ .TableError = .{
+        .code = "T002",
+        .message = "unfilled column",
+        .column = 2,
+    } } };
+    var single_message = try single.errorMsg(allocator);
+    defer single_message.deinit(allocator);
+    try std.testing.expectEqualStrings("T002: unfilled column (table column 2)", single_message.items);
+    try std.testing.expectEqual(@as(?ArrayList(u8), null), try single.noteMsg(allocator));
+}

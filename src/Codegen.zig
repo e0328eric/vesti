@@ -11,7 +11,7 @@ const Lua = @import("Lua.zig");
 const StringArrayHashMap = std.StringArrayHashMapUnmanaged;
 const Span = @import("location.zig").Span;
 
-const Error = Allocator.Error || Io.Writer.Error || ParseError ||
+pub const Error = Allocator.Error || Io.Writer.Error || ParseError ||
     error{
         LuaLabelNotFound,
         DuplicatedLuaLabel,
@@ -24,6 +24,7 @@ stmts: []const ast.Stmt,
 diagnostic: *diag.Diagnostic,
 luacode_exports: StringArrayHashMap(ArrayList(u8)),
 is_main: bool,
+table_depth: usize = 0,
 
 const Self = @This();
 
@@ -57,12 +58,13 @@ pub fn codegen(
     placeholder: ?*const ArrayList(ast.Stmt),
     writer: *Io.Writer,
 ) Error!void {
+    try @import("table/codegen.zig").prologue(self.stmts, placeholder, writer);
     for (self.stmts) |stmt| {
         try self.codegenStmt(stmt, lua, placeholder, writer);
     }
 }
 
-fn codegenStmts(
+pub fn codegenStmts(
     self: *Self,
     stmts: *const ArrayList(ast.Stmt),
     lua: ?*Lua,
@@ -83,6 +85,7 @@ fn codegenStmt(
 ) Error!void {
     switch (stmt) {
         .NopStmt => {},
+        .Table => |table| try @import("table/codegen.zig").emit(self, table, lua, placeholder, writer),
         .Placeholder => {
             try writer.writeAll("\n%%%    Global Definitions\n");
             if (placeholder) |p| try self.codegenStmts(p, lua, placeholder, writer);

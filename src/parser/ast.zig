@@ -61,6 +61,7 @@ pub const Arg = struct {
 pub const Stmt = union(enum(u8)) {
     NopStmt = 0,
     Placeholder,
+    Table: *@import("../table/model.zig").Table,
     TextLit: CowStr,
     MathLit: []const u8,
     MathCtx: struct {
@@ -146,6 +147,10 @@ pub const Stmt = union(enum(u8)) {
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
         switch (self.*) {
+            .Table => |table| {
+                table.deinit(allocator);
+                allocator.destroy(table);
+            },
             .TextLit => |*inner| inner.deinit(allocator),
             .DocumentClass => |*inner| {
                 inner.name.deinit(allocator);

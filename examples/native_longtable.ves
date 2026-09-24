@@ -1,0 +1,54 @@
+docclass article (11pt)
+startdoc
+
+\section{Inventory}
+This report uses dedicated table pages. Its columns keep the same widths and
+its header and footer repeat when the body continues.
+
+#longtabular(width=360pt, pageheight=230pt, grid=all,
+             rulestyle=dashed, rulewidth=.5pt, rulegap=1.5pt,
+             rulecolor=rgb(.15,.3,.45), minheight=22pt, padx=5pt, pady=4pt) {
+  columns {
+    col(width=35pt, align=right);
+    col(width=flex(3));
+    col(width=flex(1), align=right);
+  }
+  firsthead {
+    row(before={\bf}, background=rgb(.9,.95,1)) {
+      cell(colspan=3, align=center) { Inventory report }
+    }
+    row(before={\bf}) { cell { ID } cell { Description } cell { Units } }
+  }
+  head {
+    row(before={\bf}, background=rgb(.9,.95,1)) {
+      cell(colspan=3, align=center) { Inventory --! continued }
+    }
+    row(before={\bf}) { cell { ID } cell { Description } cell { Units } }
+  }
+  foot { row { cell(colspan=3, align=right) { Continued on the next page... } } }
+  lastfoot { row(before={\bf}) { cell(colspan=3, align=right) { End of inventory } } }
+  body {
+    row { cell { 1 } cell { Paper } cell { 20 } }
+    keep {
+      row { cell { 2 } cell { Kit: outer case } cell { 1 } }
+      row { cell { 3 } cell { Kit: inserts } cell { 4 } }
+    }
+    row {
+      cell(rowspan=2, background=gray(.92)) { 4 }
+      cell { Shared shipment: item A } cell { 10 }
+    }
+    row { cell { Shared shipment: item B } cell { 8 } }
+    break;
+    row { cell { 5 } cell { New category: classroom supplies } cell { 2 } }
+    nobreak;
+    row { cell { 6 } cell { Category subtotal } cell { 2 } }
+    row { cell { 7 } cell { A longer description demonstrates paragraph wrapping inside a cell. } cell { 12 } }
+    row { cell { 8 } cell { Drawing paper } cell { 30 } }
+    row { cell { 9 } cell { Colored pencils } cell { 24 } }
+    row { cell { 10 } cell { Display folders } cell { 6 } }
+    row { cell { 11 } cell { Storage boxes } cell { 4 } }
+    row { cell { 12 } cell { Final item } cell { 1 } }
+  }
+}
+
+The inventory has ended. Ordinary text resumes after the table's dedicated pages.

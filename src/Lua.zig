@@ -233,7 +233,7 @@ fn print(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
     if (nargs == 0) raiseError(
         lua,
         \\invalid argument
-        \\Usage: vesti.print(..., {{ sep = <string>, nl = <number >= 0>}}?)
+        \\Usage: vesti.print(..., {{ sep = <string>, nl = <integer >= 0>}}?)
         \\Default: sep = " ", nl = 1
     ,
         .{},
@@ -257,18 +257,24 @@ fn print(lua_state: ?*zlua.LuaState) callconv(.c) c_int {
                 return 0;
             },
         }
-        lua.pop(1); // pop "sep"
+        // Keep the separator rooted until this call returns. Looking up `nl`
+        // can invoke a metamethod and collect an otherwise unreferenced string.
 
         const nl_ty = lua.getField(nargs, "nl");
         switch (nl_ty) {
             .nil => {},
             .number => {
-                nl = @min(lua.toNumeric(usize, -1) catch unreachable, 2);
+                const count = lua.toNumeric(usize, -1) catch raiseError(
+                    lua,
+                    "`nl` should be a nonnegative integer\n",
+                    .{},
+                );
+                nl = @min(count, 2);
             },
             else => {
                 raiseError(
                     lua,
-                    "`nl` should be a nonnegative number\n",
+                    "`nl` should be a nonnegative integer\n",
                     .{},
                 );
                 return 0;

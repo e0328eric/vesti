@@ -615,6 +615,468 @@ useenv Verbatim [numbers=left, numbersep=5pt, frame=single, commandchars=+|@]{%-
 +keyword|useenv@ foo {#mathmode{-><-}}
 -%}
 
+\clearpage
+\subsection{\builtin|tabular| and \builtin|longtabular| builtins}
+\label{sec:native-tables}
+These builtins make tables directly from \TeX\ boxes, dimensions, glue, and
+rules. They do not import any \LaTeX\ table, color, or graphics package.
+\builtin|tabular| produces one indivisible table; \builtin|longtabular|
+continues a table across dedicated pages with repeated headers and footers.
+Both support paragraph cells, rectangular merges, colored backgrounds, and
+six border patterns. Existing \keyword{%-useenv-%} tabular code keeps its
+usual \LaTeX\ meaning.
+
+\subsubsection{A complete short table}
+The table body contains explicit rows and cells. This example includes a
+spanning title and two colored cells. Its output appears below the listing.
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single]{%-
+#tabular(width=300pt, grid=all, padx=5pt,
+         pady=4pt, minheight=24pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+  }
+  body {
+    row { cell(colspan=3) { AT\&T Common Stock } }
+    row {
+      cell { Year }
+      cell(background=cmyk(0,.6,.1,0)) { Price }
+      cell { Dividend }
+    }
+    row {
+      cell(background=cmyk(.6,.1,0,0)) { 1971 }
+      cell { 41--!54 } cell { \$2.60 }
+    }
+    row { cell { 1971 } cell { 41--!54 } cell { \$2.60 } }
+  }
+}
+-%}
+
+#tabular(width=300pt, grid=all, padx=5pt,
+         pady=4pt, minheight=24pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+  }
+  body {
+    row { cell(colspan=3) { AT\&T Common Stock } }
+    row {
+      cell { Year }
+      cell(background=cmyk(0,.6,.1,0)) { Price }
+      cell { Dividend }
+    }
+    row {
+      cell(background=cmyk(.6,.1,0,0)) { 1971 }
+      cell { 41--!54 } cell { \$2.60 }
+    }
+    row { cell { 1971 } cell { 41--!54 } cell { \$2.60 } }
+  }
+}
+
+Write \texttt{columns} first and specify \texttt{width} on every \texttt{col}.
+There must be exactly one nonempty \texttt{body} section. A short table accepts
+only that section. Write \verb|cell {}| for an intentional empty cell.
+Newlines and indentation outside cell content have no structural meaning.
+An ampersand does not separate cells, and a double backslash does not end a row.
+Use ordinary escaped text such as \verb|\&| and \verb|\$| inside a cell.
+
+%-Vesti's comment syntax still applies: \verb|--| starts a comment. For a numeric
+range, write \verb|41--!54| or use a literal en dash. The \verb|--!| token
+produces the en dash shown in the example.-%
+
+\clearpage
+\subsubsection{Options, widths, and alignment}
+Options have the form \texttt{(key=value, key=value)}; a trailing comma is
+allowed. Unknown or duplicate keys, an empty option list, and values of the
+wrong type are errors. The following reference table is itself a native table.
+
+#tabular(width=\hsize, grid=rows, padx=5pt, pady=4pt, valign=top) {
+  columns { col(width=95pt); col(width=flex(1)); }
+  body {
+    row(before={\bf}) { cell { Scope } cell { Options and defaults } }
+    row {
+      cell { Both builtins }
+      cell {
+        \texttt{width=natural}, \texttt{align=center},
+        \texttt{grid=none}, \texttt{padx=4pt}, \texttt{pady=3pt},
+        \texttt{minheight=0pt}, \texttt{valign=middle}, plus border defaults.
+      }
+    }
+    row {
+      cell { Long table }
+      cell { Requires finite \texttt{width} and \texttt{pageheight};
+             every column must have a fixed or flex width. }
+    }
+    row {
+      cell { Column }
+      cell { Required \texttt{width}; \texttt{align=left}; optional
+             \texttt{valign}, \texttt{wrap}, and \texttt{before}. }
+    }
+    row {
+      cell { Row }
+      cell { Optional \texttt{minheight}, \texttt{background}, and
+             \texttt{before}. Minimum height inherits from the table. }
+    }
+    row {
+      cell { Cell }
+      cell { \texttt{colspan=1}, \texttt{rowspan=1}; optional
+             \texttt{align}, \texttt{valign}, \texttt{wrap},
+             \texttt{background}, and \texttt{before}. }
+    }
+  }
+}
+
+\paragraph{Choosing widths.}
+A column width is \texttt{natural}, a positive dimension such as
+\texttt{35pt}, or \texttt{flex(positive weight)}. Natural columns measure
+unwrapped content; fixed and flex columns wrap by default. Set
+\texttt{wrap=yes} or \texttt{wrap=no} to override this behavior.
+A wrapped span must include at least one fixed or flex column so its width
+can be resolved before paragraph typesetting.
+
+The table's width is \texttt{natural}, a positive dimension, or the register
+\verb|\hsize| or \verb|\vsize|. Flex columns require a finite table width and
+divide the remaining space in proportion to their weights. For example, weights
+1 and 2 share the available space in a ratio of one to two. With no flex columns,
+an explicit table width must equal the total resolved width within one scaled
+point; it does not add extra space around fixed columns.
+
+The \texttt{pageheight} option is available only on \builtin|longtabular|.
+It accepts a positive dimension or \verb|\hsize| or \verb|\vsize|;
+\texttt{natural} and \texttt{flex} are not valid page heights.
+
+A column track includes left and right padding. Vertical borders occupy
+additional lanes. A colspan includes the internal lanes it replaces.
+Double borders reserve space for both strokes and their gap. If the target
+width leaves no positive content width, or an unwrapped cell is too wide,
+the renderer reports an error instead of enlarging the table silently.
+
+\paragraph{Alignment and local styling.}
+Horizontal alignment is \texttt{left}, \texttt{center}, or \texttt{right}.
+The table's \texttt{align} positions the entire table. Cells inherit alignment
+and wrapping from their starting column. Vertical alignment is \texttt{top},
+\texttt{middle}, or \texttt{bottom}. A cell uses its explicit value, then its
+starting column's value, then the table default.
+Minimum height is a lower bound and never clips content.
+
+Use \verb|before={\bf}| for a local font change. Hooks run in this order:
+starting column, row, cell, then cell content. A cell uses its own background,
+then its originating row's background; if neither supplies one, it is transparent.
+A rowspan retains that background across its complete rectangle.
+
+\paragraph{Dimensions and colors.}
+Dimensions are unsigned decimals immediately followed by a unit:
+\texttt{pt}, \texttt{pc}, \texttt{in}, \texttt{bp}, \texttt{cm},
+\texttt{mm}, \texttt{dd}, \texttt{cc}, \texttt{sp}, \texttt{em}, or
+\texttt{ex}. For example, \texttt{.6pt} and \texttt{3em} are valid;
+signs, exponent notation, expressions, and arbitrary macros are not.
+Registers and font-relative units are resolved at table entry, before cell
+font hooks. Widths, page height, stroke thickness, explicit gaps, and dash
+lengths must be positive. Padding, minimum heights, and pattern phase may be zero.
+
+Colors are \texttt{gray(g)}, \texttt{rgb(r,g,b)}, or
+\texttt{cmyk(c,m,y,k)}, with every component between zero and one.
+There are no named colors or transparency values in the table grammar.
+
+\clearpage
+\subsubsection{Merges and styled borders}
+Use \texttt{colspan} and \texttt{rowspan} with positive integer values to
+merge a rectangle. Cells are placed in the next free column from left to right.
+Later rows omit positions already occupied by a rowspan. Spans cannot intersect
+or cross a section boundary, and all remaining positions must be filled.
+
+The \texttt{grid} option accepts \texttt{none}, \texttt{frame},
+\texttt{rows}, \texttt{columns}, or \texttt{all}. The \texttt{rows} and
+\texttt{columns} values draw only interior boundaries; \texttt{frame} draws
+the perimeter, and \texttt{all} draws both. Automatic borders inside merged
+cells are suppressed. Explicit rules must also avoid the interior of a merge.
+
+This example uses all six border patterns. The partial dotted rule covers only
+columns two and three, so it leaves the rowspan intact.
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single]{%-
+#tabular(width=340pt, grid=all, pady=4pt, minheight=24pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+    col(width=flex(2));
+  }
+  body {
+    hline(style=solid, thickness=1pt, color=rgb(.1,.2,.4));
+    row { cell(colspan=3) { Merges and border patterns } }
+    hline(style=double, thickness=.7pt, gap=1pt,
+          color=rgb(.1,.3,.6));
+    row {
+      cell(rowspan=2, background=rgb(.9,.95,1)) { Group A }
+      cell { Dotted }
+      cell { A partial rule below this row. }
+    }
+    hline(from=2, to=3, style=dotted, thickness=.7pt,
+          gap=1.2pt, color=rgb(.65,.15,.2));
+    row { cell { Dashed } cell { The merged cell continues. } }
+    hline(style=dashed, dashlength=4pt, gap=2pt,
+          color=rgb(.1,.45,.3));
+    row { cell { B } cell { Dash-dot } cell { Separate marks. } }
+    hline(style=dashdot, dashlength=4pt, gap=1.5pt,
+          phase=.5pt, color=rgb(.35,.2,.6));
+    row { cell { C } cell { Dash-dot-dot } cell { Square dots. } }
+    hline(style=dashdotdot, dashlength=4pt, gap=1.5pt,
+          color=rgb(.6,.3,.1));
+    vline(after=0, style=double, thickness=.7pt, gap=1pt);
+    vline(after=3, style=solid, thickness=1pt);
+  }
+}
+-%}
+
+#tabular(width=340pt, grid=all, pady=4pt, minheight=24pt) {
+  columns {
+    col(width=flex(1), align=center);
+    col(width=flex(1), align=center);
+    col(width=flex(2));
+  }
+  body {
+    hline(style=solid, thickness=1pt, color=rgb(.1,.2,.4));
+    row { cell(colspan=3) { Merges and border patterns } }
+    hline(style=double, thickness=.7pt, gap=1pt,
+          color=rgb(.1,.3,.6));
+    row {
+      cell(rowspan=2, background=rgb(.9,.95,1)) { Group A }
+      cell { Dotted }
+      cell { A partial rule below this row. }
+    }
+    hline(from=2, to=3, style=dotted, thickness=.7pt,
+          gap=1.2pt, color=rgb(.65,.15,.2));
+    row { cell { Dashed } cell { The merged cell continues. } }
+    hline(style=dashed, dashlength=4pt, gap=2pt,
+          color=rgb(.1,.45,.3));
+    row { cell { B } cell { Dash-dot } cell { Separate marks. } }
+    hline(style=dashdot, dashlength=4pt, gap=1.5pt,
+          phase=.5pt, color=rgb(.35,.2,.6));
+    row { cell { C } cell { Dash-dot-dot } cell { Square dots. } }
+    hline(style=dashdotdot, dashlength=4pt, gap=1.5pt,
+          color=rgb(.6,.3,.1));
+    vline(after=0, style=double, thickness=.7pt, gap=1pt);
+    vline(after=3, style=solid, thickness=1pt);
+  }
+}
+
+\clearpage
+\subsubsection{Border controls and ranges}
+Table-level defaults apply to automatic grid edges and are inherited by explicit
+rules. A rule can override each component independently.
+
+#tabular(width=\hsize, grid=rows, padx=5pt, pady=4pt, valign=top) {
+  columns { col(width=137pt); col(width=90pt); col(width=flex(1)); }
+  body {
+    row(before={\bf}) {
+      cell { Table default } cell { Rule option } cell { Meaning }
+    }
+    row { cell { \texttt{rulestyle=solid} } cell { \texttt{style} }
+          cell { Pattern: solid, double, dotted, dashed, dashdot, dashdotdot. } }
+    row { cell { \texttt{rulewidth=.4pt} } cell { \texttt{thickness} }
+          cell { Width of one stroke. } }
+    row { cell { \texttt{rulecolor=gray(0)} } cell { \texttt{color} }
+          cell { Gray, RGB, or CMYK color. } }
+    row { cell { \texttt{rulegap=auto} } cell { \texttt{gap} }
+          cell { Clear space between marks or double strokes. } }
+    row { cell { \texttt{ruledashlength=auto} }
+          cell { \texttt{dashlength} } cell { Length of each dash. } }
+    row { cell { \texttt{rulephase=0pt} } cell { \texttt{phase} }
+          cell { Distance into the repeating pattern at a run's start. } }
+  }
+}
+
+\paragraph{Horizontal and vertical rules.}
+\texttt{hline;} draws a rule at its position between rows, or before the first
+or after the last row. Optional \texttt{from} and \texttt{to} select a
+one-based, inclusive column range; omission means the full width.
+\texttt{vline(after=0);} selects the left edge. The required \texttt{after}
+numbers column boundaries from zero through the number of columns. Its optional
+\texttt{from} and \texttt{to} select a one-based, inclusive row range in the
+current section. A vertical rule's source position does not select its rows.
+Omitting both range endpoints selects every row in the current section.
+
+Explicit rules replace automatic grid edges. Identical explicit overlaps merge;
+incompatible overlaps are errors, including at header/body/footer joins.
+Do not draw a full-width horizontal rule through a rowspan: select only its
+exposed columns as in the dotted example above.
+
+\paragraph{Pattern dimensions.}
+For final stroke thickness $t$, \texttt{gap=auto} means $t$ for double lines
+and $2t$ for repeating patterns. \texttt{dashlength=auto} means $4t$.
+A double border reserves $2t+g$, where $g$ is its clear gap; all other patterns
+reserve $t$. Changing thickness or a double gap can change layout and page fits.
+Changing color, dash spacing, or phase alone does not change the reserved width.
+An explicit local \texttt{auto} resets an inherited numeric value.
+
+On an individual rule, \texttt{gap} applies to nonsolid styles;
+\texttt{dashlength} applies only to dashed, dashdot, and dashdotdot;
+\texttt{phase} applies only to repeating patterns. Inapplicable explicit
+controls are errors. Table defaults may remain unused until a matching style
+uses them.
+
+Dots are square rules, not font characters. Dash-dot repeats dash, gap, dot,
+gap; dash-dot-dot adds one more dot and gap. Patterns run left to right or top
+to bottom, normalize phase modulo the full period, and clip at their endpoints.
+Equal adjacent borders form one continuous run across ordinary row/column
+junctions. A merge interruption, style change, or page cut starts a new run.
+Clear gaps are transparent; horizontal ink paints over vertical ink at crossings.
+
+\clearpage
+\subsubsection{Long tables and page breaks}
+\builtin|longtabular| uses the same columns, cells, merges, fills, and border
+controls. It requires a finite \texttt{width} and a positive
+\texttt{pageheight}. Every column must be fixed or flex; natural columns are
+not supported in long tables. The following complete example deliberately
+forces a break, so it demonstrates both the first and continuation sections.
+
+useenv Verbatim [numbers=left, numbersep=5pt, frame=single]{%-
+#longtabular(width=340pt, pageheight=180pt, grid=all,
+             minheight=24pt, padx=5pt, pady=4pt) {
+  columns {
+    col(width=35pt, align=right);
+    col(width=flex(3));
+    col(width=flex(1), align=right);
+  }
+  firsthead {
+    row { cell(colspan=3, align=center) { Inventory report } }
+    row { cell { ID } cell { Description } cell { Units } }
+  }
+  head {
+    row { cell(colspan=3, align=center) { Inventory continued } }
+    row { cell { ID } cell { Description } cell { Units } }
+  }
+  foot { row { cell(colspan=3, align=right) { Continued... } } }
+  lastfoot { row { cell(colspan=3, align=right) { End of report } } }
+  body {
+    row { cell { 1 } cell { Paper } cell { 20 } }
+    keep {
+      row { cell { 2 } cell { Kit: outer case } cell { 1 } }
+      row { cell { 3 } cell { Kit: inserts } cell { 4 } }
+    }
+    break;
+    row { cell { 4 } cell { New category } cell { 2 } }
+    nobreak;
+    row { cell { 5 } cell { Category subtotal } cell { 2 } }
+    row { cell { 6 } cell { Final item } cell { 1 } }
+  }
+}
+-%}
+
+\paragraph{Repeated sections.}
+After \texttt{columns}, sections may appear once each in any order.
+\texttt{firsthead} is used on the first page and \texttt{head} on later pages.
+\texttt{foot} is used on nonfinal pages and \texttt{lastfoot} on the final page.
+Omitted \texttt{firsthead} inherits \texttt{head}; omitted \texttt{lastfoot}
+inherits \texttt{foot}. Omitted \texttt{head} and \texttt{foot} are empty.
+An explicit empty section, such as \verb|firsthead {}|, overrides inheritance.
+Repeated content is boxed once and copied, rather than evaluated on every page.
+
+\paragraph{Keeping rows together.}
+\verb|keep { ... }| groups complete body rows and can contain intervening
+horizontal rules. Keep blocks cannot nest. Between body rows, \texttt{break;}
+forces a break and \texttt{nobreak;} forbids one. Rowspans, keep blocks, and
+nobreak boundaries form indivisible groups. A forced break inside such a group
+is an error. A cell paragraph is never split across pages.
+
+The renderer reserves space for the applicable header, footer, and border bands
+before selecting a nonempty group of rows. If the final footer is taller than
+the continuation footer, it is included in the final-page fit check. A group
+that cannot fit is an error; the renderer does not produce an empty footer-only
+page. Body rules at a page cut appear at both exposed ends. Vertical border
+patterns restart on each page fragment.
+
+\paragraph{Live output on the next two pages.}
+The following pages are generated by the listing above. The small
+\texttt{pageheight=180pt} is intentional: each fragment occupies a dedicated
+page, and the remainder of that page is left for the host's page layout.
+The first footer says ``Continued...''; the final footer says ``End of report''.
+Documentation resumes on a fresh page after the table.
+
+\clearpage
+#longtabular(width=340pt, pageheight=180pt, grid=all,
+             minheight=24pt, padx=5pt, pady=4pt) {
+  columns {
+    col(width=35pt, align=right);
+    col(width=flex(3));
+    col(width=flex(1), align=right);
+  }
+  firsthead {
+    row { cell(colspan=3, align=center) { Inventory report } }
+    row { cell { ID } cell { Description } cell { Units } }
+  }
+  head {
+    row { cell(colspan=3, align=center) { Inventory continued } }
+    row { cell { ID } cell { Description } cell { Units } }
+  }
+  foot { row { cell(colspan=3, align=right) { Continued... } } }
+  lastfoot { row { cell(colspan=3, align=right) { End of report } } }
+  body {
+    row { cell { 1 } cell { Paper } cell { 20 } }
+    keep {
+      row { cell { 2 } cell { Kit: outer case } cell { 1 } }
+      row { cell { 3 } cell { Kit: inserts } cell { 4 } }
+    }
+    break;
+    row { cell { 4 } cell { New category } cell { 2 } }
+    nobreak;
+    row { cell { 5 } cell { Category subtotal } cell { 2 } }
+    row { cell { 6 } cell { Final item } cell { 1 } }
+  }
+}
+
+\subsubsection{Supported contexts and diagnostics}
+Long tables start on a fresh single-column page and leave following prose for
+another fresh page. They preserve the host's output routine and page numbering.
+Use a standard plain \TeX\ or single-column \LaTeX\ host. Pending floats or
+insertions, reduced page frames, changed/custom output routines, and boxed or
+multicolumn contexts are unsupported. Flush pending \LaTeX\ floats with
+\verb|\clearpage| before starting a long table. The requested page height must
+be at least \verb|\topskip| and no larger than the host's usable page/column
+height, excluding running headers and footers.
+
+A short native table may be nested inside a cell only with an explicit finite
+width. Long tables cannot be nested. Neither builtin is allowed in math mode.
+Cell content must form one reusable local box: ordinary text, inline math,
+paragraphs in wrapped cells, local font changes, and prebuilt image boxes work.
+Recognized global assignments, footnotes, inserts, floats, labels/anchors,
+marks, writes, and page/output changes are rejected. Opaque user macros remain
+the author's responsibility; their expansion must obey the same restrictions.
+
+Geometry and black borders use the portable \TeX\ primitive core. Color needs
+PDF color-stack primitives in pdfTeX or LuaTeX, or balanced driver specials in
+XeTeX/Tectonic. Classic \TeX\ supports only the default black color. Image and
+Unicode/font preparation remain the responsibility of the surrounding document;
+these builtins do not introduce an image loader or font dependency.
+
+Syntax and grid errors are reported before \TeX\ runs. Errors that require
+actual font or page measurements are reported by the generated runtime.
+
+#tabular(width=\hsize, grid=rows, padx=5pt, pady=3pt, valign=top) {
+  columns { col(width=62pt, before={\tt}); col(width=flex(1)); }
+  body {
+    row { cell { T001 } cell { Invalid structure, key, or typed value. } }
+    row { cell { T002 } cell { An incomplete row or too many cells. } }
+    row { cell { T003 } cell { Intersecting cell spans. } }
+    row { cell { T004 } cell { A span extends beyond its section. } }
+    row { cell { T005 } cell { Impossible widths or unwrapped content overflow. } }
+    row { cell { T006 } cell { An explicit rule crosses a merged cell. } }
+    row { cell { T007 } cell { A break conflicts with a rowspan, keep, or nobreak. } }
+    row { cell { T008 } cell { No nonempty row group fits with its header/footer. } }
+    row { cell { T009 } cell { Unsupported engine capability or output context. } }
+    row { cell { T010 } cell { Unsupported cell effects. } }
+    row { cell { T011 } cell { Invalid or overflowing border pattern dimensions. } }
+    row { cell { T012 } cell { Incompatible explicit border styles overlap. } }
+  }
+}
+
+Runnable short tables are in \texttt{examples/native\_tables.ves}.\par
+The long-table example is \texttt{examples/native\_longtable.ves}.\par
+The standalone reference is \texttt{Manual/native-tables.md}.
+
 \section{Lua API}
 Vesti uses Lua in both building script and inline inside of Vesti code.
 Below are functions which are baked in Vesti compiler.

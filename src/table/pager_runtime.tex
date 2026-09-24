@@ -1,0 +1,211 @@
+% Dedicated-page native-table pagination. No output routine replacement and no
+% direct shipout: every fragment passes through the host's existing page builder.
+% Hooks supplied by the table generator:
+%   \vestiTBget{pageheight}, \vestiTBget{force<number>}, \vestiTBgroupcount
+%   \vestiTBmeasurepage{head}{first}{last}{foot} -> \vestiTBpagecost
+%   \vestiTBrenderpage{head}{first}{last}{foot} -> \vestiTBcanvas
+% The canvas has zero height and depth equal to the assembled fragment height.
+\newcount\vestiTBpagerfirst
+\newcount\vestiTBpagerlast
+\newcount\vestiTBpagercandidate
+\newcount\vestiTBpagerstop
+\newcount\vestiTBpagerscan
+\newdimen\vestiTBpageframe
+\newdimen\vestiTBpagecost
+\newbox\vestiTBpagerbox
+\def\vestiTBpageleftglue{\hfil}
+\def\vestiTBpagerightglue{\hfil}
+\def\vestiTBpagerempty{}
+\def\vestiTBpagerdetails{}
+% The generated prologue runs before document statements. Keep the host's
+% output tokens unexpanded: \the on a token register inside \edef copies its
+% token list, so this neither executes nor rewrites the output routine.
+\edef\vestiTBhostoutput{\the\output}
+\edef\vestiTBhostformat{\fmtname}
+\def\vestiTBplainformat{plain}
+\def\vestiTBlatexformat{LaTeX2e}
+\def\vestiTBexpectedplainoutput{{\plainoutput}}
+\let\vestiTBhostplainoutput\plainoutput
+
+% A failed precondition or impossible final fragment terminates this table even
+% when TeX runs in nonstopmode. It must never retry the same group forever.
+\def\vestiTBpagererror#1{\def\vestiTBpagerok{0}\errmessage{Vesti #1}}
+\def\vestiTBpagercheckcolumns{%
+  \csname if@twocolumn\endcsname
+    \vestiTBpagererror{T009: longtabular requires a single-column page layout}%
+  \fi}
+\def\vestiTBpagercheckfloatlist#1{%
+  \expandafter\ifx\csname #1\endcsname\relax\else
+    \expandafter\ifx\csname #1\endcsname\vestiTBpagerempty\else
+      \vestiTBpagererror{T009: pending LaTeX floats; flush them before longtabular}%
+    \fi
+  \fi}
+\def\vestiTBpagercheckinsert#1{%
+  \expandafter\ifx\csname #1\endcsname\relax\else
+    \ifvoid\csname #1\endcsname\else
+      \vestiTBpagererror{T009: pending insertion material is not supported by longtabular}%
+    \fi
+  \fi}
+\def\vestiTBpagercheckframe{%
+  \expandafter\ifx\csname @colht\endcsname\relax\else
+    \ifdim\vestiTBpageframe>\csname @colht\endcsname
+      \vestiTBpagererror{T009: longtabular pageheight exceeds the host column height}%
+    \fi
+  \fi
+  \expandafter\ifx\csname @colroom\endcsname\relax\else
+    \expandafter\ifx\csname @colht\endcsname\relax\else
+      \ifdim\csname @colroom\endcsname<\csname @colht\endcsname
+        \vestiTBpagererror{T009: reduced LaTeX page frame; flush floats before longtabular}%
+      \fi
+    \fi
+  \fi}
+\def\vestiTBpagercheckoutput{%
+  \edef\vestiTBcurrentoutput{\the\output}%
+  \ifx\vestiTBcurrentoutput\vestiTBhostoutput\else
+    \vestiTBpagererror{T009: the host output routine changed after native table initialization; longtabular requires a compatible host adapter}%
+  \fi
+  \ifx\vestiTBhostformat\vestiTBplainformat
+    \ifx\vestiTBhostoutput\vestiTBexpectedplainoutput\else
+      \vestiTBpagererror{T009: custom plain output routines require an explicit longtabular host adapter}%
+    \fi
+    \ifx\plainoutput\vestiTBhostplainoutput\else
+      \vestiTBpagererror{T009: plainoutput changed after native table initialization}%
+    \fi
+  \else\ifx\vestiTBhostformat\vestiTBlatexformat\else
+    \vestiTBpagererror{T009: longtabular currently supports standard plain and single-column LaTeX hosts}%
+  \fi\fi}
+
+% These checks recognize plain/LaTeX host states without loading any package.
+% Opaque custom output routines and arbitrary insertion classes still require a
+% caller-supplied compatible host contract; TeX82 cannot introspect all of them.
+\def\vestiTBpreflight{%
+  \def\vestiTBpagerok{1}%
+  \vestiTBpagercheckoutput
+  \ifinner
+    \vestiTBpagererror{T009: longtabular cannot appear inside a box or nested table}%
+  \fi
+  \ifmmode
+    \vestiTBpagererror{T009: longtabular cannot appear in math mode}%
+  \fi
+  \vestiTBpageframe=\vestiTBget{pageheight}\relax
+  \ifdim\vestiTBpageframe>0pt\else
+    \vestiTBpagererror{T009: longtabular pageheight must resolve to a positive dimension}%
+  \fi
+  \ifdim\vestiTBpageframe<16383.99998pt\else
+    \vestiTBpagererror{T009: longtabular pageheight must leave one scaled point below TeX's maximum dimension}%
+  \fi
+  \ifdim\vestiTBpageframe<\topskip
+    \vestiTBpagererror{T009: longtabular pageheight must be at least the host topskip}%
+  \fi
+  \ifdim\vestiTBpageframe>\vsize
+    \vestiTBpagererror{T009: longtabular pageheight exceeds the host page frame}%
+  \fi
+  \expandafter\ifx\csname if@twocolumn\endcsname\relax\else
+    \vestiTBpagercheckcolumns
+  \fi
+  \vestiTBpagercheckfloatlist{@deferlist}%
+  \vestiTBpagercheckfloatlist{@dbldeferlist}%
+  \vestiTBpagercheckfloatlist{@toplist}%
+  \vestiTBpagercheckfloatlist{@botlist}%
+  \vestiTBpagercheckfloatlist{@midlist}%
+  \vestiTBpagercheckframe
+  \vestiTBpagercheckinsert{footins}%
+  \vestiTBpagercheckinsert{@kludgeins}%
+  \ifnum\insertpenalties>0
+    \vestiTBpagererror{T009: pending insertions must be flushed before longtabular}%
+  \fi}
+
+\def\vestiTBpaginate{%
+  \vestiTBpreflight
+  \ifnum\vestiTBpagerok=1
+    \par
+    % pagegoal remains maxdimen until a non-discardable page item exists.
+    % Testing it also recognizes a zero-height item on an otherwise empty page.
+    \ifdim\pagegoal<16383.99998pt\vfil\penalty-10000\relax\fi
+    \vestiTBpagerfirst=1\relax
+    \def\vestiTBpagerhead{firsthead}%
+    \vestiTBpagernextpage
+  \fi}
+
+\def\vestiTBpagernextpage{%
+  \ifnum\vestiTBpagerok=1
+    \ifnum\vestiTBpagerfirst>\vestiTBgroupcount\else
+      \vestiTBpagerstop=\vestiTBgroupcount
+      \vestiTBpagerscan=\vestiTBpagerfirst
+      \vestiTBpagerfindforce
+      \vestiTBpagerlast=0\relax
+      \def\vestiTBpagerfoot{foot}%
+      % Last-foot lookahead is legal only when no earlier forced cut is skipped.
+      \ifnum\vestiTBpagerstop=\vestiTBgroupcount
+        \vestiTBmeasurepage{\vestiTBpagerhead}{\the\vestiTBpagerfirst}%
+          {\the\vestiTBgroupcount}{lastfoot}\relax
+        \ifdim\vestiTBpagecost>\vestiTBpageframe\else
+          \vestiTBpagerlast=\vestiTBgroupcount
+          \def\vestiTBpagerfoot{lastfoot}%
+        \fi
+      \fi
+      \ifnum\vestiTBpagerlast=0
+        % A continuation must leave a body group for the final fragment.
+        \ifnum\vestiTBpagerstop=\vestiTBgroupcount
+          \advance\vestiTBpagerstop by-1\relax
+        \fi
+        \vestiTBpagercandidate=\vestiTBpagerfirst
+        \vestiTBpagerfindprefix
+      \fi
+      \ifnum\vestiTBpagerlast=0
+        \vestiTBpagererror{T008: no nonempty fragment fits at body group
+          \the\vestiTBpagerfirst; pageheight=\the\vestiTBpageframe.
+          \vestiTBpagerdetails
+          Reduce the group/header/footer or increase pageheight}%
+      \else
+        \vestiTBpageremit
+        \vestiTBpagerfirst=\vestiTBpagerlast
+        \advance\vestiTBpagerfirst by1\relax
+        \def\vestiTBpagerhead{head}%
+      \fi
+      \let\vestiTBpagernext\vestiTBpagernextpage
+    \fi
+  \fi
+  % Tail dispatch happens outside conditionals so many pages do not accumulate
+  % TeX conditional nesting. The terminal invocation must reset the callback.
+  \ifnum\vestiTBpagerok=0\let\vestiTBpagernext\relax\fi
+  \ifnum\vestiTBpagerfirst>\vestiTBgroupcount\let\vestiTBpagernext\relax\fi
+  \vestiTBpagernext}
+
+\def\vestiTBpagerfindforce{%
+  \let\vestiTBpagerscannext\relax
+  \ifnum\vestiTBpagerscan<\vestiTBpagerstop
+    \ifnum\vestiTBget{force\the\vestiTBpagerscan}=1\relax
+      \vestiTBpagerstop=\vestiTBpagerscan
+    \else
+      \advance\vestiTBpagerscan by1\relax
+      \let\vestiTBpagerscannext\vestiTBpagerfindforce
+    \fi
+  \fi
+  \vestiTBpagerscannext}
+
+\def\vestiTBpagerfindprefix{%
+  \let\vestiTBpagerprefixnext\relax
+  \ifnum\vestiTBpagercandidate>\vestiTBpagerstop\else
+    \vestiTBmeasurepage{\vestiTBpagerhead}{\the\vestiTBpagerfirst}%
+      {\the\vestiTBpagercandidate}{foot}\relax
+    \ifdim\vestiTBpagecost>\vestiTBpageframe\else
+      \vestiTBpagerlast=\vestiTBpagercandidate
+    \fi
+    % Do not assume monotonic cost: merging the footer seam can change its band.
+    \advance\vestiTBpagercandidate by1\relax
+    \let\vestiTBpagerprefixnext\vestiTBpagerfindprefix
+  \fi
+  \vestiTBpagerprefixnext}
+
+\def\vestiTBpageremit{%
+  \vestiTBrenderpage{\vestiTBpagerhead}{\the\vestiTBpagerfirst}%
+    {\the\vestiTBpagerlast}{\vestiTBpagerfoot}\relax
+  % Convert the top-baseline, downward canvas into an ordinary zero-depth box.
+  \setbox\vestiTBpagerbox=\hbox{\raise\dp\vestiTBcanvas\box\vestiTBcanvas}%
+  \prevdepth=-1000pt\relax
+  \vbox to\vestiTBpageframe{%
+    \baselineskip=0pt\lineskip=0pt\lineskiplimit=16383pt\relax
+    \hbox to\hsize{\vestiTBpageleftglue\box\vestiTBpagerbox\vestiTBpagerightglue}%
+    \vfil}%
+  \vfil\penalty-10000\relax}

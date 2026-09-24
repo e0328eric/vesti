@@ -1,0 +1,191 @@
+% Fragment assembly for native tables. Load after runtime.tex. Metadata is
+% held in table-local macros, never a register per cell, row, or border.
+% The emitter supplies \vestiTBget{key}, \vestiTBcols, and resolved style keys.
+\newbox\vestiTBbgcanvas
+\newbox\vestiTBcontentcanvas
+\newbox\vestiTBvcanvas
+\newbox\vestiTBhcanvas
+\newdimen\vestiTBcursor
+\newdimen\vestiTBband
+\newdimen\vestiTBpaintx
+\newdimen\vestiTBpainty
+\newdimen\vestiTBpaintlength
+\newdimen\vestiTBpaintend
+\newcount\vestiTBpainting
+\newcount\vestiTBpaintindex
+\newcount\vestiTBpaintlimit
+\newcount\vestiTBedgea
+\newcount\vestiTBedgeb
+\newcount\vestiTBsigneda
+\newcount\vestiTBsignedb
+\newcount\vestiTBrunedge
+\newcount\vestiTBrowsseen
+\newcount\vestiTBsame
+\def\vestiTBpaintset#1#2{\expandafter\edef\csname vestiTBv#1\endcsname{#2}}
+% The layout layer replaces this with a saturating variant during page probes.
+\def\vestiTBmeasureadvance#1{\advance\vestiTBcursor by#1\relax}
+
+% Edge zero is absent; positive IDs are automatic, negative IDs explicit.
+\def\vestiTBedgeabs{%
+  \vestiTBedgea=\vestiTBsigneda\vestiTBedgeb=\vestiTBsignedb
+  \ifnum\vestiTBedgea<0 \multiply\vestiTBedgea by-1\relax\fi
+  \ifnum\vestiTBedgeb<0 \multiply\vestiTBedgeb by-1\relax\fi}
+\def\vestiTBsignatures{%
+  \edef\vestiTBsigna{\vestiTBget{e\the\vestiTBedgea sign}}%
+  \edef\vestiTBsignb{\vestiTBget{e\the\vestiTBedgeb sign}}}
+\def\vestiTBpaintstart{\vestiTBpainting=1\relax
+  \setbox\vestiTBbgcanvas=\hbox{}\setbox\vestiTBcontentcanvas=\hbox{}%
+  \setbox\vestiTBvcanvas=\hbox{}\setbox\vestiTBhcanvas=\hbox{}%
+  \vestiTBresetpaint}
+\def\vestiTBmeasurestart{\vestiTBpainting=0\relax\vestiTBresetpaint}
+\def\vestiTBresetpaint{%
+  \vestiTBcursor=0pt\vestiTBrowsseen=0\relax\vestiTBpaintindex=0\relax
+  \vestiTBpaintlimit=\vestiTBcols\relax\vestiTBresetpaintloop}
+\def\vestiTBresetpaintloop{%
+  \vestiTBpaintset{Ph\the\vestiTBpaintindex}{0}%
+  \vestiTBpaintset{Pv\the\vestiTBpaintindex edge}{0}%
+  \vestiTBpaintset{Pv\the\vestiTBpaintindex start}{0pt}%
+  \ifnum\vestiTBpaintindex<\vestiTBpaintlimit
+    \advance\vestiTBpaintindex by1\relax
+    \expandafter\vestiTBresetpaintloop\fi}
+
+% A pending section/group bottom is joined with the next top. Compatible
+% explicit rules coalesce; an explicit edge overrides an automatic one.
+\def\vestiTBmergehitem#1#2{%
+  \vestiTBsigneda=\vestiTBget{Ph#1}\relax\vestiTBsignedb=#2\relax
+  \ifnum\vestiTBsignedb=0\else
+    \ifnum\vestiTBsigneda=0
+      \vestiTBpaintset{Ph#1}{#2}%
+    \else
+      \ifnum\vestiTBsignedb<0
+        \ifnum\vestiTBsigneda<0
+          \vestiTBedgeabs\vestiTBsignatures
+          \ifx\vestiTBsigna\vestiTBsignb\else
+            \ifnum\vestiTBpainting=1
+              \errmessage{Vesti T012: incompatible explicit borders at a table fragment join}%
+            \else
+              % A hypothetical footer seam must not reject an unchosen cut.
+              % Reserve the larger lane; actual assembly checks the conflict.
+              \ifdim\vestiTBget{e\the\vestiTBedgeb e}>\vestiTBget{e\the\vestiTBedgea e}\relax
+                \vestiTBpaintset{Ph#1}{#2}%
+              \fi
+            \fi
+          \fi
+        \else\vestiTBpaintset{Ph#1}{#2}\fi
+      \fi
+    \fi
+  \fi}
+\def\vestiTBpendinghitem#1#2{\vestiTBpaintset{Ph#1}{#2}}
+\def\vestiTBpaintpending#1{%
+  \vestiTBpaintindex=0\relax\vestiTBclearhloop
+  \let\vestiTBhitem\vestiTBpendinghitem #1}
+\let\vestiTBmeasurepending\vestiTBpaintpending
+\def\vestiTBclearhloop{%
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \vestiTBpaintset{Ph\the\vestiTBpaintindex}{0}%
+    \advance\vestiTBpaintindex by1\relax
+    \expandafter\vestiTBclearhloop\fi}
+\def\vestiTBpaintjoin#1{%
+  \let\vestiTBhitem\vestiTBmergehitem #1%
+  \vestiTBband=0pt\vestiTBpaintindex=0\relax\vestiTBbandloop
+  \ifnum\vestiTBpainting=1
+    \vestiTBrunedge=0\relax\vestiTBpaintindex=0\relax\vestiTBhloop
+    \vestiTBflushh
+  \fi
+  \ifnum\vestiTBpainting=1\advance\vestiTBcursor by\vestiTBband
+  \else\vestiTBmeasureadvance{\vestiTBband}\fi
+  \vestiTBpaintindex=0\relax\vestiTBclearhloop}
+\let\vestiTBmeasurejoin\vestiTBpaintjoin
+\def\vestiTBbandloop{%
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \vestiTBedgea=\vestiTBget{Ph\the\vestiTBpaintindex}\relax
+    \ifnum\vestiTBedgea<0 \multiply\vestiTBedgea by-1\relax\fi
+    \ifnum\vestiTBedgea>0
+      \vestiTBoffset=\vestiTBget{e\the\vestiTBedgea e}\relax
+      \ifdim\vestiTBoffset>\vestiTBband\vestiTBband=\vestiTBoffset\fi
+    \fi
+    \advance\vestiTBpaintindex by1\relax\expandafter\vestiTBbandloop\fi}
+
+% Horizontal maximal runs include the bordering vertical lanes. A narrow
+% envelope is centered in the band's maximum envelope, independent of color.
+\def\vestiTBhloop{%
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \vestiTBedgea=\vestiTBrunedge
+    \vestiTBedgeb=\vestiTBget{Ph\the\vestiTBpaintindex}\relax
+    \ifnum\vestiTBedgeb<0 \multiply\vestiTBedgeb by-1\relax\fi
+    \vestiTBsame=0\relax
+    \ifnum\vestiTBedgea>0 \ifnum\vestiTBedgeb>0
+      \vestiTBsignatures\ifx\vestiTBsigna\vestiTBsignb\vestiTBsame=1\relax\fi
+    \fi\fi
+    \ifnum\vestiTBsame=0
+      \vestiTBflushh\vestiTBrunedge=\vestiTBedgeb
+      \vestiTBpaintx=\vestiTBget{lane\the\vestiTBpaintindex x}\relax
+    \fi
+    \advance\vestiTBpaintindex by1\relax
+    \vestiTBpaintend=\vestiTBget{lane\the\vestiTBpaintindex x}\relax
+    \advance\vestiTBpaintend by\vestiTBget{lane\the\vestiTBpaintindex w}\relax
+    \expandafter\vestiTBhloop\fi}
+\def\vestiTBflushh{%
+  \ifnum\vestiTBrunedge>0
+    \vestiTBpaintlength=\vestiTBpaintend\advance\vestiTBpaintlength by-\vestiTBpaintx
+    \vestiTBpainty=\vestiTBband
+    \advance\vestiTBpainty by-\vestiTBget{e\the\vestiTBrunedge e}\relax
+    \divide\vestiTBpainty by2\relax\advance\vestiTBpainty by\vestiTBcursor
+    \setbox\vestiTBhcanvas=\hbox{\unhbox\vestiTBhcanvas
+      \vestiTBdrawedge{H}{\the\vestiTBrunedge}}%
+  \fi}
+\def\vestiTBdrawedge#1#2{%
+  \vestiTBborder{#1}{\vestiTBpaintx}{\vestiTBpainty}{\vestiTBpaintlength}%
+    {\vestiTBget{e#2style}}{\vestiTBget{e#2t}}{\vestiTBget{e#2g}}%
+    {\vestiTBget{e#2d}}{\vestiTBget{e#2p}}%
+    {\vestiTBget{e#2model}}{\vestiTBget{e#2color}}}
+
+\def\vestiTBvitem#1#2{\vestiTBpaintset{Pn#1}{#2}}
+\def\vestiTBpaintrow#1#2{%
+  \vestiTBpaintindex=0\relax\vestiTBclearvloop #2%
+  \vestiTBpaintindex=0\relax\vestiTBvloop
+  \advance\vestiTBcursor by#1\relax\advance\vestiTBrowsseen by1\relax}
+\let\vestiTBmeasurerow\vestiTBpaintrow
+\def\vestiTBclearvloop{%
+  \vestiTBpaintset{Pn\the\vestiTBpaintindex}{0}%
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \advance\vestiTBpaintindex by1\relax\expandafter\vestiTBclearvloop\fi}
+\def\vestiTBvloop{%
+  \vestiTBedgea=\vestiTBget{Pv\the\vestiTBpaintindex edge}\relax
+  \vestiTBedgeb=\vestiTBget{Pn\the\vestiTBpaintindex}\relax
+  \ifnum\vestiTBedgeb<0 \multiply\vestiTBedgeb by-1\relax\fi
+  \vestiTBsame=0\relax
+  \ifnum\vestiTBedgea>0 \ifnum\vestiTBedgeb>0
+    \vestiTBsignatures\ifx\vestiTBsigna\vestiTBsignb\vestiTBsame=1\relax\fi
+  \fi\fi
+  \ifnum\vestiTBsame=0
+    \vestiTBflushv
+    \vestiTBpaintset{Pv\the\vestiTBpaintindex edge}{\the\vestiTBedgeb}%
+    \ifnum\vestiTBrowsseen=0
+      \vestiTBpaintset{Pv\the\vestiTBpaintindex start}{0pt}%
+    \else\vestiTBpaintset{Pv\the\vestiTBpaintindex start}{\the\vestiTBcursor}\fi
+  \fi
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \advance\vestiTBpaintindex by1\relax\expandafter\vestiTBvloop\fi}
+\def\vestiTBflushv{%
+  \ifnum\vestiTBpainting=1 \ifnum\vestiTBedgea>0
+    \vestiTBpaintx=\vestiTBget{lane\the\vestiTBpaintindex w}\relax
+    \advance\vestiTBpaintx by-\vestiTBget{e\the\vestiTBedgea e}\relax
+    \divide\vestiTBpaintx by2\relax
+    \advance\vestiTBpaintx by\vestiTBget{lane\the\vestiTBpaintindex x}\relax
+    \vestiTBpainty=\vestiTBget{Pv\the\vestiTBpaintindex start}\relax
+    \vestiTBpaintlength=\vestiTBcursor\advance\vestiTBpaintlength by-\vestiTBpainty
+    \setbox\vestiTBvcanvas=\hbox{\unhbox\vestiTBvcanvas
+      \vestiTBdrawedge{V}{\the\vestiTBedgea}}%
+  \fi\fi}
+\def\vestiTBfinishvloop{%
+  \vestiTBedgea=\vestiTBget{Pv\the\vestiTBpaintindex edge}\relax\vestiTBflushv
+  \ifnum\vestiTBpaintindex<\vestiTBcols
+    \advance\vestiTBpaintindex by1\relax\expandafter\vestiTBfinishvloop\fi}
+\def\vestiTBpaintfinish{%
+  \vestiTBpaintjoin{}\vestiTBpaintindex=0\relax\vestiTBfinishvloop
+  \setbox\vestiTBcanvas=\hbox{\box\vestiTBbgcanvas\box\vestiTBvcanvas
+    \box\vestiTBhcanvas\box\vestiTBcontentcanvas}%
+  \wd\vestiTBcanvas=\vestiTBget{totalwidth}\relax
+  \ht\vestiTBcanvas=0pt\dp\vestiTBcanvas=\vestiTBcursor}
+\def\vestiTBmeasurefinish{\vestiTBmeasurejoin{}}
