@@ -57,104 +57,95 @@ The code above is a figure using TikZ.
 # Installation
 
 ## Prerequisites
-This project uses the master zig version. For linux, I recommend to install
-zenity.
 
-## Compilation
-### For normal users
-If you want to compile with Tectonic backend, just run the following command:
+Rust is required to build or install vesti. The optional `tectonic-backend`
+feature embeds Tectonic and uses the following native libraries:
 
-```console
-$ zig build --prefix-exe-dir <path to install> -Doptimize=ReleaseSafe
-```
-
-If you do not want tectonic backend, then run the following.
-
-```console
-$ zig build --prefix-exe-dir <path to install> -Dtectonic=false -Doptimize=ReleaseSafe
-```
-
-### For developers
-One should have zig and rust compiler.
-
-#### Prerequisites for building dynamic library
-It uses `tectonic` when `tectonic-backend` feature enabled. Install following third-party dependencies.
 - `fontconfig`
 - `freetype2`
 - `graphite2`
-- `harfbuzz`
+- `harfbuzz` with Graphite2 support
 - `ICU4C`
 - `libpng`
-- `upx` (a binary)
 
-#### Windows
-There are two options to build dll. One is first install `vcpkg` manually (not
-using Visual Studio one) and install all libraries.
+### Windows
+
+Use a Windows MSVC Rust toolchain and install Visual Studio or Visual Studio
+Build Tools with the **Desktop development with C++** workload and a Windows
+SDK. Prepare a standalone vcpkg installation separately using
+[Microsoft's vcpkg getting started guide](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started-msbuild).
+Use its path in the PowerShell commands below; the vcpkg bundled with Visual
+Studio is not a standalone installation.
+
+Set the dependency settings in the shell where you run Cargo:
+
+```powershell
+$env:VCPKG_ROOT = (Resolve-Path 'C:\path\to\vcpkg').Path
+$env:TECTONIC_DEP_BACKEND = 'vcpkg'
+${env:CXXFLAGS_x86_64-pc-windows-msvc} = '/std:c++17'
+```
+
+For an x64 build from this repository, use the static CRT triplet matching
+`.cargo/config.toml`:
+
+```powershell
+$env:VCPKGRS_TRIPLET = 'x64-windows-static'
+& "$env:VCPKG_ROOT\vcpkg.exe" install fontconfig freetype 'harfbuzz[graphite2]' icu libpng --triplet $env:VCPKGRS_TRIPLET
+cargo b -F tectonic-backend
+```
+
+For an x64 crates.io installation using Rust's default dynamic CRT, use:
+
+```powershell
+$env:VCPKGRS_TRIPLET = 'x64-windows-static-md'
+& "$env:VCPKG_ROOT\vcpkg.exe" install fontconfig freetype 'harfbuzz[graphite2]' icu libpng --triplet $env:VCPKGRS_TRIPLET
+cargo install vesti -F tectonic-backend
+```
+
+These environment settings must remain available to `cargo install`, either in
+its shell or your global Cargo configuration. Installing from crates.io does
+not read this repository's `.cargo/config.toml`. For other targets or custom
+CRT settings, choose a matching vcpkg triplet.
+
+### Linux and macOS
+
+Install the native libraries listed above using your package manager when
+enabling `tectonic-backend`. On Linux, install `zenity` also.
+
+## Compilation
+
+### For normal users
+
+To install from crates.io without the Tectonic backend:
 
 ```console
-vcpkg install fontconfig libpng freetype "harfbuzz[graphite2] icu --triplet x64-windows-static-release
+cargo install vesti
 ```
 
-Upx can be installed via winget.
-
-In addition, on windows, add the following inside of
-`%USERPROFILE%\.cargo\config.toml`.
-```toml
-[env]
-TECTONIC_DEP_BACKEND = "vcpkg"
-VCPKG_ROOT = "C:/opt/vcpkg"
-VCPKGRS_TRIPLET = "x64-windows-static-release"
-```
-
-Then run
-```console
-zig build rust -Dno-cargo-vcpkg=true
-```
-
-If you do not want to install `vcpkg` manually, install `cargo-vcpkg`.
-Then run
-```console
-zig build rust
-```
-
-To build macos dylib, install `cargo-zigbuild` and follow the above steps.
-
-#### Linux
-On linux, install upper dependencies using their own package manager.
-Especially on linux, install `zenity` also.
+To install with the Tectonic backend:
 
 ```console
-zig build rust
-zig build
+cargo install vesti -F tectonic-backend
 ```
 
-To build macos dylib, install `cargo-zigbuild` and follow the above steps.
+To install from a local checkout, replace `vesti` with `--path .`.
 
-#### Macos
-Macos, install upper dependencies using their own package manager.
-Then just run
+### For developers
+
+Build from a local checkout with Rust:
+
 ```console
-zig build rust
-zig build
+cargo b
+cargo b -F tectonic-backend
 ```
+
+Zig and `cargo-zigbuild` are needed for the cross-compilation workflow provided
+by `shell.nix`.
 
 ## Configuration
 Vesti has a configuration file. The location of the config file is follows:
-- Linux, MacOS: `~/.config/vesti/config.zon`
-- Windows: `%APPDATA%\vesti\config.zon`
-
-zon file stands for _Zig Object Notation_. Here is the example of `config.zon`.
-```zig
-.{
-    .engine = .tectonic,
-    .lua = .{
-        .make_log = false,
-        .line_limit = 45,
-    },
-}
-```
-If some fields are missing, then vesti takes the default values (above example
-is the default one).
+- Linux, MacOS: `~/.config/vesti/config.ron`
+- Windows: `%APPDATA%\vesti\config.ron`
 
 ## Warning
 This language is in beta, so breaking changes may occur in the future. Be cautious when using it for large projects.
