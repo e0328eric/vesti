@@ -22,7 +22,6 @@ let
 in
 (pkgs.buildFHSEnv {
   name = "vesti-dev";
-  extraOutputsToInstall = [ "dev" ];
 
   targetPkgs =
     pkgs: with pkgs; [
