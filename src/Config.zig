@@ -55,13 +55,16 @@ pub fn init(allocator: Allocator, io: Io, env_map: *const EnvMap, diagnostic: *D
         };
     defer allocator.free(context);
 
-    return zon.parse.fromSlice(
-        Self,
-        allocator,
-        context,
-        null,
-        .{},
-    ) catch |err| {
+    var arena: std.heap.ArenaAllocator = .init(allocator);
+    defer arena.deinit();
+    var zon_diag: zon.parse.Diagnostics = undefined;
+
+    return zon.parse.fromSliceNoAlloc(Self, .{
+        .gpa = allocator,
+        .arena = arena.allocator(),
+        .source = context,
+        .diagnostics = &zon_diag,
+    }) catch |err| {
         const io_diag = switch (err) {
             error.ParseZon => try diag.IODiagnostic.init(
                 allocator,
@@ -74,10 +77,6 @@ pub fn init(allocator: Allocator, io: Io, env_map: *const EnvMap, diagnostic: *D
         diagnostic.initDiagInner(.{ .IOError = io_diag });
         return error.FailedOpenConfig;
     };
-}
-
-pub fn deinit(self: Self, allocator: Allocator) void {
-    zon.parse.free(allocator, self);
 }
 
 pub fn getConfigPath(allocator: Allocator, env_map: *const EnvMap) ![]const u8 {

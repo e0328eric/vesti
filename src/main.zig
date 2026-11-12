@@ -180,7 +180,6 @@ fn compileStep(
     const step_script = compile_subcmd.flags.get("step_script").?.value.string;
 
     const config = try Config.init(allocator, io, env_map, diagnostic);
-    defer config.deinit(allocator);
 
     var engine = try getEngine(config.engine, .{
         .is_latex = is_latex,

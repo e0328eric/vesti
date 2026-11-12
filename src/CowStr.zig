@@ -24,7 +24,7 @@ fn validInnerType(comptime inner: type) void {
             ));
         }
 
-        if (!typeinfo.pointer.is_const) {
+        if (!typeinfo.pointer.attrs.@"const") {
             @compileError("non-const pointer was given");
         }
         switch (typeinfo.pointer.size) {

@@ -2006,22 +2006,29 @@ fn parseBuiltin_mathchardef(self: *Self) ParseError!Stmt {
     kind_txt_z[0] = '.';
     @memcpy(kind_txt_z[1..], kind_txt);
 
-    const math_class =
-        zon.parse.fromSlice(MathClass, self.allocator, kind_txt_z, null, .{}) catch {
-            self.diagnostic.initDiagInner(.{ .ParseError = .{
-                .err_info = .{ .WrongBuiltin = .{
-                    .name = CowStr.init(.Borrowed, .{"mathchardef"}),
-                    .note =
-                    \\invalid math class was found. Here is the list of math class available:
-                    \\.ordinary  .largeop  .binary  .relation
-                    \\.opening   .closing  .punct   .variable
-                    \\here, the prefix `.` is needed
-                    ,
-                } },
-                .span = mchardef_loc,
-            } });
-            return ParseError.ParseFailed;
-        };
+    var zon_arena: std.heap.ArenaAllocator = .init(self.allocator);
+    defer zon_arena.deinit();
+    var zon_diag: zon.parse.Diagnostics = undefined;
+    const math_class = zon.parse.fromSliceNoAlloc(MathClass, .{
+        .gpa = self.allocator,
+        .arena = zon_arena.allocator(),
+        .source = kind_txt_z,
+        .diagnostics = &zon_diag,
+    }) catch {
+        self.diagnostic.initDiagInner(.{ .ParseError = .{
+            .err_info = .{ .WrongBuiltin = .{
+                .name = CowStr.init(.Borrowed, .{"mathchardef"}),
+                .note =
+                \\invalid math class was found. Here is the list of math class available:
+                \\.ordinary  .largeop  .binary  .relation
+                \\.opening   .closing  .punct   .variable
+                \\here, the prefix `.` is needed
+                ,
+            } },
+            .span = mchardef_loc,
+        } });
+        return ParseError.ParseFailed;
+    };
     self.nextToken();
     self.eatWhitespaces(false);
 

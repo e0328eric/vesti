@@ -29,8 +29,8 @@ pub const Attribute = enum(u8) {
 };
 
 pub fn makeAnsi(comptime color: ?Color, comptime attr: ?Attribute) []const u8 {
-    comptime var attr_buf = [_]u8{0} ** 4;
-    comptime var color_buf = [_]u8{0} ** 5;
+    comptime var attr_buf: [4]u8 = @splat(0);
+    comptime var color_buf: [5]u8 = @splat(0);
 
     const attr_str = if (attr) |a| blk: {
         break :blk fmt.bufPrint(

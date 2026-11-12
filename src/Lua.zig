@@ -33,7 +33,7 @@ main_ves: ?[:0]const u8,
 compile_attr: CompileAttribute,
 
 const Self = @This();
-pub const Error = Allocator.Error || zlua.Error;
+pub const Error = Allocator.Error;
 
 const VESTI_LUA_FUNCTIONS_BUILTINS: [13]zlua.FnReg = .{
     .{ .name = "compile", .func = compile },

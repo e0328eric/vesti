@@ -80,14 +80,15 @@ pub fn downloadModule(
     };
     defer allocator.free(context);
 
-    const ves_module = try zon.parse.fromSliceAlloc(
-        VestiModule,
-        allocator,
-        context,
-        null,
-        .{},
-    );
-    defer zon.parse.free(allocator, ves_module);
+    var zon_arena: std.heap.ArenaAllocator = .init(allocator);
+    defer zon_arena.deinit();
+    var zon_diag: zon.parse.Diagnostics = undefined;
+    const ves_module = try zon.parse.fromSlice(VestiModule, .{
+        .gpa = allocator,
+        .arena = zon_arena.allocator(),
+        .source = context,
+        .diagnostics = &zon_diag,
+    });
 
     for (ves_module.exports) |@"export"| {
         var mod_filename = try ArrayList(u8).initCapacity(
